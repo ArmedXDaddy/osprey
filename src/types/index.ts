@@ -1,6 +1,8 @@
 
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
+export type GroupPrivacy = 'public' | 'private' | 'paid';
+
 export interface User {
   id: string;
   name: string;
@@ -57,7 +59,10 @@ export interface Group {
   creatorRole: UserRole;
   members: number;
   image?: string;
+  privacy: GroupPrivacy;
+  price?: number;
   createdAt: Date;
+  pendingRequests?: number;
 }
 
 export interface Service {
@@ -69,5 +74,26 @@ export interface Service {
   price: number;
   duration: string;
   available: boolean;
+  createdAt: Date;
+}
+
+export interface Message {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  userProfileImage?: string;
+  content: string;
+  createdAt: Date;
+}
+
+export interface JoinRequest {
+  id: string;
+  groupId: string;
+  userId: string;
+  userName: string;
+  userProfileImage?: string;
+  status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
 }

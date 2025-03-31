@@ -3,8 +3,9 @@ import React from 'react';
 import { Group } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users } from 'lucide-react';
+import { Users, Lock, Globe, DollarSign } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 interface GroupCardProps {
   group: Group;
@@ -12,6 +13,28 @@ interface GroupCardProps {
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false }) => {
+  const getPrivacyIcon = () => {
+    switch (group.privacy) {
+      case 'private':
+        return <Lock className="h-3 w-3 mr-1" />;
+      case 'paid':
+        return <DollarSign className="h-3 w-3 mr-1" />;
+      default:
+        return <Globe className="h-3 w-3 mr-1" />;
+    }
+  };
+  
+  const getPrivacyLabel = () => {
+    switch (group.privacy) {
+      case 'private':
+        return 'Private';
+      case 'paid':
+        return `Paid ($${group.price}/month)`;
+      default:
+        return 'Public';
+    }
+  };
+
   return (
     <Card className={`overflow-hidden ${compact ? 'h-full' : ''}`}>
       <div className={`relative ${compact ? 'h-32' : 'h-48'}`}>
@@ -39,6 +62,11 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false }) => {
       </div>
       
       <CardContent className={compact ? 'p-3' : 'p-4'}>
+        <Badge variant="outline" className="mb-2">
+          {getPrivacyIcon()}
+          {getPrivacyLabel()}
+        </Badge>
+        
         {!compact && (
           <p className="text-gray-600 text-sm line-clamp-2 mb-4">{group.description}</p>
         )}

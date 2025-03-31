@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import GroupChatSection from '@/components/group/GroupChatSection';
+import GroupRequestsSection from '@/components/group/GroupRequestsSection';
 import {
   ChevronLeft,
   Users,
@@ -23,6 +25,8 @@ import {
   Globe,
   UserCheck,
   Lock,
+  UserX,
+  DollarSign,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -35,7 +39,7 @@ import EventCard from '@/components/shared/EventCard';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { groups, events, posts, loading } = useData();
+  const { groups, events, posts, loading, joinGroup, leaveGroup, requestToJoinGroup, getGroupRequests } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [joined, setJoined] = useState(false);
@@ -50,14 +54,45 @@ const GroupDetail = () => {
   // Group posts
   const groupPosts = posts.filter(post => post.userId === group?.creatorId);
 
-  const handleJoinGroup = () => {
-    setJoined(!joined);
-    // In a real app, this would make an API call to join/leave the group
+  // Get pending requests for this group (if the user is the creator)
+  const isCreator = group?.creatorId === currentUser?.id;
+  const pendingRequests = isCreator && group ? getGroupRequests(group.id) : [];
+
+  const handleJoinGroup = async () => {
+    if (!group) return;
+    
+    if (group.privacy === 'private') {
+      await requestToJoinGroup(group.id);
+    } else {
+      const success = await joinGroup(group.id);
+      if (success) {
+        setJoined(true);
+      }
+    }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!group) return;
+    await leaveGroup(group.id);
+    setJoined(false);
   };
 
   const handleNotificationToggle = () => {
     setNotifications(!notifications);
     // In a real app, this would update user preferences
+  };
+
+  const getJoinButtonText = () => {
+    if (!group) return 'Join Group';
+    
+    switch (group.privacy) {
+      case 'private':
+        return 'Request to Join';
+      case 'paid':
+        return `Join ($${group.price}/month)`;
+      default:
+        return 'Join Group';
+    }
   };
 
   if (loading) {
@@ -93,8 +128,17 @@ const GroupDetail = () => {
     );
   }
 
-  const isCreator = group.creatorId === currentUser?.id;
-
+  const getPrivacyIcon = () => {
+    switch (group.privacy) {
+      case 'private':
+        return <Lock className="h-3 w-3 mr-1" />;
+      case 'paid':
+        return <DollarSign className="h-3 w-3 mr-1" />;
+      default:
+        return <Globe className="h-3 w-3 mr-1" />;
+    }
+  };
+  
   return (
     <div className="space-y-6">
       {/* Back button */}
@@ -143,8 +187,8 @@ const GroupDetail = () => {
               {group.creatorRole}
             </Badge>
             <Badge variant="outline" className="border-white text-white">
-              <Globe className="h-3 w-3 mr-1" />
-              Public
+              {getPrivacyIcon()}
+              {group.privacy === 'paid' ? `Paid ($${group.price}/month)` : group.privacy === 'private' ? 'Private' : 'Public'}
             </Badge>
           </div>
           <h1 className="text-3xl font-bold mt-2">{group.name}</h1>
@@ -162,14 +206,29 @@ const GroupDetail = () => {
       
       {/* Group actions */}
       <div className="flex flex-wrap gap-2">
-        {!isCreator && (
+        {!isCreator && !joined && (
           <Button 
-            variant={joined ? "outline" : "default"} 
+            variant="default" 
             onClick={handleJoinGroup}
             className="flex-1 md:flex-none"
           >
-            {joined ? <UserCheck className="h-4 w-4 mr-2" /> : <UserPlus className="h-4 w-4 mr-2" />}
-            {joined ? 'Joined' : 'Join Group'}
+            {group.privacy === 'private' ? 
+              <UserPlus className="h-4 w-4 mr-2" /> : 
+              group.privacy === 'paid' ? 
+              <DollarSign className="h-4 w-4 mr-2" /> : 
+              <UserPlus className="h-4 w-4 mr-2" />}
+            {getJoinButtonText()}
+          </Button>
+        )}
+
+        {!isCreator && joined && (
+          <Button 
+            variant="outline" 
+            onClick={handleLeaveGroup}
+            className="flex-1 md:flex-none"
+          >
+            <UserX className="h-4 w-4 mr-2" />
+            Leave Group
           </Button>
         )}
         
@@ -195,11 +254,12 @@ const GroupDetail = () => {
       {/* Group info with tabs */}
       <Card>
         <Tabs defaultValue="about" className="w-full">
-          <TabsList className="grid grid-cols-4 w-full">
+          <TabsList className="grid grid-cols-5 w-full">
             <TabsTrigger value="about">About</TabsTrigger>
             <TabsTrigger value="members">Members</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
             <TabsTrigger value="posts">Posts</TabsTrigger>
+            <TabsTrigger value="chat">Chat</TabsTrigger>
           </TabsList>
           
           <TabsContent value="about" className="p-6">
@@ -224,6 +284,13 @@ const GroupDetail = () => {
                 <p className="text-gray-700">{new Date(group.createdAt).toLocaleDateString()}</p>
               </div>
             </div>
+            
+            {isCreator && group.privacy === 'private' && pendingRequests?.length > 0 && (
+              <>
+                <Separator className="my-6" />
+                <GroupRequestsSection groupId={group.id} />
+              </>
+            )}
           </TabsContent>
           
           <TabsContent value="members" className="p-6">
@@ -315,6 +382,25 @@ const GroupDetail = () => {
                     Create Post
                   </Button>
                 )}
+              </div>
+            )}
+          </TabsContent>
+          
+          <TabsContent value="chat" className="p-6">
+            {((group.privacy === 'public') || isCreator || joined) ? (
+              <GroupChatSection groupId={group.id} />
+            ) : (
+              <div className="text-center py-12">
+                <Lock className="h-12 w-12 mx-auto text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">Chat is only available to members</h3>
+                <p className="text-gray-500 mb-4">
+                  {group.privacy === 'private' 
+                    ? 'Request to join this group to participate in the chat' 
+                    : `Subscribe for $${group.price}/month to join the conversation`}
+                </p>
+                <Button onClick={handleJoinGroup}>
+                  {group.privacy === 'private' ? 'Request to Join' : `Join ($${group.price}/month)`}
+                </Button>
               </div>
             )}
           </TabsContent>
