@@ -29,22 +29,22 @@ const RoleBasedActionButton: React.FC = () => {
       case 'influencer':
         return [
           { label: 'Create Post', icon: <FileText className="h-4 w-4 mr-2" />, action: () => navigate('/create/post') },
-          { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create/event') },
-          { label: 'Create Group', icon: <Users className="h-4 w-4 mr-2" />, action: () => navigate('/create/group') },
+          { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create-event') },
+          { label: 'Create Group', icon: <Users className="h-4 w-4 mr-2" />, action: () => navigate('/create-group') },
         ];
       
       case 'coach':
         return [
           { label: 'Create Post', icon: <FileText className="h-4 w-4 mr-2" />, action: () => navigate('/create/post') },
-          { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create/event') },
+          { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create-event') },
           { label: 'Create Service', icon: <DollarSign className="h-4 w-4 mr-2" />, action: () => navigate('/create/service') },
         ];
       
       case 'company':
         return [
           { label: 'Create Post', icon: <FileText className="h-4 w-4 mr-2" />, action: () => navigate('/create/post') },
-          { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create/event') },
-          { label: 'Create Group', icon: <Users className="h-4 w-4 mr-2" />, action: () => navigate('/create/group') },
+          { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create-event') },
+          { label: 'Create Group', icon: <Users className="h-4 w-4 mr-2" />, action: () => navigate('/create-group') },
         ];
         
       default:

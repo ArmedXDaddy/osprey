@@ -9,6 +9,7 @@ import { Search } from 'lucide-react';
 import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
+import { Link } from 'react-router-dom';
 
 const Explore = () => {
   const { events, groups, services, loading } = useData();
@@ -74,7 +75,9 @@ const Explore = () => {
           ) : filteredEvents.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map(event => (
-                <EventCard key={event.id} event={event} />
+                <Link to={`/events/${event.id}`} key={event.id}>
+                  <EventCard key={event.id} event={event} />
+                </Link>
               ))}
             </div>
           ) : (
@@ -94,7 +97,9 @@ const Explore = () => {
           ) : filteredGroups.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredGroups.map(group => (
-                <GroupCard key={group.id} group={group} />
+                <Link to={`/groups/${group.id}`} key={group.id}>
+                  <GroupCard key={group.id} group={group} />
+                </Link>
               ))}
             </div>
           ) : (

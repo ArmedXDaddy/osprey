@@ -223,13 +223,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
         
         <NavLink 
-          to="/events" 
+          to="/groups" 
           className={({ isActive }) => 
             `flex flex-col items-center gap-1 ${isActive ? 'text-primary' : 'text-gray-600'}`
           }
         >
-          <Calendar className="h-5 w-5" />
-          <span className="text-xs">Events</span>
+          <Users className="h-5 w-5" />
+          <span className="text-xs">Groups</span>
         </NavLink>
         
         <NavLink 
