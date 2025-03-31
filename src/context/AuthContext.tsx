@@ -53,7 +53,7 @@ const MOCK_USERS: User[] = [
     email: 'coach@example.com',
     role: 'coach',
     profileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    bio: 'Certified Personal Trainer | 10+ years experience | Specializing in women's strength',
+    bio: "Certified Personal Trainer | 10+ years experience | Specializing in women's strength",
     location: 'Chicago, IL',
     interests: ['Strength Training', 'Mobility', 'Nutrition Coaching'],
     followers: 2800,

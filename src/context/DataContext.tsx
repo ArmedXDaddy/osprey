@@ -35,7 +35,7 @@ const MOCK_POSTS: Post[] = [
     userName: 'Alexandra Chen',
     userRole: 'coach',
     userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    content: 'New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting',
+    content: "New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting",
     likes: 128,
     comments: 23,
     createdAt: new Date('2023-09-17T14:45:00')
