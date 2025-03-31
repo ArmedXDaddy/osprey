@@ -3,7 +3,7 @@ import React from 'react';
 import { Event } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar, MapPin, Users } from 'lucide-react';
+import { Calendar, MapPin, Users, Globe, Lock, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 
@@ -13,6 +13,20 @@ interface EventCardProps {
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event, compact = false }) => {
+  // Function to render the privacy icon
+  const renderPrivacyIcon = () => {
+    switch (event.privacy) {
+      case 'public':
+        return <Globe className="h-4 w-4 text-blue-500" />;
+      case 'private':
+        return <Lock className="h-4 w-4 text-amber-500" />;
+      case 'paid':
+        return <DollarSign className="h-4 w-4 text-green-500" />;
+      default:
+        return <Globe className="h-4 w-4 text-blue-500" />;
+    }
+  };
+
   return (
     <Card className={`overflow-hidden ${compact ? 'h-full' : ''}`}>
       <div className={`relative ${compact ? 'h-32' : 'h-48'}`}>
@@ -24,7 +38,13 @@ const EventCard: React.FC<EventCardProps> = ({ event, compact = false }) => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
         
         <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
-          <p className="font-bold truncate">{event.title}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-bold truncate">{event.title}</p>
+            {renderPrivacyIcon()}
+            {event.privacy === 'paid' && event.price && (
+              <span className="text-xs font-medium">${event.price.toFixed(2)}</span>
+            )}
+          </div>
           <div className="flex items-center gap-1 text-xs">
             <span className={`inline-block px-2 py-0.5 rounded-full capitalize
               ${event.creatorRole === 'influencer' ? 'bg-red-500' : 

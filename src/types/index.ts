@@ -2,6 +2,7 @@
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
+export type EventPrivacy = 'public' | 'private' | 'paid';
 
 export interface User {
   id: string;
@@ -47,6 +48,9 @@ export interface Event {
   date: Date;
   image?: string;
   attendees: number;
+  privacy: EventPrivacy;
+  price?: number;
+  pendingRequests?: number;
   createdAt: Date;
 }
 
@@ -90,7 +94,8 @@ export interface Message {
 
 export interface JoinRequest {
   id: string;
-  groupId: string;
+  groupId?: string;
+  eventId?: string;
   userId: string;
   userName: string;
   userProfileImage?: string;

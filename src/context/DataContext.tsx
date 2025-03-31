@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy } from '@/types';
+import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy } from '@/types';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -12,7 +12,7 @@ interface DataContextType {
   joinRequests: JoinRequest[];
   loading: boolean;
   createPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<Post>;
-  createEvent: (event: Omit<Event, 'id' | 'createdAt' | 'attendees'>) => Promise<Event>;
+  createEvent: (event: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
   createGroup: (group: Omit<Group, 'id' | 'createdAt' | 'members' | 'pendingRequests'>) => Promise<Group>;
   createService: (service: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
   likePost: (postId: string) => Promise<void>;
@@ -23,6 +23,11 @@ interface DataContextType {
   requestToJoinGroup: (groupId: string) => Promise<void>;
   handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
   getGroupRequests: (groupId: string) => JoinRequest[];
+  joinEvent: (eventId: string) => Promise<boolean>;
+  leaveEvent: (eventId: string) => Promise<void>;
+  requestToJoinEvent: (eventId: string) => Promise<void>;
+  handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  getEventRequests: (eventId: string) => JoinRequest[];
 }
 
 const MOCK_POSTS: Post[] = [
@@ -56,7 +61,7 @@ const MOCK_POSTS: Post[] = [
     userRole: 'company',
     userProfileImage: 'https://via.placeholder.com/150?text=FT',
     content: 'Our new performance leggings are finally here! Designed with sweat-wicking technology and a high-rise waistband for maximum comfort during your toughest workouts.',
-    image: 'https://images.unsplash.com/photo-1506292926-9e0b21854fd1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
+    image: 'https://images.unsplash.com/photo-1506292926-9e0b21854fd1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=826&q=80',
     likes: 215,
     comments: 31,
     createdAt: new Date('2023-09-16T11:20:00')
@@ -75,6 +80,7 @@ const MOCK_EVENTS: Event[] = [
     date: new Date('2023-10-02T09:00:00'),
     image: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=775&q=80',
     attendees: 34,
+    privacy: 'public',
     createdAt: new Date('2023-08-15')
   },
   {
@@ -88,6 +94,8 @@ const MOCK_EVENTS: Event[] = [
     date: new Date('2023-11-10T16:00:00'),
     image: 'https://images.unsplash.com/photo-1588286840104-8957b019727f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
     attendees: 28,
+    privacy: 'private',
+    pendingRequests: 3,
     createdAt: new Date('2023-09-01')
   },
   {
@@ -101,6 +109,8 @@ const MOCK_EVENTS: Event[] = [
     date: new Date('2023-10-15T18:00:00'),
     image: 'https://images.unsplash.com/photo-1543165796-35a3418c27df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
     attendees: 120,
+    privacy: 'paid',
+    price: 49.99,
     createdAt: new Date('2023-09-10')
   }
 ];
@@ -255,6 +265,24 @@ const MOCK_JOIN_REQUESTS: JoinRequest[] = [
     userProfileImage: 'https://via.placeholder.com/150?text=FT',
     status: 'pending',
     createdAt: new Date('2023-08-16T14:45:00')
+  },
+  {
+    id: 'jr3',
+    eventId: 'e2',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'pending',
+    createdAt: new Date('2023-09-05T09:15:00')
+  },
+  {
+    id: 'jr4',
+    eventId: 'e2',
+    userId: '4',
+    userName: 'FitTech Apparel',
+    userProfileImage: 'https://via.placeholder.com/150?text=FT',
+    status: 'pending',
+    createdAt: new Date('2023-09-07T11:30:00')
   }
 ];
 
@@ -298,7 +326,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees'>) => {
+  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => {
     setLoading(true);
     
     try {
@@ -308,6 +336,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...eventData,
         id: `e${Date.now()}`,
         attendees: 0,
+        pendingRequests: 0,
         createdAt: new Date()
       };
       
@@ -536,6 +565,149 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return joinRequests.filter(request => request.groupId === groupId && request.status === 'pending');
   };
 
+  const joinEvent = async (eventId: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to join this event",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    const event = events.find(e => e.id === eventId);
+    if (!event) return false;
+
+    if (event.privacy === 'paid') {
+      toast({
+        title: "Paid ticket required",
+        description: `This event requires a payment of $${event.price} to join`,
+      });
+      return false;
+    }
+
+    if (event.privacy === 'public') {
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId ? { ...e, attendees: e.attendees + 1 } : e
+        )
+      );
+      
+      toast({
+        title: "Success!",
+        description: `You're attending ${event.title}`,
+      });
+      
+      return true;
+    }
+
+    return false;
+  };
+
+  const leaveEvent = async (eventId: string) => {
+    if (!currentUser) return;
+
+    setEvents(prevEvents => 
+      prevEvents.map(e => 
+        e.id === eventId ? { ...e, attendees: Math.max(e.attendees - 1, 0) } : e
+      )
+    );
+    
+    toast({
+      title: "You left the event",
+      description: "You can rejoin at any time",
+    });
+  };
+
+  const requestToJoinEvent = async (eventId: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to request joining this event",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const newRequest: JoinRequest = {
+      id: `jr${Date.now()}`,
+      eventId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userProfileImage: currentUser.profileImage,
+      status: 'pending',
+      createdAt: new Date()
+    };
+
+    setJoinRequests(prev => [...prev, newRequest]);
+    
+    setEvents(prevEvents => 
+      prevEvents.map(e => 
+        e.id === eventId ? { ...e, pendingRequests: (e.pendingRequests || 0) + 1 } : e
+      )
+    );
+    
+    toast({
+      title: "Request sent",
+      description: "Your request to join this event is pending approval",
+    });
+  };
+
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    const request = joinRequests.find(r => r.id === requestId);
+    if (!request || !request.eventId) return;
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    setJoinRequests(prev => 
+      prev.map(r => 
+        r.id === requestId ? { ...r, status } : r
+      )
+    );
+
+    if (status === 'approved') {
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === request.eventId ? 
+            { 
+              ...e, 
+              attendees: e.attendees + 1,
+              pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
+            } : e
+        )
+      );
+      
+      toast({
+        title: "Request approved",
+        description: `${request.userName} has been added to the event`,
+      });
+    } else {
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === request.eventId ? 
+            { 
+              ...e, 
+              pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
+            } : e
+        )
+      );
+      
+      toast({
+        title: "Request rejected",
+        description: `${request.userName}'s request has been rejected`,
+      });
+    }
+  };
+
+  const getEventRequests = (eventId: string) => {
+    return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
+  };
+
   const value = {
     posts,
     events,
@@ -555,7 +727,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     leaveGroup,
     requestToJoinGroup,
     handleJoinRequest,
-    getGroupRequests
+    getGroupRequests,
+    joinEvent,
+    leaveEvent,
+    requestToJoinEvent,
+    handleEventJoinRequest,
+    getEventRequests
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
