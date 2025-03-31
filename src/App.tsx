@@ -11,6 +11,9 @@ import MainLayout from "@/components/layout/MainLayout";
 // Pages
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
+import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
+import CreateEvent from "./pages/CreateEvent";
 import Profile from "./pages/Profile";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
@@ -30,10 +33,12 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/explore" element={<Explore />} />
+                <Route path="/events" element={<Events />} />
+                <Route path="/events/:id" element={<EventDetail />} />
+                <Route path="/create-event" element={<CreateEvent />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/register" element={<Register />} />
-                {/* Add more routes as needed */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </MainLayout>
