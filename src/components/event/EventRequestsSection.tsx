@@ -17,51 +17,55 @@ const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) 
 
   if (requests.length === 0) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No pending join requests</p>
+      <div className="text-center py-6">
+        <p className="text-gray-400 text-sm">No pending join requests</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <h3 className="text-lg font-medium">Pending Requests ({requests.length})</h3>
+    <div className="space-y-3">
+      <h3 className="text-base font-medium mb-3">Pending Requests ({requests.length})</h3>
       
-      {requests.map((request) => (
-        <div key={request.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-          <div className="flex items-center gap-3">
-            <Avatar>
-              <AvatarImage src={request.userProfileImage} />
-              <AvatarFallback>{request.userName.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium">{request.userName}</p>
-              <p className="text-xs text-gray-500">
-                Requested {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
-              </p>
+      <div className="space-y-2">
+        {requests.map((request) => (
+          <div key={request.id} className="flex items-center justify-between p-2.5 bg-gray-50 rounded-md border border-gray-100">
+            <div className="flex items-center gap-2.5">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={request.userProfileImage} />
+                <AvatarFallback>{request.userName.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium text-sm">{request.userName}</p>
+                <p className="text-xs text-gray-400">
+                  {formatDistanceToNow(new Date(request.createdAt), { addSuffix: true })}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex gap-1.5">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-7 px-2 text-xs border-gray-200 hover:bg-gray-100 hover:text-gray-700"
+                onClick={() => handleEventJoinRequest(request.id, 'rejected')}
+              >
+                <X className="h-3.5 w-3.5 mr-1" />
+                Reject
+              </Button>
+              
+              <Button 
+                size="sm"
+                className="h-7 px-2 text-xs"
+                onClick={() => handleEventJoinRequest(request.id, 'approved')}
+              >
+                <Check className="h-3.5 w-3.5 mr-1" />
+                Approve
+              </Button>
             </div>
           </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleEventJoinRequest(request.id, 'rejected')}
-            >
-              <X className="h-4 w-4 mr-1" />
-              Reject
-            </Button>
-            
-            <Button 
-              size="sm"
-              onClick={() => handleEventJoinRequest(request.id, 'approved')}
-            >
-              <Check className="h-4 w-4 mr-1" />
-              Approve
-            </Button>
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };

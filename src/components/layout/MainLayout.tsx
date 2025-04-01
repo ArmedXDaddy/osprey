@@ -12,11 +12,15 @@ import {
   PlusCircle, 
   LogOut, 
   Settings,
-  User
+  User,
+  Menu,
+  X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -26,6 +30,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const { currentUser, isLoading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   
   // If no auth, redirect to auth pages
   React.useEffect(() => {
@@ -53,194 +59,178 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="space-y-4 w-full max-w-md p-4">
-          <Skeleton className="h-12 w-full rounded-full" />
-          <Skeleton className="h-[80vh] w-full rounded-xl" />
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-[80vh] w-full rounded-lg" />
         </div>
       </div>
     );
   }
 
+  const NavigationLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
+    <NavLink 
+      to={to} 
+      onClick={() => isMobile && setMobileMenuOpen(false)}
+      className={({ isActive }) => 
+        `flex items-center gap-2 py-2 px-3 rounded-md transition-colors ${
+          isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100'
+        }`
+      }
+    >
+      {icon}
+      <span className="text-sm font-medium">{label}</span>
+    </NavLink>
+  );
+
+  const MobileMenu = () => (
+    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      <SheetContent side="left" className="w-[75%] sm:w-[350px] p-0">
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold gradient-text">Osprey</h2>
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                <X size={18} />
+              </Button>
+            </div>
+            
+            {currentUser && (
+              <div className="flex items-center gap-3 py-2">
+                <img 
+                  src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                  alt={currentUser.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div>
+                  <p className="font-medium text-sm">{currentUser.name}</p>
+                  <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex-1 overflow-auto p-4">
+            <nav className="space-y-1">
+              <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+              <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+              <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
+              <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+              <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+              {currentUser?.role === 'admin' && (
+                <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
+              )}
+            </nav>
+            
+            <div className="mt-6">
+              <RoleBasedActionButton />
+            </div>
+          </div>
+          
+          <div className="p-4 border-t">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2" 
+              onClick={handleLogout}
+            >
+              <LogOut size={16} />
+              <span>Logout</span>
+            </Button>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
-      {/* Mobile Top Nav */}
-      <div className="md:hidden bg-white shadow-sm p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold gradient-text">Osprey</h1>
-        <div className="flex gap-3 items-center">
-          <Bell className="h-5 w-5 text-gray-600" />
-          {currentUser && (
-            <img 
-              src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
-              alt={currentUser.name}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          )}
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 h-screen sticky top-0 shrink-0">
+        <div className="p-4 flex flex-col h-full">
+          <h1 className="text-xl font-semibold mb-8 gradient-text">Osprey</h1>
+          
+          <nav className="space-y-1 flex-1">
+            <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+            <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+            <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
+            <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+            <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+            {currentUser?.role === 'admin' && (
+              <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
+            )}
+          </nav>
+          
+          <div className="mt-4">
+            <RoleBasedActionButton />
+          </div>
+          
+          <div className="mt-auto pt-4 border-t border-gray-100">
+            {currentUser && (
+              <div className="flex items-center gap-2 mb-4">
+                <img 
+                  src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                  alt={currentUser.name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">{currentUser.name}</p>
+                  <p className="text-xs text-gray-500 truncate capitalize">{currentUser.role}</p>
+                </div>
+              </div>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm"
+              className="w-full justify-start gap-2" 
+              onClick={handleLogout}
+            >
+              <LogOut size={16} />
+              <span className="text-sm">Logout</span>
+            </Button>
+          </div>
         </div>
       </div>
       
-      {/* Sidebar - desktop */}
-      <div className="hidden md:flex flex-col justify-between w-64 bg-white h-screen border-r border-gray-200 px-4 py-6 sticky top-0">
-        <div>
-          <h1 className="text-2xl font-bold mb-10 gradient-text">Osprey</h1>
-          
-          <nav className="space-y-1">
-            <NavLink 
-              to="/" 
-              className={({ isActive }) => 
-                `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
-            >
-              <Home className="h-5 w-5" />
-              <span>Home</span>
-            </NavLink>
-            
-            <NavLink 
-              to="/explore" 
-              className={({ isActive }) => 
-                `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
-            >
-              <Search className="h-5 w-5" />
-              <span>Explore</span>
-            </NavLink>
-            
-            <NavLink 
-              to="/events" 
-              className={({ isActive }) => 
-                `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
-            >
-              <Calendar className="h-5 w-5" />
-              <span>Events</span>
-            </NavLink>
-            
-            <NavLink 
-              to="/groups" 
-              className={({ isActive }) => 
-                `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
-            >
-              <Users className="h-5 w-5" />
-              <span>Groups</span>
-            </NavLink>
-            
-            {currentUser?.role === 'admin' && (
-              <NavLink 
-                to="/admin" 
-                className={({ isActive }) => 
-                  `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                    isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                  }`
-                }
-              >
-                <Settings className="h-5 w-5" />
-                <span>Admin</span>
-              </NavLink>
-            )}
-
-            <NavLink 
-              to="/profile" 
-              className={({ isActive }) => 
-                `flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                  isActive ? 'bg-primary text-white' : 'text-gray-700 hover:bg-gray-100'
-                }`
-              }
-            >
-              <User className="h-5 w-5" />
-              <span>Profile</span>
-            </NavLink>
-          </nav>
-          
-          <div className="mt-6">
-            <RoleBasedActionButton />
+      {/* Mobile Header & Content */}
+      <div className="flex flex-col flex-1">
+        {/* Mobile Header */}
+        <header className="md:hidden bg-white border-b border-gray-100 p-3 sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)}>
+              <Menu size={18} />
+            </Button>
+            <h1 className="text-lg font-semibold gradient-text">Osprey</h1>
           </div>
-        </div>
-        
-        <div className="space-y-4">
-          {currentUser && (
-            <div className="flex items-center gap-3 p-2">
+          
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon">
+              <Bell size={18} />
+            </Button>
+            {currentUser && (
               <img 
                 src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
                 alt={currentUser.name}
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-7 h-7 rounded-full object-cover"
               />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{currentUser.name}</p>
-                <p className="text-xs text-gray-500 truncate capitalize">{currentUser.role}</p>
-              </div>
-            </div>
-          )}
-          
-          <Button 
-            variant="outline" 
-            className="w-full justify-start gap-2" 
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </Button>
-        </div>
+            )}
+          </div>
+        </header>
+        
+        {/* Main Content */}
+        <main className="flex-1">
+          <div className="max-w-5xl mx-auto py-4 px-3 sm:px-4 md:py-5">
+            {children}
+          </div>
+        </main>
       </div>
       
-      {/* Main Content */}
-      <main className="flex-1">
-        <div className="max-w-6xl mx-auto py-4 px-4 sm:px-6 md:py-6">
-          {children}
-        </div>
-      </main>
+      {/* Mobile Menu */}
+      {isMobile && <MobileMenu />}
       
-      {/* Mobile bottom nav */}
-      <div className="md:hidden fixed bottom-0 w-full bg-white border-t border-gray-200 flex justify-around items-center p-3 z-10">
-        <NavLink 
-          to="/" 
-          className={({ isActive }) => 
-            `flex flex-col items-center gap-1 ${isActive ? 'text-primary' : 'text-gray-600'}`
-          }
-        >
-          <Home className="h-5 w-5" />
-          <span className="text-xs">Home</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/explore" 
-          className={({ isActive }) => 
-            `flex flex-col items-center gap-1 ${isActive ? 'text-primary' : 'text-gray-600'}`
-          }
-        >
-          <Search className="h-5 w-5" />
-          <span className="text-xs">Explore</span>
-        </NavLink>
-        
-        <div className="-mt-10 bg-gradient-to-r from-primary to-accent rounded-full p-3 shadow-lg">
-          <PlusCircle className="h-6 w-6 text-white" />
-        </div>
-        
-        <NavLink 
-          to="/groups" 
-          className={({ isActive }) => 
-            `flex flex-col items-center gap-1 ${isActive ? 'text-primary' : 'text-gray-600'}`
-          }
-        >
-          <Users className="h-5 w-5" />
-          <span className="text-xs">Groups</span>
-        </NavLink>
-        
-        <NavLink 
-          to="/profile" 
-          className={({ isActive }) => 
-            `flex flex-col items-center gap-1 ${isActive ? 'text-primary' : 'text-gray-600'}`
-          }
-        >
-          <User className="h-5 w-5" />
-          <span className="text-xs">Profile</span>
-        </NavLink>
+      {/* Mobile Action Button - Floating */}
+      <div className="md:hidden fixed bottom-5 right-5 rounded-full shadow-lg z-10">
+        <Button variant="default" size="icon" className="h-12 w-12 rounded-full bg-primary shadow-md">
+          <PlusCircle size={20} />
+        </Button>
       </div>
     </div>
   );
