@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { User as SupabaseUser, AuthError, Session } from '@supabase/supabase-js';
+import { Database } from '@/integrations/supabase/types';
 
 interface AuthContextType {
   currentUser: User | null;
