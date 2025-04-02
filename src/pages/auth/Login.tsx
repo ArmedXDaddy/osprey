@@ -1,26 +1,18 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Eye, EyeOff, LogIn } from 'lucide-react';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login, currentUser } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
-
-  // Redirect if already logged in
-  useEffect(() => {
-    if (currentUser) {
-      navigate('/');
-    }
-  }, [currentUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,22 +27,19 @@ const Login = () => {
     try {
       await login(email, password);
       toast.success('Login successful!');
-      // Navigation will happen automatically due to the useEffect
-    } catch (error: any) {
+      navigate('/');
+    } catch (error) {
       console.error('Login error:', error);
-      
-      // Display a generic error message
-      toast.error(error.message || 'Invalid email or password');
+      toast.error('Invalid email or password');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Demo login examples - these need to exist in your Supabase auth system
+  // Quick login buttons for demo
   const handleQuickLogin = async (userType: string) => {
     setIsSubmitting(true);
     let email = '';
-    let password = 'password123'; // All demo accounts use the same password
     
     switch (userType) {
       case 'user':
@@ -71,12 +60,12 @@ const Login = () => {
     }
     
     try {
-      await login(email, password);
+      await login(email, 'password');
       toast.success(`Logged in as ${userType}!`);
-      // Navigation will happen automatically due to the useEffect
-    } catch (error: any) {
+      navigate('/');
+    } catch (error) {
       console.error('Quick login error:', error);
-      toast.error(`Demo account not found. Please create it in Supabase first.`);
+      toast.error('Login failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -104,44 +93,26 @@ const Login = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                disabled={isSubmitting}
               />
             </div>
             
             <div>
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={isSubmitting}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </Button>
-              </div>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
             </div>
             
             <Button
               type="submit"
-              className="w-full flex items-center justify-center gap-2"
+              className="w-full"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Logging in...' : (
-                <>
-                  <LogIn className="h-4 w-4" />
-                  <span>Login</span>
-                </>
-              )}
+              {isSubmitting ? 'Logging in...' : 'Login'}
             </Button>
           </form>
           

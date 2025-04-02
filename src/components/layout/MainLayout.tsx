@@ -21,7 +21,6 @@ import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { toast } from 'sonner';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -44,11 +43,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logged out successfully');
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout failed:', error);
-      toast.error('Logout failed');
     }
   };
 
