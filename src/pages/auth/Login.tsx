@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,15 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { login, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/');
+    }
+  }, [currentUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,44 +35,45 @@ const Login = () => {
       await login(email, password);
       toast.success('Login successful!');
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      toast.error('Invalid email or password');
+      toast.error(error.message || 'Invalid email or password');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Quick login buttons for demo
-  const handleQuickLogin = async (userType: string) => {
+  // Demo accounts for quick login
+  const handleDemoLogin = async (type: string) => {
     setIsSubmitting(true);
-    let email = '';
+    let demoEmail = '';
+    let demoPassword = 'password123';
     
-    switch (userType) {
+    switch(type) {
       case 'user':
-        email = 'user@example.com';
+        demoEmail = 'user@example.com';
         break;
       case 'influencer':
-        email = 'influencer@example.com';
+        demoEmail = 'influencer@example.com';
         break;
       case 'coach':
-        email = 'coach@example.com';
+        demoEmail = 'coach@example.com';
         break;
       case 'company':
-        email = 'company@example.com';
-        break;
-      case 'admin':
-        email = 'admin@example.com';
+        demoEmail = 'company@example.com';
         break;
     }
     
     try {
-      await login(email, 'password');
-      toast.success(`Logged in as ${userType}!`);
+      await login(demoEmail, demoPassword);
+      toast.success(`Logged in as ${type}!`);
       navigate('/');
-    } catch (error) {
-      console.error('Quick login error:', error);
-      toast.error('Login failed');
+    } catch (error: any) {
+      console.error('Demo login error:', error);
+      toast.error(`Demo login failed: ${error.message}`);
+      
+      // If demo account doesn't exist, suggest registering it
+      toast.info('Demo account may not exist yet. Please register it first.');
     } finally {
       setIsSubmitting(false);
     }
@@ -133,7 +141,7 @@ const Login = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickLogin('user')}
+                onClick={() => handleDemoLogin('user')}
                 className="text-xs"
                 disabled={isSubmitting}
               >
@@ -142,7 +150,7 @@ const Login = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickLogin('influencer')}
+                onClick={() => handleDemoLogin('influencer')}
                 className="text-xs"
                 disabled={isSubmitting}
               >
@@ -151,7 +159,7 @@ const Login = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickLogin('coach')}
+                onClick={() => handleDemoLogin('coach')}
                 className="text-xs"
                 disabled={isSubmitting}
               >
@@ -160,7 +168,7 @@ const Login = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleQuickLogin('company')}
+                onClick={() => handleDemoLogin('company')}
                 className="text-xs"
                 disabled={isSubmitting}
               >

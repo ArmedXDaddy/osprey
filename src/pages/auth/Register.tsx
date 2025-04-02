@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,16 @@ const Register = () => {
   const [role, setRole] = useState<UserRole>('user');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register } = useAuth();
+  const { register, currentUser } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect if user is already logged in
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/');
+    }
+  }, [currentUser, navigate]);
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -38,15 +45,60 @@ const Register = () => {
     try {
       await register(email, password, name, role);
       toast.success('Registration successful!');
-      
-      if (role !== 'user') {
-        toast.info('Your account will need to be verified by an admin');
-      }
-      
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      toast.error('Registration failed');
+      toast.error(error.message || 'Registration failed');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Create demo accounts
+  const handleCreateDemoAccount = async (type: string) => {
+    setIsSubmitting(true);
+    let demoEmail = '';
+    let demoName = '';
+    let demoRole: UserRole = 'user';
+    const demoPassword = 'password123';
+    
+    switch(type) {
+      case 'user':
+        demoEmail = 'user@example.com';
+        demoName = 'Emma Johnson';
+        demoRole = 'user';
+        break;
+      case 'influencer':
+        demoEmail = 'influencer@example.com';
+        demoName = 'Sophia Williams';
+        demoRole = 'influencer';
+        break;
+      case 'coach':
+        demoEmail = 'coach@example.com';
+        demoName = 'Alexandra Chen';
+        demoRole = 'coach';
+        break;
+      case 'company':
+        demoEmail = 'company@example.com';
+        demoName = 'FitTech Apparel';
+        demoRole = 'company';
+        break;
+    }
+    
+    try {
+      await register(demoEmail, demoPassword, demoName, demoRole);
+      toast.success(`Demo ${type} account created!`);
+      toast.info('You can now log in with this account');
+      navigate('/auth/login');
+    } catch (error: any) {
+      console.error('Demo account creation error:', error);
+      
+      if (error.message?.includes('already exists')) {
+        toast.info(`Demo ${type} account already exists. You can log in with it.`);
+        navigate('/auth/login');
+      } else {
+        toast.error(`Failed to create demo account: ${error.message}`);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -139,12 +191,6 @@ const Register = () => {
               </RadioGroup>
             </div>
             
-            {role !== 'user' && (
-              <div className="text-xs text-amber-600 bg-amber-50 p-3 rounded-md">
-                <p>Note: {role} accounts require verification by our admin team before full access is granted.</p>
-              </div>
-            )}
-            
             <Button
               type="submit"
               className="w-full"
@@ -161,6 +207,50 @@ const Register = () => {
                 Login
               </Link>
             </p>
+          </div>
+          
+          <div className="mt-8 border-t pt-6">
+            <p className="text-xs text-center text-gray-500 mb-3">
+              Create demo accounts:
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleCreateDemoAccount('user')}
+                className="text-xs"
+                disabled={isSubmitting}
+              >
+                Create User Demo
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleCreateDemoAccount('influencer')}
+                className="text-xs"
+                disabled={isSubmitting}
+              >
+                Create Influencer Demo
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleCreateDemoAccount('coach')}
+                className="text-xs"
+                disabled={isSubmitting}
+              >
+                Create Coach Demo
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleCreateDemoAccount('company')}
+                className="text-xs"
+                disabled={isSubmitting}
+              >
+                Create Company Demo
+              </Button>
+            </div>
           </div>
         </div>
       </div>
