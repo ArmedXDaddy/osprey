@@ -143,7 +143,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // AuthState change listener will handle setting the user
     } catch (error: any) {
       console.error('Login error:', error);
-      throw new Error(error.message || 'Login failed');
+      throw new Error(error.error_description || error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -171,9 +171,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // The profile will be created automatically via database trigger
       // onAuthStateChange will handle setting the user
       
+      // Sign in immediately after sign up
+      if (data.user) {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (signInError) {
+          throw signInError;
+        }
+      }
+      
     } catch (error: any) {
       console.error('Registration error:', error);
-      throw new Error(error.message || 'Registration failed');
+      throw new Error(error.error_description || error.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }

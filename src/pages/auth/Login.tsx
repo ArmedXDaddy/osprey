@@ -39,7 +39,13 @@ const Login = () => {
       // Navigation will happen automatically due to the useEffect
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Invalid email or password');
+      
+      // Check for specific error types
+      if (error.message === 'Email not confirmed') {
+        toast.error('Your email has not been confirmed. Check your inbox for a verification link or contact support.');
+      } else {
+        toast.error(error.message || 'Invalid email or password');
+      }
     } finally {
       setIsSubmitting(false);
     }
