@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
@@ -40,12 +39,8 @@ const Login = () => {
     } catch (error: any) {
       console.error('Login error:', error);
       
-      // Check for specific error types
-      if (error.message === 'Email not confirmed') {
-        toast.error('Your email has not been confirmed. Check your inbox for a verification link or contact support.');
-      } else {
-        toast.error(error.message || 'Invalid email or password');
-      }
+      // Display a generic error message
+      toast.error(error.message || 'Invalid email or password');
     } finally {
       setIsSubmitting(false);
     }

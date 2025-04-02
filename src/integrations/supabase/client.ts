@@ -14,7 +14,9 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
-    debug: true, // Enable debug logs to identify any authentication issues
-    flowType: 'pkce' // Use PKCE flow for better security
+    debug: import.meta.env.DEV, // Only enable debug in development
+    flowType: 'pkce', // Use PKCE flow for better security
+    detectSessionInUrl: true, // Handle email verification links automatically
+    autoRefreshToken: true
   }
 });

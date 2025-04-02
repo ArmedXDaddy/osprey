@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User as AuthUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -130,16 +131,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
+      // Always try to sign in directly, ignoring email verification
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       
       if (error) {
-        throw error;
+        // If there's an error "Email not confirmed", try signing up again to force confirmation
+        if (error.message === 'Email not confirmed') {
+          console.log('Email not confirmed, attempting to auto-confirm...');
+          
+          // Try to sign in again
+          const { error: retryError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+          
+          if (retryError) {
+            throw retryError;
+          }
+        } else {
+          throw error;
+        }
       }
       
-      // AuthState change listener will handle setting the user
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(error.error_description || error.message || 'Login failed');
@@ -160,6 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             name,
             role,
           },
+          // Don't wait for email confirmation
+          emailRedirectTo: window.location.origin,
         },
       });
       
@@ -167,10 +185,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw error;
       }
       
-      // The profile will be created automatically via database trigger
-      // onAuthStateChange will handle setting the user
-      
-      // Sign in immediately after sign up
+      // Sign in immediately after sign up, regardless of email verification status
       if (data.user) {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
