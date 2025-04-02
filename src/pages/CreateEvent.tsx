@@ -21,8 +21,16 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, ArrowLeft } from 'lucide-react';
+import { CalendarIcon, ArrowLeft, Globe, Lock, DollarSign } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { EventPrivacy } from '@/types';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const eventFormSchema = z.object({
   title: z.string().min(3, {
@@ -38,6 +46,8 @@ const eventFormSchema = z.object({
     required_error: "A date and time is required.",
   }),
   image: z.string().optional(),
+  privacy: z.enum(['public', 'private', 'paid'] as const),
+  price: z.number().optional(),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -60,8 +70,13 @@ const CreateEvent = () => {
       location: "",
       date: new Date(),
       image: "",
+      privacy: "public",
+      price: undefined,
     },
   });
+
+  // Watch the privacy value to conditionally show price field
+  const privacyValue = form.watch("privacy");
 
   const onSubmit = async (values: EventFormValues) => {
     try {
@@ -74,6 +89,8 @@ const CreateEvent = () => {
         creatorId: currentUser.id,
         creatorName: currentUser.name,
         creatorRole: currentUser.role,
+        privacy: values.privacy,
+        price: values.privacy === 'paid' ? values.price : undefined,
       });
       
       toast({
@@ -214,6 +231,71 @@ const CreateEvent = () => {
               </FormItem>
             )}
           />
+          
+          <FormField
+            control={form.control}
+            name="privacy"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Privacy</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select event privacy" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="public" className="flex items-center">
+                      <div className="flex items-center">
+                        <Globe className="mr-2 h-4 w-4 text-blue-500" />
+                        <span>Public - Anyone can join</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="private">
+                      <div className="flex items-center">
+                        <Lock className="mr-2 h-4 w-4 text-amber-500" />
+                        <span>Private - Invite only</span>
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="paid">
+                      <div className="flex items-center">
+                        <DollarSign className="mr-2 h-4 w-4 text-green-500" />
+                        <span>Paid - Requires payment</span>
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Control who can attend your event.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {privacyValue === "paid" && (
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Event Price ($)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      placeholder="Enter price" 
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Set a price for your event.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           
           <FormField
             control={form.control}
