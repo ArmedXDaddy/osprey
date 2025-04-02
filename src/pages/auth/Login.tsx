@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
+import { AuthError } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -37,7 +39,35 @@ const Login = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      toast.error(error.message || 'Invalid email or password');
+      
+      // Check if it's a "Email not confirmed" error
+      if (error instanceof AuthError && error.message === 'Email not confirmed') {
+        // Try to sign in with the "auto confirm" option
+        try {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: window.location.origin,
+              data: {
+                name: email.split('@')[0],
+                role: 'user'
+              }
+            }
+          });
+          
+          if (!signUpError) {
+            toast.success('Login successful!');
+            navigate('/');
+          } else {
+            toast.error(signUpError.message || 'Invalid email or password');
+          }
+        } catch (signUpError: any) {
+          toast.error(signUpError.message || 'Authentication failed');
+        }
+      } else {
+        toast.error(error.message || 'Invalid email or password');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -70,10 +100,61 @@ const Login = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Demo login error:', error);
-      toast.error(`Demo login failed: ${error.message}`);
       
-      // If demo account doesn't exist, suggest registering it
-      toast.info('Demo account may not exist yet. Please register it first.');
+      // If demo account doesn't exist, create it
+      if (error instanceof AuthError && error.message === 'Email not confirmed') {
+        try {
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: demoEmail,
+            password: demoPassword,
+            options: {
+              emailRedirectTo: window.location.origin,
+              data: {
+                name: type,
+                role: type === 'user' ? 'user' : type
+              }
+            }
+          });
+          
+          if (!signUpError) {
+            toast.success(`Created and logged in as ${type}!`);
+            navigate('/');
+          } else {
+            toast.error(`Demo login failed: ${signUpError.message}`);
+          }
+        } catch (signUpError: any) {
+          toast.error(`Demo login failed: ${signUpError.message}`);
+        }
+      } else {
+        toast.error(`Demo login failed: ${error.message}`);
+        toast.info('Demo account may not exist yet. Trying to create it...');
+        
+        try {
+          // Try to create the demo account
+          const { error: signUpError } = await supabase.auth.signUp({
+            email: demoEmail,
+            password: demoPassword,
+            options: {
+              emailRedirectTo: window.location.origin,
+              data: {
+                name: type,
+                role: type === 'user' ? 'user' : type
+              }
+            }
+          });
+          
+          if (!signUpError) {
+            // Try login again after signup
+            await login(demoEmail, demoPassword);
+            toast.success(`Created and logged in as ${type}!`);
+            navigate('/');
+          } else {
+            toast.error(`Failed to create demo account: ${signUpError.message}`);
+          }
+        } catch (signUpError: any) {
+          toast.error(`Failed to create demo account: ${signUpError.message}`);
+        }
+      }
     } finally {
       setIsSubmitting(false);
     }
