@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { UserRole } from '@/types';
 import { toast } from 'sonner';
+import { Eye, EyeOff, UserPlus } from 'lucide-react';
 
 const Register = () => {
   const [name, setName] = useState('');
@@ -15,10 +16,18 @@ const Register = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<UserRole>('user');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { register } = useAuth();
+  const { register, currentUser } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (currentUser) {
+      navigate('/');
+    }
+  }, [currentUser, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,6 +42,11 @@ const Register = () => {
       return;
     }
     
+    if (password.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -43,10 +57,10 @@ const Register = () => {
         toast.info('Your account will need to be verified by an admin');
       }
       
-      navigate('/');
-    } catch (error) {
+      // Navigation will happen automatically due to the useEffect
+    } catch (error: any) {
       console.error('Registration error:', error);
-      toast.error('Registration failed');
+      toast.error(error.message || 'Registration failed');
     } finally {
       setIsSubmitting(false);
     }
@@ -74,6 +88,7 @@ const Register = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Jane Doe"
+                disabled={isSubmitting}
               />
             </div>
             
@@ -85,29 +100,45 @@ const Register = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
+                disabled={isSubmitting}
               />
             </div>
             
             <div>
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={isSubmitting}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
             
             <div>
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={isSubmitting}
+                />
+              </div>
             </div>
             
             <div>
@@ -147,10 +178,15 @@ const Register = () => {
             
             <Button
               type="submit"
-              className="w-full"
+              className="w-full flex items-center justify-center gap-2"
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Creating Account...' : 'Register'}
+              {isSubmitting ? 'Creating Account...' : (
+                <>
+                  <UserPlus className="h-4 w-4" />
+                  <span>Register</span>
+                </>
+              )}
             </Button>
           </form>
           

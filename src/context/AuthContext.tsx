@@ -1,6 +1,9 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { User as AuthUser, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -13,130 +16,134 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock user data for development purposes
-const MOCK_USERS: User[] = [
-  {
-    id: '1',
-    name: 'Emma Johnson',
-    email: 'user@example.com',
-    role: 'user',
-    profileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    bio: 'Fitness enthusiast and hiking lover',
-    location: 'Seattle, WA',
-    interests: ['Hiking', 'Yoga', 'Nutrition'],
-    followers: 85,
-    verified: true,
-    createdAt: new Date('2023-01-15')
-  },
-  {
-    id: '2',
-    name: 'Sophia Williams',
-    email: 'influencer@example.com',
-    role: 'influencer',
-    profileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
-    bio: 'Fitness influencer | Wellness advocate | 200k+ on Instagram',
-    location: 'Los Angeles, CA',
-    interests: ['HIIT', 'Strength Training', 'Plant-based Nutrition'],
-    followers: 12500,
-    following: ['3', '5'],
-    verified: true,
-    socialLinks: {
-      instagram: '@sophia_fit',
-      twitter: '@sophia_will',
-      website: 'sophiafitness.com'
-    },
-    createdAt: new Date('2022-10-05')
-  },
-  {
-    id: '3',
-    name: 'Alexandra Chen',
-    email: 'coach@example.com',
-    role: 'coach',
-    profileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    bio: "Certified Personal Trainer | 10+ years experience | Specializing in women's strength",
-    location: 'Chicago, IL',
-    interests: ['Strength Training', 'Mobility', 'Nutrition Coaching'],
-    followers: 2800,
-    verified: true,
-    socialLinks: {
-      instagram: '@alex_strength',
-      website: 'alexstrength.fit'
-    },
-    createdAt: new Date('2022-08-22')
-  },
-  {
-    id: '4',
-    name: 'FitTech Apparel',
-    email: 'company@example.com',
-    role: 'company',
-    profileImage: 'https://via.placeholder.com/150?text=FT',
-    bio: 'Premium fitness apparel for women. Designed by athletes for athletes.',
-    location: 'New York, NY',
-    followers: 8700,
-    verified: true,
-    socialLinks: {
-      instagram: '@fittechapparel',
-      twitter: '@fittech',
-      website: 'fittechapparel.com'
-    },
-    createdAt: new Date('2022-05-10')
-  },
-  {
-    id: '5',
-    name: 'Admin User',
-    email: 'admin@example.com',
-    role: 'admin',
-    verified: true,
-    createdAt: new Date('2022-01-01')
-  }
-];
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<Session | null>(null);
 
-  // Simulate loading user data on mount
+  // Set up Supabase auth listener
   useEffect(() => {
-    const storedUser = localStorage.getItem('osprey_user');
-    
-    if (storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setCurrentUser(userData);
-      } catch (error) {
-        console.error('Failed to parse stored user data:', error);
-        localStorage.removeItem('osprey_user');
+    // First set up the auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session) {
+          // Set session first
+          setSession(session);
+          
+          // Defer fetching profile to prevent deadlock
+          setTimeout(async () => {
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+                
+              if (error) {
+                console.error('Error fetching user profile:', error);
+                return;
+              }
+              
+              if (profile) {
+                const userData: User = {
+                  id: profile.id,
+                  name: profile.name,
+                  email: session.user.email || '',
+                  role: profile.role as UserRole,
+                  profileImage: profile.profile_image,
+                  bio: profile.bio,
+                  location: profile.location,
+                  interests: profile.interests,
+                  followers: profile.followers || 0,
+                  verified: profile.verified || false,
+                  socialLinks: profile.social_links,
+                  createdAt: new Date(profile.created_at),
+                };
+                
+                setCurrentUser(userData);
+              }
+            } catch (error) {
+              console.error('Error in auth state change:', error);
+            }
+          }, 0);
+        } else {
+          // No session means user is logged out
+          setSession(null);
+          setCurrentUser(null);
+        }
       }
-    }
-    
-    // Simulate API delay
-    setTimeout(() => {
-      setIsLoading(false);
-    }, 1000);
-  }, []);
+    );
 
-  // Save user to localStorage whenever it changes
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('osprey_user', JSON.stringify(currentUser));
-    }
-  }, [currentUser]);
+    // Then check for existing session
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          setSession(session);
+          
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            setIsLoading(false);
+            return;
+          }
+          
+          if (profile) {
+            const userData: User = {
+              id: profile.id,
+              name: profile.name,
+              email: session.user.email || '',
+              role: profile.role as UserRole,
+              profileImage: profile.profile_image,
+              bio: profile.bio,
+              location: profile.location,
+              interests: profile.interests,
+              followers: profile.followers || 0,
+              verified: profile.verified || false,
+              socialLinks: profile.social_links,
+              createdAt: new Date(profile.created_at),
+            };
+            
+            setCurrentUser(userData);
+          }
+        }
+        
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
       
-      const user = MOCK_USERS.find(u => u.email === email);
-      if (!user) {
-        throw new Error('Invalid email or password');
+      if (error) {
+        throw error;
       }
       
-      setCurrentUser(user);
-    } catch (error) {
+      // AuthState change listener will handle setting the user
+    } catch (error: any) {
       console.error('Login error:', error);
-      throw error;
+      throw new Error(error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
@@ -145,32 +152,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (email: string, password: string, name: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Register the user with Supabase
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            role,
+          },
+        },
+      });
       
-      // Check if email exists
-      const exists = MOCK_USERS.some(u => u.email === email);
-      if (exists) {
-        throw new Error('Email already in use');
+      if (error) {
+        throw error;
       }
       
-      // Create new user
-      const newUser: User = {
-        id: Math.random().toString(36).substring(2, 9),
-        name,
-        email,
-        role,
-        followers: 0,
-        verified: role === 'user', // Auto verify users, other roles need verification
-        createdAt: new Date()
-      };
+      // The profile will be created automatically via database trigger
+      // onAuthStateChange will handle setting the user
       
-      // In a real app, we would save this to the database
-      // For now, we'll just set as current user
-      setCurrentUser(newUser);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Registration error:', error);
-      throw error;
+      throw new Error(error.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -178,26 +181,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     setIsLoading(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    localStorage.removeItem('osprey_user');
-    setCurrentUser(null);
-    setIsLoading(false);
+    try {
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      // onAuthStateChange will handle clearing the user
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const updateProfile = async (userData: Partial<User>) => {
     setIsLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
       if (!currentUser) {
         throw new Error('No user logged in');
       }
       
-      const updatedUser = { ...currentUser, ...userData };
-      setCurrentUser(updatedUser);
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          bio: userData.bio,
+          location: userData.location,
+          interests: userData.interests,
+          profile_image: userData.profileImage,
+          social_links: userData.socialLinks,
+        })
+        .eq('id', currentUser.id);
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Update the local user state
+      setCurrentUser({ ...currentUser, ...userData });
+      
     } catch (error) {
       console.error('Update profile error:', error);
       throw error;
