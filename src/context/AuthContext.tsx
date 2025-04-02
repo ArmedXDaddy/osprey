@@ -1,9 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
-import { User as SupabaseUser, AuthError, Session } from '@supabase/supabase-js';
-import { Database } from '@/integrations/supabase/types';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -16,167 +13,191 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const mapSupabaseUser = (supaUser: SupabaseUser | null, profileData?: any): User | null => {
-  if (!supaUser) return null;
-  
-  return {
-    id: supaUser.id,
-    name: profileData?.name || supaUser.user_metadata.name || 'User',
-    email: supaUser.email || '',
-    role: profileData?.role || supaUser.user_metadata.role || 'user',
-    profileImage: profileData?.profile_image || supaUser.user_metadata.avatar_url,
-    bio: profileData?.bio,
-    location: profileData?.location,
-    interests: profileData?.interests || [],
-    followers: profileData?.followers || 0,
-    verified: profileData?.verified || false,
-    socialLinks: profileData?.social_links || null,
-    createdAt: profileData?.created_at ? new Date(profileData.created_at) : new Date()
-  };
-};
+// Mock user data for development purposes
+const MOCK_USERS: User[] = [
+  {
+    id: '1',
+    name: 'Emma Johnson',
+    email: 'user@example.com',
+    role: 'user',
+    profileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    bio: 'Fitness enthusiast and hiking lover',
+    location: 'Seattle, WA',
+    interests: ['Hiking', 'Yoga', 'Nutrition'],
+    followers: 85,
+    verified: true,
+    createdAt: new Date('2023-01-15')
+  },
+  {
+    id: '2',
+    name: 'Sophia Williams',
+    email: 'influencer@example.com',
+    role: 'influencer',
+    profileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
+    bio: 'Fitness influencer | Wellness advocate | 200k+ on Instagram',
+    location: 'Los Angeles, CA',
+    interests: ['HIIT', 'Strength Training', 'Plant-based Nutrition'],
+    followers: 12500,
+    following: ['3', '5'],
+    verified: true,
+    socialLinks: {
+      instagram: '@sophia_fit',
+      twitter: '@sophia_will',
+      website: 'sophiafitness.com'
+    },
+    createdAt: new Date('2022-10-05')
+  },
+  {
+    id: '3',
+    name: 'Alexandra Chen',
+    email: 'coach@example.com',
+    role: 'coach',
+    profileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
+    bio: "Certified Personal Trainer | 10+ years experience | Specializing in women's strength",
+    location: 'Chicago, IL',
+    interests: ['Strength Training', 'Mobility', 'Nutrition Coaching'],
+    followers: 2800,
+    verified: true,
+    socialLinks: {
+      instagram: '@alex_strength',
+      website: 'alexstrength.fit'
+    },
+    createdAt: new Date('2022-08-22')
+  },
+  {
+    id: '4',
+    name: 'FitTech Apparel',
+    email: 'company@example.com',
+    role: 'company',
+    profileImage: 'https://via.placeholder.com/150?text=FT',
+    bio: 'Premium fitness apparel for women. Designed by athletes for athletes.',
+    location: 'New York, NY',
+    followers: 8700,
+    verified: true,
+    socialLinks: {
+      instagram: '@fittechapparel',
+      twitter: '@fittech',
+      website: 'fittechapparel.com'
+    },
+    createdAt: new Date('2022-05-10')
+  },
+  {
+    id: '5',
+    name: 'Admin User',
+    email: 'admin@example.com',
+    role: 'admin',
+    verified: true,
+    createdAt: new Date('2022-01-01')
+  }
+];
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [session, setSession] = useState<Session | null>(null);
 
-  // Initialize and set up auth state listener
+  // Simulate loading user data on mount
   useEffect(() => {
-    setIsLoading(true);
+    const storedUser = localStorage.getItem('osprey_user');
     
-    // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        
-        if (session?.user) {
-          // Fetch the user's profile data
-          setTimeout(async () => {
-            try {
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-
-              if (error) throw error;
-              setCurrentUser(mapSupabaseUser(session.user, profile));
-            } catch (error) {
-              console.error("Error fetching user profile", error);
-              setCurrentUser(mapSupabaseUser(session.user));
-            }
-            setIsLoading(false);
-          }, 0);
-        } else {
-          setCurrentUser(null);
-          setIsLoading(false);
-        }
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        setCurrentUser(userData);
+      } catch (error) {
+        console.error('Failed to parse stored user data:', error);
+        localStorage.removeItem('osprey_user');
       }
-    );
-
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      
-      if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data, error }) => {
-            if (error) {
-              console.error("Error fetching user profile", error);
-              setCurrentUser(mapSupabaseUser(session.user));
-            } else {
-              setCurrentUser(mapSupabaseUser(session.user, data));
-            }
-            setIsLoading(false);
-          });
-      } else {
-        setCurrentUser(null);
-        setIsLoading(false);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    }
+    
+    // Simulate API delay
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1000);
   }, []);
+
+  // Save user to localStorage whenever it changes
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('osprey_user', JSON.stringify(currentUser));
+    }
+  }, [currentUser]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      // Auth state listener will update the current user
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const user = MOCK_USERS.find(u => u.email === email);
+      if (!user) {
+        throw new Error('Invalid email or password');
+      }
+      
+      setCurrentUser(user);
     } catch (error) {
       console.error('Login error:', error);
-      setIsLoading(false);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const register = async (email: string, password: string, name: string, role: UserRole) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role
-          }
-        }
-      });
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      if (error) throw error;
-      // Auth state listener will update the current user
+      // Check if email exists
+      const exists = MOCK_USERS.some(u => u.email === email);
+      if (exists) {
+        throw new Error('Email already in use');
+      }
+      
+      // Create new user
+      const newUser: User = {
+        id: Math.random().toString(36).substring(2, 9),
+        name,
+        email,
+        role,
+        followers: 0,
+        verified: role === 'user', // Auto verify users, other roles need verification
+        createdAt: new Date()
+      };
+      
+      // In a real app, we would save this to the database
+      // For now, we'll just set as current user
+      setCurrentUser(newUser);
     } catch (error) {
       console.error('Registration error:', error);
-      setIsLoading(false);
       throw error;
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      setCurrentUser(null);
-    } catch (error) {
-      console.error('Logout error:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  const logout = async () => {
+    setIsLoading(true);
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    localStorage.removeItem('osprey_user');
+    setCurrentUser(null);
+    setIsLoading(false);
+  };
+
   const updateProfile = async (userData: Partial<User>) => {
     setIsLoading(true);
     try {
-      if (!currentUser?.id) {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      if (!currentUser) {
         throw new Error('No user logged in');
       }
-
-      // Update the profile in Supabase
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: userData.name,
-          bio: userData.bio,
-          location: userData.location,
-          interests: userData.interests,
-          profile_image: userData.profileImage,
-          social_links: userData.socialLinks
-        })
-        .eq('id', currentUser.id);
-
-      if (error) throw error;
       
-      // Update the current user
-      setCurrentUser({ ...currentUser, ...userData });
+      const updatedUser = { ...currentUser, ...userData };
+      setCurrentUser(updatedUser);
     } catch (error) {
       console.error('Update profile error:', error);
       throw error;
