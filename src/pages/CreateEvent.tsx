@@ -23,6 +23,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EventPrivacy } from '@/types';
 
 const eventFormSchema = z.object({
   title: z.string().min(3, {
@@ -38,6 +40,8 @@ const eventFormSchema = z.object({
     required_error: "A date and time is required.",
   }),
   image: z.string().optional(),
+  privacy: z.enum(['public', 'private', 'paid']).default('public'),
+  price: z.number().optional(),
 });
 
 type EventFormValues = z.infer<typeof eventFormSchema>;
@@ -60,6 +64,7 @@ const CreateEvent = () => {
       location: "",
       date: new Date(),
       image: "",
+      privacy: "public",
     },
   });
 
@@ -71,6 +76,8 @@ const CreateEvent = () => {
         location: values.location,
         date: values.date,
         image: values.image,
+        privacy: values.privacy as EventPrivacy,
+        price: values.price,
         creatorId: currentUser.id,
         creatorName: currentUser.name,
         creatorRole: currentUser.role,
@@ -91,6 +98,8 @@ const CreateEvent = () => {
       });
     }
   };
+
+  const watchPrivacy = form.watch('privacy');
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -214,6 +223,58 @@ const CreateEvent = () => {
               </FormItem>
             )}
           />
+          
+          <FormField
+            control={form.control}
+            name="privacy"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Privacy</FormLabel>
+                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select privacy level" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="public">Public (Anyone can join)</SelectItem>
+                    <SelectItem value="private">Private (Requires approval)</SelectItem>
+                    <SelectItem value="paid">Paid (Requires payment)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  Determine who can attend your event.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          {watchPrivacy === "paid" && (
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price ($)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min="0.01" 
+                      step="0.01"
+                      placeholder="Enter price" 
+                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                      value={field.value || ''}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Set a price for your paid event.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           
           <FormField
             control={form.control}

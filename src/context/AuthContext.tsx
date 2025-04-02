@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User as AuthUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   interests: profile.interests,
                   followers: profile.followers || 0,
                   verified: profile.verified || false,
-                  socialLinks: profile.social_links,
+                  socialLinks: typeof profile.social_links === 'object' ? profile.social_links as User['socialLinks'] : {},
                   createdAt: new Date(profile.created_at),
                 };
                 
@@ -106,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               interests: profile.interests,
               followers: profile.followers || 0,
               verified: profile.verified || false,
-              socialLinks: profile.social_links,
+              socialLinks: typeof profile.social_links === 'object' ? profile.social_links as User['socialLinks'] : {},
               createdAt: new Date(profile.created_at),
             };
             
