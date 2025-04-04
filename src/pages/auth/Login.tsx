@@ -42,7 +42,7 @@ const Login = () => {
       // Handle email confirmation errors by showing a more accurate message
       if (error instanceof AuthError && 
          (error.message.includes('Email not confirmed') || error.code === 'email_not_confirmed')) {
-        toast.error('Please try again. Auto-confirming your email...');
+        toast.error('Email not confirmed. Please check your inbox for a confirmation email.');
         
         // Attempt to login again after a short delay
         setTimeout(async () => {
@@ -51,7 +51,7 @@ const Login = () => {
             toast.success('Login successful!');
             navigate('/');
           } catch (retryError) {
-            toast.error('Unable to log in. Please try registering again.');
+            toast.error('Unable to log in. Please try registering again or contact support.');
           } finally {
             setIsSubmitting(false);
           }
