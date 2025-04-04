@@ -54,56 +54,6 @@ const Register = () => {
     }
   };
 
-  // Create demo accounts
-  const handleCreateDemoAccount = async (type: string) => {
-    setIsSubmitting(true);
-    let demoEmail = '';
-    let demoName = '';
-    let demoRole: UserRole = 'user';
-    const demoPassword = 'password123';
-    
-    switch(type) {
-      case 'user':
-        demoEmail = 'user@example.com';
-        demoName = 'Emma Johnson';
-        demoRole = 'user';
-        break;
-      case 'influencer':
-        demoEmail = 'influencer@example.com';
-        demoName = 'Sophia Williams';
-        demoRole = 'influencer';
-        break;
-      case 'coach':
-        demoEmail = 'coach@example.com';
-        demoName = 'Alexandra Chen';
-        demoRole = 'coach';
-        break;
-      case 'company':
-        demoEmail = 'company@example.com';
-        demoName = 'FitTech Apparel';
-        demoRole = 'company';
-        break;
-    }
-    
-    try {
-      await register(demoEmail, demoPassword, demoName, demoRole);
-      toast.success(`Demo ${type} account created!`);
-      toast.info('You can now log in with this account');
-      navigate('/auth/login');
-    } catch (error: any) {
-      console.error('Demo account creation error:', error);
-      
-      if (error.message?.includes('already exists')) {
-        toast.info(`Demo ${type} account already exists. You can log in with it.`);
-        navigate('/auth/login');
-      } else {
-        toast.error(`Failed to create demo account: ${error.message}`);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md">
@@ -207,50 +157,6 @@ const Register = () => {
                 Login
               </Link>
             </p>
-          </div>
-          
-          <div className="mt-8 border-t pt-6">
-            <p className="text-xs text-center text-gray-500 mb-3">
-              Create demo accounts:
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleCreateDemoAccount('user')}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Create User Demo
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleCreateDemoAccount('influencer')}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Create Influencer Demo
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleCreateDemoAccount('coach')}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Create Coach Demo
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleCreateDemoAccount('company')}
-                className="text-xs"
-                disabled={isSubmitting}
-              >
-                Create Company Demo
-              </Button>
-            </div>
           </div>
         </div>
       </div>
