@@ -33,32 +33,34 @@ const Login = () => {
     setIsSubmitting(true);
     
     try {
-      await login(email, password);
-      toast.success('Login successful!');
-      navigate('/');
+      const result = await login(email, password);
+      if (result) {
+        toast.success('Login successful!');
+        navigate('/');
+      }
     } catch (error: any) {
       console.error('Login error:', error);
       
-      // Handle email confirmation errors by showing a more accurate message
+      // Special handling for email confirmation errors
       if (error instanceof AuthError && 
          (error.message.includes('Email not confirmed') || error.code === 'email_not_confirmed')) {
-        toast.error('Email not confirmed. Please check your inbox for a confirmation email.');
+        toast.error('Attempting to log in again...');
         
-        // Attempt to login again after a short delay
-        setTimeout(async () => {
-          try {
-            await login(email, password);
+        // Immediate retry for email confirmation issues
+        try {
+          const retryResult = await login(email, password);
+          if (retryResult) {
             toast.success('Login successful!');
             navigate('/');
-          } catch (retryError) {
-            toast.error('Unable to log in. Please try registering again or contact support.');
-          } finally {
-            setIsSubmitting(false);
+          } else {
+            toast.error('Login failed. Please check your credentials.');
           }
-        }, 1500);
-        return;
+        } catch (retryError) {
+          toast.error('Unable to log in. Please contact support or try registering again.');
+        }
       } else {
-        toast.error('Account not found or incorrect password');
+        // Handle other types of errors
+        toast.error('Login failed. Please check your email and password.');
       }
     } finally {
       setIsSubmitting(false);
