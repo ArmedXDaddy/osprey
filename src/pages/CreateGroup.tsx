@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ChevronLeft, Globe, Lock, DollarSign } from 'lucide-react';
+import { ChevronLeft, Globe, Lock, DollarSign, Plus, X, Upload } from 'lucide-react';
 import { GroupPrivacy } from '@/types';
+import { Badge } from '@/components/ui/badge';
 
 const CreateGroup = () => {
   const { currentUser } = useAuth();
@@ -24,13 +25,24 @@ const CreateGroup = () => {
     description: '',
     image: '',
     privacy: 'public' as GroupPrivacy,
-    price: 9.99
+    price: 9.99,
+    memberLimit: 100,
+    rules: ['Be respectful to all members', 'No spam or self-promotion']
   });
+  const [newRule, setNewRule] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    const numValue = parseInt(value);
+    if (!isNaN(numValue) && numValue > 0) {
+      setFormData(prev => ({ ...prev, [name]: numValue }));
+    }
   };
 
   const handlePrivacyChange = (value: GroupPrivacy) => {
@@ -42,6 +54,23 @@ const CreateGroup = () => {
     if (!isNaN(price) && price >= 0) {
       setFormData(prev => ({ ...prev, price }));
     }
+  };
+
+  const handleAddRule = () => {
+    if (newRule.trim() && !formData.rules.includes(newRule.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        rules: [...prev.rules, newRule.trim()]
+      }));
+      setNewRule('');
+    }
+  };
+
+  const handleRemoveRule = (ruleToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      rules: prev.rules.filter(rule => rule !== ruleToRemove)
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -140,15 +169,80 @@ const CreateGroup = () => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="image">Cover Image URL</Label>
+              <Label htmlFor="image">Cover Image</Label>
+              <div className="flex items-center space-x-2">
+                <Button type="button" className="flex items-center space-x-2">
+                  <Upload className="h-4 w-4" />
+                  <span>Choose from gallery</span>
+                </Button>
+                {formData.image && (
+                  <div className="relative w-16 h-16 overflow-hidden rounded border">
+                    <img 
+                      src={formData.image} 
+                      alt="Preview" 
+                      className="object-cover w-full h-full"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                      className="absolute top-0 right-0 bg-black/50 p-1 rounded-bl"
+                    >
+                      <X className="h-3 w-3 text-white" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">Select an image for your group cover</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="memberLimit">Member Limit</Label>
               <Input
-                id="image"
-                name="image"
-                value={formData.image}
-                onChange={handleChange}
-                placeholder="https://example.com/image.jpg"
+                id="memberLimit"
+                name="memberLimit"
+                type="number"
+                min="1"
+                value={formData.memberLimit}
+                onChange={handleNumberChange}
+                required
               />
-              <p className="text-xs text-gray-500">Optional: Add an image URL for your group cover</p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Group Rules</Label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {formData.rules.map((rule, index) => (
+                  <Badge 
+                    key={index} 
+                    variant="secondary"
+                    className="flex items-center gap-1 px-2 py-1"
+                  >
+                    <span>{rule}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => handleRemoveRule(rule)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newRule}
+                  onChange={(e) => setNewRule(e.target.value)}
+                  placeholder="Add a new rule"
+                  className="flex-1"
+                />
+                <Button 
+                  type="button" 
+                  onClick={handleAddRule}
+                  variant="outline"
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
             
             <div className="space-y-2">

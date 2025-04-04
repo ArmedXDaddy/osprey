@@ -28,6 +28,8 @@ interface DataContextType {
   requestToJoinEvent: (eventId: string) => Promise<void>;
   handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
   getEventRequests: (eventId: string) => JoinRequest[];
+  removeGroupMember: (groupId: string, userId: string) => Promise<void>;
+  updateGroupDetails: (groupId: string, groupData: Partial<Group>) => Promise<void>;
 }
 
 const MOCK_POSTS: Post[] = [
@@ -126,7 +128,9 @@ const MOCK_GROUPS: Group[] = [
     members: 437,
     privacy: 'public',
     image: 'https://images.unsplash.com/photo-1549476464-37392f717541?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-    createdAt: new Date('2023-02-10')
+    createdAt: new Date('2023-02-10'),
+    rules: ['Be respectful to all members', 'No spam or self-promotion', 'Stay on topic'],
+    memberLimit: 500
   },
   {
     id: 'g2',
@@ -138,7 +142,9 @@ const MOCK_GROUPS: Group[] = [
     members: 892,
     privacy: 'public',
     image: 'https://images.unsplash.com/photo-1552196563-55cd4e45efb3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=826&q=80',
-    createdAt: new Date('2023-04-22')
+    createdAt: new Date('2023-04-22'),
+    rules: ['Be kind and supportive', 'No promotional content', 'Respect privacy'],
+    memberLimit: 1000
   },
   {
     id: 'g3',
@@ -151,7 +157,9 @@ const MOCK_GROUPS: Group[] = [
     privacy: 'private',
     pendingRequests: 8,
     image: 'https://images.unsplash.com/photo-1599058917765-a780eda07a3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1769&q=80',
-    createdAt: new Date('2023-06-15')
+    createdAt: new Date('2023-06-15'),
+    rules: ['Serious athletes only', 'Share progress regularly', 'Participate in challenges'],
+    memberLimit: 150
   },
   {
     id: 'g4',
@@ -164,7 +172,9 @@ const MOCK_GROUPS: Group[] = [
     privacy: 'paid',
     price: 29.99,
     image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80',
-    createdAt: new Date('2023-07-01')
+    createdAt: new Date('2023-07-01'),
+    rules: ['Attend weekly sessions', 'Follow program guidelines', 'Ask questions in the forum'],
+    memberLimit: 50
   }
 ];
 
@@ -708,6 +718,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
   };
 
+  const removeGroupMember = async (groupId: string, userId: string) => {
+    if (!currentUser) return;
+    
+    const group = groups.find(g => g.id === groupId);
+    if (!group || group.creatorId !== currentUser.id) {
+      toast({
+        title: "Permission denied",
+        description: "Only group creators can remove members",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGroups(prevGroups => 
+      prevGroups.map(g => 
+        g.id === groupId ? { ...g, members: Math.max(g.members - 1, 1) } : g
+      )
+    );
+    
+    toast({
+      title: "Member removed",
+      description: "The member has been removed from the group",
+    });
+  };
+
+  const updateGroupDetails = async (groupId: string, groupData: Partial<Group>) => {
+    if (!currentUser) return;
+    
+    const group = groups.find(g => g.id === groupId);
+    if (!group || group.creatorId !== currentUser.id) {
+      toast({
+        title: "Permission denied",
+        description: "Only group creators can update group details",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setGroups(prevGroups => 
+      prevGroups.map(g => 
+        g.id === groupId ? { ...g, ...groupData } : g
+      )
+    );
+    
+    toast({
+      title: "Group updated",
+      description: "Group details have been updated successfully",
+    });
+  };
+
   const value = {
     posts,
     events,
@@ -732,7 +792,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     leaveEvent,
     requestToJoinEvent,
     handleEventJoinRequest,
-    getEventRequests
+    getEventRequests,
+    removeGroupMember,
+    updateGroupDetails
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;

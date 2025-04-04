@@ -1,4 +1,3 @@
-
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -67,6 +66,8 @@ export interface Group {
   price?: number;
   createdAt: Date;
   pendingRequests?: number;
+  rules?: string[];
+  memberLimit?: number;
 }
 
 export interface Service {
