@@ -10,13 +10,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Upload } from 'lucide-react';
+import { Plus, X, Upload, Check } from 'lucide-react';
 
 interface EditGroupFormProps {
   group: Group;
   isOpen: boolean;
   onClose: () => void;
 }
+
+const placeholderImages = [
+  '/images/groups/photo-1605810230434-7631ac76ec81.jpg',
+  '/images/groups/photo-1519389950473-47ba0277781c.jpg',
+  '/images/groups/photo-1466442929976-97f336a657be.jpg',
+  '/images/groups/photo-1517022812141-23620dba5c23.jpg',
+  '/images/groups/photo-1493962853295-0fd70327578a.jpg',
+  '/images/groups/photo-1452378174528-3090a4bba7b2.jpg',
+];
 
 const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose }) => {
   const { updateGroupDetails } = useData();
@@ -32,6 +41,7 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
   });
   const [newRule, setNewRule] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showImageGallery, setShowImageGallery] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -63,6 +73,11 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
     }));
   };
 
+  const handleImageSelect = (image: string) => {
+    setFormData(prev => ({ ...prev, image }));
+    setShowImageGallery(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -80,6 +95,10 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
 
     try {
       await updateGroupDetails(group.id, formData);
+      toast({
+        title: "Group updated",
+        description: "Group details have been updated successfully"
+      });
       onClose();
     } catch (error) {
       console.error("Failed to update group:", error);
@@ -131,7 +150,11 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
           <div className="space-y-2">
             <Label htmlFor="image">Cover Image</Label>
             <div className="flex items-center space-x-2">
-              <Button type="button" className="flex items-center space-x-2">
+              <Button 
+                type="button" 
+                onClick={() => setShowImageGallery(!showImageGallery)}
+                className="flex items-center space-x-2"
+              >
                 <Upload className="h-4 w-4" />
                 <span>Choose from gallery</span>
               </Button>
@@ -152,6 +175,26 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
                 </div>
               )}
             </div>
+            
+            {showImageGallery && (
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                {placeholderImages.map((image, index) => (
+                  <div 
+                    key={index} 
+                    className={`relative aspect-video rounded border overflow-hidden cursor-pointer hover:opacity-90 transition-opacity
+                      ${formData.image === image ? 'ring-2 ring-primary' : ''}`}
+                    onClick={() => handleImageSelect(image)}
+                  >
+                    <img src={image} alt={`Gallery image ${index + 1}`} className="w-full h-full object-cover" />
+                    {formData.image === image && (
+                      <div className="absolute top-2 right-2 bg-primary text-white rounded-full p-1">
+                        <Check className="h-3 w-3" />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">

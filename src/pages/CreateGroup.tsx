@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ChevronLeft, Globe, Lock, DollarSign, Plus, X, Upload } from 'lucide-react';
 import { GroupPrivacy } from '@/types';
 import { Badge } from '@/components/ui/badge';
+import GroupImageGallery from '@/components/group/GroupImageGallery';
 
 const CreateGroup = () => {
   const { currentUser } = useAuth();
@@ -31,6 +32,7 @@ const CreateGroup = () => {
   });
   const [newRule, setNewRule] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showImageGallery, setShowImageGallery] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -71,6 +73,11 @@ const CreateGroup = () => {
       ...prev,
       rules: prev.rules.filter(rule => rule !== ruleToRemove)
     }));
+  };
+
+  const handleImageSelect = (image: string) => {
+    setFormData(prev => ({ ...prev, image }));
+    setShowImageGallery(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,7 +178,11 @@ const CreateGroup = () => {
             <div className="space-y-2">
               <Label htmlFor="image">Cover Image</Label>
               <div className="flex items-center space-x-2">
-                <Button type="button" className="flex items-center space-x-2">
+                <Button 
+                  type="button" 
+                  onClick={() => setShowImageGallery(!showImageGallery)}
+                  className="flex items-center space-x-2"
+                >
                   <Upload className="h-4 w-4" />
                   <span>Choose from gallery</span>
                 </Button>
@@ -192,7 +203,15 @@ const CreateGroup = () => {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500">Select an image for your group cover</p>
+              
+              {showImageGallery && (
+                <div className="mt-2">
+                  <GroupImageGallery 
+                    selectedImage={formData.image}
+                    onSelect={handleImageSelect}
+                  />
+                </div>
+              )}
             </div>
             
             <div className="space-y-2">
