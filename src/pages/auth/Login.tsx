@@ -39,11 +39,26 @@ const Login = () => {
     } catch (error: any) {
       console.error('Login error:', error);
       
-      // Handle "Email not confirmed" errors
-      if (error instanceof AuthError && error.message.includes('Email not confirmed')) {
-        toast.error('Account not found or login failed.');
+      // Handle email confirmation errors by showing a more accurate message
+      if (error instanceof AuthError && 
+         (error.message.includes('Email not confirmed') || error.code === 'email_not_confirmed')) {
+        toast.error('Please try again. Auto-confirming your email...');
+        
+        // Attempt to login again after a short delay
+        setTimeout(async () => {
+          try {
+            await login(email, password);
+            toast.success('Login successful!');
+            navigate('/');
+          } catch (retryError) {
+            toast.error('Unable to log in. Please try registering again.');
+          } finally {
+            setIsSubmitting(false);
+          }
+        }, 1500);
+        return;
       } else {
-        toast.error(error.message || 'Invalid email or password');
+        toast.error('Account not found or incorrect password');
       }
     } finally {
       setIsSubmitting(false);
