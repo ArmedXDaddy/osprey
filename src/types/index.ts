@@ -1,4 +1,3 @@
-
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -184,6 +183,7 @@ export interface Product {
   id: string;
   title: string;
   description: string;
+  longDescription?: string;
   companyId: string;
   companyName: string;
   companyLogo?: string;
@@ -195,17 +195,27 @@ export interface Product {
   demoUrl?: string;
   releaseDate: Date;
   createdAt: Date;
+  features?: string[];
+  useCases?: string[];
+  pricingTiers?: {
+    name: string;
+    price: string;
+    features: string[];
+  }[];
 }
 
 export interface Workshop {
   id: string;
   title: string;
   description: string;
+  longDescription?: string;
   companyId: string;
   companyName: string;
   companyLogo?: string;
   price: number;
   date: Date;
+  startTime?: string;
+  endTime?: string;
   duration: string;
   capacity?: number;
   location?: string;
@@ -214,4 +224,14 @@ export interface Workshop {
   category: string;
   image?: string;
   createdAt: Date;
+  topics?: string[];
+  prerequisites?: string[];
+  includes?: string[];
+  tags?: string[];
+  instructors?: {
+    name: string;
+    role: string;
+    bio: string;
+    avatar: string;
+  }[];
 }

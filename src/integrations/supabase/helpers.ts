@@ -1,3 +1,4 @@
+
 import { supabase, runQuery } from './client';
 import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
@@ -47,9 +48,10 @@ export const createProduct = async (productData: any): Promise<Product> => {
     const { data, error } = await runQuery(`
       INSERT INTO products (
         title, description, company_id, company_name, company_logo, 
-        price, category, tags, image, website_url, demo_url, release_date
+        price, category, tags, image, website_url, demo_url, release_date,
+        long_description, features, use_cases, pricing_tiers
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
       ) RETURNING *
     `, [
       productData.title,
@@ -63,7 +65,11 @@ export const createProduct = async (productData: any): Promise<Product> => {
       productData.image,
       productData.website_url,
       productData.demo_url,
-      productData.release_date
+      productData.release_date,
+      productData.long_description || null,
+      productData.features || null,
+      productData.use_cases || null,
+      productData.pricing_tiers ? JSON.stringify(productData.pricing_tiers) : null
     ]);
       
     if (error) {
@@ -90,9 +96,11 @@ export const createWorkshop = async (workshopData: any): Promise<Workshop> => {
       INSERT INTO workshops (
         title, description, company_id, company_name, company_logo, 
         price, date, duration, capacity, location, is_online, 
-        meeting_url, category, image
+        meeting_url, category, image, start_time, end_time,
+        long_description, topics, prerequisites, includes, tags, instructors
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21, $22
       ) RETURNING *
     `, [
       workshopData.title,
@@ -108,7 +116,15 @@ export const createWorkshop = async (workshopData: any): Promise<Workshop> => {
       workshopData.is_online,
       workshopData.meeting_url,
       workshopData.category,
-      workshopData.image
+      workshopData.image,
+      workshopData.start_time || null,
+      workshopData.end_time || null,
+      workshopData.long_description || null,
+      workshopData.topics || null,
+      workshopData.prerequisites || null,
+      workshopData.includes || null,
+      workshopData.tags || null,
+      workshopData.instructors ? JSON.stringify(workshopData.instructors) : null
     ]);
       
     if (error) {
