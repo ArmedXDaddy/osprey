@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Service } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +60,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   const handlePaymentSuccess = async () => {
     try {
       // Book with payment status set to paid
+      // Fix: Store service ID to ensure it's available during payment completion
+      if (!service || !service.id) {
+        throw new Error("Service information is missing");
+      }
+      
       await bookService(service.id, true);
       toast({
         title: "Booking successful",

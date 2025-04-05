@@ -45,10 +45,10 @@ const ServiceDetail = () => {
   
   const bookServiceMutation = useMutation({
     mutationFn: (isPaid?: boolean) => {
-      if (!currentUser || !service) throw new Error('User or service not found');
+      if (!currentUser || !service || !id) throw new Error('User or service not found');
       
       return bookService({
-        serviceId: service.id,
+        serviceId: id, // Use the id from URL params to ensure consistency
         userId: currentUser.id,
         userName: currentUser.name,
         userEmail: currentUser.email,
@@ -101,7 +101,14 @@ const ServiceDetail = () => {
       return;
     }
     
-    if (!service) return;
+    if (!service || !id) {
+      toast({
+        title: "Error",
+        description: "Service information is missing",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // If it's a paid service, show payment modal
     if (!service.isFree && service.price > 0) {
