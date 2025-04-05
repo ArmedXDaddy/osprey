@@ -14,7 +14,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">{service.title}</CardTitle>
-        <div className="text-sm text-gray-500">by {service.providerName}</div>
+        <div className="text-sm text-gray-500">by {service.coachName}</div>
       </CardHeader>
       
       <CardContent className="pb-2">
@@ -34,8 +34,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
       </CardContent>
       
       <CardFooter className="pt-2">
-        <Button className="w-full" disabled={!service.available}>
-          {service.available ? 'Book Session' : 'Currently Unavailable'}
+        <Button className="w-full" disabled={!service.isActive}>
+          {service.isActive ? 'Book Session' : 'Currently Unavailable'}
         </Button>
       </CardFooter>
     </Card>

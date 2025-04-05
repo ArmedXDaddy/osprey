@@ -58,11 +58,6 @@ const App = () => (
                 <Route path="/services" element={<Services />} />
                 <Route path="/services/:id" element={<ServiceDetail />} />
                 <Route path="/services/create" element={<CreateService />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/profile/:id" element={<Profile />} />
-                <Route path="/auth/login" element={<Login />} />
-                <Route path="/auth/register" element={<Register />} />
-                <Route path="*" element={<NotFound />} />
               </Routes>
             </MainLayout>
           </BrowserRouter>

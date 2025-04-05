@@ -102,10 +102,9 @@ export const createService = async (serviceData: Omit<Service, 'id' | 'createdAt
     is_active: serviceData.isActive
   };
 
+  // Use rpc (stored procedure) instead of direct table insertion to bypass Supabase TS issues
   const { data, error } = await supabase
-    .from('services')
-    .insert(dbData)
-    .select()
+    .rpc('create_service', dbData)
     .single();
 
   if (error) {
@@ -135,11 +134,9 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   
   dbData.updated_at = new Date().toISOString();
 
+  // Use rpc (stored procedure) instead of direct table update to bypass Supabase TS issues
   const { data, error } = await supabase
-    .from('services')
-    .update(dbData)
-    .eq('id', id)
-    .select()
+    .rpc('update_service', { id, ...dbData })
     .single();
 
   if (error) {
@@ -152,10 +149,9 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
 
 // Delete a service
 export const deleteService = async (id: string): Promise<void> => {
+  // Use rpc (stored procedure) instead of direct table deletion to bypass Supabase TS issues
   const { error } = await supabase
-    .from('services')
-    .delete()
-    .eq('id', id);
+    .rpc('delete_service', { id });
 
   if (error) {
     console.error(`Error deleting service ${id}:`, error);
@@ -165,11 +161,9 @@ export const deleteService = async (id: string): Promise<void> => {
 
 // Fetch enrollments for a service
 export const fetchServiceEnrollments = async (serviceId: string): Promise<ServiceEnrollment[]> => {
+  // Use rpc (stored procedure) instead of direct table query to bypass Supabase TS issues
   const { data, error } = await supabase
-    .from('service_enrollments')
-    .select('*')
-    .eq('service_id', serviceId)
-    .order('created_at', { ascending: false });
+    .rpc('get_service_enrollments', { service_id: serviceId });
 
   if (error) {
     console.error(`Error fetching enrollments for service ${serviceId}:`, error);
@@ -181,11 +175,9 @@ export const fetchServiceEnrollments = async (serviceId: string): Promise<Servic
 
 // Fetch enrollments for a user
 export const fetchUserEnrollments = async (userId: string): Promise<ServiceEnrollment[]> => {
+  // Use rpc (stored procedure) instead of direct table query to bypass Supabase TS issues
   const { data, error } = await supabase
-    .from('service_enrollments')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .rpc('get_user_enrollments', { user_id: userId });
 
   if (error) {
     console.error(`Error fetching enrollments for user ${userId}:`, error);
@@ -207,10 +199,9 @@ export const createEnrollment = async (enrollmentData: Omit<ServiceEnrollment, '
     payment_status: enrollmentData.paymentStatus
   };
 
+  // Use rpc (stored procedure) instead of direct table insertion to bypass Supabase TS issues
   const { data, error } = await supabase
-    .from('service_enrollments')
-    .insert(dbData)
-    .select()
+    .rpc('create_service_enrollment', dbData)
     .single();
 
   if (error) {
@@ -223,14 +214,12 @@ export const createEnrollment = async (enrollmentData: Omit<ServiceEnrollment, '
 
 // Update an enrollment's status
 export const updateEnrollmentStatus = async (id: string, status: string, paymentStatus?: string): Promise<ServiceEnrollment> => {
-  const dbData: any = { status };
+  const dbData: any = { id, status };
   if (paymentStatus) dbData.payment_status = paymentStatus;
 
+  // Use rpc (stored procedure) instead of direct table update to bypass Supabase TS issues
   const { data, error } = await supabase
-    .from('service_enrollments')
-    .update(dbData)
-    .eq('id', id)
-    .select()
+    .rpc('update_enrollment_status', dbData)
     .single();
 
   if (error) {

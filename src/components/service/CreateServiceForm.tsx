@@ -84,9 +84,20 @@ const CreateServiceForm: React.FC = () => {
     
     try {
       const serviceData: Omit<Service, 'id' | 'createdAt' | 'updatedAt'> = {
-        ...values,
+        title: values.title,
+        description: values.description,
         coachId: currentUser.id,
         coachName: currentUser.name,
+        serviceType: values.serviceType,
+        capacity: values.capacity,
+        price: values.price,
+        isFree: values.isFree,
+        duration: values.duration,
+        image: values.image,
+        location: values.location,
+        isOnline: values.isOnline,
+        meetingUrl: values.meetingUrl,
+        isActive: values.isActive
       };
       
       const newService = await createService(serviceData);
