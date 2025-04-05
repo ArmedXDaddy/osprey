@@ -1,5 +1,4 @@
-
-import { supabase } from './client';
+import { supabase, runQuery } from './client';
 import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
 /**
@@ -45,30 +44,27 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
 export const createProduct = async (productData: any): Promise<Product> => {
   try {
     // Use the runQuery helper to work around TypeScript limitations
-    const { data, error } = await supabase.rpc('run_query', {
-      query: `
-        INSERT INTO products (
-          title, description, company_id, company_name, company_logo, 
-          price, category, tags, image, website_url, demo_url, release_date
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
-        ) RETURNING *
-      `,
-      params: [
-        productData.title,
-        productData.description,
-        productData.company_id,
-        productData.company_name,
-        productData.company_logo,
-        productData.price,
-        productData.category,
-        productData.tags,
-        productData.image,
-        productData.website_url,
-        productData.demo_url,
-        productData.release_date
-      ]
-    });
+    const { data, error } = await runQuery(`
+      INSERT INTO products (
+        title, description, company_id, company_name, company_logo, 
+        price, category, tags, image, website_url, demo_url, release_date
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+      ) RETURNING *
+    `, [
+      productData.title,
+      productData.description,
+      productData.company_id,
+      productData.company_name,
+      productData.company_logo,
+      productData.price,
+      productData.category,
+      productData.tags,
+      productData.image,
+      productData.website_url,
+      productData.demo_url,
+      productData.release_date
+    ]);
       
     if (error) {
       console.error('Error creating product:', error);
@@ -90,33 +86,30 @@ export const createProduct = async (productData: any): Promise<Product> => {
 export const createWorkshop = async (workshopData: any): Promise<Workshop> => {
   try {
     // Use the runQuery helper to work around TypeScript limitations
-    const { data, error } = await supabase.rpc('run_query', {
-      query: `
-        INSERT INTO workshops (
-          title, description, company_id, company_name, company_logo, 
-          price, date, duration, capacity, location, is_online, 
-          meeting_url, category, image
-        ) VALUES (
-          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
-        ) RETURNING *
-      `,
-      params: [
-        workshopData.title,
-        workshopData.description,
-        workshopData.company_id,
-        workshopData.company_name,
-        workshopData.company_logo,
-        workshopData.price,
-        workshopData.date,
-        workshopData.duration,
-        workshopData.capacity,
-        workshopData.location,
-        workshopData.is_online,
-        workshopData.meeting_url,
-        workshopData.category,
-        workshopData.image
-      ]
-    });
+    const { data, error } = await runQuery(`
+      INSERT INTO workshops (
+        title, description, company_id, company_name, company_logo, 
+        price, date, duration, capacity, location, is_online, 
+        meeting_url, category, image
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+      ) RETURNING *
+    `, [
+      workshopData.title,
+      workshopData.description,
+      workshopData.company_id,
+      workshopData.company_name,
+      workshopData.company_logo,
+      workshopData.price,
+      workshopData.date,
+      workshopData.duration,
+      workshopData.capacity,
+      workshopData.location,
+      workshopData.is_online,
+      workshopData.meeting_url,
+      workshopData.category,
+      workshopData.image
+    ]);
       
     if (error) {
       console.error('Error creating workshop:', error);
@@ -147,10 +140,7 @@ export const getProducts = async (companyId?: string): Promise<Product[]> => {
     
     query += ` ORDER BY created_at DESC`;
     
-    const { data, error } = await supabase.rpc('run_query', {
-      query,
-      params
-    });
+    const { data, error } = await runQuery(query, params);
     
     if (error) {
       console.error('Error fetching products:', error);
@@ -181,10 +171,7 @@ export const getWorkshops = async (companyId?: string): Promise<Workshop[]> => {
     
     query += ` ORDER BY date ASC`;
     
-    const { data, error } = await supabase.rpc('run_query', {
-      query,
-      params
-    });
+    const { data, error } = await runQuery(query, params);
     
     if (error) {
       console.error('Error fetching workshops:', error);
