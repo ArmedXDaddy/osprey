@@ -246,6 +246,110 @@ export type Database = {
         }
         Relationships: []
       }
+      service_enrollments: {
+        Row: {
+          created_at: string
+          id: string
+          payment_status: string
+          service_id: string
+          status: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          payment_status?: string
+          service_id: string
+          status?: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          payment_status?: string
+          service_id?: string
+          status?: string
+          user_email?: string
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_enrollments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          capacity: number | null
+          coach_id: string
+          coach_name: string
+          created_at: string
+          description: string | null
+          duration: string | null
+          id: string
+          image: string | null
+          is_active: boolean
+          is_free: boolean
+          is_online: boolean
+          location: string | null
+          meeting_url: string | null
+          price: number
+          service_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          coach_id: string
+          coach_name: string
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean
+          is_free?: boolean
+          is_online?: boolean
+          location?: string | null
+          meeting_url?: string | null
+          price?: number
+          service_type: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          coach_id?: string
+          coach_name?: string
+          created_at?: string
+          description?: string | null
+          duration?: string | null
+          id?: string
+          image?: string | null
+          is_active?: boolean
+          is_free?: boolean
+          is_online?: boolean
+          location?: string | null
+          meeting_url?: string | null
+          price?: number
+          service_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
