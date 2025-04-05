@@ -17,6 +17,7 @@ import {
   SessionStatus
 } from '@/types';
 import { useAuth } from './AuthContext';
+import { supabase } from "@/integrations/supabase/client";
 
 interface DataContextType {
   posts: Post[];
@@ -741,13 +742,36 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getServiceById = async (serviceId: string): Promise<Service> => {
-    console.log("Looking for service with ID:", serviceId);
-    const service = allServices.find(s => s.id === serviceId);
-    console.log("Found service:", service);
-    if (!service) {
-      throw new Error("Service not found");
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', serviceId)
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url,
+      };
+    } catch (err: any) {
+      console.error("Error fetching service:", err);
+      throw err;
     }
-    return service;
   };
 
   const bookService = async (serviceId: string, isPaid: boolean): Promise<Booking> => {
@@ -800,487 +824,92 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to create a service');
     if (currentUser.role !== 'coach') throw new Error('Only coaches can create services');
 
-    const newId = generateId();
-    console.log("Creating service with ID:", newId);
-    
-    const newService: Service = {
-      id: newId,
-      ...serviceData,
-      createdAt: new Date(),
-    };
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .insert({
+          ...serviceData,
+          coach_id: currentUser.id,
+          coach_name: currentUser.name,
+        })
+        .select()
+        .single();
 
-    console.log("New service created:", newService);
-    setServices(prevServices => [...prevServices, newService]);
-    
-    const updatedServices = [...services, newService];
-    localStorage.setItem('userCreatedServices', JSON.stringify(updatedServices));
-    
-    return newService;
+      if (error) throw error;
+
+      console.log("Service created in Supabase:", data);
+      
+      // Update local state
+      const newService: Service = {
+        id: data.id,
+        ...serviceData,
+        createdAt: new Date(data.created_at),
+      };
+
+      setServices(prevServices => [...prevServices, newService]);
+      
+      return newService;
+    } catch (err: any) {
+      console.error("Error creating service:", err);
+      throw err;
+    }
   };
 
   const updateService = async (serviceId: string, data: Partial<Service>): Promise<Service> => {
     if (!currentUser) throw new Error('You must be logged in to update a service');
 
-    const serviceIndex = services.findIndex(s => s.id === serviceId);
-    if (serviceIndex === -1) throw new Error('Service not found');
-
-    const service = services[serviceIndex];
-    
-    if (service.providerId !== currentUser.id) {
-      throw new Error('Only the service provider can update the service');
-    }
-
-    const updatedService = { ...service, ...data };
-    setServices(prevServices => {
-      const newServices = [...prevServices];
-      newServices[serviceIndex] = updatedService;
-      return newServices;
-    });
-
-    return updatedService;
-  };
-
-  const deleteService = async (serviceId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to delete a service');
-
-    const service = services.find(s => s.id === serviceId);
-    if (!service) throw new Error('Service not found');
-
-    if (service.providerId !== currentUser.id) {
-      throw new Error('Only the service provider can delete the service');
-    }
-
-    setServices(prevServices => prevServices.filter(s => s.id !== serviceId));
-  };
-
-  const generateMockServices = () => {
-    return [
-      {
-        id: "service-1",
-        title: "One-on-One Fitness Coaching",
-        description: "Personalized fitness coaching tailored to your specific goals and needs. Get expert guidance on exercises, nutrition, and lifestyle changes.",
-        providerId: "coach-1",
-        providerName: "John Smith",
-        price: 99.99,
-        duration: "60 min",
-        available: true,
-        createdAt: new Date("2023-01-15"),
-        isOnline: false,
-        location: "Fitness Studio, 123 Main St",
-        capacity: 1,
-        serviceType: "one_on_one" as ServiceType
-      },
-      {
-        id: "service-2",
-        title: "Group HIIT Training",
-        description: "High-intensity interval training in a motivating group setting. Burn calories, build strength, and improve cardiovascular health.",
-        providerId: "coach-1",
-        providerName: "John Smith",
-        price: 29.99,
-        duration: "45 min",
-        available: true,
-        createdAt: new Date("2023-02-20"),
-        isOnline: false,
-        location: "Fitness Studio, 123 Main St",
-        capacity: 8,
-        serviceType: "group" as ServiceType
-      },
-      {
-        id: "service-3",
-        title: "Nutrition Consultation",
-        description: "Comprehensive nutrition assessment and personalized meal planning. Learn how to fuel your body for optimal health and performance.",
-        providerId: "coach-2",
-        providerName: "Sarah Johnson",
-        price: 79.99,
-        duration: "75 min",
-        available: true,
-        createdAt: new Date("2023-03-10"),
-        isOnline: true,
-        capacity: 1,
-        serviceType: "one_on_one" as ServiceType
-      },
-      {
-        id: "service-4",
-        title: "Free Fitness Assessment",
-        description: "Initial fitness assessment to evaluate your current fitness level and discuss your goals. Includes body composition analysis and fitness tests.",
-        providerId: "coach-2",
-        providerName: "Sarah Johnson",
-        price: 0,
-        duration: "30 min",
-        available: true,
-        createdAt: new Date("2023-04-05"),
-        isOnline: false,
-        location: "Fitness Studio, 123 Main St",
-        capacity: 1,
-        serviceType: "one_on_one" as ServiceType
-      },
-      {
-        id: "service-5",
-        title: "Online Yoga Class",
-        description: "Virtual yoga sessions focusing on flexibility, strength, and mindfulness. Suitable for all levels from beginners to advanced practitioners.",
-        providerId: "coach-3",
-        providerName: "Emily Chen",
-        price: 19.99,
-        duration: "60 min",
-        available: true,
-        createdAt: new Date("2023-05-12"),
-        isOnline: true,
-        capacity: 15,
-        serviceType: "group" as ServiceType
-      }
-    ];
-  };
-
-  const mockPosts: Post[] = [
-    {
-      id: '1',
-      userId: 'user1',
-      userName: 'John Doe',
-      userRole: 'user',
-      userProfileImage: 'https://randomuser.me/api/portraits/men/1.jpg',
-      content: 'Just finished an amazing workout session!',
-      likes: 15,
-      comments: 3,
-      createdAt: new Date('2023-06-15T10:30:00'),
-    },
-    {
-      id: '2',
-      userId: 'influencer1',
-      userName: 'Fitness Pro',
-      userRole: 'influencer',
-      userProfileImage: 'https://randomuser.me/api/portraits/women/2.jpg',
-      content: 'Check out my new workout routine for beginners!',
-      image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438',
-      likes: 42,
-      comments: 7,
-      createdAt: new Date('2023-06-14T15:45:00'),
-    },
-  ];
-
-  const mockEvents: Event[] = [
-    {
-      id: '1',
-      title: 'Summer Fitness Bootcamp',
-      description: 'Join us for an intensive 3-day fitness bootcamp to kickstart your summer fitness journey!',
-      creatorId: 'coach1',
-      creatorName: 'Elite Trainer',
-      creatorRole: 'coach',
-      location: 'Central Park, New York',
-      date: new Date('2023-07-15T09:00:00'),
-      image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b',
-      attendees: ['user1', 'user2', 'user3'],
-      privacy: 'public',
-      price: 99.99,
-      createdAt: new Date('2023-06-01T12:00:00'),
-    },
-    {
-      id: '2',
-      title: 'Nutrition Workshop',
-      description: 'Learn about proper nutrition for optimal performance and recovery.',
-      creatorId: 'coach2',
-      creatorName: 'Nutrition Expert',
-      creatorRole: 'coach',
-      location: 'Health Hub, Los Angeles',
-      date: new Date('2023-07-20T14:00:00'),
-      attendees: ['user1', 'user4'],
-      privacy: 'private',
-      createdAt: new Date('2023-06-05T10:30:00'),
-    },
-  ];
-
-  const mockGroups: Group[] = [
-    {
-      id: '1',
-      name: 'Morning Runners Club',
-      description: 'A community of early birds who love to start their day with a refreshing run!',
-      creatorId: 'user3',
-      creatorName: 'Running Enthusiast',
-      creatorRole: 'user',
-      members: 28,
-      memberIds: ['user1', 'user3', 'user5'],
-      image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5',
-      privacy: 'public',
-      createdAt: new Date('2023-05-10T08:15:00'),
-      rules: ['Be respectful', 'No spam', 'Share your running achievements'],
-    },
-    {
-      id: '2',
-      name: 'Elite Athletes',
-      description: 'A private group for professional and semi-professional athletes to network and share insights.',
-      creatorId: 'influencer2',
-      creatorName: 'Pro Athlete',
-      creatorRole: 'influencer',
-      members: 15,
-      memberIds: ['influencer1', 'influencer2', 'coach1'],
-      privacy: 'private',
-      createdAt: new Date('2023-04-20T16:45:00'),
-      rules: ['Verified athletes only', 'Confidential discussions', 'No media sharing without permission'],
-      memberLimit: 50,
-    },
-  ];
-
-  const mockSessions: Session[] = [
-    {
-      id: '1',
-      title: 'Strength Training Fundamentals',
-      description: 'Learn the basics of strength training with proper form and technique. Suitable for beginners.',
-      coachId: 'coach1',
-      coachName: 'Elite Trainer',
-      sessionType: 'group',
-      capacity: 10,
-      price: 25,
-      duration: '60 min',
-      startTime: new Date('2023-07-10T18:00:00'),
-      location: 'Fitness Center, Downtown',
-      isOnline: false,
-      isActive: true,
-      createdAt: new Date('2023-06-01T10:00:00'),
-      updatedAt: new Date('2023-06-01T10:00:00'),
-    },
-    {
-      id: '2',
-      title: 'Personal Training Session',
-      description: 'One-on-one training session tailored to your specific fitness goals and needs.',
-      coachId: 'coach1',
-      coachName: 'Elite Trainer',
-      sessionType: 'one_on_one',
-      price: 75,
-      duration: '45 min',
-      isOnline: false,
-      location: 'Fitness Center, Downtown',
-      isActive: true,
-      createdAt: new Date('2023-06-02T11:30:00'),
-      updatedAt: new Date('2023-06-02T11:30:00'),
-    },
-    {
-      id: '3',
-      title: 'Online Yoga Flow',
-      description: 'A rejuvenating yoga flow class to improve flexibility, strength, and mindfulness.',
-      coachId: 'coach2',
-      coachName: 'Yoga Master',
-      sessionType: 'group',
-      capacity: 20,
-      price: 15,
-      duration: '60 min',
-      startTime: new Date('2023-07-12T09:00:00'),
-      isOnline: true,
-      meetingUrl: 'https://zoom.us/j/123456789',
-      isActive: true,
-      createdAt: new Date('2023-06-03T14:15:00'),
-      updatedAt: new Date('2023-06-03T14:15:00'),
-    },
-  ];
-
-  const mockSessionEnrollments: SessionEnrollment[] = [
-    {
-      id: '1',
-      sessionId: '1',
-      userId: 'user1',
-      userName: 'John Doe',
-      userEmail: 'john@example.com',
-      userProfileImage: 'https://randomuser.me/api/portraits/men/1.jpg',
-      status: 'approved',
-      paymentStatus: 'paid',
-      createdAt: new Date('2023-06-05T09:30:00'),
-    },
-    {
-      id: '2',
-      sessionId: '2',
-      userId: 'user2',
-      userName: 'Jane Smith',
-      userEmail: 'jane@example.com',
-      status: 'pending',
-      paymentStatus: 'unpaid',
-      createdAt: new Date('2023-06-06T14:45:00'),
-    },
-  ];
-
-  const mockMessages: Message[] = [
-    {
-      id: '1',
-      groupId: '1',
-      userId: 'user1',
-      userName: 'John Doe',
-      userRole: 'user',
-      userProfileImage: 'https://randomuser.me/api/portraits/men/1.jpg',
-      content: 'Good morning everyone! Who\'s up for a run today?',
-      createdAt: new Date('2023-06-10T07:30:00'),
-    },
-    {
-      id: '2',
-      groupId: '1',
-      userId: 'user3',
-      userName: 'Running Enthusiast',
-      userRole: 'user',
-      content: 'I\'ll be at the park at 8 AM if anyone wants to join!',
-      createdAt: new Date('2023-06-10T07:35:00'),
-    },
-  ];
-
-  const mockJoinRequests: JoinRequest[] = [
-    {
-      id: '1',
-      groupId: '2',
-      userId: 'user4',
-      userName: 'Aspiring Athlete',
-      status: 'pending',
-      createdAt: new Date('2023-06-08T16:20:00'),
-    },
-    {
-      id: '2',
-      eventId: '2',
-      userId: 'user5',
-      userName: 'Health Enthusiast',
-      status: 'pending',
-      createdAt: new Date('2023-06-09T11:15:00'),
-    },
-  ];
-
-  const approveBooking = useCallback(async (bookingId: string) => {
     try {
-      const bookingIndex = bookings.findIndex(b => b.id === bookingId);
-      if (bookingIndex === -1) throw new Error("Booking not found");
-      
-      const updatedBookings = [...bookings];
-      updatedBookings[bookingIndex] = {
-        ...updatedBookings[bookingIndex],
-        status: 'approved'
+      const { data: updatedData, error } = await supabase
+        .from('services')
+        .update({
+          title: data.title,
+          description: data.description,
+          service_type: data.serviceType,
+          price: data.price,
+          duration: data.duration,
+          is_online: data.isOnline,
+          location: data.location,
+          meeting_url: data.meetingUrl,
+          capacity: data.capacity,
+          is_active: data.available,
+          cover_image: data.coverImage,
+        })
+        .eq('id', serviceId)
+        .eq('coach_id', currentUser.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const updatedService: Service = {
+        id: updatedData.id,
+        title: updatedData.title,
+        description: updatedData.description,
+        providerId: updatedData.coach_id,
+        providerName: updatedData.coach_name,
+        price: updatedData.price,
+        duration: updatedData.duration,
+        available: updatedData.is_active,
+        createdAt: new Date(updatedData.created_at),
+        isOnline: updatedData.is_online,
+        location: updatedData.location,
+        capacity: updatedData.capacity,
+        serviceType: updatedData.service_type,
+        coverImage: updatedData.cover_image,
+        meetingUrl: updatedData.meeting_url,
       };
-      
-      setBookings(updatedBookings);
-      return updatedBookings[bookingIndex];
-    } catch (error) {
-      console.error("Error approving booking:", error);
-      throw error;
+
+      setServices(prevServices => 
+        prevServices.map(service => 
+          service.id === serviceId ? updatedService : service
+        )
+      );
+
+      return updatedService;
+    } catch (err: any) {
+      console.error("Error updating service:", err);
+      throw err;
     }
-  }, [bookings]);
-
-  const sendServiceMessage = async (
-    serviceId: string,
-    content: string,
-    mediaUrl?: string,
-    mediaType?: 'image' | 'video' | 'file'
-  ): Promise<Message> => {
-    if (!currentUser) throw new Error('You must be logged in to send a message');
-
-    const service = allServices.find(s => s.id === serviceId);
-    if (!service) throw new Error('Service not found');
-
-    // Check if user has an approved booking for this service
-    const userBooking = bookings.find(
-      b => b.serviceId === serviceId && 
-           b.userId === currentUser.id && 
-           (b.status === 'approved' || (service.price > 0 && b.paymentStatus === 'paid'))
-    );
-    
-    if (!userBooking) {
-      throw new Error('You must have an approved booking to send messages');
-    }
-
-    const newMessage: Message = {
-      id: generateId(),
-      serviceId,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
-      userProfileImage: currentUser.profileImage,
-      content,
-      mediaUrl,
-      mediaType,
-      createdAt: new Date(),
-    };
-
-    setMessages(prevMessages => [...prevMessages, newMessage]);
-    return newMessage;
   };
 
-  const getServiceMessages = (serviceId: string): Message[] => {
-    return messages.filter(message => message.serviceId === serviceId);
-  };
-
-  const getUserBookingForService = (userId: string, serviceId: string): Booking | null => {
-    const booking = bookings.find(
-      b => b.userId === userId && b.serviceId === serviceId && b.status !== 'cancelled'
-    );
-    return booking || null;
-  };
-
-  return (
-    <DataContext.Provider
-      value={{
-        posts,
-        events,
-        groups,
-        services: allServices,
-        sessions,
-        sessionEnrollments,
-        messages,
-        joinRequests,
-        loading,
-        error,
-        
-        createPost,
-        likePost,
-        unlikePost,
-        
-        createEvent,
-        joinEvent,
-        leaveEvent,
-        requestToJoinEvent,
-        approveEventRequest,
-        rejectEventRequest,
-        getEventRequests,
-        handleEventJoinRequest,
-        
-        createGroup,
-        joinGroup,
-        leaveGroup,
-        requestToJoinGroup,
-        approveGroupRequest,
-        rejectGroupRequest,
-        getGroupRequests,
-        handleJoinRequest,
-        removeGroupMember,
-        updateGroupDetails,
-        
-        createSession,
-        enrollInSession,
-        cancelEnrollment,
-        approveEnrollment,
-        rejectEnrollment,
-        getUserSessions,
-        getCoachSessions,
-        getUserEnrollments,
-        updateSession,
-        updateEnrollmentStatus,
-        
-        sendMessage,
-        
-        getServiceById,
-        bookService,
-        cancelBooking,
-        getUserBookings,
-        getServiceBookings,
-        createService,
-        updateService,
-        deleteService,
-        
-        approveBooking,
-        
-        sendServiceMessage,
-        getServiceMessages,
-        getUserBookingForService
-      }}
-    >
-      {children}
-    </DataContext.Provider>
-  );
-};
-
-export const useData = () => {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
-  }
-  return context;
-};
+  const deleteService = async (
