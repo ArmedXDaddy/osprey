@@ -71,7 +71,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
       await bookService(
         service.id, 
         isFreeService ? undefined : 'paid',
-        isFreeService ? undefined : 'approved' // Automatically approve paid bookings
+        isFreeService ? undefined : 'approved', // Automatically approve paid bookings
+        isFreeService ? undefined : new Date() // Pass current date for preferred time
       );
 
       toast({
