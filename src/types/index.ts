@@ -1,4 +1,24 @@
 
+// User related types
+export type UserRole = 'user' | 'coach' | 'admin' | 'influencer' | 'company';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  profileImage?: string;
+  bio?: string;
+  following?: string[];
+  followers?: number;
+  location?: string;
+  interests?: string[];
+  verified?: boolean;
+  socialLinks?: Record<string, string>;
+  coverImage?: string;
+}
+
+// Service related types
 export interface Service {
   id: string;
   title: string;
@@ -20,24 +40,6 @@ export interface Service {
   isFree: boolean;
 }
 
-// User related types
-export type UserRole = 'user' | 'coach' | 'admin';
-
-export interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: UserRole;
-  profileImage?: string;
-  bio?: string;
-  following?: string[];
-  followers?: number;
-  location?: string;
-  interests?: string[];
-  verified?: boolean;
-  socialLinks?: Record<string, string>;
-}
-
 // Post related types
 export interface Post {
   id: string;
@@ -51,10 +53,17 @@ export interface Post {
   comments: number;
   images?: string[];
   liked?: boolean;
+  
+  // Additional properties used in components
+  userId?: string;
+  userName?: string;
+  userRole?: UserRole;
+  userProfileImage?: string;
+  image?: string;
 }
 
 // Group related types
-export type GroupPrivacy = 'public' | 'private';
+export type GroupPrivacy = 'public' | 'private' | 'paid';
 
 export interface Group {
   id: string;
@@ -74,7 +83,7 @@ export interface Group {
 }
 
 // Event related types
-export type EventPrivacy = 'public' | 'private' | 'group_only';
+export type EventPrivacy = 'public' | 'private' | 'group_only' | 'paid';
 
 export interface Event {
   id: string;
@@ -97,6 +106,14 @@ export interface Event {
   createdAt: Date;
   image?: string;
   tags?: string[];
+  
+  // Additional properties used in components
+  date?: Date;
+  creatorId?: string;
+  creatorName?: string;
+  creatorRole?: UserRole;
+  attendees?: any[];
+  pendingRequests?: number;
 }
 
 // Message related types
@@ -127,7 +144,7 @@ export interface JoinRequest {
 
 // Session related types
 export type SessionType = 'one_on_one' | 'group';
-export type SessionStatus = 'scheduled' | 'canceled' | 'completed';
+export type SessionStatus = 'scheduled' | 'canceled' | 'completed' | 'upcoming';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 
 export interface Session {
@@ -158,6 +175,7 @@ export interface Session {
   updatedAt: Date;
   sessionType: SessionType;
   available: boolean;
+  isActive?: boolean;
 }
 
 export interface SessionEnrollment {
@@ -173,4 +191,15 @@ export interface SessionEnrollment {
   amount: number;
   paymentCompleted: boolean;
   createdAt: Date;
+}
+
+// Service Booking interface for the ManageServiceBookings page
+export interface ServiceBooking {
+  id: string;
+  serviceName: string;
+  userName: string;
+  userEmail: string;
+  status: 'pending' | 'approved' | 'rejected';
+  paymentStatus: 'paid' | 'unpaid' | 'refunded';
+  amount: number;
 }

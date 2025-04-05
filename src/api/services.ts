@@ -1,3 +1,4 @@
+
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -121,7 +122,7 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     is_active: true,
     service_type: serviceData.sessionType,
     capacity: serviceData.capacity,
-    start_time: serviceData.startTime,
+    start_time: serviceData.startTime ? serviceData.startTime.toISOString() : null,
     is_online: serviceData.isOnline,
     location: serviceData.location,
     meeting_url: serviceData.meetingUrl,
@@ -174,7 +175,7 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.available !== undefined) supabaseData.is_active = serviceData.available;
   if (serviceData.sessionType !== undefined) supabaseData.service_type = serviceData.sessionType;
   if (serviceData.capacity !== undefined) supabaseData.capacity = serviceData.capacity;
-  if (serviceData.startTime !== undefined) supabaseData.start_time = serviceData.startTime;
+  if (serviceData.startTime !== undefined) supabaseData.start_time = serviceData.startTime ? serviceData.startTime.toISOString() : null;
   if (serviceData.location !== undefined) supabaseData.location = serviceData.location;
   if (serviceData.isOnline !== undefined) supabaseData.is_online = serviceData.isOnline;
   if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;

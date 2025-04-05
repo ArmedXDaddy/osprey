@@ -6,16 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-interface ServiceBooking {
-  id: string;
-  serviceName: string;
-  userName: string;
-  userEmail: string;
-  status: 'pending' | 'approved' | 'rejected';
-  paymentStatus: 'paid' | 'unpaid' | 'refunded';
-  amount: number;
-}
+import { ServiceBooking } from '@/types';
 
 const ManageServiceBookings: React.FC = () => {
   const { currentUser } = useAuth();
@@ -47,13 +38,13 @@ const ManageServiceBookings: React.FC = () => {
       if (error) throw error;
 
       if (data) {
-        const bookings = data.map(booking => ({
+        const bookings: ServiceBooking[] = data.map(booking => ({
           id: booking.id,
           serviceName: booking.services?.title || 'Unknown Service',
           userName: booking.user_name,
           userEmail: booking.user_email,
-          status: booking.status,
-          paymentStatus: booking.payment_status,
+          status: booking.status as 'pending' | 'approved' | 'rejected',
+          paymentStatus: booking.payment_status as 'paid' | 'unpaid' | 'refunded',
           amount: booking.amount || 0
         }));
 
