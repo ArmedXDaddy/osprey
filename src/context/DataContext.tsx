@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
 import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType } from '@/types';
+import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking } from '@/integrations/supabase/helpers';
 
 // Create the context with undefined as default
 interface DataContextType {
@@ -297,169 +298,71 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to book a service');
     
     try {
-      const { error } = await supabase
-        .from('service_bookings')
-        .insert({
-          service_id: serviceId,
-          user_id: currentUser.id,
-          notes: notes || null,
-          payment_status: notes === 'paid' ? 'paid' : 'unpaid',
-          status: notes === 'paid' ? 'approved' : 'pending'
-        });
-        
-      if (error) throw error;
+      // Use the helper function instead of direct table access
+      const isPaid = notes === 'paid';
+      const status = isPaid ? 'approved' : 'pending';
       
+      await createServiceBooking(
+        serviceId,
+        currentUser.id,
+        notes,
+        isPaid ? 'paid' : 'unpaid',
+        status
+      );
     } catch (err: any) {
       console.error("Error booking service:", err);
       throw new Error(err.message || 'Failed to book service');
     }
   };
   
-  const cancelBooking = async (bookingId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to cancel a booking');
-    
+  // Override the existing function to use the helper
+  const getUserBookingsImpl = async (userId: string): Promise<Booking[]> => {
     try {
-      const { error } = await supabase
-        .from('service_bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId)
-        .eq('user_id', currentUser.id);
-        
-      if (error) throw error;
-      
-    } catch (err: any) {
-      console.error("Error cancelling booking:", err);
-      throw new Error(err.message || 'Failed to cancel booking');
-    }
-  };
-  
-  const getUserBookings = async (userId: string): Promise<Booking[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('service_bookings')
-        .select(`
-          *,
-          services:service_id (
-            title,
-            coach_name,
-            duration,
-            price,
-            is_online,
-            service_type
-          )
-        `)
-        .eq('user_id', userId);
-        
-      if (error) throw error;
-      
-      if (!data) return [];
-      
-      return data.map(item => ({
-        id: item.id,
-        serviceId: item.service_id,
-        userId: item.user_id,
-        userName: currentUser?.name || '',
-        userEmail: currentUser?.email || '',
-        status: item.status,
-        paymentStatus: item.payment_status,
-        notes: item.notes || undefined,
-        preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
-        scheduledTime: undefined,
-        isPaid: item.payment_status === 'paid',
-        createdAt: new Date(item.created_at),
-        serviceName: item.services?.title || '',
-        providerName: item.services?.coach_name || '',
-      })) as Booking[];
-      
+      return await getUserBookings(userId);
     } catch (err: any) {
       console.error("Error fetching user bookings:", err);
       return [];
     }
   };
   
-  const getServiceBookings = async (serviceId: string): Promise<Booking[]> => {
+  // Override the existing function to use the helper
+  const getServiceBookingsImpl = async (serviceId: string): Promise<Booking[]> => {
     try {
-      const { data, error } = await supabase
-        .from('service_bookings')
-        .select(`
-          *,
-          profiles:user_id (
-            name,
-            email
-          )
-        `)
-        .eq('service_id', serviceId);
-        
-      if (error) throw error;
-      
-      if (!data) return [];
-      
-      return data.map(item => ({
-        id: item.id,
-        serviceId: item.service_id,
-        userId: item.user_id,
-        userName: item.profiles?.name || '',
-        userEmail: item.profiles?.email || '',
-        status: item.status,
-        paymentStatus: item.payment_status,
-        notes: item.notes || undefined,
-        preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
-        scheduledTime: undefined,
-        isPaid: item.payment_status === 'paid',
-        createdAt: new Date(item.created_at)
-      })) as Booking[];
-      
+      return await getServiceBookings(serviceId);
     } catch (err: any) {
       console.error("Error fetching service bookings:", err);
       return [];
     }
   };
   
-  const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
+  // Override the existing function to use the helper
+  const getUserBookingForServiceImpl = async (serviceId: string, userId: string): Promise<Booking | null> => {
     try {
-      const { data, error } = await supabase
-        .from('service_bookings')
-        .select('*')
-        .eq('service_id', serviceId)
-        .eq('user_id', userId)
-        .maybeSingle();
-        
-      if (error) throw error;
-      
-      if (!data) return null;
-      
-      return {
-        id: data.id,
-        serviceId: data.service_id,
-        userId: data.user_id,
-        userName: currentUser?.name || '',
-        userEmail: currentUser?.email || '',
-        status: data.status,
-        paymentStatus: data.payment_status,
-        notes: data.notes || undefined,
-        preferredTime: data.preferred_time ? new Date(data.preferred_time) : undefined,
-        scheduledTime: undefined,
-        isPaid: data.payment_status === 'paid',
-        createdAt: new Date(data.created_at)
-      };
-      
+      return await getUserBookingForService(serviceId, userId);
     } catch (err: any) {
       console.error("Error fetching user booking for service:", err);
       return null;
     }
   };
   
-  const approveBooking = async (bookingId: string): Promise<void> => {
+  // Override the existing function to use the helper
+  const cancelBookingImpl = async (bookingId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to cancel a booking');
+    
+    try {
+      await cancelBooking(bookingId);
+    } catch (err: any) {
+      console.error("Error cancelling booking:", err);
+      throw new Error(err.message || 'Failed to cancel booking');
+    }
+  };
+  
+  // Override the existing function to use the helper
+  const approveBookingImpl = async (bookingId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to approve a booking');
     
     try {
-      const { error } = await supabase
-        .from('service_bookings')
-        .update({ status: 'approved' })
-        .eq('id', bookingId);
-        
-      if (error) throw error;
-      
+      await approveBooking(bookingId);
     } catch (err: any) {
       console.error("Error approving booking:", err);
       throw new Error(err.message || 'Failed to approve booking');
@@ -726,16 +629,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     sendMessage,
     getServiceById,
     bookService,
-    cancelBooking,
-    getUserBookings,
-    getServiceBookings,
+    cancelBooking: cancelBookingImpl,
+    getUserBookings: getUserBookingsImpl,
+    getServiceBookings: getServiceBookingsImpl,
     createService,
     updateService,
     deleteService,
-    approveBooking,
+    approveBooking: approveBookingImpl,
     sendServiceMessage,
     getServiceMessages,
-    getUserBookingForService,
+    getUserBookingForService: getUserBookingForServiceImpl,
     fetchUserServices
   };
   
