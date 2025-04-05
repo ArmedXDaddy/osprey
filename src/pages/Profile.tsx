@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -39,6 +40,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
+import ImageGallery from '@/components/profile/ImageGallery';
 
 const Profile = () => {
   const { currentUser, updateProfile } = useAuth();
@@ -47,12 +49,12 @@ const Profile = () => {
 
   // Filter data based on current user
   const userPosts = posts.filter(post => post.userId === currentUser?.id);
-  const userEvents = events.filter(event => event.attendees.includes(currentUser?.id) || event.creatorId === currentUser?.id);
+  const userEvents = events.filter(event => event.attendees?.includes(currentUser?.id || '') || event.creatorId === currentUser?.id);
   const userCreatedEvents = events.filter(event => event.creatorId === currentUser?.id);
-  const joinedEvents = events.filter(event => event.attendees.includes(currentUser?.id) && event.creatorId !== currentUser?.id);
-  const userGroups = groups.filter(group => (group.memberIds?.includes(currentUser?.id)) || group.creatorId === currentUser?.id);
+  const joinedEvents = events.filter(event => event.attendees?.includes(currentUser?.id || '') && event.creatorId !== currentUser?.id);
+  const userGroups = groups.filter(group => (group.memberIds?.includes(currentUser?.id || '')) || group.creatorId === currentUser?.id);
   const userCreatedGroups = groups.filter(group => group.creatorId === currentUser?.id);
-  const joinedGroups = groups.filter(group => group.memberIds?.includes(currentUser?.id) && group.creatorId !== currentUser?.id);
+  const joinedGroups = groups.filter(group => group.memberIds?.includes(currentUser?.id || '') && group.creatorId !== currentUser?.id);
   const userServices = services.filter(service => service.providerId === currentUser?.id);
 
   // State for profile editing
@@ -108,7 +110,7 @@ const Profile = () => {
     
     try {
       // Create profiles bucket if it doesn't exist
-      await createBucketIfNotExists('profiles');
+      await ensureStorageBucketExists('profiles');
       
       const { data, error } = await supabase.storage
         .from('profiles')
@@ -150,7 +152,7 @@ const Profile = () => {
     
     try {
       // Create covers bucket if it doesn't exist
-      await createBucketIfNotExists('covers');
+      await ensureStorageBucketExists('covers');
       
       const { data, error } = await supabase.storage
         .from('covers')
@@ -187,19 +189,25 @@ const Profile = () => {
     }
   };
   
-  const createBucketIfNotExists = async (bucketName: string) => {
+  const ensureStorageBucketExists = async (bucketName: string) => {
     try {
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+      // Check if bucket exists
+      const { data: buckets, error } = await supabase.storage.listBuckets();
       
+      if (error) {
+        console.error(`Error checking buckets:`, error);
+        return;
+      }
+      
+      const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
+      
+      // If bucket doesn't exist, we can't create it from the client
+      // This should be handled via SQL migrations
       if (!bucketExists) {
-        await supabase.storage.createBucket(bucketName, {
-          public: true,
-          fileSizeLimit: 5 * 1024 * 1024, // 5MB limit
-        });
+        console.log(`Bucket ${bucketName} doesn't exist`);
       }
     } catch (error) {
-      console.error(`Error checking/creating ${bucketName} bucket:`, error);
+      console.error(`Error ensuring bucket exists:`, error);
     }
   };
   
@@ -240,11 +248,11 @@ const Profile = () => {
         title: "Upload successful",
         description: "Your profile image has been uploaded and selected",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your profile image",
+        description: error.message || "There was an error uploading your profile image",
         variant: "destructive"
       });
     } finally {
@@ -289,11 +297,11 @@ const Profile = () => {
         title: "Upload successful",
         description: "Your cover image has been uploaded and selected",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your cover image",
+        description: error.message || "There was an error uploading your cover image",
         variant: "destructive"
       });
     } finally {
@@ -375,6 +383,8 @@ const Profile = () => {
   
   // Role-specific info
   const renderRoleContent = () => {
+    if (!currentUser) return null;
+    
     switch (currentUser.role) {
       case 'influencer':
         return (
@@ -581,7 +591,7 @@ const Profile = () => {
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
               onClick={() => setIsFollowingDialogOpen(true)}
             >
-              <div className="text-2xl font-bold">{(currentUser?.following || []).length}</div>
+              <div className="text-2xl font-bold">{(currentUser?.following?.length || 0)}</div>
               <div className="text-gray-500 text-sm">Following</div>
             </div>
             
@@ -968,54 +978,13 @@ const Profile = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Your Images</h4>
-              <label className="cursor-pointer">
-                <Input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={uploadProfileImage}
-                  disabled={uploading}
-                />
-                <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
-                  <Upload className="h-4 w-4" />
-                  <span>{uploading ? 'Uploading...' : 'Upload New'}</span>
-                </Button>
-              </label>
-            </div>
-            
-            <ScrollArea className="h-[300px]">
-              {profileImages.length > 0 ? (
-                <div className="grid grid-cols-3 gap-4 p-1">
-                  {profileImages.map((image, index) => (
-                    <div 
-                      key={index} 
-                      className="relative cursor-pointer group overflow-hidden rounded-md"
-                      onClick={() => selectProfileImage(image.url)}
-                    >
-                      <img 
-                        src={image.url} 
-                        alt={`Profile ${index + 1}`} 
-                        className="h-24 w-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-white">
-                          Select
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <ImageIcon className="mx-auto h-12 w-12 opacity-20 mb-2" />
-                  <p>No images uploaded yet</p>
-                </div>
-              )}
-            </ScrollArea>
-          </div>
+          <ImageGallery 
+            images={profileImages}
+            onSelectImage={selectProfileImage}
+            onUploadImage={uploadProfileImage}
+            uploading={uploading}
+            emptyMessage="No profile images uploaded yet"
+          />
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
@@ -1035,54 +1004,14 @@ const Profile = () => {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-sm font-medium">Your Cover Photos</h4>
-              <label className="cursor-pointer">
-                <Input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={uploadCoverImage}
-                  disabled={uploading}
-                />
-                <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
-                  <Upload className="h-4 w-4" />
-                  <span>{uploading ? 'Uploading...' : 'Upload New'}</span>
-                </Button>
-              </label>
-            </div>
-            
-            <ScrollArea className="h-[300px]">
-              {coverImages.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 p-1">
-                  {coverImages.map((image, index) => (
-                    <div 
-                      key={index} 
-                      className="relative cursor-pointer group overflow-hidden rounded-md"
-                      onClick={() => selectCoverImage(image.url)}
-                    >
-                      <img 
-                        src={image.url} 
-                        alt={`Cover ${index + 1}`} 
-                        className="h-32 w-full object-cover"
-                      />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
-                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-white">
-                          Select
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <ImageIcon className="mx-auto h-12 w-12 opacity-20 mb-2" />
-                  <p>No cover photos uploaded yet</p>
-                </div>
-              )}
-            </ScrollArea>
-          </div>
+          <ImageGallery 
+            images={coverImages}
+            onSelectImage={selectCoverImage}
+            onUploadImage={uploadCoverImage}
+            uploading={uploading}
+            emptyMessage="No cover photos uploaded yet"
+            aspectRatio="landscape"
+          />
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCoverImageDialogOpen(false)}>
