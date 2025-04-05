@@ -248,8 +248,11 @@ export type Database = {
       }
       service_enrollments: {
         Row: {
+          amount: number | null
           created_at: string
           id: string
+          payment_completed: boolean | null
+          payment_required: boolean | null
           payment_status: string
           service_id: string
           status: string
@@ -259,8 +262,11 @@ export type Database = {
           user_profile_image: string | null
         }
         Insert: {
+          amount?: number | null
           created_at?: string
           id?: string
+          payment_completed?: boolean | null
+          payment_required?: boolean | null
           payment_status?: string
           service_id: string
           status?: string
@@ -270,8 +276,11 @@ export type Database = {
           user_profile_image?: string | null
         }
         Update: {
+          amount?: number | null
           created_at?: string
           id?: string
+          payment_completed?: boolean | null
+          payment_required?: boolean | null
           payment_status?: string
           service_id?: string
           status?: string
@@ -295,6 +304,7 @@ export type Database = {
           capacity: number | null
           coach_id: string
           coach_name: string
+          cover_image: string | null
           created_at: string
           description: string | null
           duration: string | null
@@ -307,6 +317,7 @@ export type Database = {
           meeting_url: string | null
           price: number
           service_type: string
+          start_time: string | null
           title: string
           updated_at: string
         }
@@ -314,6 +325,7 @@ export type Database = {
           capacity?: number | null
           coach_id: string
           coach_name: string
+          cover_image?: string | null
           created_at?: string
           description?: string | null
           duration?: string | null
@@ -326,6 +338,7 @@ export type Database = {
           meeting_url?: string | null
           price?: number
           service_type: string
+          start_time?: string | null
           title: string
           updated_at?: string
         }
@@ -333,6 +346,7 @@ export type Database = {
           capacity?: number | null
           coach_id?: string
           coach_name?: string
+          cover_image?: string | null
           created_at?: string
           description?: string | null
           duration?: string | null
@@ -345,6 +359,7 @@ export type Database = {
           meeting_url?: string | null
           price?: number
           service_type?: string
+          start_time?: string | null
           title?: string
           updated_at?: string
         }

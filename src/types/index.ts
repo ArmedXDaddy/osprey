@@ -1,4 +1,3 @@
-
 export interface Service {
   id: string;
   title: string;
@@ -163,3 +162,18 @@ export interface Message {
   mediaType?: string;
   createdAt: Date;
 }
+
+export interface ServiceBooking {
+  id: string;
+  serviceId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userProfileImage?: string;
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
+  amount: number;
+  createdAt: Date;
+}
+
+export type BookingStatus = 'pending' | 'approved' | 'rejected';

@@ -3,6 +3,7 @@ import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventP
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import crypto from 'crypto';
 
 interface DataContextType {
   posts: Post[];
@@ -20,7 +21,7 @@ interface DataContextType {
   createService: (service: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
   createSession: (session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
   updateSession: (sessionId: string, sessionData: Partial<Session>) => Promise<Session>;
-  enrollInSession: (sessionId: string) => Promise<SessionEnrollment>;
+  enrollInSession: (sessionId: string, isPaid: boolean = false) => Promise<SessionEnrollment>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
   updateEnrollmentStatus: (enrollmentId: string, status: SessionStatus) => Promise<void>;
   getUserSessions: (userId: string) => Session[];
@@ -677,72 +678,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const enrollInSession = async (sessionId: string) => {
+  const enrollInSession = async (sessionId: string, isPaid: boolean = false): Promise<SessionEnrollment> => {
+    if (!currentUser) throw new Error('You must be logged in to enroll in a session');
+    
     setLoading(true);
     
     try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to enroll in a session');
-      }
-      
       const session = sessions.find(s => s.id === sessionId);
-      if (!session) {
-        throw new Error('Session not found');
-      }
+      if (!session) throw new Error('Session not found');
       
-      if (!session.isActive) {
-        throw new Error('This session is not currently active');
-      }
-      
-      if (session.sessionType === 'group' && session.capacity !== undefined) {
-        const currentEnrollments = sessionEnrollments.filter(e => 
-          e.sessionId === sessionId && e.status !== 'rejected'
-        ).length;
-        
-        if (currentEnrollments >= session.capacity) {
-          throw new Error('This session is at full capacity');
-        }
-      }
-      
-      // Check if user is already enrolled
-      const existingEnrollment = sessionEnrollments.find(e => 
-        e.sessionId === sessionId && e.userId === currentUser.id
-      );
-      
-      if (existingEnrollment) {
-        throw new Error('You are already enrolled in this session');
-      }
-      
-      const newEnrollment: SessionEnrollment = {
-        id: `enroll${Date.now()}`,
-        sessionId: sessionId,
+      // For new enrollment, create an enrollment object
+      const newEnrollment: Omit<SessionEnrollment, 'id' | 'createdAt'> = {
+        sessionId,
         userId: currentUser.id,
         userName: currentUser.name,
         userEmail: currentUser.email,
         userProfileImage: currentUser.profileImage,
-        status: 'pending',
-        paymentStatus: 'unpaid',
-        createdAt: new Date()
+        status: session.price > 0 && isPaid ? 'approved' : 'pending', // Automatically approve paid sessions
+        paymentStatus: session.price > 0 ? (isPaid ? 'paid' : 'unpaid') : 'paid', // Mark as paid for free or explicitly paid sessions
       };
       
-      setSessionEnrollments(prev => [...prev, newEnrollment]);
+      // Use DataContext to update the session enrollments
+      const enrollmentId = crypto.randomUUID();
+      const createdAt = new Date();
       
-      toast({
-        title: session.sessionType === 'one_on_one' ? "Request sent" : "Enrollment successful",
-        description: session.sessionType === 'one_on_one' 
-          ? "Your request for a one-on-one session has been sent to the coach" 
-          : "You have successfully enrolled in the group session",
-        variant: "success"
-      });
+      const enrollmentObject: SessionEnrollment = {
+        ...newEnrollment,
+        id: enrollmentId,
+        createdAt,
+      };
       
-      return newEnrollment;
-    } catch (error: any) {
+      setSessionEnrollments(prev => [...prev, enrollmentObject]);
+      
+      return enrollmentObject;
+    } catch (error) {
       console.error('Error enrolling in session:', error);
-      toast({
-        title: "Enrollment failed",
-        description: error.message,
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setLoading(false);
@@ -1116,7 +1086,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGroups(prev => 
         prev.map(g => 
           g.id === groupId 
-            ? { ...g, pendingRequests: (g.pendingRequests || 0) + 1 }
+            ? { 
+                ...g, 
+                pendingRequests: (g.pendingRequests || 0) + 1
+              }
             : g
         )
       );

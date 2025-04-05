@@ -1,4 +1,3 @@
-
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -225,13 +224,14 @@ export const deleteService = async (id: string): Promise<void> => {
   }
 };
 
-// Book a service
+// Book a service - updated to handle paid services
 export const bookService = async (bookingData: {
   serviceId: string;
   userId: string;
   userName: string;
   userEmail: string;
   userProfileImage?: string;
+  isPaid?: boolean;
 }): Promise<void> => {
   const { error } = await supabase
     .from('service_enrollments')
@@ -241,12 +241,129 @@ export const bookService = async (bookingData: {
       user_name: bookingData.userName,
       user_email: bookingData.userEmail,
       user_profile_image: bookingData.userProfileImage,
-      status: 'pending',
-      payment_status: 'unpaid',
+      status: bookingData.isPaid ? 'approved' : 'pending', // Auto-approve paid bookings
+      payment_status: bookingData.isPaid ? 'paid' : 'unpaid',
     });
     
   if (error) {
     console.error('Error booking service:', error);
     throw new Error(error.message);
   }
+};
+
+// Get service bookings
+export const getServiceBookings = async (serviceId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select('*')
+    .eq('service_id', serviceId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching service bookings:', error);
+    throw new Error(error.message);
+  }
+  
+  return data;
+};
+
+// Update booking status
+export const updateBookingStatus = async (bookingId: string, status: 'pending' | 'approved' | 'rejected') => {
+  const { error } = await supabase
+    .from('service_enrollments')
+    .update({ status })
+    .eq('id', bookingId);
+    
+  if (error) {
+    console.error('Error updating booking status:', error);
+    throw new Error(error.message);
+  }
+};
+
+// Cancel a booking
+export const cancelBooking = async (bookingId: string) => {
+  const { error } = await supabase
+    .from('service_enrollments')
+    .delete()
+    .eq('id', bookingId);
+    
+  if (error) {
+    console.error('Error canceling booking:', error);
+    throw new Error(error.message);
+  }
+};
+
+// Get user's bookings
+export const getUserBookings = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select(`
+      *,
+      service:service_id (
+        title,
+        description,
+        price,
+        coach_name,
+        service_type,
+        duration,
+        is_online,
+        location,
+        meeting_url
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching user bookings:', error);
+    throw new Error(error.message);
+  }
+  
+  return data;
+};
+
+// Get service provider's bookings
+export const getProviderBookings = async (providerId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select(`
+      *,
+      service:service_id (
+        id,
+        title,
+        price,
+        service_type,
+        duration,
+        is_online
+      )
+    `)
+    .eq('service:service_id.coach_id', providerId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching provider bookings:', error);
+    throw new Error(error.message);
+  }
+  
+  return data;
+};
+
+// Check if a user has booked a service
+export const checkBookingStatus = async (userId: string, serviceId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('service_id', serviceId);
+    
+  if (error) {
+    console.error('Error checking booking status:', error);
+    throw new Error(error.message);
+  }
+  
+  if (data.length === 0) {
+    return null;
+  }
+  
+  return data[0];
 };
