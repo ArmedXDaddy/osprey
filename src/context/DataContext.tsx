@@ -115,6 +115,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   }, [services, mockServices]);
 
   useEffect(() => {
+    if (mockServices.length === 0) {
+      const generatedMockServices = generateMockServices();
+      setMockServices(generatedMockServices);
+    }
+  }, [mockServices.length]);
+
+  useEffect(() => {
     const loadMockData = async () => {
       try {
         setLoading(true);
@@ -133,6 +140,24 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     loadMockData();
+  }, []);
+
+  useEffect(() => {
+    if (services.length > 0) {
+      localStorage.setItem('userCreatedServices', JSON.stringify(services));
+    }
+  }, [services]);
+
+  useEffect(() => {
+    const savedServices = localStorage.getItem('userCreatedServices');
+    if (savedServices) {
+      try {
+        const parsedServices = JSON.parse(savedServices);
+        setServices(parsedServices);
+      } catch (err) {
+        console.error('Error parsing saved services:', err);
+      }
+    }
   }, []);
 
   const createPost = async (content: string, image?: string): Promise<Post> => {
@@ -786,6 +811,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     console.log("New service created:", newService);
     setServices(prevServices => [...prevServices, newService]);
+    
+    const updatedServices = [...services, newService];
+    localStorage.setItem('userCreatedServices', JSON.stringify(updatedServices));
+    
     return newService;
   };
 
@@ -839,7 +868,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         isOnline: false,
         location: "Fitness Studio, 123 Main St",
         capacity: 1,
-        serviceType: "one_on_one"
+        serviceType: "one_on_one" as ServiceType
       },
       {
         id: "service-2",
@@ -854,7 +883,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         isOnline: false,
         location: "Fitness Studio, 123 Main St",
         capacity: 8,
-        serviceType: "group"
+        serviceType: "group" as ServiceType
       },
       {
         id: "service-3",
@@ -868,7 +897,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         createdAt: new Date("2023-03-10"),
         isOnline: true,
         capacity: 1,
-        serviceType: "one_on_one"
+        serviceType: "one_on_one" as ServiceType
       },
       {
         id: "service-4",
@@ -883,7 +912,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         isOnline: false,
         location: "Fitness Studio, 123 Main St",
         capacity: 1,
-        serviceType: "one_on_one"
+        serviceType: "one_on_one" as ServiceType
       },
       {
         id: "service-5",
@@ -897,7 +926,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         createdAt: new Date("2023-05-12"),
         isOnline: true,
         capacity: 15,
-        serviceType: "group"
+        serviceType: "group" as ServiceType
       }
     ];
   };
