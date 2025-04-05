@@ -3,40 +3,81 @@ import React from 'react';
 import { Service } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, DollarSign } from 'lucide-react';
+import { Clock, DollarSign, Users, MapPin, Video } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 interface ServiceCardProps {
   service: Service;
+  showViewDetailsButton?: boolean;
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
+const ServiceCard: React.FC<ServiceCardProps> = ({ 
+  service, 
+  showViewDetailsButton = true 
+}) => {
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <CardTitle className="text-lg">{service.title}</CardTitle>
-        <div className="text-sm text-gray-500">by {service.providerName}</div>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="text-lg">{service.title}</CardTitle>
+            <div className="text-sm text-gray-500">by {service.providerName}</div>
+          </div>
+          <Badge variant={service.price > 0 ? "default" : "outline"}>
+            {service.price > 0 ? `$${service.price}` : 'Free'}
+          </Badge>
+        </div>
       </CardHeader>
       
-      <CardContent className="pb-2">
+      <CardContent className="pb-2 flex-grow">
         <p className="text-gray-700 text-sm mb-4">{service.description}</p>
         
-        <div className="flex items-center justify-between">
+        <div className="space-y-2">
           <div className="flex items-center gap-1">
             <Clock className="h-4 w-4 text-gray-500" />
             <span className="text-sm text-gray-700">{service.duration}</span>
           </div>
           
-          <div className="flex items-center gap-1">
-            <DollarSign className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium">${service.price}</span>
-          </div>
+          {service.location && (
+            <div className="flex items-center gap-1">
+              <MapPin className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-700">{service.location}</span>
+            </div>
+          )}
+          
+          {service.isOnline && (
+            <div className="flex items-center gap-1">
+              <Video className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-700">Online Session</span>
+            </div>
+          )}
+          
+          {service.capacity && (
+            <div className="flex items-center gap-1">
+              <Users className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-700">
+                {service.capacity === 1 ? '1-on-1 Session' : `Group (up to ${service.capacity})`}
+              </span>
+            </div>
+          )}
         </div>
       </CardContent>
       
       <CardFooter className="pt-2">
-        <Button className="w-full" disabled={!service.available}>
-          {service.available ? 'Book Session' : 'Currently Unavailable'}
-        </Button>
+        {showViewDetailsButton ? (
+          <Link to={`/services/${service.id}`} className="w-full">
+            <Button className="w-full" variant="outline">
+              View Details
+            </Button>
+          </Link>
+        ) : (
+          <Button className="w-full" disabled={!service.available}>
+            {service.price > 0 
+              ? 'Book Session' 
+              : 'Request Session'}
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

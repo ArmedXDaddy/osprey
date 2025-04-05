@@ -24,6 +24,7 @@ import NotFound from "./pages/NotFound";
 import Networking from "./pages/Networking";
 import Sessions from "./pages/Sessions";
 import SessionDetail from "./pages/SessionDetail";
+import ServiceDetail from "./pages/ServiceDetail";
 import CreateSession from "./pages/CreateSession";
 import ManageSession from "./pages/ManageSession";
 
@@ -52,6 +53,7 @@ const App = () => (
                 <Route path="/sessions/:id" element={<SessionDetail />} />
                 <Route path="/sessions/create" element={<CreateSession />} />
                 <Route path="/sessions/:id/manage" element={<ManageSession />} />
+                <Route path="/services/:id" element={<ServiceDetail />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />

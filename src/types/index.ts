@@ -6,6 +6,8 @@ export type EventPrivacy = 'public' | 'private' | 'paid';
 export type SessionType = 'one_on_one' | 'group';
 export type SessionStatus = 'pending' | 'approved' | 'rejected' | 'completed';
 export type PaymentStatus = 'unpaid' | 'paid';
+export type ServiceType = 'one_on_one' | 'group' | 'webinar' | 'course';
+export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 
 export interface User {
   id: string;
@@ -86,7 +88,26 @@ export interface Service {
   duration: string;
   available: boolean;
   createdAt: Date;
-  sessionId?: string; // Added for linking to sessions
+  isOnline?: boolean;
+  location?: string;
+  capacity?: number;
+  serviceType?: ServiceType;
+  sessionId?: string; // Reference to a session if linked
+}
+
+export interface Booking {
+  id: string;
+  serviceId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
+  notes?: string;
+  preferredTime?: Date;
+  scheduledTime?: Date;
+  isPaid: boolean;
+  createdAt: Date;
 }
 
 export interface Session {
