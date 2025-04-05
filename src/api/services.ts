@@ -1,4 +1,3 @@
-
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -112,7 +111,6 @@ export const fetchServicesByProviderId = async (providerId: string): Promise<Ser
 
 // Create a new service
 export const createService = async (serviceData: Partial<Service>): Promise<Service> => {
-  // Transform our Service type to match Supabase schema
   const supabaseData = {
     title: serviceData.title,
     description: serviceData.description,
@@ -143,7 +141,6 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     throw new Error(error.message);
   }
   
-  // Return the created service
   return {
     id: data.id,
     title: data.title,
@@ -168,7 +165,6 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
 
 // Update an existing service
 export const updateService = async (id: string, serviceData: Partial<Service>): Promise<Service> => {
-  // Transform our Service type to match Supabase schema
   const supabaseData: any = {};
   
   if (serviceData.title !== undefined) supabaseData.title = serviceData.title;
@@ -199,7 +195,6 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
       throw new Error(error.message);
     }
     
-    // Return the updated service
     return {
       id: data.id,
       title: data.title,
@@ -234,7 +229,6 @@ export const bookService = async (bookingData: {
   userEmail: string;
   userProfileImage?: string;
 }): Promise<void> => {
-  // First, fetch the service to determine if it's free or paid
   const service = await fetchServiceById(bookingData.serviceId);
 
   const { error } = await supabase

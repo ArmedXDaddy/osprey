@@ -46,18 +46,20 @@ const ManageServiceBookings: React.FC = () => {
 
       if (error) throw error;
 
-      const bookings = data.map(booking => ({
-        id: booking.id,
-        serviceName: booking.services.title,
-        userName: booking.user_name,
-        userEmail: booking.user_email,
-        status: booking.status,
-        paymentStatus: booking.payment_status,
-        amount: booking.amount
-      }));
+      if (data) {
+        const bookings = data.map(booking => ({
+          id: booking.id,
+          serviceName: booking.services?.title || 'Unknown Service',
+          userName: booking.user_name,
+          userEmail: booking.user_email,
+          status: booking.status,
+          paymentStatus: booking.payment_status,
+          amount: booking.amount || 0
+        }));
 
-      setPendingBookings(bookings.filter(b => b.status === 'pending'));
-      setApprovedBookings(bookings.filter(b => b.status === 'approved'));
+        setPendingBookings(bookings.filter(b => b.status === 'pending'));
+        setApprovedBookings(bookings.filter(b => b.status === 'approved'));
+      }
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast({
