@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -91,10 +91,8 @@ const Profile = () => {
   const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
   const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
   
-  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
-  const [isCoverImageDialogOpen, setIsCoverImageDialogOpen] = useState(false);
-  const [profileImages, setProfileImages] = useState<{ name: string, url: string }[]>([]);
-  const [coverImages, setCoverImages] = useState<{ name: string, url: string }[]>([]);
+  const profileImageInputRef = useRef<HTMLInputElement>(null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   
   useEffect(() => {
@@ -465,11 +463,19 @@ const Profile = () => {
             size="sm" 
             variant="secondary"
             className="absolute right-4 bottom-4 gap-1 shadow-md"
-            onClick={() => setIsCoverImageDialogOpen(true)}
+            onClick={() => coverImageInputRef.current?.click()}
           >
             <ImageIcon className="h-4 w-4" />
             <span>Change Cover</span>
           </Button>
+          <input
+            ref={coverImageInputRef}
+            type="file"
+            className="hidden"
+            accept="image/*"
+            onChange={uploadCoverImage}
+            disabled={uploading}
+          />
         </div>
         
         <div className="px-6 pb-6">
@@ -486,10 +492,18 @@ const Profile = () => {
                 size="sm" 
                 variant="secondary" 
                 className="absolute bottom-0 right-0 h-8 w-8 p-0 rounded-full shadow-md"
-                onClick={() => setIsImageDialogOpen(true)}
+                onClick={() => profileImageInputRef.current?.click()}
               >
                 <Camera className="h-4 w-4" />
               </Button>
+              <input
+                ref={profileImageInputRef}
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={uploadProfileImage}
+                disabled={uploading}
+              />
             </div>
             
             <div className="flex-1 pt-2 md:pt-6">
@@ -817,7 +831,7 @@ const Profile = () => {
                   variant="outline" 
                   size="sm" 
                   className="h-8 gap-1"
-                  onClick={() => setIsImageDialogOpen(true)}
+                  onClick={() => profileImageInputRef.current?.click()}
                 >
                   <ImageIcon className="h-4 w-4" />
                   <span>Choose Image</span>
@@ -844,7 +858,7 @@ const Profile = () => {
                   variant="outline" 
                   size="sm" 
                   className="h-8 gap-1"
-                  onClick={() => setIsCoverImageDialogOpen(true)}
+                  onClick={() => coverImageInputRef.current?.click()}
                 >
                   <ImageIcon className="h-4 w-4" />
                   <span>Choose Image</span>
@@ -956,81 +970,6 @@ const Profile = () => {
           <ScrollArea className="h-[400px] pr-4">
             {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
           </ScrollArea>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-primary" />
-              Choose Your Profile Picture
-            </DialogTitle>
-            <DialogDescription>
-              Select from your uploaded images or upload a new one
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ImageGallery 
-            images={profileImages}
-            onSelectImage={selectProfileImage}
-            onUploadImage={uploadProfileImage}
-            uploading={uploading}
-            emptyMessage="You haven't uploaded any profile pictures yet"
-            selectedImage={profileForm.profileImage}
-          />
-          
-          <DialogFooter className="flex justify-between items-center">
-            <p className="text-sm text-gray-500">
-              {profileImages.length} images available
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setIsImageDialogOpen(false)}>
-                Done
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isCoverImageDialogOpen} onOpenChange={setIsCoverImageDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-primary" />
-              Choose Your Cover Photo
-            </DialogTitle>
-            <DialogDescription>
-              Select from your uploaded cover photos or upload a new one
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ImageGallery 
-            images={coverImages}
-            onSelectImage={selectCoverImage}
-            onUploadImage={uploadCoverImage}
-            uploading={uploading}
-            emptyMessage="You haven't uploaded any cover photos yet"
-            aspectRatio="landscape"
-            selectedImage={profileForm.coverImage}
-          />
-          
-          <DialogFooter className="flex justify-between items-center">
-            <p className="text-sm text-gray-500">
-              {coverImages.length} images available
-            </p>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsCoverImageDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={() => setIsCoverImageDialogOpen(false)}>
-                Done
-              </Button>
-            </div>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
