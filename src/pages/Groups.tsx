@@ -42,8 +42,11 @@ const Groups = () => {
     }
   });
 
-  // Get user's groups
-  const userGroups = groups.filter(group => group.creatorId === currentUser?.id);
+  // Get user's groups (groups created by the current user)
+  const userGroups = currentUser ? groups.filter(group => group.creatorId === currentUser?.id) : [];
+  
+  // Get groups the user has joined (for future implementation)
+  const joinedGroups = []; // This would be populated from the backend in a real implementation
 
   if (loading) {
     return (
@@ -78,7 +81,8 @@ const Groups = () => {
             />
           </div>
           
-          {['influencer', 'company'].includes(currentUser?.role || '') && (
+          {/* Allow all logged-in users to create groups */}
+          {currentUser && (
             <Link to="/create-group">
               <Button>Create Group</Button>
             </Link>
@@ -89,8 +93,8 @@ const Groups = () => {
       <Tabs defaultValue="all" className="w-full">
         <TabsList>
           <TabsTrigger value="all">All Groups</TabsTrigger>
-          <TabsTrigger value="my">My Groups</TabsTrigger>
-          <TabsTrigger value="joined">Joined Groups</TabsTrigger>
+          {currentUser && <TabsTrigger value="my">My Groups</TabsTrigger>}
+          {currentUser && <TabsTrigger value="joined">Joined Groups</TabsTrigger>}
         </TabsList>
         
         <TabsContent value="all" className="space-y-4">
@@ -177,38 +181,50 @@ const Groups = () => {
           )}
         </TabsContent>
         
-        <TabsContent value="my" className="space-y-4">
-          {userGroups.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userGroups.map((group) => (
-                <Link to={`/groups/${group.id}`} key={group.id}>
-                  <GroupCard group={group} />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <Users className="h-12 w-12 mx-auto text-gray-300" />
-              <h3 className="mt-4 text-lg font-medium">You haven't created any groups yet</h3>
-              {['influencer', 'company'].includes(currentUser?.role || '') && (
+        {currentUser && (
+          <TabsContent value="my" className="space-y-4">
+            {userGroups.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userGroups.map((group) => (
+                  <Link to={`/groups/${group.id}`} key={group.id}>
+                    <GroupCard group={group} />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 mx-auto text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">You haven't created any groups yet</h3>
                 <Link to="/create-group" className="mt-4 inline-block">
                   <Button>Create Your First Group</Button>
                 </Link>
-              )}
-            </div>
-          )}
-        </TabsContent>
+              </div>
+            )}
+          </TabsContent>
+        )}
         
-        <TabsContent value="joined" className="space-y-4">
-          <div className="text-center py-12">
-            <Users className="h-12 w-12 mx-auto text-gray-300" />
-            <h3 className="mt-4 text-lg font-medium">You haven't joined any groups yet</h3>
-            <p className="text-gray-500">Explore and join groups to see them here</p>
-            <Link to="/explore?tab=groups" className="mt-4 inline-block">
-              <Button variant="outline">Explore Groups</Button>
-            </Link>
-          </div>
-        </TabsContent>
+        {currentUser && (
+          <TabsContent value="joined" className="space-y-4">
+            {joinedGroups.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {joinedGroups.map((group) => (
+                  <Link to={`/groups/${group.id}`} key={group.id}>
+                    <GroupCard group={group} />
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 mx-auto text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">You haven't joined any groups yet</h3>
+                <p className="text-gray-500">Explore and join groups to see them here</p>
+                <Link to="/explore?tab=groups" className="mt-4 inline-block">
+                  <Button variant="outline">Explore Groups</Button>
+                </Link>
+              </div>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
