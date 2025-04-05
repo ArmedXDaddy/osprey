@@ -27,7 +27,11 @@ export const supabase = createClient<Database>(
 
 // Export a helper to run raw SQL queries for tables not in TypeScript definitions
 export const runQuery = async (query: string, params?: any[]) => {
-  const { data, error } = await supabase.rpc('run_query', { query, params });
+  // Since we can't use the run_query RPC due to TypeScript limitations,
+  // we'll use a workaround for now - using any to bypass TypeScript checking
+  // for this specific call
+  const client = supabase as any;
+  const { data, error } = await client.rpc('run_query', { query, params });
   if (error) throw error;
   return { data, error: null };
 };
