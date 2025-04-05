@@ -37,6 +37,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Session } from '@/types';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters' }),
@@ -89,14 +90,20 @@ const CreateSession = () => {
     
     try {
       // Clean up data before submission
-      const sessionData = {
-        ...data,
-        // Remove meetingUrl if not online
-        meetingUrl: data.isOnline ? data.meetingUrl : undefined,
-        // Remove location if online
-        location: !data.isOnline ? data.location : undefined,
-        // Remove capacity if one_on_one
+      const sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'> = {
+        title: data.title,
+        description: data.description,
+        coachId: currentUser.id,
+        coachName: currentUser.name,
+        sessionType: data.sessionType,
         capacity: data.sessionType === 'group' ? data.capacity : undefined,
+        price: data.price,
+        duration: data.duration,
+        startTime: data.startTime,
+        location: !data.isOnline ? data.location : undefined,
+        isOnline: data.isOnline,
+        meetingUrl: data.isOnline ? data.meetingUrl : undefined,
+        isActive: data.isActive,
       };
       
       const session = await createSession(sessionData);

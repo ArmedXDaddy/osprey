@@ -1,6 +1,5 @@
 
 import * as React from "react";
-import { useEffect, useState } from "react";
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000000;
@@ -14,7 +13,7 @@ export type Toast = {
   title?: string;
   description?: string;
   action?: ToastActionElement;
-  variant?: "default" | "destructive";
+  variant?: "default" | "destructive" | "success";
   open?: boolean;
 };
 
@@ -147,9 +146,9 @@ function toast({ title, description, variant, action }: ToastProps) {
 }
 
 function useToast() {
-  const [state, setState] = useState<State>(memoryState);
+  const [state, setState] = React.useState<State>(memoryState);
 
-  useEffect(() => {
+  React.useEffect(() => {
     listeners.push(setState);
     return () => {
       const index = listeners.indexOf(setState);

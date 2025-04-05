@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus } from '@/types';
 import { useAuth } from './AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Tables } from '@/integrations/supabase/types';
 
@@ -336,7 +336,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(MOCK_SESSION_ENROLLMENTS);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     const fetchGroups = async () => {
@@ -379,7 +378,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     fetchGroups();
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -536,23 +535,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Only coaches can create sessions');
       }
       
+      const sessionFormData: any = {
+        title: sessionData.title,
+        description: sessionData.description,
+        coach_id: currentUser.id,
+        coach_name: currentUser.name,
+        session_type: sessionData.sessionType,
+        capacity: sessionData.capacity,
+        price: sessionData.price,
+        duration: sessionData.duration,
+        start_time: sessionData.startTime?.toISOString(),
+        location: sessionData.location,
+        is_online: sessionData.isOnline,
+        meeting_url: sessionData.meetingUrl,
+        is_active: sessionData.isActive
+      };
+      
       const { data, error } = await supabase
         .from('sessions')
-        .insert({
-          title: sessionData.title,
-          description: sessionData.description,
-          coach_id: currentUser.id,
-          coach_name: currentUser.name,
-          session_type: sessionData.sessionType,
-          capacity: sessionData.capacity,
-          price: sessionData.price,
-          duration: sessionData.duration,
-          start_time: sessionData.startTime?.toISOString(),
-          location: sessionData.location,
-          is_online: sessionData.isOnline,
-          meeting_url: sessionData.meetingUrl,
-          is_active: sessionData.isActive
-        })
+        .insert(sessionFormData)
         .select()
         .single();
       
@@ -722,7 +723,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('You are already enrolled in this session');
       }
       
-      const enrollmentData = {
+      const enrollmentData: any = {
         session_id: sessionId,
         user_id: currentUser.id,
         user_name: currentUser.name,
