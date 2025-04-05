@@ -9,6 +9,47 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          post_id: string | null
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+          user_role: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+          user_role: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+          user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       followers: {
         Row: {
           created_at: string
@@ -197,6 +238,74 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          comments_count: number | null
+          content: string
+          created_at: string
+          id: string
+          image: string | null
+          likes_count: number | null
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+          user_role: string
+        }
+        Insert: {
+          comments_count?: number | null
+          content: string
+          created_at?: string
+          id?: string
+          image?: string | null
+          likes_count?: number | null
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+          user_role: string
+        }
+        Update: {
+          comments_count?: number | null
+          content?: string
+          created_at?: string
+          id?: string
+          image?: string | null
+          likes_count?: number | null
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+          user_role?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -449,6 +558,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_post_likes: {
+        Args: {
+          post_id: string
+        }
+        Returns: undefined
+      }
       get_service_bookings: {
         Args: {
           p_service_id: string
@@ -517,6 +632,18 @@ export type Database = {
           is_online: boolean
           service_type: string
         }[]
+      }
+      increment_post_comments: {
+        Args: {
+          post_id: string
+        }
+        Returns: undefined
+      }
+      increment_post_likes: {
+        Args: {
+          post_id: string
+        }
+        Returns: undefined
       }
       send_service_chat_message: {
         Args: {

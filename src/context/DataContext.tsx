@@ -104,14 +104,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
         const { data: postsData, error: postsError } = await supabase
           .from('posts')
-          .select('*, post_likes(*)')
+          .select('*')
           .order('created_at', { ascending: false });
           
         if (postsError) {
           console.error("Error fetching posts:", postsError);
           setPosts(generateMockPosts());
         } else if (postsData && postsData.length > 0) {
-          const transformedPosts: Post[] = postsData.map(post => ({
+          const transformedPosts: Post[] = postsData.map((post: any) => ({
             id: post.id,
             userId: post.user_id,
             userName: post.user_name,
@@ -121,9 +121,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             image: post.image,
             likes: post.likes_count || 0,
             comments: post.comments_count || 0,
-            userLikes: post.post_likes?.map((like: any) => like.user_id) || [],
+            userLikes: [],
             createdAt: new Date(post.created_at)
           }));
+          
+          for (const post of transformedPosts) {
+            const { data: likesData } = await supabase
+              .from('post_likes')
+              .select('user_id')
+              .eq('post_id', post.id);
+              
+            if (likesData) {
+              post.userLikes = likesData.map((like: any) => like.user_id);
+            }
+          }
+          
           setPosts(transformedPosts);
           
           fetchCommentsForPosts(postsData.map((post: any) => post.id));
@@ -748,24 +760,20 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         imageUrl = await uploadImage(imageFile, 'posts');
       }
       
-      const { data, error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          user_role: currentUser.role,
-          user_profile_image: currentUser.profileImage,
-          content,
-          image: imageUrl,
-          likes_count: 0,
-          comments_count: 0
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.from('posts').insert({
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content,
+        image: imageUrl,
+        likes_count: 0,
+        comments_count: 0
+      }).select();
         
       if (error) throw error;
       
-      return data;
+      console.log("Post created successfully:", data);
     } catch (err: any) {
       console.error("Error creating post:", err);
       toast({
@@ -781,12 +789,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to like a post');
     
     try {
-      const { error } = await supabase
-        .from('post_likes')
-        .insert({
-          post_id: postId,
-          user_id: currentUser.id
-        });
+      const { error } = await supabase.from('post_likes').insert({
+        post_id: postId,
+        user_id: currentUser.id
+      });
         
       if (error) {
         if (error.code === '23505') {
@@ -796,7 +802,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         throw error;
       }
       
-      await supabase.rpc('increment_post_likes', { post_id: postId });
+      const { error: rpcError } = await supabase.rpc('increment_post_likes', { post_id: postId });
+      
+      if (rpcError) {
+        console.error("Error incrementing post likes:", rpcError);
+      }
     } catch (err: any) {
       console.error("Error liking post:", err);
       throw err;
@@ -807,15 +817,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to unlike a post');
     
     try {
-      const { error } = await supabase
-        .from('post_likes')
+      const { error } = await supabase.from('post_likes')
         .delete()
         .eq('post_id', postId)
         .eq('user_id', currentUser.id);
         
       if (error) throw error;
       
-      await supabase.rpc('decrement_post_likes', { post_id: postId });
+      const { error: rpcError } = await supabase.rpc('decrement_post_likes', { post_id: postId });
+      
+      if (rpcError) {
+        console.error("Error decrementing post likes:", rpcError);
+      }
     } catch (err: any) {
       console.error("Error unliking post:", err);
       throw err;
@@ -826,26 +839,98 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to comment on a post');
     
     try {
-      const { data, error } = await supabase
-        .from('comments')
-        .insert({
-          post_id: postId,
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          user_role: currentUser.role,
-          user_profile_image: currentUser.profileImage,
-          content
-        })
-        .select()
-        .single();
+      const { data, error } = await supabase.from('comments').insert({
+        post_id: postId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content
+      }).select();
         
       if (error) throw error;
       
-      await supabase.rpc('increment_post_comments', { post_id: postId });
+      const { error: rpcError } = await supabase.rpc('increment_post_comments', { post_id: postId });
+      
+      if (rpcError) {
+        console.error("Error incrementing post comments:", rpcError);
+      }
     } catch (err: any) {
       console.error("Error adding comment:", err);
       throw err;
     }
+  };
+  
+  const createEvent = async (eventData: any): Promise<Event> => {
+    throw new Error('Not implemented');
+  };
+  
+  const joinEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const leaveEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const requestToJoinEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const rejectEventRequest = async (requestId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
+    return [];
+  };
+  
+  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const createGroup = async (groupData: any): Promise<Group> => {
+    throw new Error('Not implemented');
+  };
+  
+  const joinGroup = async (groupId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const leaveGroup = async (groupId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const requestToJoinGroup = async (groupId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const approveGroupRequest = async (requestId: string, groupId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const rejectGroupRequest = async (requestId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
+    return [];
+  };
+  
+  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
+    throw new Error('Not implemented');
   };
   
   const contextValue: DataContextType = {
