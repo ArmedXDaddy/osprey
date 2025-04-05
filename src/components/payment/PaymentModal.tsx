@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/types';
@@ -66,13 +65,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      // For paid services, mark as 'paid' in the database and set status to 'approved'
-      // This ensures the booking is automatically approved upon payment
+      // For paid services, we pass 'paid' as notes which will automatically set status to 'approved'
+      // in the bookService implementation
       await bookService(
         service.id, 
         isFreeService ? undefined : 'paid',
-        isFreeService ? undefined : 'approved', // Automatically approve paid bookings
-        isFreeService ? undefined : new Date() // Pass current date for preferred time
+        isFreeService ? undefined : new Date() // Pass current date for preferred time only for paid services
       );
 
       toast({
