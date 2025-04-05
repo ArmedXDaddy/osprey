@@ -849,7 +849,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       toast({
         title: "Success!",
-        description: `You're attending
+        description: `You're attending this event`,
       });
     }
 
