@@ -75,16 +75,31 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
       setIsProcessing(false);
       setIsComplete(true);
 
-      // Simulate successful payment
+      // Simulate successful payment after a short delay
       setTimeout(() => {
-        onPaymentSuccess();
-        toast({
-          title: "Payment successful",
-          description: `Your payment of $${amount.toFixed(2)} for ${serviceName} has been processed.`,
-        });
-        setIsComplete(false);
-        resetForm();
-        onOpenChange(false);
+        try {
+          // Call the onPaymentSuccess callback
+          onPaymentSuccess();
+          
+          toast({
+            title: "Payment successful",
+            description: `Your payment of $${amount.toFixed(2)} for ${serviceName} has been processed.`,
+          });
+          
+          // Reset form and close dialog
+          resetForm();
+          onOpenChange(false);
+        } catch (error) {
+          console.error('Error during payment success handling:', error);
+          toast({
+            title: "Payment processed",
+            description: "Your payment was processed, but there was an error updating your booking. Please contact support.",
+            variant: "destructive"
+          });
+          // Still close the dialog
+          resetForm();
+          onOpenChange(false);
+        }
       }, 1500);
     }, 2000);
   };

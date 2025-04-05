@@ -363,15 +363,39 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('User not found');
       }
 
-      const status = isPaid ? 'approved' : 'pending';
+      const existingBooking = serviceBookings.find(
+        booking => booking.serviceId === serviceId && booking.userId === currentUser.id
+      );
 
+      if (existingBooking) {
+        if (isPaid && (existingBooking.status !== 'approved' || existingBooking.paymentStatus !== 'paid')) {
+          const updatedBooking = {
+            ...existingBooking,
+            status: 'approved',
+            paymentStatus: 'paid'
+          };
+
+          setServiceBookings(prev => 
+            prev.map(booking => 
+              booking.id === existingBooking.id ? updatedBooking : booking
+            )
+          );
+
+          return updatedBooking;
+        }
+        
+        return existingBooking;
+      }
+
+      const status = isPaid ? 'approved' : 'pending';
+      
       const newEnrollment: ServiceBooking = {
         id: generateId(),
         serviceId,
-        userId: currentUser?.id || '',
-        userName: currentUser?.name || '',
-        userEmail: currentUser?.email || '',
-        userProfileImage: currentUser?.profileImage || '',
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userProfileImage: currentUser.profileImage,
         status: status,
         paymentStatus: isPaid ? 'paid' : 'unpaid',
         amount: service.price,
@@ -379,7 +403,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       };
 
       setServiceBookings(prev => [...prev, newEnrollment]);
-
       return newEnrollment;
     } catch (error) {
       console.error('Error booking service:', error);

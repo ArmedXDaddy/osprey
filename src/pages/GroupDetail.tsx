@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -494,7 +493,10 @@ const GroupDetail = () => {
             
             <TabsContent value="chat" className="p-6">
               {canAccessRestrictedContent ? (
-                <GroupChatSection groupId={group.id} />
+                <GroupChatSection 
+                  groupId={id} 
+                  isAdmin={isCreator || currentUser?.role === 'admin'} 
+                />
               ) : (
                 <div className="text-center py-12">
                   <Lock className="h-12 w-12 mx-auto text-gray-300" />

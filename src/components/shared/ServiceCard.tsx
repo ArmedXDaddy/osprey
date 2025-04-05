@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Service } from '@/types';
+import React, { useState, useEffect } from 'react';
+import { Service, ServiceBooking } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,15 +14,35 @@ import { useNavigate } from 'react-router-dom';
 interface ServiceCardProps {
   service: Service;
   isEnrolled?: boolean;
-  enrollment?: any;
+  enrollment?: ServiceBooking;
 }
 
 const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, enrollment }) => {
   const { currentUser } = useAuth();
-  const { bookService, cancelServiceBooking } = useData();
+  const { bookService, cancelServiceBooking, serviceBookings } = useData();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [localIsEnrolled, setLocalIsEnrolled] = useState(isEnrolled);
+  const [localEnrollment, setLocalEnrollment] = useState(enrollment);
+  
+  useEffect(() => {
+    setLocalIsEnrolled(isEnrolled);
+    setLocalEnrollment(enrollment);
+  }, [isEnrolled, enrollment]);
+  
+  useEffect(() => {
+    if (currentUser && service && serviceBookings && !localIsEnrolled) {
+      const userBooking = serviceBookings.find(
+        booking => booking.serviceId === service.id && booking.userId === currentUser.id
+      );
+      
+      if (userBooking) {
+        setLocalIsEnrolled(true);
+        setLocalEnrollment(userBooking);
+      }
+    }
+  }, [currentUser, service, serviceBookings, localIsEnrolled]);
   
   const handleBooking = async () => {
     try {
@@ -35,16 +55,19 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
         return;
       }
       
-      // If it's a paid service, show payment modal
       if (!service.isFree && service.price > 0) {
         setShowPaymentModal(true);
       } else {
-        // For free services, just send a request
-        await bookService(service.id);
-        toast({
-          title: "Request sent",
-          description: "Your booking request has been sent to the provider",
-        });
+        const newBooking = await bookService(service.id);
+        if (newBooking) {
+          setLocalIsEnrolled(true);
+          setLocalEnrollment(newBooking);
+          
+          toast({
+            title: "Request sent",
+            description: "Your booking request has been sent to the provider",
+          });
+        }
       }
     } catch (error) {
       console.error('Error booking service:', error);
@@ -58,13 +81,17 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   
   const handlePaymentSuccess = async () => {
     try {
-      // Book with payment status set to paid
-      await bookService(service.id, true);
-      setShowPaymentModal(false);
-      toast({
-        title: "Booking successful",
-        description: "Your payment was processed and your service has been booked",
-      });
+      const newBooking = await bookService(service.id, true);
+      
+      if (newBooking) {
+        setLocalIsEnrolled(true);
+        setLocalEnrollment(newBooking);
+        
+        toast({
+          title: "Booking successful",
+          description: "Your payment was processed and your service has been booked",
+        });
+      }
     } catch (error) {
       console.error('Error booking after payment:', error);
       toast({
@@ -84,10 +111,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   };
   
   const handleCancel = async () => {
-    if (!enrollment) return;
+    if (!localEnrollment) return;
     
     try {
-      await cancelServiceBooking(enrollment.id);
+      await cancelServiceBooking(localEnrollment.id);
+      
+      setLocalIsEnrolled(false);
+      setLocalEnrollment(undefined);
+      
       toast({
         title: "Booking cancelled",
         description: "Your booking has been cancelled",
@@ -183,17 +214,17 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
               <a href={`/services/${service.id}/manage`}>Manage Service</a>
             </Button>
           </div>
-        ) : isEnrolled ? (
+        ) : localIsEnrolled ? (
           <div className="w-full space-y-2">
-            {enrollment?.status === 'pending' ? (
+            {localEnrollment?.status === 'pending' ? (
               <Badge className="w-full justify-center py-1" variant="outline">Pending Approval</Badge>
-            ) : enrollment?.status === 'approved' ? (
+            ) : localEnrollment?.status === 'approved' ? (
               <Badge className="w-full justify-center py-1" variant="success">Approved</Badge>
             ) : (
               <Badge className="w-full justify-center py-1" variant="destructive">Rejected</Badge>
             )}
             
-            {enrollment?.status === 'approved' && service.isOnline && service.meetingUrl && (
+            {localEnrollment?.status === 'approved' && service.isOnline && service.meetingUrl && (
               <Button variant="outline" className="w-full" asChild>
                 <a href={service.meetingUrl} target="_blank" rel="noopener noreferrer">
                   Join Meeting
