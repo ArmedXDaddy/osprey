@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy } from '@/types';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DataContextType {
   posts: Post[];
@@ -114,67 +115,6 @@ const MOCK_EVENTS: Event[] = [
     privacy: 'paid',
     price: 49.99,
     createdAt: new Date('2023-09-10')
-  }
-];
-
-const MOCK_GROUPS: Group[] = [
-  {
-    id: 'g1',
-    name: 'Strength Queens',
-    description: 'A community for women who love strength training. Share tips, progress, and motivation!',
-    creatorId: '3',
-    creatorName: 'Alexandra Chen',
-    creatorRole: 'coach',
-    members: 437,
-    privacy: 'public',
-    image: 'https://images.unsplash.com/photo-1549476464-37392f717541?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-    createdAt: new Date('2023-02-10'),
-    rules: ['Be respectful to all members', 'No spam or self-promotion', 'Stay on topic'],
-    memberLimit: 500
-  },
-  {
-    id: 'g2',
-    name: 'Mindful Movers',
-    description: 'For those who believe in the connection between mind and body. Focus on yoga, pilates, and meditation.',
-    creatorId: '2',
-    creatorName: 'Sophia Williams',
-    creatorRole: 'influencer',
-    members: 892,
-    privacy: 'public',
-    image: 'https://images.unsplash.com/photo-1552196563-55cd4e45efb3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=826&q=80',
-    createdAt: new Date('2023-04-22'),
-    rules: ['Be kind and supportive', 'No promotional content', 'Respect privacy'],
-    memberLimit: 1000
-  },
-  {
-    id: 'g3',
-    name: 'Elite Training Circle',
-    description: 'Advanced training techniques and programs for serious athletes looking to reach peak performance.',
-    creatorId: '3',
-    creatorName: 'Alexandra Chen', 
-    creatorRole: 'coach',
-    members: 124,
-    privacy: 'private',
-    pendingRequests: 8,
-    image: 'https://images.unsplash.com/photo-1599058917765-a780eda07a3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1769&q=80',
-    createdAt: new Date('2023-06-15'),
-    rules: ['Serious athletes only', 'Share progress regularly', 'Participate in challenges'],
-    memberLimit: 150
-  },
-  {
-    id: 'g4',
-    name: 'Pro Coaching Group',
-    description: 'Premium coaching and personalized programs with weekly live sessions and exclusive content.',
-    creatorId: '3',
-    creatorName: 'Alexandra Chen',
-    creatorRole: 'coach',
-    members: 47,
-    privacy: 'paid',
-    price: 29.99,
-    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1770&q=80',
-    createdAt: new Date('2023-07-01'),
-    rules: ['Attend weekly sessions', 'Follow program guidelines', 'Ask questions in the forum'],
-    memberLimit: 50
   }
 ];
 
@@ -301,7 +241,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
   const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
-  const [groups, setGroups] = useState<Group[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
   const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(MOCK_JOIN_REQUESTS);
@@ -309,13 +249,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
+  // Fetch groups from Supabase on component mount
   useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase.from('groups').select('*');
+        
+        if (error) {
+          console.error('Error fetching groups:', error);
+          toast({
+            title: "Error fetching groups",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else if (data) {
+          // Transform the data to match the Group type
+          const formattedGroups: Group[] = data.map(group => ({
+            id: group.id,
+            name: group.name,
+            description: group.description,
+            creatorId: group.creator_id,
+            creatorName: group.creator_name,
+            creatorRole: group.creator_role,
+            members: group.members,
+            privacy: group.privacy as GroupPrivacy,
+            price: group.price || undefined,
+            image: group.image || undefined,
+            createdAt: new Date(group.created_at),
+            rules: group.rules || [],
+            memberLimit: group.member_limit,
+            pendingRequests: group.pending_requests
+          }));
+          
+          setGroups(formattedGroups);
+        }
+      } catch (error) {
+        console.error('Error fetching groups:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGroups();
+  }, [toast]);
+
+  useEffect(() => {
+    // Load messages, join requests, etc.
     const timer = setTimeout(() => {
-      setLoading(false);
+      if (loading) setLoading(false);
     }, 1200);
     
     return () => clearTimeout(timer);
-  }, []);
+  }, [loading]);
 
   const createPost = async (postData: Omit<Post, 'id' | 'createdAt'>) => {
     setLoading(true);
@@ -361,18 +347,77 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
+      if (!currentUser) {
+        throw new Error('You must be logged in to create a group');
+      }
       
-      const newGroup: Group = {
-        ...groupData,
-        id: `g${Date.now()}`,
-        members: 1, // Creator is first member
-        pendingRequests: 0,
-        createdAt: new Date()
+      // Format data for Supabase
+      const supabaseGroupData = {
+        name: groupData.name,
+        description: groupData.description,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        creator_role: currentUser.role,
+        privacy: groupData.privacy,
+        price: groupData.privacy === 'paid' ? groupData.price : null,
+        image: groupData.image,
+        rules: groupData.rules,
+        member_limit: groupData.memberLimit
       };
       
+      const { data, error } = await supabase
+        .from('groups')
+        .insert(supabaseGroupData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error creating group:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to create group');
+      }
+      
+      // Also insert the creator as a member
+      const memberData = {
+        group_id: data.id,
+        user_id: currentUser.id
+      };
+      
+      await supabase.from('group_members').insert(memberData);
+      
+      // Format the returned data to match Group type
+      const newGroup: Group = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role,
+        members: data.members,
+        privacy: data.privacy as GroupPrivacy,
+        price: data.price || undefined,
+        image: data.image || undefined,
+        createdAt: new Date(data.created_at),
+        rules: data.rules || [],
+        memberLimit: data.member_limit,
+        pendingRequests: 0
+      };
+      
+      // Update local state
       setGroups(prev => [newGroup, ...prev]);
+      
       return newGroup;
+    } catch (error: any) {
+      console.error('Error in createGroup:', error);
+      toast({
+        title: "Error creating group",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -411,18 +456,58 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const sendMessage = async (messageData: Omit<Message, 'id' | 'createdAt'>) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const newMessage: Message = {
-        ...messageData,
-        id: `m${Date.now()}`,
-        createdAt: new Date()
+      if (!currentUser) {
+        throw new Error('You must be logged in to send a message');
+      }
+
+      // Format data for Supabase
+      const supabaseMessageData = {
+        group_id: messageData.groupId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content: messageData.content
       };
       
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(supabaseMessageData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error sending message:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to send message');
+      }
+      
+      // Format the returned data to match Message type
+      const newMessage: Message = {
+        id: data.id,
+        groupId: data.group_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role,
+        userProfileImage: data.user_profile_image,
+        content: data.content,
+        createdAt: new Date(data.created_at)
+      };
+      
+      // Update local state
       setMessages(prev => [...prev, newMessage]);
+      
       return newMessage;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
+      toast({
+        title: "Error sending message",
+        description: error.message,
+        variant: "destructive"
+      });
       throw error;
     }
   };
@@ -454,18 +539,57 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (group.privacy === 'public') {
-      setGroups(prevGroups => 
-        prevGroups.map(g => 
-          g.id === groupId ? { ...g, members: g.members + 1 } : g
-        )
-      );
-      
-      toast({
-        title: "Success!",
-        description: `You've joined ${group.name}`,
-      });
-      
-      return true;
+      try {
+        // Add member to the group_members table
+        const memberData = {
+          group_id: groupId,
+          user_id: currentUser.id
+        };
+        
+        const { error } = await supabase.from('group_members').insert(memberData);
+        
+        if (error) {
+          console.error('Error joining group:', error);
+          toast({
+            title: "Error joining group",
+            description: error.message,
+            variant: "destructive"
+          });
+          return false;
+        }
+        
+        // Update the members count in the groups table
+        const { error: updateError } = await supabase
+          .from('groups')
+          .update({ members: group.members + 1 })
+          .eq('id', groupId);
+        
+        if (updateError) {
+          console.error('Error updating group members count:', updateError);
+        }
+        
+        // Update local state
+        setGroups(prevGroups => 
+          prevGroups.map(g => 
+            g.id === groupId ? { ...g, members: g.members + 1 } : g
+          )
+        );
+        
+        toast({
+          title: "Success!",
+          description: `You've joined ${group.name}`,
+        });
+        
+        return true;
+      } catch (error: any) {
+        console.error('Error joining group:', error);
+        toast({
+          title: "Error joining group",
+          description: error.message,
+          variant: "destructive"
+        });
+        return false;
+      }
     }
 
     return false;
@@ -474,16 +598,56 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const leaveGroup = async (groupId: string) => {
     if (!currentUser) return;
 
-    setGroups(prevGroups => 
-      prevGroups.map(g => 
-        g.id === groupId ? { ...g, members: Math.max(g.members - 1, 0) } : g
-      )
-    );
-    
-    toast({
-      title: "You left the group",
-      description: "You can rejoin at any time",
-    });
+    try {
+      const group = groups.find(g => g.id === groupId);
+      if (!group) return;
+      
+      // Remove member from the group_members table
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', currentUser.id);
+      
+      if (error) {
+        console.error('Error leaving group:', error);
+        toast({
+          title: "Error leaving group",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Update the members count in the groups table
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ members: Math.max(group.members - 1, 0) })
+        .eq('id', groupId);
+      
+      if (updateError) {
+        console.error('Error updating group members count:', updateError);
+      }
+      
+      // Update local state
+      setGroups(prevGroups => 
+        prevGroups.map(g => 
+          g.id === groupId ? { ...g, members: Math.max(g.members - 1, 0) } : g
+        )
+      );
+      
+      toast({
+        title: "You left the group",
+        description: "You can rejoin at any time",
+      });
+    } catch (error: any) {
+      console.error('Error leaving group:', error);
+      toast({
+        title: "Error leaving group",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const requestToJoinGroup = async (groupId: string) => {
@@ -499,74 +663,179 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const group = groups.find(g => g.id === groupId);
     if (!group) return;
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const newRequest: JoinRequest = {
-      id: `jr${Date.now()}`,
-      groupId,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userProfileImage: currentUser.profileImage,
-      status: 'pending',
-      createdAt: new Date()
-    };
-
-    setJoinRequests(prev => [...prev, newRequest]);
-    
-    setGroups(prevGroups => 
-      prevGroups.map(g => 
-        g.id === groupId ? { ...g, pendingRequests: (g.pendingRequests || 0) + 1 } : g
-      )
-    );
-    
-    toast({
-      title: "Request sent",
-      description: "Your request to join this group is pending approval",
-    });
+    try {
+      // Add request to the join_requests table
+      const requestData = {
+        group_id: groupId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_profile_image: currentUser.profileImage,
+        status: 'pending'
+      };
+      
+      const { data, error } = await supabase
+        .from('join_requests')
+        .insert(requestData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error requesting to join group:', error);
+        toast({
+          title: "Error requesting to join group",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Update the pending_requests count in the groups table
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ pending_requests: (group.pendingRequests || 0) + 1 })
+        .eq('id', groupId);
+      
+      if (updateError) {
+        console.error('Error updating group pending requests count:', updateError);
+      }
+      
+      // Format the returned data to match JoinRequest type
+      const newRequest: JoinRequest = {
+        id: data.id,
+        groupId,
+        userId: data.user_id,
+        userName: data.user_name,
+        userProfileImage: data.user_profile_image,
+        status: 'pending',
+        createdAt: new Date(data.created_at)
+      };
+      
+      // Update local state
+      setJoinRequests(prev => [...prev, newRequest]);
+      
+      setGroups(prevGroups => 
+        prevGroups.map(g => 
+          g.id === groupId ? { ...g, pendingRequests: (g.pendingRequests || 0) + 1 } : g
+        )
+      );
+      
+      toast({
+        title: "Request sent",
+        description: "Your request to join this group is pending approval",
+      });
+    } catch (error: any) {
+      console.error('Error requesting to join group:', error);
+      toast({
+        title: "Error requesting to join group",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   };
 
   const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
     const request = joinRequests.find(r => r.id === requestId);
     if (!request) return;
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    setJoinRequests(prev => 
-      prev.map(r => 
-        r.id === requestId ? { ...r, status } : r
-      )
-    );
-
-    if (status === 'approved') {
-      setGroups(prevGroups => 
-        prevGroups.map(g => 
-          g.id === request.groupId ? 
-            { 
-              ...g, 
-              members: g.members + 1,
-              pendingRequests: Math.max((g.pendingRequests || 0) - 1, 0)
-            } : g
+    try {
+      // Update the status in the join_requests table
+      const { error } = await supabase
+        .from('join_requests')
+        .update({ status })
+        .eq('id', requestId);
+      
+      if (error) {
+        console.error('Error handling join request:', error);
+        toast({
+          title: "Error handling join request",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Update local state
+      setJoinRequests(prev => 
+        prev.map(r => 
+          r.id === requestId ? { ...r, status } : r
         )
       );
       
+      if (status === 'approved') {
+        const group = groups.find(g => g.id === request.groupId);
+        if (!group) return;
+        
+        // Add member to the group_members table
+        const memberData = {
+          group_id: request.groupId,
+          user_id: request.userId
+        };
+        
+        await supabase.from('group_members').insert(memberData);
+        
+        // Update the members and pending_requests counts in the groups table
+        const { error: updateError } = await supabase
+          .from('groups')
+          .update({ 
+            members: group.members + 1,
+            pending_requests: Math.max((group.pendingRequests || 0) - 1, 0)
+          })
+          .eq('id', request.groupId);
+        
+        if (updateError) {
+          console.error('Error updating group counts:', updateError);
+        }
+        
+        setGroups(prevGroups => 
+          prevGroups.map(g => 
+            g.id === request.groupId ? 
+              { 
+                ...g, 
+                members: g.members + 1,
+                pendingRequests: Math.max((g.pendingRequests || 0) - 1, 0)
+              } : g
+          )
+        );
+        
+        toast({
+          title: "Request approved",
+          description: `${request.userName} has been added to the group`,
+        });
+      } else {
+        const group = groups.find(g => g.id === request.groupId);
+        if (!group) return;
+        
+        // Update the pending_requests count in the groups table
+        const { error: updateError } = await supabase
+          .from('groups')
+          .update({ pending_requests: Math.max((group.pendingRequests || 0) - 1, 0) })
+          .eq('id', request.groupId);
+        
+        if (updateError) {
+          console.error('Error updating group pending requests count:', updateError);
+        }
+        
+        setGroups(prevGroups => 
+          prevGroups.map(g => 
+            g.id === request.groupId ? 
+              { 
+                ...g, 
+                pendingRequests: Math.max((g.pendingRequests || 0) - 1, 0)
+              } : g
+          )
+        );
+        
+        toast({
+          title: "Request rejected",
+          description: `${request.userName}'s request has been rejected`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error handling join request:', error);
       toast({
-        title: "Request approved",
-        description: `${request.userName} has been added to the group`,
-      });
-    } else {
-      setGroups(prevGroups => 
-        prevGroups.map(g => 
-          g.id === request.groupId ? 
-            { 
-              ...g, 
-              pendingRequests: Math.max((g.pendingRequests || 0) - 1, 0)
-            } : g
-        )
-      );
-      
-      toast({
-        title: "Request rejected",
-        description: `${request.userName}'s request has been rejected`,
+        title: "Error handling join request",
+        description: error.message,
+        variant: "destructive"
       });
     }
   };
@@ -605,205 +874,4 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       toast({
         title: "Success!",
-        description: `You're attending ${event.title}`,
-      });
-      
-      return true;
-    }
-
-    return false;
-  };
-
-  const leaveEvent = async (eventId: string) => {
-    if (!currentUser) return;
-
-    setEvents(prevEvents => 
-      prevEvents.map(e => 
-        e.id === eventId ? { ...e, attendees: Math.max(e.attendees - 1, 0) } : e
-      )
-    );
-    
-    toast({
-      title: "You left the event",
-      description: "You can rejoin at any time",
-    });
-  };
-
-  const requestToJoinEvent = async (eventId: string) => {
-    if (!currentUser) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to request joining this event",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const event = events.find(e => e.id === eventId);
-    if (!event) return;
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const newRequest: JoinRequest = {
-      id: `jr${Date.now()}`,
-      eventId,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userProfileImage: currentUser.profileImage,
-      status: 'pending',
-      createdAt: new Date()
-    };
-
-    setJoinRequests(prev => [...prev, newRequest]);
-    
-    setEvents(prevEvents => 
-      prevEvents.map(e => 
-        e.id === eventId ? { ...e, pendingRequests: (e.pendingRequests || 0) + 1 } : e
-      )
-    );
-    
-    toast({
-      title: "Request sent",
-      description: "Your request to join this event is pending approval",
-    });
-  };
-
-  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
-    const request = joinRequests.find(r => r.id === requestId);
-    if (!request || !request.eventId) return;
-
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    setJoinRequests(prev => 
-      prev.map(r => 
-        r.id === requestId ? { ...r, status } : r
-      )
-    );
-
-    if (status === 'approved') {
-      setEvents(prevEvents => 
-        prevEvents.map(e => 
-          e.id === request.eventId ? 
-            { 
-              ...e, 
-              attendees: e.attendees + 1,
-              pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
-            } : e
-        )
-      );
-      
-      toast({
-        title: "Request approved",
-        description: `${request.userName} has been added to the event`,
-      });
-    } else {
-      setEvents(prevEvents => 
-        prevEvents.map(e => 
-          e.id === request.eventId ? 
-            { 
-              ...e, 
-              pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
-            } : e
-        )
-      );
-      
-      toast({
-        title: "Request rejected",
-        description: `${request.userName}'s request has been rejected`,
-      });
-    }
-  };
-
-  const getEventRequests = (eventId: string) => {
-    return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
-  };
-
-  const removeGroupMember = async (groupId: string, userId: string) => {
-    if (!currentUser) return;
-    
-    const group = groups.find(g => g.id === groupId);
-    if (!group || group.creatorId !== currentUser.id) {
-      toast({
-        title: "Permission denied",
-        description: "Only group creators can remove members",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setGroups(prevGroups => 
-      prevGroups.map(g => 
-        g.id === groupId ? { ...g, members: Math.max(g.members - 1, 1) } : g
-      )
-    );
-    
-    toast({
-      title: "Member removed",
-      description: "The member has been removed from the group",
-    });
-  };
-
-  const updateGroupDetails = async (groupId: string, groupData: Partial<Group>) => {
-    if (!currentUser) return;
-    
-    const group = groups.find(g => g.id === groupId);
-    if (!group || group.creatorId !== currentUser.id) {
-      toast({
-        title: "Permission denied",
-        description: "Only group creators can update group details",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setGroups(prevGroups => 
-      prevGroups.map(g => 
-        g.id === groupId ? { ...g, ...groupData } : g
-      )
-    );
-    
-    toast({
-      title: "Group updated",
-      description: "Group details have been updated successfully",
-    });
-  };
-
-  const value = {
-    posts,
-    events,
-    groups,
-    services,
-    messages,
-    joinRequests,
-    loading,
-    createPost,
-    createEvent,
-    createGroup,
-    createService,
-    likePost,
-    sendMessage,
-    getGroupMessages,
-    joinGroup,
-    leaveGroup,
-    requestToJoinGroup,
-    handleJoinRequest,
-    getGroupRequests,
-    joinEvent,
-    leaveEvent,
-    requestToJoinEvent,
-    handleEventJoinRequest,
-    getEventRequests,
-    removeGroupMember,
-    updateGroupDetails
-  };
-
-  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
-};
-
-export const useData = () => {
-  const context = useContext(DataContext);
-  if (context === undefined) {
-    throw new Error('useData must be used within a DataProvider');
-  }
-  return context;
-};
+        description: `You're attending

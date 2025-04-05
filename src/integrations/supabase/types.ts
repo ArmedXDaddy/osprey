@@ -9,7 +9,168 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string
+          creator_id: string
+          creator_name: string
+          creator_role: string
+          description: string
+          id: string
+          image: string | null
+          member_limit: number | null
+          members: number
+          name: string
+          pending_requests: number | null
+          price: number | null
+          privacy: string
+          rules: string[] | null
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          creator_name: string
+          creator_role: string
+          description: string
+          id?: string
+          image?: string | null
+          member_limit?: number | null
+          members?: number
+          name: string
+          pending_requests?: number | null
+          price?: number | null
+          privacy?: string
+          rules?: string[] | null
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          creator_name?: string
+          creator_role?: string
+          description?: string
+          id?: string
+          image?: string | null
+          member_limit?: number | null
+          members?: number
+          name?: string
+          pending_requests?: number | null
+          price?: number | null
+          privacy?: string
+          rules?: string[] | null
+        }
+        Relationships: []
+      }
+      join_requests: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          group_id: string | null
+          id: string
+          status: string
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          group_id?: string | null
+          id?: string
+          status?: string
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          group_id?: string | null
+          id?: string
+          status?: string
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "join_requests_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          group_id: string | null
+          id: string
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+          user_role: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+          user_role: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          group_id?: string | null
+          id?: string
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+          user_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
