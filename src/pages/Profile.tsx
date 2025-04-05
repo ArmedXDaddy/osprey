@@ -38,7 +38,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const Profile = () => {
-  const { currentUser, updateUserProfile } = useAuth();
+  const { currentUser, updateProfile } = useAuth();
   const { posts, events, groups, services, loading } = useData();
   const { toast } = useToast();
 
@@ -113,7 +113,7 @@ const Profile = () => {
         }
       };
       
-      await updateUserProfile(updatedProfile);
+      await updateProfile(updatedProfile);
       
       toast({
         title: "Profile updated",
