@@ -59,15 +59,8 @@ const ServiceDetail = () => {
             console.log("User has an existing booking:", booking);
             setUserBooking(booking);
             setHasBooked(true);
-            
-            localStorage.setItem(`booking_${serviceData.id}_${currentUser.id}`, JSON.stringify({
-              hasBooked: true,
-              bookingId: booking.id,
-              status: booking.status
-            }));
           } else {
             setHasBooked(false);
-            localStorage.removeItem(`booking_${serviceData.id}_${currentUser.id}`);
           }
         } catch (error) {
           console.error("Error checking user booking:", error);
@@ -88,20 +81,6 @@ const ServiceDetail = () => {
 
   useEffect(() => {
     fetchServiceAndBookingDetails();
-    
-    if (id && currentUser) {
-      const cachedBooking = localStorage.getItem(`booking_${id}_${currentUser.id}`);
-      if (cachedBooking) {
-        try {
-          const bookingData = JSON.parse(cachedBooking);
-          if (bookingData.hasBooked) {
-            setHasBooked(true);
-          }
-        } catch (e) {
-          console.error("Error parsing cached booking data", e);
-        }
-      }
-    }
   }, [id, currentUser]);
 
   const handleBook = () => {
@@ -120,7 +99,6 @@ const ServiceDetail = () => {
 
   const handleBookingSuccess = () => {
     setHasBooked(true);
-    
     fetchServiceAndBookingDetails();
   };
 
