@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy } from '@/types';
 import { useAuth } from './AuthContext';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface DataContextType {
@@ -249,7 +249,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { currentUser } = useAuth();
   const { toast } = useToast();
 
-  // Fetch groups from Supabase on component mount
   useEffect(() => {
     const fetchGroups = async () => {
       try {
@@ -264,7 +263,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             variant: "destructive"
           });
         } else if (data) {
-          // Transform the data to match the Group type
           const formattedGroups: Group[] = data.map(group => ({
             id: group.id,
             name: group.name,
@@ -295,7 +293,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [toast]);
 
   useEffect(() => {
-    // Load messages, join requests, etc.
     const timer = setTimeout(() => {
       if (loading) setLoading(false);
     }, 1200);
@@ -351,7 +348,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('You must be logged in to create a group');
       }
       
-      // Format data for Supabase
       const supabaseGroupData = {
         name: groupData.name,
         description: groupData.description,
@@ -380,7 +376,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Failed to create group');
       }
       
-      // Also insert the creator as a member
       const memberData = {
         group_id: data.id,
         user_id: currentUser.id
@@ -388,7 +383,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       await supabase.from('group_members').insert(memberData);
       
-      // Format the returned data to match Group type
       const newGroup: Group = {
         id: data.id,
         name: data.name,
@@ -406,7 +400,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         pendingRequests: 0
       };
       
-      // Update local state
       setGroups(prev => [newGroup, ...prev]);
       
       return newGroup;
@@ -460,7 +453,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('You must be logged in to send a message');
       }
 
-      // Format data for Supabase
       const supabaseMessageData = {
         group_id: messageData.groupId,
         user_id: currentUser.id,
@@ -485,7 +477,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Failed to send message');
       }
       
-      // Format the returned data to match Message type
       const newMessage: Message = {
         id: data.id,
         groupId: data.group_id,
@@ -497,7 +488,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date(data.created_at)
       };
       
-      // Update local state
       setMessages(prev => [...prev, newMessage]);
       
       return newMessage;
@@ -540,7 +530,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (group.privacy === 'public') {
       try {
-        // Add member to the group_members table
         const memberData = {
           group_id: groupId,
           user_id: currentUser.id
@@ -558,7 +547,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return false;
         }
         
-        // Update the members count in the groups table
         const { error: updateError } = await supabase
           .from('groups')
           .update({ members: group.members + 1 })
@@ -568,7 +556,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.error('Error updating group members count:', updateError);
         }
         
-        // Update local state
         setGroups(prevGroups => 
           prevGroups.map(g => 
             g.id === groupId ? { ...g, members: g.members + 1 } : g
@@ -602,7 +589,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const group = groups.find(g => g.id === groupId);
       if (!group) return;
       
-      // Remove member from the group_members table
       const { error } = await supabase
         .from('group_members')
         .delete()
@@ -619,7 +605,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Update the members count in the groups table
       const { error: updateError } = await supabase
         .from('groups')
         .update({ members: Math.max(group.members - 1, 0) })
@@ -629,7 +614,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error updating group members count:', updateError);
       }
       
-      // Update local state
       setGroups(prevGroups => 
         prevGroups.map(g => 
           g.id === groupId ? { ...g, members: Math.max(g.members - 1, 0) } : g
@@ -664,7 +648,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!group) return;
 
     try {
-      // Add request to the join_requests table
       const requestData = {
         group_id: groupId,
         user_id: currentUser.id,
@@ -689,7 +672,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Update the pending_requests count in the groups table
       const { error: updateError } = await supabase
         .from('groups')
         .update({ pending_requests: (group.pendingRequests || 0) + 1 })
@@ -699,7 +681,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Error updating group pending requests count:', updateError);
       }
       
-      // Format the returned data to match JoinRequest type
       const newRequest: JoinRequest = {
         id: data.id,
         groupId,
@@ -710,7 +691,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date(data.created_at)
       };
       
-      // Update local state
       setJoinRequests(prev => [...prev, newRequest]);
       
       setGroups(prevGroups => 
@@ -738,7 +718,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!request) return;
 
     try {
-      // Update the status in the join_requests table
       const { error } = await supabase
         .from('join_requests')
         .update({ status })
@@ -754,7 +733,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
-      // Update local state
       setJoinRequests(prev => 
         prev.map(r => 
           r.id === requestId ? { ...r, status } : r
@@ -765,7 +743,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const group = groups.find(g => g.id === request.groupId);
         if (!group) return;
         
-        // Add member to the group_members table
         const memberData = {
           group_id: request.groupId,
           user_id: request.userId
@@ -773,7 +750,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         await supabase.from('group_members').insert(memberData);
         
-        // Update the members and pending_requests counts in the groups table
         const { error: updateError } = await supabase
           .from('groups')
           .update({ 
@@ -805,7 +781,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const group = groups.find(g => g.id === request.groupId);
         if (!group) return;
         
-        // Update the pending_requests count in the groups table
         const { error: updateError } = await supabase
           .from('groups')
           .update({ pending_requests: Math.max((group.pendingRequests || 0) - 1, 0) })
@@ -875,3 +850,350 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast({
         title: "Success!",
         description: `You're attending
+      });
+    }
+
+    return false;
+  };
+
+  const leaveEvent = async (eventId: string) => {
+    if (!currentUser) return;
+
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) return;
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees: event.attendees - 1 })
+        .eq('id', eventId);
+      
+      if (error) {
+        console.error('Error leaving event:', error);
+        toast({
+          title: "Error leaving event",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      toast({
+        title: "You left the event",
+        description: "You can rejoin at any time",
+      });
+    } catch (error: any) {
+      console.error('Error leaving event:', error);
+      toast({
+        title: "Error leaving event",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const requestToJoinEvent = async (eventId: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to request joining this event",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    try {
+      const requestData = {
+        event_id: eventId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_profile_image: currentUser.profileImage,
+        status: 'pending'
+      };
+      
+      const { data, error } = await supabase
+        .from('join_requests')
+        .insert(requestData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error requesting to join event:', error);
+        toast({
+          title: "Error requesting to join event",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ pending_requests: (event.pendingRequests || 0) + 1 })
+        .eq('id', eventId);
+      
+      if (updateError) {
+        console.error('Error updating event pending requests count:', updateError);
+      }
+      
+      const newRequest: JoinRequest = {
+        id: data.id,
+        eventId,
+        userId: data.user_id,
+        userName: data.user_name,
+        userProfileImage: data.user_profile_image,
+        status: 'pending',
+        createdAt: new Date(data.created_at)
+      };
+      
+      setJoinRequests(prev => [...prev, newRequest]);
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId ? { ...e, pendingRequests: (e.pendingRequests || 0) + 1 } : e
+        )
+      );
+      
+      toast({
+        title: "Request sent",
+        description: "Your request to join this event is pending approval",
+      });
+    } catch (error: any) {
+      console.error('Error requesting to join event:', error);
+      toast({
+        title: "Error requesting to join event",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    const request = joinRequests.find(r => r.id === requestId);
+    if (!request) return;
+
+    try {
+      const { error } = await supabase
+        .from('join_requests')
+        .update({ status })
+        .eq('id', requestId);
+      
+      if (error) {
+        console.error('Error handling event join request:', error);
+        toast({
+          title: "Error handling event join request",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setJoinRequests(prev => 
+        prev.map(r => 
+          r.id === requestId ? { ...r, status } : r
+        )
+      );
+      
+      if (status === 'approved') {
+        const event = events.find(e => e.id === request.eventId);
+        if (!event) return;
+        
+        const { error: updateError } = await supabase
+          .from('events')
+          .update({ 
+            attendees: event.attendees + 1,
+            pending_requests: Math.max((event.pendingRequests || 0) - 1, 0)
+          })
+          .eq('id', request.eventId);
+        
+        if (updateError) {
+          console.error('Error updating event counts:', updateError);
+        }
+        
+        setEvents(prevEvents => 
+          prevEvents.map(e => 
+            e.id === request.eventId ? 
+              { 
+                ...e, 
+                attendees: e.attendees + 1,
+                pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
+              } : e
+          )
+        );
+        
+        toast({
+          title: "Request approved",
+          description: `${request.userName} has been added to the event`,
+        });
+      } else {
+        const event = events.find(e => e.id === request.eventId);
+        if (!event) return;
+        
+        const { error: updateError } = await supabase
+          .from('events')
+          .update({ pending_requests: Math.max((event.pendingRequests || 0) - 1, 0) })
+          .eq('id', request.eventId);
+        
+        if (updateError) {
+          console.error('Error updating event pending requests count:', updateError);
+        }
+        
+        setEvents(prevEvents => 
+          prevEvents.map(e => 
+            e.id === request.eventId ? 
+              { 
+                ...e, 
+                pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
+              } : e
+          )
+        );
+        
+        toast({
+          title: "Request rejected",
+          description: `${request.userName}'s request has been rejected`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error handling event join request:', error);
+      toast({
+        title: "Error handling event join request",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getEventRequests = (eventId: string) => {
+    return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error removing group member:', error);
+        toast({
+          title: "Error removing group member",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ members: Math.max(groups.find(g => g.id === groupId)?.members || 0 - 1, 0) })
+        .eq('id', groupId);
+      
+      if (updateError) {
+        console.error('Error updating group members count:', updateError);
+      }
+      
+      setGroups(prevGroups => 
+        prevGroups.map(g => 
+          g.id === groupId ? { ...g, members: Math.max(g.members - 1, 0) } : g
+        )
+      );
+      
+      toast({
+        title: "Group member removed",
+        description: "The member has been successfully removed from the group",
+      });
+    } catch (error: any) {
+      console.error('Error removing group member:', error);
+      toast({
+        title: "Error removing group member",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const updateGroupDetails = async (groupId: string, groupData: Partial<Group>) => {
+    try {
+      const { error } = await supabase
+        .from('groups')
+        .update(groupData)
+        .eq('id', groupId);
+      
+      if (error) {
+        console.error('Error updating group details:', error);
+        toast({
+          title: "Error updating group details",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setGroups(prevGroups => 
+        prevGroups.map(g => 
+          g.id === groupId ? { ...g, ...groupData } : g
+        )
+      );
+      
+      toast({
+        title: "Group details updated",
+        description: "The group details have been successfully updated",
+      });
+    } catch (error: any) {
+      console.error('Error updating group details:', error);
+      toast({
+        title: "Error updating group details",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <DataContext.Provider
+      value={{
+        posts,
+        events,
+        groups,
+        services,
+        messages,
+        joinRequests,
+        loading,
+        createPost,
+        createEvent,
+        createGroup,
+        createService,
+        likePost,
+        sendMessage,
+        getGroupMessages,
+        joinGroup,
+        leaveGroup,
+        requestToJoinGroup,
+        handleJoinRequest,
+        getGroupRequests,
+        joinEvent,
+        leaveEvent,
+        requestToJoinEvent,
+        handleEventJoinRequest,
+        getEventRequests,
+        removeGroupMember,
+        updateGroupDetails,
+      }}
+    >
+      {children}
+    </DataContext.Provider>
+  );
+};
+
+export const useData = () => {
+  const context = useContext(DataContext);
+  if (context === undefined) {
+    throw new Error('useData must be used within a DataProvider');
+  }
+  return context;
+};
