@@ -9,39 +9,43 @@ import { cn } from '@/lib/utils';
 interface ImageGalleryProps {
   images: { name: string; url: string }[];
   onSelectImage: (url: string) => void;
-  onUploadImage: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  uploading: boolean;
-  emptyMessage: string;
+  onUploadImage?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploading?: boolean;
+  emptyMessage?: string;
   aspectRatio?: 'square' | 'landscape';
   selectedImage?: string;
+  onClose?: () => void;
 }
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
   images,
   onSelectImage,
   onUploadImage,
-  uploading,
-  emptyMessage,
+  uploading = false,
+  emptyMessage = "No images found.",
   aspectRatio = 'square',
-  selectedImage
+  selectedImage,
+  onClose
 }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium">Your Gallery</h4>
-        <label className="cursor-pointer">
-          <Input 
-            type="file" 
-            className="hidden" 
-            accept="image/*" 
-            onChange={onUploadImage}
-            disabled={uploading}
-          />
-          <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
-            <Upload className="h-4 w-4" />
-            <span>{uploading ? 'Uploading...' : 'Upload New'}</span>
-          </Button>
-        </label>
+        {onUploadImage && (
+          <label className="cursor-pointer">
+            <Input 
+              type="file" 
+              className="hidden" 
+              accept="image/*" 
+              onChange={onUploadImage}
+              disabled={uploading}
+            />
+            <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
+              <Upload className="h-4 w-4" />
+              <span>{uploading ? 'Uploading...' : 'Upload New'}</span>
+            </Button>
+          </label>
+        )}
       </div>
       
       <ScrollArea className="h-[300px]">
@@ -88,23 +92,29 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                 <ImageIcon className="h-8 w-8 text-gray-400" />
               </div>
               <p className="mb-4">{emptyMessage}</p>
-              <label className="cursor-pointer">
-                <Input 
-                  type="file" 
-                  className="hidden" 
-                  accept="image/*" 
-                  onChange={onUploadImage}
-                  disabled={uploading}
-                />
-                <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
-                  <Upload className="h-4 w-4" />
-                  <span>Upload Your First Image</span>
-                </Button>
-              </label>
+              {onUploadImage && (
+                <label className="cursor-pointer">
+                  <Input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={onUploadImage}
+                    disabled={uploading}
+                  />
+                  <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
+                    <Upload className="h-4 w-4" />
+                    <span>Upload Your First Image</span>
+                  </Button>
+                </label>
+              )}
             </div>
           </div>
         )}
       </ScrollArea>
+      
+      <div className="flex justify-end">
+        <Button onClick={onClose}>Done</Button>
+      </div>
     </div>
   );
 };

@@ -943,4 +943,4 @@ const Profile = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any
+              <p className="text-gray-500 mb-4">{isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.</
