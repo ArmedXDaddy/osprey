@@ -1,3 +1,4 @@
+
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -233,6 +234,23 @@ export const bookService = async (bookingData: {
   userProfileImage?: string;
   isPaid?: boolean;
 }): Promise<void> => {
+  // First, get the service price to determine if it should be auto-approved
+  const { data: serviceData, error: serviceError } = await supabase
+    .from('services')
+    .select('price, is_free')
+    .eq('id', bookingData.serviceId)
+    .single();
+    
+  if (serviceError) {
+    console.error('Error getting service:', serviceError);
+    throw new Error(serviceError.message);
+  }
+  
+  // Determine if the booking should be auto-approved
+  // Paid services are auto-approved if payment is completed
+  // Free services require manual approval
+  const isAutoApproved = (!serviceData.is_free && bookingData.isPaid) ? true : false;
+  
   const { error } = await supabase
     .from('service_enrollments')
     .insert({
@@ -241,8 +259,9 @@ export const bookService = async (bookingData: {
       user_name: bookingData.userName,
       user_email: bookingData.userEmail,
       user_profile_image: bookingData.userProfileImage,
-      status: bookingData.isPaid ? 'approved' : 'pending', // Auto-approve paid bookings
+      status: isAutoApproved ? 'approved' : 'pending',
       payment_status: bookingData.isPaid ? 'paid' : 'unpaid',
+      amount: serviceData.price || 0
     });
     
   if (error) {

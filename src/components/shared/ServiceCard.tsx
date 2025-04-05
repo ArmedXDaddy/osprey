@@ -59,16 +59,23 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
     try {
       // Book with payment status set to paid
       await bookService(service.id, true);
+      setShowPaymentModal(false);
       toast({
         title: "Booking successful",
-        description: "Your service has been booked successfully",
+        description: "Your payment was processed and your service has been booked",
       });
     } catch (error) {
       console.error('Error booking after payment:', error);
+      toast({
+        title: "Error",
+        description: "There was an error processing your booking after payment",
+        variant: "destructive"
+      });
     }
   };
   
   const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
     toast({
       title: "Payment cancelled",
       description: "Your payment has been cancelled",
@@ -86,6 +93,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       });
     } catch (error) {
       console.error('Error canceling booking:', error);
+      toast({
+        title: "Error",
+        description: "There was an error cancelling your booking",
+        variant: "destructive"
+      });
     }
   };
   
