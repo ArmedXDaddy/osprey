@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
+import { Link, useNavigate } from 'react-router-dom';
 
 interface CompanyProfileProps {
   companyId?: string;
@@ -14,6 +15,7 @@ interface CompanyProfileProps {
 
 const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const isOwnProfile = !companyId || (currentUser && currentUser.id === companyId);
   
   // Placeholder data - would be fetched from API in a real implementation
@@ -163,14 +165,18 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
               <CardDescription>Products and services offered by {companyData.name}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center p-12">
+              <div className="text-center p-8">
                 <DollarSign className="h-12 w-12 mx-auto text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium">No products yet</h3>
-                <p className="text-gray-500 mt-2">This company hasn't added any products or services.</p>
-                {isOwnProfile && (
-                  <Button className="mt-4" onClick={() => window.location.href = '/company/products/create'}>
+                <p className="text-gray-500 mt-2 mb-6">This company hasn't added any products or services.</p>
+                {isOwnProfile ? (
+                  <Button onClick={() => navigate('/company/products/create')}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Add Product
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => navigate('/products')}>
+                    Browse All Products
                   </Button>
                 )}
               </div>
@@ -185,14 +191,18 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
               <CardDescription>Career opportunities at {companyData.name}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center p-12">
+              <div className="text-center p-8">
                 <Briefcase className="h-12 w-12 mx-auto text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium">No job postings yet</h3>
-                <p className="text-gray-500 mt-2">This company hasn't posted any job opportunities.</p>
-                {isOwnProfile && (
-                  <Button className="mt-4" onClick={() => window.location.href = '/company/jobs/create'}>
+                <p className="text-gray-500 mt-2 mb-6">This company hasn't posted any job opportunities.</p>
+                {isOwnProfile ? (
+                  <Button onClick={() => navigate('/company/jobs/create')}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Post Job
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => navigate('/jobs')}>
+                    Browse All Jobs
                   </Button>
                 )}
               </div>
@@ -207,14 +217,18 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
               <CardDescription>Educational opportunities offered by {companyData.name}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center p-12">
+              <div className="text-center p-8">
                 <GraduationCap className="h-12 w-12 mx-auto text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium">No workshops available</h3>
-                <p className="text-gray-500 mt-2">This company hasn't added any workshops or training sessions.</p>
-                {isOwnProfile && (
-                  <Button className="mt-4" onClick={() => window.location.href = '/company/workshops/create'}>
+                <p className="text-gray-500 mt-2 mb-6">This company hasn't added any workshops or training sessions.</p>
+                {isOwnProfile ? (
+                  <Button onClick={() => navigate('/company/workshops/create')}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Create Workshop
+                  </Button>
+                ) : (
+                  <Button variant="outline" onClick={() => navigate('/workshops')}>
+                    Browse All Workshops
                   </Button>
                 )}
               </div>
@@ -229,12 +243,12 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
               <CardDescription>Latest updates from {companyData.name}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center p-12">
+              <div className="text-center p-8">
                 <FileText className="h-12 w-12 mx-auto text-gray-400" />
                 <h3 className="mt-4 text-lg font-medium">No posts yet</h3>
-                <p className="text-gray-500 mt-2">This company hasn't published any posts.</p>
+                <p className="text-gray-500 mt-2 mb-6">This company hasn't published any posts.</p>
                 {isOwnProfile && (
-                  <Button className="mt-4" onClick={() => window.location.href = '/create/post'}>
+                  <Button onClick={() => navigate('/create/post')}>
                     <PlusCircle className="h-4 w-4 mr-2" />
                     Create Post
                   </Button>

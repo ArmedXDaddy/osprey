@@ -4,17 +4,61 @@ import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Package2, Tag, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 
 const Products = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const isCompany = currentUser?.role === 'company';
+  const isCompanyRoute = location.pathname.startsWith('/company');
   
   // This would come from an API in a real implementation
-  const products = [];
+  const products = [
+    {
+      id: '1',
+      title: 'Business Analytics Suite',
+      company: 'Tech Company',
+      companyLogo: 'https://ui-avatars.com/api/?name=Tech+Company&background=random',
+      price: '$99/month',
+      description: 'A comprehensive business analytics solution for small to medium businesses that provides real-time insights and beautiful dashboards.',
+      image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+      category: 'Software',
+      tags: ['Business', 'Analytics', 'Cloud']
+    },
+    {
+      id: '2',
+      title: 'Enterprise Security Platform',
+      company: 'SecureTech',
+      companyLogo: 'https://ui-avatars.com/api/?name=SecureTech&background=random',
+      price: '$199/month',
+      description: 'End-to-end security solution for enterprises with advanced threat detection and automated response capabilities.',
+      image: 'https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+      category: 'Security',
+      tags: ['Enterprise', 'Security', 'Compliance']
+    },
+    {
+      id: '3',
+      title: 'AI-Powered CRM',
+      company: 'Smart Systems',
+      companyLogo: 'https://ui-avatars.com/api/?name=Smart+Systems&background=random',
+      price: '$79/user/month',
+      description: 'Customer relationship management platform enhanced with artificial intelligence to predict customer needs and optimize sales processes.',
+      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
+      category: 'CRM',
+      tags: ['AI', 'Sales', 'Customer Success']
+    }
+  ];
+  
+  const handleCreateProduct = () => {
+    navigate('/company/products/create');
+  };
+  
+  const handleViewProduct = (id: string) => {
+    navigate(isCompanyRoute ? `/company/products/${id}` : `/products/${id}`);
+  };
   
   return (
     <div className="space-y-6">
@@ -25,7 +69,7 @@ const Products = () => {
         </div>
         
         {isCompany && (
-          <Button onClick={() => navigate('/company/products/create')}>
+          <Button onClick={handleCreateProduct}>
             <PlusCircle className="h-4 w-4 mr-2" />
             Add Product
           </Button>
@@ -37,7 +81,7 @@ const Products = () => {
       {products.length > 0 ? (
         <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
           {products.map((product, i) => (
-            <ProductCard key={i} product={product} />
+            <ProductCard key={i} product={product} onClick={() => handleViewProduct(product.id)} />
           ))}
         </div>
       ) : (
@@ -50,7 +94,7 @@ const Products = () => {
               : "There are no products or services available at this time."}
           </p>
           {isCompany && (
-            <Button className="mt-4" onClick={() => navigate('/company/products/create')}>
+            <Button className="mt-4" onClick={handleCreateProduct}>
               <PlusCircle className="h-4 w-4 mr-2" />
               Add Product
             </Button>
@@ -61,49 +105,34 @@ const Products = () => {
   );
 };
 
-const ProductCard = ({ product }: { product: any }) => {
-  const navigate = useNavigate();
-  
-  // Example product data
-  const {
-    id = '1',
-    title = 'Business Analytics Suite',
-    company = 'Tech Company',
-    companyLogo = 'https://ui-avatars.com/api/?name=Tech+Company&background=random',
-    price = '$99/month',
-    description = 'A comprehensive business analytics solution for small to medium businesses...',
-    image = 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-    category = 'Software',
-    tags = ['Business', 'Analytics', 'Cloud']
-  } = product || {};
-  
+const ProductCard = ({ product, onClick }: { product: any, onClick: () => void }) => {
   return (
     <Card className="overflow-hidden h-full flex flex-col">
       <div className="aspect-video w-full overflow-hidden bg-gray-100">
-        <img src={image} alt={title} className="w-full h-full object-cover" />
+        <img src={product.image} alt={product.title} className="w-full h-full object-cover" />
       </div>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1">
-            <CardTitle className="text-lg">{title}</CardTitle>
+            <CardTitle className="text-lg">{product.title}</CardTitle>
             <CardDescription className="flex items-center gap-1">
-              <img src={companyLogo} alt={company} className="h-4 w-4 rounded-full" />
-              <span>{company}</span>
+              <img src={product.companyLogo} alt={product.company} className="h-4 w-4 rounded-full" />
+              <span>{product.company}</span>
             </CardDescription>
           </div>
-          <Badge variant="outline">{category}</Badge>
+          <Badge variant="outline">{product.category}</Badge>
         </div>
       </CardHeader>
       <CardContent className="pb-2 flex-1">
         <div className="flex items-center gap-1 text-primary font-semibold mb-2">
           <Tag className="h-4 w-4" />
-          <span>{price}</span>
+          <span>{product.price}</span>
         </div>
         
-        <p className="text-sm text-gray-600 line-clamp-3 mb-3">{description}</p>
+        <p className="text-sm text-gray-600 line-clamp-3 mb-3">{product.description}</p>
         
         <div className="flex flex-wrap gap-1 mt-auto">
-          {tags.map((tag, i) => (
+          {product.tags.map((tag: string, i: number) => (
             <Badge key={i} variant="secondary">{tag}</Badge>
           ))}
         </div>
@@ -112,7 +141,7 @@ const ProductCard = ({ product }: { product: any }) => {
         <Button 
           variant="default" 
           className="w-full"
-          onClick={() => navigate(`/company/products/${id}`)}
+          onClick={onClick}
         >
           Learn More
           <ArrowRight className="ml-2 h-4 w-4" />
