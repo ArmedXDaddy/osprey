@@ -1,3 +1,4 @@
+
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -223,19 +224,23 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
 
 // Check if a user has already booked a service
 export const checkBookingStatus = async (serviceId: string, userId: string): Promise<{ isBooked: boolean }> => {
-  const { data, error } = await supabase
-    .from('service_enrollments')
-    .select('id')
-    .eq('service_id', serviceId)
-    .eq('user_id', userId)
-    .maybeSingle();
+  try {
+    const { data, error } = await supabase
+      .from('service_enrollments')
+      .select('id')
+      .eq('service_id', serviceId)
+      .eq('user_id', userId);
+      
+    if (error) {
+      console.error('Error checking booking status:', error);
+      throw new Error(error.message);
+    }
     
-  if (error) {
+    return { isBooked: data && data.length > 0 };
+  } catch (error: any) {
     console.error('Error checking booking status:', error);
-    throw new Error(error.message);
+    throw error;
   }
-  
-  return { isBooked: !!data };
 };
 
 // Book a service (now handling different workflows for free and paid services)
