@@ -38,8 +38,7 @@ const mapEnrollmentFromDB = (enrollmentData: any): ServiceEnrollment => ({
 
 // Fetch all services
 export const fetchServices = async (): Promise<Service[]> => {
-  const { data, error } = await supabase
-    .rpc('get_all_services');
+  const { data, error } = await supabase.rpc('get_all_services');
 
   if (error) {
     console.error('Error fetching services:', error);
@@ -51,8 +50,7 @@ export const fetchServices = async (): Promise<Service[]> => {
 
 // Fetch a specific service by ID
 export const fetchServiceById = async (id: string): Promise<Service> => {
-  const { data, error } = await supabase
-    .rpc('get_service_by_id', { service_id: id });
+  const { data, error } = await supabase.rpc('get_service_by_id', { service_id: id });
 
   if (error) {
     console.error(`Error fetching service with id ${id}:`, error);
@@ -68,8 +66,7 @@ export const fetchServiceById = async (id: string): Promise<Service> => {
 
 // Fetch services by coach ID
 export const fetchServicesByCoachId = async (coachId: string): Promise<Service[]> => {
-  const { data, error } = await supabase
-    .rpc('get_services_by_coach_id', { coach_id: coachId });
+  const { data, error } = await supabase.rpc('get_services_by_coach_id', { coach_id: coachId });
 
   if (error) {
     console.error(`Error fetching services for coach ${coachId}:`, error);
@@ -98,13 +95,15 @@ export const createService = async (serviceData: Omit<Service, 'id' | 'createdAt
     is_active: serviceData.isActive
   };
 
-  // Use rpc (stored procedure) instead of direct table insertion to bypass Supabase TS issues
-  const { data, error } = await supabase
-    .rpc('create_service', dbData);
+  const { data, error } = await supabase.rpc('create_service', dbData);
 
   if (error) {
     console.error('Error creating service:', error);
     throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Failed to create service');
   }
 
   return mapServiceFromDB(data[0]);
@@ -129,13 +128,15 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.meetingUrl !== undefined) dbData.meeting_url = serviceData.meetingUrl;
   if (serviceData.isActive !== undefined) dbData.is_active = serviceData.isActive;
 
-  // Use rpc (stored procedure) instead of direct table update to bypass Supabase TS issues
-  const { data, error } = await supabase
-    .rpc('update_service', dbData);
+  const { data, error } = await supabase.rpc('update_service', dbData);
 
   if (error) {
     console.error(`Error updating service ${id}:`, error);
     throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error(`Failed to update service ${id}`);
   }
 
   return mapServiceFromDB(data[0]);
@@ -143,9 +144,7 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
 
 // Delete a service
 export const deleteService = async (id: string): Promise<void> => {
-  // Use rpc (stored procedure) instead of direct table deletion to bypass Supabase TS issues
-  const { error } = await supabase
-    .rpc('delete_service', { id });
+  const { error } = await supabase.rpc('delete_service', { id });
 
   if (error) {
     console.error(`Error deleting service ${id}:`, error);
@@ -155,9 +154,7 @@ export const deleteService = async (id: string): Promise<void> => {
 
 // Fetch enrollments for a service
 export const fetchServiceEnrollments = async (serviceId: string): Promise<ServiceEnrollment[]> => {
-  // Use rpc (stored procedure) instead of direct table query to bypass Supabase TS issues
-  const { data, error } = await supabase
-    .rpc('get_service_enrollments', { service_id: serviceId });
+  const { data, error } = await supabase.rpc('get_service_enrollments', { service_id: serviceId });
 
   if (error) {
     console.error(`Error fetching enrollments for service ${serviceId}:`, error);
@@ -169,9 +166,7 @@ export const fetchServiceEnrollments = async (serviceId: string): Promise<Servic
 
 // Fetch enrollments for a user
 export const fetchUserEnrollments = async (userId: string): Promise<ServiceEnrollment[]> => {
-  // Use rpc (stored procedure) instead of direct table query to bypass Supabase TS issues
-  const { data, error } = await supabase
-    .rpc('get_user_enrollments', { user_id: userId });
+  const { data, error } = await supabase.rpc('get_user_enrollments', { user_id: userId });
 
   if (error) {
     console.error(`Error fetching enrollments for user ${userId}:`, error);
@@ -188,18 +183,20 @@ export const createEnrollment = async (enrollmentData: Omit<ServiceEnrollment, '
     user_id: enrollmentData.userId,
     user_name: enrollmentData.userName,
     user_email: enrollmentData.userEmail,
-    user_profile_image: enrollmentData.userProfileImage,
+    user_profile_image: enrollmentData.userProfileImage || null,
     status: enrollmentData.status,
     payment_status: enrollmentData.paymentStatus
   };
 
-  // Use rpc (stored procedure) instead of direct table insertion to bypass Supabase TS issues
-  const { data, error } = await supabase
-    .rpc('create_service_enrollment', dbData);
+  const { data, error } = await supabase.rpc('create_service_enrollment', dbData);
 
   if (error) {
     console.error('Error creating enrollment:', error);
     throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('Failed to create enrollment');
   }
 
   return mapEnrollmentFromDB(data[0]);
@@ -210,13 +207,15 @@ export const updateEnrollmentStatus = async (id: string, status: string, payment
   const dbData: any = { id, status };
   if (paymentStatus) dbData.payment_status = paymentStatus;
 
-  // Use rpc (stored procedure) instead of direct table update to bypass Supabase TS issues
-  const { data, error } = await supabase
-    .rpc('update_enrollment_status', dbData);
+  const { data, error } = await supabase.rpc('update_enrollment_status', dbData);
 
   if (error) {
     console.error(`Error updating enrollment ${id}:`, error);
     throw error;
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error(`Failed to update enrollment ${id}`);
   }
 
   return mapEnrollmentFromDB(data[0]);

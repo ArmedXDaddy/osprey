@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -8,7 +9,7 @@ import ServiceCard from '@/components/shared/ServiceCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
 import { UserRole } from '@/types';
 import { Calendar, Users, DollarSign, Award, Star, TrendingUp } from 'lucide-react';
@@ -16,6 +17,7 @@ import { Calendar, Users, DollarSign, Award, Star, TrendingUp } from 'lucide-rea
 const HomePage = () => {
   const { currentUser } = useAuth();
   const { posts, events, groups, services, loading } = useData();
+  const navigate = useNavigate();
   
   if (!currentUser) {
     return (
@@ -53,7 +55,7 @@ const HomePage = () => {
           title: 'Coach Dashboard',
           subtitle: 'Manage your services and connect with clients',
           stats: [
-            { icon: <DollarSign className="h-5 w-5 text-teal-500" />, label: 'Services', value: services.filter(s => s.providerId === currentUser.id).length },
+            { icon: <DollarSign className="h-5 w-5 text-teal-500" />, label: 'Services', value: services.filter(s => s.coachId === currentUser.id).length },
             { icon: <Users className="h-5 w-5 text-teal-500" />, label: 'Clients', value: Math.floor(Math.random() * 20) },
             { icon: <Calendar className="h-5 w-5 text-teal-500" />, label: 'Events', value: events.filter(e => e.creatorId === currentUser.id).length },
           ]
@@ -241,9 +243,15 @@ const HomePage = () => {
                 ) : (
                   <div>
                     {services.slice(0, 1).map(service => (
-                      <ServiceCard key={service.id} service={service} onClick={() => currentUser?.role === 'coach' && service.coachId === currentUser.id ? navigate(`/services/${service.id}/manage`) : navigate(`/services/${service.id}`)} />
+                      <ServiceCard 
+                        key={service.id} 
+                        service={service} 
+                        onClick={() => currentUser?.role === 'coach' && service.coachId === currentUser.id 
+                          ? navigate(`/services/${service.id}/manage`)
+                          : navigate(`/services/${service.id}`)} 
+                      />
                     ))}
-                    <Link to="/explore?tab=services" className="text-primary hover:underline text-sm block text-center mt-4">
+                    <Link to="/services" className="text-primary hover:underline text-sm block text-center mt-4">
                       Explore all services
                     </Link>
                   </div>
