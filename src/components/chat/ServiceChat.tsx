@@ -7,16 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
-import { Send } from 'lucide-react';
+import { Send, MessageSquare } from 'lucide-react';
 import { Service, Booking, Message } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 interface ServiceChatProps {
   service: Service;
-  booking: Booking;
+  booking: Booking | null;
+  isProvider: boolean;
 }
 
-const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
+const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider }) => {
   const { currentUser } = useAuth();
   const { sendServiceMessage, getServiceMessages } = useData();
   const [newMessage, setNewMessage] = useState('');
@@ -28,12 +29,26 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (service?.id) {
-        const serviceMessages = await getServiceMessages(service.id);
-        setMessages(serviceMessages);
+        try {
+          const serviceMessages = await getServiceMessages(service.id);
+          setMessages(serviceMessages);
+        } catch (error) {
+          console.error("Failed to fetch messages:", error);
+          toast({
+            variant: "destructive",
+            title: "Failed to load messages",
+            description: "There was an error loading the chat messages"
+          });
+        }
       }
     };
     
     fetchMessages();
+    
+    // Set up polling to check for new messages every 10 seconds
+    const interval = setInterval(fetchMessages, 10000);
+    
+    return () => clearInterval(interval);
   }, [service?.id, getServiceMessages]);
 
   // Scroll to bottom on new messages
@@ -72,17 +87,22 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
     }
   };
 
-  if (!service || !booking || !currentUser) return null;
+  if (!service || !currentUser) return null;
+
+  // For providers who don't have a specific booking
+  const chatTitle = isProvider 
+    ? "Service Chat" 
+    : `${service.title} Chat`;
+  
+  const chatDescription = isProvider
+    ? "Chat with users who have booked this service"
+    : `Chat with ${service.providerName}`;
 
   return (
     <div className="flex flex-col h-[500px] border rounded-lg">
       <div className="bg-muted px-4 py-3 border-b">
-        <h3 className="font-medium">{service.title} Chat</h3>
-        <p className="text-sm text-muted-foreground">
-          {service.serviceType === 'one_on_one' 
-            ? `Chat with ${service.providerName}` 
-            : `Group chat with ${service.providerName} and other participants`}
-        </p>
+        <h3 className="font-medium">{chatTitle}</h3>
+        <p className="text-sm text-muted-foreground">{chatDescription}</p>
       </div>
       
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
@@ -126,7 +146,8 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
             })}
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full">
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <MessageSquare className="h-8 w-8 text-muted-foreground mb-2" />
             <p className="text-gray-500">No messages yet. Start the conversation!</p>
           </div>
         )}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -13,9 +14,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, Clock, DollarSign, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, DollarSign, Users, MessageSquare } from 'lucide-react';
 import EditServiceForm from '@/components/service/EditServiceForm';
 import BookingsList from '@/components/service/BookingsList';
+import ServiceChatAccess from '@/components/service/ServiceChatAccess';
 import { toast } from '@/hooks/use-toast';
 
 const ManageService = () => {
@@ -201,6 +203,10 @@ const ManageService = () => {
       <Tabs defaultValue="bookings">
         <TabsList>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
+          <TabsTrigger value="chat">
+            Chat
+            <MessageSquare className="ml-2 h-4 w-4" />
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="bookings" className="space-y-4">
@@ -209,6 +215,20 @@ const ManageService = () => {
             isLoading={loadingBookings} 
             serviceId={service.id}
           />
+        </TabsContent>
+        
+        <TabsContent value="chat" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Service Chat</CardTitle>
+              <CardDescription>
+                Chat with users who have booked your service
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ServiceChatAccess service={service} booking={null} />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
       

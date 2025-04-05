@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Service, Booking } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Clock, X, MessageSquare } from 'lucide-react';
@@ -12,6 +13,17 @@ interface ServiceChatAccessProps {
 }
 
 const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking }) => {
+  const { currentUser } = useAuth();
+  
+  // Check if current user is the service provider/coach
+  const isProvider = currentUser?.id === service.providerId;
+  
+  // If user is the provider, they always have access to the chat
+  if (isProvider) {
+    return <ServiceChat service={service} booking={booking} isProvider={true} />;
+  }
+  
+  // For regular users, show appropriate content based on booking status
   if (!booking) {
     return (
       <Card>
@@ -33,13 +45,13 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
 
   // Handle paid services - all types
   if (booking.paymentStatus === 'paid') {
-    return <ServiceChat service={service} booking={booking} />;
+    return <ServiceChat service={service} booking={booking} isProvider={false} />;
   }
 
   // Handle free services that need approval
   if (service.price === 0) {
     if (booking.status === 'approved') {
-      return <ServiceChat service={service} booking={booking} />;
+      return <ServiceChat service={service} booking={booking} isProvider={false} />;
     } else if (booking.status === 'pending') {
       return (
         <Card>

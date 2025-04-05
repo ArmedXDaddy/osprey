@@ -54,6 +54,8 @@ export const createServiceBooking = async (
   status: string = 'pending'
 ): Promise<string> => {
   try {
+    console.log(`Creating booking with: serviceId=${serviceId}, userId=${userId}, notes=${notes}, paymentStatus=${paymentStatus}, status=${status}`);
+    
     // Using direct SQL query with custom PostgreSQL function
     const { data, error } = await supabase.rpc(
       'create_service_booking' as any, // Type cast to avoid TypeScript errors
@@ -168,6 +170,7 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
  */
 export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
+    console.log(`Checking booking for: serviceId=${serviceId}, userId=${userId}`);
     // Using stored procedure to get a specific booking
     const { data, error } = await supabase.rpc(
       'get_user_booking_for_service' as any, // Type cast to avoid TypeScript errors
@@ -182,7 +185,12 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       throw new Error(error.message || 'Failed to fetch booking');
     }
 
-    if (!data || data.length === 0) return null;
+    console.log("Booking data received:", data);
+    
+    if (!data || data.length === 0) {
+      console.log("No booking found");
+      return null;
+    }
     
     const item = data[0];
     return {
