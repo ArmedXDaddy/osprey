@@ -47,13 +47,22 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         const containerWidth = containerRef.current.offsetWidth;
         const containerHeight = containerRef.current.offsetHeight;
         
-        // Calculate the selection size (50% of the smaller dimension)
-        const selectionSize = Math.min(containerWidth, containerHeight) * 0.5;
+        // For cover images (wide aspect ratio), use most of the container width
+        // For profile images (square), use a portion of the smaller dimension
+        let selectionWidth;
+        if (aspectRatio < 1) { // Square or portrait
+          selectionWidth = Math.min(containerWidth, containerHeight) * 0.5;
+        } else if (aspectRatio > 2) { // Wide/cover image
+          selectionWidth = containerWidth * 0.85;
+        } else {
+          selectionWidth = Math.min(containerWidth, containerHeight) * 0.5;
+        }
+        
         setCropSelection({
-          x: (containerWidth - selectionSize) / 2,
-          y: (containerHeight - selectionSize) / 2,
-          width: selectionSize,
-          height: selectionSize / aspectRatio,
+          x: (containerWidth - selectionWidth) / 2,
+          y: (containerHeight - selectionWidth / aspectRatio) / 2,
+          width: selectionWidth,
+          height: selectionWidth / aspectRatio,
           isDragging: false,
           startX: 0,
           startY: 0,
