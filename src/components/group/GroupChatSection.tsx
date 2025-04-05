@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -64,7 +63,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           userRole: msg.user_role as UserRole,
           userProfileImage: msg.user_profile_image,
           content: msg.content,
-          mediaUrl: msg.media_url,
+          mediaUrl: msg.media_url || undefined,
           mediaType: msg.media_type as 'image' | 'video' | 'file' | undefined,
           createdAt: new Date(msg.created_at)
         }));
@@ -108,7 +107,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
               userRole: newMsg.user_role as UserRole,
               userProfileImage: newMsg.user_profile_image,
               content: newMsg.content,
-              mediaUrl: newMsg.media_url,
+              mediaUrl: newMsg.media_url || undefined,
               mediaType: newMsg.media_type as 'image' | 'video' | 'file' | undefined,
               createdAt: new Date(newMsg.created_at)
             };
@@ -138,11 +137,6 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       }
     };
   }, [groupId, fetchMessages]);
-
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
