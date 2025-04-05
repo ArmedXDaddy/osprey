@@ -18,6 +18,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from '@/lib/utils';
+import GroupImageGallery from './GroupImageGallery';
 
 interface GroupChatSectionProps {
   groupId: string;
@@ -51,6 +52,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showImageGallery, setShowImageGallery] = useState(false);
 
   // Fetch messages from Supabase on component mount
   const fetchMessages = useCallback(async () => {
@@ -84,6 +86,11 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
         }));
         
         setMessages(formattedMessages);
+        
+        // Scroll to the bottom after messages load
+        setTimeout(() => {
+          scrollToBottom();
+        }, 100);
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
@@ -91,6 +98,15 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       setLoadingMessages(false);
     }
   }, [groupId]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Auto-scroll when new messages arrive
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   // Set up real-time subscription
   useEffect(() => {
@@ -165,6 +181,89 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
     }
   };
 
+  const handleFileUpload = async (file: File) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to upload files",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setUploadingFile(true);
+    try {
+      // Create a unique file name
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${groupId}/${fileName}`;
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('group-chat-media')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Error uploading file:', error);
+        toast({
+          title: "Upload failed",
+          description: error.message,
+          variant: "destructive"
+        });
+        return null;
+      }
+      
+      // Get public URL for the file
+      const { data: { publicUrl } } = supabase.storage
+        .from('group-chat-media')
+        .getPublicUrl(filePath);
+      
+      // Set the file in state for message sending
+      setSelectedFile(file);
+      
+      // Determine the media type
+      const mediaType = determineFileType(file);
+      
+      // Send the message with the file
+      await sendMessage({
+        groupId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        userProfileImage: currentUser.profileImage,
+        content: newMessage.trim() || '',
+        mediaUrl: publicUrl,
+        mediaType
+      });
+      
+      // Reset states
+      setNewMessage('');
+      setSelectedFile(null);
+      setMediaPreviewUrl(null);
+      setShowImageGallery(false);
+      
+      toast({
+        title: "File uploaded",
+        description: "Your file has been uploaded and shared"
+      });
+      
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error in file upload process:', error);
+      toast({
+        title: "Upload failed",
+        description: error.message || "An unexpected error occurred",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setUploadingFile(false);
+    }
+  };
+
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setMediaPreviewUrl(null);
@@ -201,24 +300,39 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       if (selectedFile) {
         setUploadingFile(true);
         const fileExt = selectedFile.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `${groupId}/${fileName}`;
         
         mediaType = determineFileType(selectedFile);
         
+        console.log('Uploading file to path:', filePath);
         const { error: uploadError, data } = await supabase.storage
           .from('group-chat-media')
-          .upload(filePath, selectedFile);
+          .upload(filePath, selectedFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
         
         if (uploadError) {
-          throw uploadError;
+          console.error('Error uploading file:', uploadError);
+          toast({
+            title: "Upload failed",
+            description: uploadError.message,
+            variant: "destructive"
+          });
+          setLoading(false);
+          setUploadingFile(false);
+          return;
         }
+        
+        console.log('Upload successful, data:', data);
         
         // Get the public URL for the uploaded file
         const { data: { publicUrl } } = supabase.storage
           .from('group-chat-media')
           .getPublicUrl(filePath);
         
+        console.log('File public URL:', publicUrl);
         mediaUrl = publicUrl;
         setUploadingFile(false);
       }
@@ -240,11 +354,11 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending message:', error);
       toast({
         title: "Error sending message",
-        description: "Failed to send your message. Please try again.",
+        description: error.message || "Failed to send your message. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -423,43 +537,54 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
         </div>
       )}
       
-      <div className="border-t p-4">
-        <div className="flex items-end space-x-2">
-          <Textarea
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Type your message..."
-            className="min-h-[60px] resize-none flex-1"
+      {showImageGallery ? (
+        <div className="border-t p-4">
+          <GroupImageGallery
+            selectedImage=""
+            onSelect={() => {}}
+            onFileUpload={handleFileUpload}
           />
-          <div className="flex flex-col gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach file"
-              disabled={loading || uploadingFile}
-            >
-              <ImageIcon className="h-4 w-4" />
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                hidden
-                accept="image/*,video/*"
-              />
-            </Button>
-            <Button 
-              onClick={handleSendMessage} 
-              disabled={((!newMessage.trim() && !selectedFile) || loading || uploadingFile)}
-              size="icon"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowImageGallery(false)}
+            className="mt-2"
+          >
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <div className="border-t p-4">
+          <div className="flex items-end space-x-2">
+            <Textarea
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder="Type your message..."
+              className="min-h-[60px] resize-none flex-1"
+            />
+            <div className="flex flex-col gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={() => setShowImageGallery(true)}
+                title="Attach image"
+                disabled={loading || uploadingFile}
+              >
+                <ImageIcon className="h-4 w-4" />
+              </Button>
+              <Button 
+                onClick={handleSendMessage} 
+                disabled={((!newMessage.trim() && !selectedFile) || loading || uploadingFile)}
+                size="icon"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
