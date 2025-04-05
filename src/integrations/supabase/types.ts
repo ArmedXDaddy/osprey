@@ -136,6 +136,8 @@ export type Database = {
           created_at: string
           group_id: string | null
           id: string
+          media_type: string | null
+          media_url: string | null
           user_id: string
           user_name: string
           user_profile_image: string | null
@@ -146,6 +148,8 @@ export type Database = {
           created_at?: string
           group_id?: string | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           user_id: string
           user_name: string
           user_profile_image?: string | null
@@ -156,6 +160,8 @@ export type Database = {
           created_at?: string
           group_id?: string | null
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           user_id?: string
           user_name?: string
           user_profile_image?: string | null

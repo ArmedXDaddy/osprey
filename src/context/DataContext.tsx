@@ -453,15 +453,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('You must be logged in to send a message');
       }
 
-      const supabaseMessageData = {
+      const supabaseMessageData: Tables<'messages'> = {
+        content: messageData.content,
         group_id: messageData.groupId,
         user_id: currentUser.id,
         user_name: currentUser.name,
         user_role: currentUser.role,
         user_profile_image: currentUser.profileImage,
-        content: messageData.content,
-        media_url: messageData.mediaUrl,
-        media_type: messageData.mediaType
+        media_url: messageData.mediaUrl || null,
+        media_type: messageData.mediaType || null,
+        created_at: new Date().toISOString()
       };
       
       const { data, error } = await supabase
@@ -484,7 +485,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         groupId: data.group_id,
         userId: data.user_id,
         userName: data.user_name,
-        userRole: data.user_role as UserRole, // Cast to UserRole
+        userRole: data.user_role as UserRole,
         userProfileImage: data.user_profile_image,
         content: data.content,
         mediaUrl: data.media_url,
