@@ -179,3 +179,39 @@ export interface JoinRequest {
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
 }
+
+export interface Product {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  price: string;
+  category: string;
+  tags?: string[];
+  image?: string;
+  websiteUrl?: string;
+  demoUrl?: string;
+  releaseDate: Date;
+  createdAt: Date;
+}
+
+export interface Workshop {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  price: number;
+  date: Date;
+  duration: string;
+  capacity?: number;
+  location?: string;
+  isOnline: boolean;
+  meetingUrl?: string;
+  category: string;
+  image?: string;
+  createdAt: Date;
+}

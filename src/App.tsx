@@ -36,6 +36,8 @@ import JobPostings from "./pages/company/JobPostings";
 import CreateJobPosting from "./pages/company/CreateJobPosting";
 import Products from "./pages/company/Products";
 import Workshops from "./pages/company/Workshops";
+import CreateProduct from "./pages/company/CreateProduct";
+import CreateWorkshop from "./pages/company/CreateWorkshop";
 import CompanyProfile from "./components/company/CompanyProfile";
 
 // New Job, Product, Workshop Detail Pages
@@ -87,13 +89,13 @@ const App = () => (
                 <Route path="/products" element={<Products />} />
                 <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/company/products" element={<Products />} />
-                <Route path="/company/products/create" element={<Products />} />
+                <Route path="/company/products/create" element={<CreateProduct />} />
                 <Route path="/company/products/:id" element={<ProductDetail />} />
                 
                 <Route path="/workshops" element={<Workshops />} />
                 <Route path="/workshops/:id" element={<WorkshopDetail />} />
                 <Route path="/company/workshops" element={<Workshops />} />
-                <Route path="/company/workshops/create" element={<Workshops />} />
+                <Route path="/company/workshops/create" element={<CreateWorkshop />} />
                 <Route path="/company/workshops/:id" element={<WorkshopDetail />} />
                 
                 <Route path="/company/profile" element={<Profile />} />

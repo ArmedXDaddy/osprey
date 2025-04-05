@@ -37,6 +37,116 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
 };
 
 /**
+ * Create a new product
+ * @param productData Product data to create
+ * @returns Created product data
+ */
+export const createProduct = async (productData: any): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .insert(productData)
+      .select('*')
+      .single();
+      
+    if (error) {
+      console.error('Error creating product:', error);
+      throw new Error(error.message || 'Failed to create product');
+    }
+    
+    return data;
+  } catch (error: any) {
+    console.error('Error in createProduct:', error);
+    throw new Error(error.message || 'Failed to create product');
+  }
+};
+
+/**
+ * Create a new workshop
+ * @param workshopData Workshop data to create
+ * @returns Created workshop data
+ */
+export const createWorkshop = async (workshopData: any): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('workshops')
+      .insert(workshopData)
+      .select('*')
+      .single();
+      
+    if (error) {
+      console.error('Error creating workshop:', error);
+      throw new Error(error.message || 'Failed to create workshop');
+    }
+    
+    return data;
+  } catch (error: any) {
+    console.error('Error in createWorkshop:', error);
+    throw new Error(error.message || 'Failed to create workshop');
+  }
+};
+
+/**
+ * Get products with optional filters
+ * @param companyId Optional company ID to filter by
+ * @returns Array of products
+ */
+export const getProducts = async (companyId?: string): Promise<any[]> => {
+  try {
+    let query = supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+      
+    if (companyId) {
+      query = query.eq('company_id', companyId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching products:', error);
+      throw new Error(error.message || 'Failed to fetch products');
+    }
+    
+    return data || [];
+  } catch (error: any) {
+    console.error('Error in getProducts:', error);
+    return [];
+  }
+};
+
+/**
+ * Get workshops with optional filters
+ * @param companyId Optional company ID to filter by
+ * @returns Array of workshops
+ */
+export const getWorkshops = async (companyId?: string): Promise<any[]> => {
+  try {
+    let query = supabase
+      .from('workshops')
+      .select('*')
+      .order('date', { ascending: true });
+      
+    if (companyId) {
+      query = query.eq('company_id', companyId);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching workshops:', error);
+      throw new Error(error.message || 'Failed to fetch workshops');
+    }
+    
+    return data || [];
+  } catch (error: any) {
+    console.error('Error in getWorkshops:', error);
+    return [];
+  }
+};
+
+/**
  * Book a service with direct SQL query to work around TypeScript issues
  * @param serviceId Service ID to book
  * @param userId User ID making the booking
