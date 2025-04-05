@@ -3,6 +3,7 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from '@supabase/supabase-js';
+import { toast } from "@/hooks/use-toast";
 
 interface AuthContextType {
   currentUser: User | null;
@@ -25,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // First, set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         setSupabaseSession(session);
         
         if (session?.user) {
@@ -54,6 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Got existing session:", session?.user?.id);
       setSupabaseSession(session);
       
       if (session?.user) {
@@ -128,14 +131,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Clear local user state first
+      setCurrentUser(null);
       
-      // State is updated by the onAuthStateChange listener
+      // Then attempt to sign out from Supabase
+      const { error } = await supabase.auth.signOut({ scope: 'local' });
+      
+      if (error) {
+        console.error('Logout error from Supabase:', error);
+        // Even if there's a Supabase error, we still want to ensure local state is cleared
+        toast({
+          title: "Signed out",
+          description: "You have been signed out locally."
+        });
+      } else {
+        console.log("Successfully logged out");
+        toast({
+          title: "Signed out",
+          description: "You have been signed out successfully."
+        });
+      }
     } catch (error) {
       console.error('Logout error:', error);
-      throw error;
+      // Still clear local state if an exception occurs
+      toast({
+        title: "Error during logout",
+        description: "Signed out locally, but there was an issue with the server.",
+        variant: "destructive"
+      });
     } finally {
+      // Clear any remaining session state
+      setSupabaseSession(null);
       setIsLoading(false);
     }
   };

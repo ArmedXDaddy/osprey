@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -21,6 +22,7 @@ import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from '@/components/ui/use-toast';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -32,6 +34,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   
   React.useEffect(() => {
     if (!isLoading && !currentUser && !location.pathname.startsWith('/auth')) {
@@ -41,10 +44,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       await logout();
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout failed:', error);
+      // Still redirect to login page even if there was an error
+      navigate('/auth/login');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -128,9 +136,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               variant="outline" 
               className="w-full justify-start gap-2" 
               onClick={handleLogout}
+              disabled={isLoggingOut}
             >
               <LogOut size={16} />
-              <span>Logout</span>
+              <span>{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
             </Button>
           </div>
         </div>
@@ -180,9 +189,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               size="sm"
               className="w-full justify-start gap-2" 
               onClick={handleLogout}
+              disabled={isLoggingOut}
             >
               <LogOut size={16} />
-              <span className="text-sm">Logout</span>
+              <span className="text-sm">{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
             </Button>
           </div>
         </div>
