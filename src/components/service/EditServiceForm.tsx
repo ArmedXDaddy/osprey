@@ -29,7 +29,7 @@ import { supabase } from '@/integrations/supabase/client';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-// Add the missing interface
+// Define the interface for component props
 interface EditServiceFormProps {
   service?: Service;
   onSave?: (service: Service) => void;
@@ -92,10 +92,22 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coverImage, setCoverImage] = useState<File | null>(null);
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(service?.coverImage || null);
+  const [previousImagePath, setPreviousImagePath] = useState<string | null>(null);
 
   useEffect(() => {
     if (service?.coverImage) {
       setCoverImageUrl(service.coverImage);
+      
+      // Extract the file path from the URL for later deletion if needed
+      try {
+        const url = new URL(service.coverImage);
+        const pathMatch = url.pathname.match(/\/covers\/(.+)$/);
+        if (pathMatch && pathMatch[1]) {
+          setPreviousImagePath(pathMatch[1]);
+        }
+      } catch (error) {
+        console.error("Could not parse previous cover image URL:", error);
+      }
     }
   }, [service?.coverImage]);
 
@@ -136,6 +148,24 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
     }
 
     try {
+      // Delete the previous image if it exists and we're in edit mode
+      if (isEditMode && previousImagePath) {
+        try {
+          const { error: deleteError } = await supabase.storage
+            .from('covers')
+            .remove([previousImagePath]);
+            
+          if (deleteError) {
+            console.error('Error deleting previous image:', deleteError);
+          } else {
+            console.log('Previous image deleted successfully');
+          }
+        } catch (deleteErr) {
+          console.error('Error during delete operation:', deleteErr);
+        }
+      }
+
+      // Upload the new image
       const fileExt = file.name.split('.').pop();
       const fileName = `${currentUser.id}/${Date.now()}.${fileExt}`;
       const filePath = `services/${fileName}`;
@@ -150,7 +180,10 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
       if (error) throw error;
 
       const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
-
+      
+      // Update the previous image path for potential future updates
+      setPreviousImagePath(filePath);
+      
       return publicUrl;
     } catch (error: any) {
       console.error('Error uploading image:', error);
