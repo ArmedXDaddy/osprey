@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -56,8 +55,6 @@ const Profile = () => {
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   
-  // All the state variables for profile editing features
-  // These should be defined whether viewing own profile or not
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
   const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
@@ -86,10 +83,8 @@ const Profile = () => {
   const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
   const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
   
-  // Determine if viewing own profile or another user's profile
   const isOwnProfile = !id || (currentUser && id === currentUser.id);
   
-  // Get follower data using our custom hook
   const { 
     followers, 
     following, 
@@ -102,7 +97,6 @@ const Profile = () => {
     currentUser?.id
   );
   
-  // Update profile form when currentUser changes and we're viewing own profile
   useEffect(() => {
     if (currentUser && isOwnProfile) {
       setProfileForm({
@@ -118,7 +112,6 @@ const Profile = () => {
     }
   }, [currentUser, isOwnProfile]);
   
-  // Fetch profile images when viewing own profile
   useEffect(() => {
     if (currentUser && isOwnProfile) {
       fetchProfileImages();
@@ -126,18 +119,14 @@ const Profile = () => {
     }
   }, [currentUser, isOwnProfile]);
   
-  // Fetch user profile when viewing another user's profile
   useEffect(() => {
-    // If viewing another user's profile, fetch that user's data
     const fetchUserProfile = async () => {
       if (!id || (currentUser && id === currentUser.id)) {
-        // Viewing own profile, no need to fetch
         return;
       }
       
       setIsLoadingProfile(true);
       try {
-        // Fetch user profile data from Supabase
         const baseUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
         const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
         
@@ -167,7 +156,6 @@ const Profile = () => {
         
         const userData = data[0];
         
-        // Format user data to match User type
         const formattedUser: User = {
           id: userData.id,
           name: userData.name || 'Unknown User',
@@ -199,10 +187,8 @@ const Profile = () => {
     fetchUserProfile();
   }, [id, currentUser, toast]);
 
-  // Determine which user to display
   const userToShow = isOwnProfile ? currentUser : profileUser;
 
-  // Helper functions for image handling
   const fetchProfileImages = async () => {
     if (!currentUser) return;
     
@@ -273,7 +259,6 @@ const Profile = () => {
     }
   };
   
-  // Image cropping and upload functions
   const handleCrop = (imageUrl: string, type: 'profile' | 'cover') => {
     setCropImageSrc(imageUrl);
     setCropImageType(type);
@@ -394,7 +379,6 @@ const Profile = () => {
     handleCrop(url, 'cover');
   };
   
-  // Form handling for profile updates
   const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileForm(prev => ({
@@ -439,7 +423,6 @@ const Profile = () => {
     }
   };
   
-  // Helper rendering functions
   const renderRoleContent = () => {
     if (!userToShow) return null;
     
@@ -473,7 +456,6 @@ const Profile = () => {
     }
   };
 
-  // Simplified render for follower items using our new component
   const renderFollowerItems = (items: any[], onClose: () => void) => {
     return (
       <FollowersList 
@@ -485,7 +467,6 @@ const Profile = () => {
     );
   };
   
-  // Loading state
   if ((isOwnProfile && !currentUser) || (!isOwnProfile && !profileUser)) {
     if (loading || isLoadingProfile) {
       return (
@@ -510,7 +491,6 @@ const Profile = () => {
     }
   }
 
-  // Filter content based on the user we're viewing
   const userPosts = userToShow ? posts.filter(post => post.userId === userToShow.id) : [];
   
   const userEvents = userToShow ? events.filter(event => 
@@ -540,7 +520,6 @@ const Profile = () => {
   const userServices = userToShow && userToShow.role === 'coach' ? 
     services.filter(service => service.providerId === userToShow.id) : [];
 
-  // Main render
   return (
     <div className="space-y-8">
       <Card className="overflow-hidden">
@@ -669,6 +648,30 @@ const Profile = () => {
               )}
             </div>
           </div>
+          
+          <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Followers</DialogTitle>
+                <DialogDescription>
+                  People who follow {isOwnProfile ? "you" : userToShow?.name}
+                </DialogDescription>
+              </DialogHeader>
+              {renderFollowerItems(followers, () => setIsFollowersDialogOpen(false))}
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Following</DialogTitle>
+                <DialogDescription>
+                  People {isOwnProfile ? "you" : userToShow?.name} follows
+                </DialogDescription>
+              </DialogHeader>
+              {renderFollowerItems(following, () => setIsFollowingDialogOpen(false))}
+            </DialogContent>
+          </Dialog>
           
           <div className="grid grid-cols-3 gap-4 mt-6 text-center">
             <div 
