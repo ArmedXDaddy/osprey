@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -64,8 +63,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           userRole: msg.user_role as UserRole,
           userProfileImage: msg.user_profile_image,
           content: msg.content,
-          mediaUrl: msg.media_url || null,
-          mediaType: msg.media_type || null,
+          mediaUrl: msg.media_url || undefined,
+          mediaType: msg.media_type as 'image' | 'video' | 'file' | undefined,
           createdAt: new Date(msg.created_at)
         }));
         
@@ -108,8 +107,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
               userRole: newMsg.user_role as UserRole,
               userProfileImage: newMsg.user_profile_image,
               content: newMsg.content,
-              mediaUrl: newMsg.media_url || null,
-              mediaType: newMsg.media_type || null,
+              mediaUrl: newMsg.media_url || undefined,
+              mediaType: newMsg.media_type as 'image' | 'video' | 'file' | undefined,
               createdAt: new Date(newMsg.created_at)
             };
             
@@ -185,8 +184,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
     setLoading(true);
     
     try {
-      let mediaUrl = null;
-      let mediaType = null;
+      let mediaUrl = undefined;
+      let mediaType = undefined;
       
       // Upload file if selected
       if (selectedFile) {
