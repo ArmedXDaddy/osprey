@@ -98,8 +98,10 @@ const CreateService = () => {
         description: "Your service has been created."
       });
       
-      // Ensure we're navigating to the correct ID
-      navigate(`/services/${newService.id}`);
+      // Add a small delay to make sure state is updated before navigating
+      setTimeout(() => {
+        navigate(`/services/${newService.id}`);
+      }, 500);
     } catch (err: any) {
       console.error("Error creating service:", err);
       toast({

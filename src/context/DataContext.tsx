@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   User, 
@@ -91,6 +91,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [events, setEvents] = useState<Event[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [mockServices, setMockServices] = useState<Service[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -101,14 +102,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const generateId = () => uuidv4();
 
+  const allServices = useMemo(() => {
+    return [...services, ...mockServices];
+  }, [services, mockServices]);
+
   useEffect(() => {
-    const fetchData = async () => {
+    const loadMockData = async () => {
       try {
         setLoading(true);
         setPosts(mockPosts);
         setEvents(mockEvents);
         setGroups(mockGroups);
-        setServices(mockServices);
         setSessions(mockSessions);
         setSessionEnrollments(mockSessionEnrollments);
         setMessages(mockMessages);
@@ -120,7 +124,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    fetchData();
+    loadMockData();
   }, []);
 
   const createPost = async (content: string, image?: string): Promise<Post> => {
@@ -705,7 +709,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const getServiceById = async (serviceId: string): Promise<Service> => {
     console.log("Looking for service with ID:", serviceId);
-    const service = services.find(s => s.id === serviceId);
+    const service = allServices.find(s => s.id === serviceId);
     console.log("Found service:", service);
     if (!service) {
       throw new Error("Service not found");
@@ -812,6 +816,84 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setServices(prevServices => prevServices.filter(s => s.id !== serviceId));
   };
 
+  const generateMockServices = () => {
+    return [
+      {
+        id: "service-1",
+        title: "One-on-One Fitness Coaching",
+        description: "Personalized fitness coaching tailored to your specific goals and needs. Get expert guidance on exercises, nutrition, and lifestyle changes.",
+        providerId: "coach-1",
+        providerName: "John Smith",
+        price: 99.99,
+        duration: "60 min",
+        available: true,
+        createdAt: new Date("2023-01-15"),
+        isOnline: false,
+        location: "Fitness Studio, 123 Main St",
+        capacity: 1,
+        serviceType: "one_on_one"
+      },
+      {
+        id: "service-2",
+        title: "Group HIIT Training",
+        description: "High-intensity interval training in a motivating group setting. Burn calories, build strength, and improve cardiovascular health.",
+        providerId: "coach-1",
+        providerName: "John Smith",
+        price: 29.99,
+        duration: "45 min",
+        available: true,
+        createdAt: new Date("2023-02-20"),
+        isOnline: false,
+        location: "Fitness Studio, 123 Main St",
+        capacity: 8,
+        serviceType: "group"
+      },
+      {
+        id: "service-3",
+        title: "Nutrition Consultation",
+        description: "Comprehensive nutrition assessment and personalized meal planning. Learn how to fuel your body for optimal health and performance.",
+        providerId: "coach-2",
+        providerName: "Sarah Johnson",
+        price: 79.99,
+        duration: "75 min",
+        available: true,
+        createdAt: new Date("2023-03-10"),
+        isOnline: true,
+        capacity: 1,
+        serviceType: "one_on_one"
+      },
+      {
+        id: "service-4",
+        title: "Free Fitness Assessment",
+        description: "Initial fitness assessment to evaluate your current fitness level and discuss your goals. Includes body composition analysis and fitness tests.",
+        providerId: "coach-2",
+        providerName: "Sarah Johnson",
+        price: 0,
+        duration: "30 min",
+        available: true,
+        createdAt: new Date("2023-04-05"),
+        isOnline: false,
+        location: "Fitness Studio, 123 Main St",
+        capacity: 1,
+        serviceType: "one_on_one"
+      },
+      {
+        id: "service-5",
+        title: "Online Yoga Class",
+        description: "Virtual yoga sessions focusing on flexibility, strength, and mindfulness. Suitable for all levels from beginners to advanced practitioners.",
+        providerId: "coach-3",
+        providerName: "Emily Chen",
+        price: 19.99,
+        duration: "60 min",
+        available: true,
+        createdAt: new Date("2023-05-12"),
+        isOnline: true,
+        capacity: 15,
+        serviceType: "group"
+      }
+    ];
+  };
+
   const mockPosts: Post[] = [
     {
       id: '1',
@@ -898,82 +980,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       rules: ['Verified athletes only', 'Confidential discussions', 'No media sharing without permission'],
       memberLimit: 50,
     },
-  ];
-
-  const mockServices: Service[] = [
-    {
-      id: "service-1",
-      title: "One-on-One Fitness Coaching",
-      description: "Personalized fitness coaching tailored to your specific goals and needs. Get expert guidance on exercises, nutrition, and lifestyle changes.",
-      providerId: "coach-1",
-      providerName: "John Smith",
-      price: 99.99,
-      duration: "60 min",
-      available: true,
-      createdAt: new Date("2023-01-15"),
-      isOnline: false,
-      location: "Fitness Studio, 123 Main St",
-      capacity: 1,
-      serviceType: "one_on_one"
-    },
-    {
-      id: "service-2",
-      title: "Group HIIT Training",
-      description: "High-intensity interval training in a motivating group setting. Burn calories, build strength, and improve cardiovascular health.",
-      providerId: "coach-1",
-      providerName: "John Smith",
-      price: 29.99,
-      duration: "45 min",
-      available: true,
-      createdAt: new Date("2023-02-20"),
-      isOnline: false,
-      location: "Fitness Studio, 123 Main St",
-      capacity: 8,
-      serviceType: "group"
-    },
-    {
-      id: "service-3",
-      title: "Nutrition Consultation",
-      description: "Comprehensive nutrition assessment and personalized meal planning. Learn how to fuel your body for optimal health and performance.",
-      providerId: "coach-2",
-      providerName: "Sarah Johnson",
-      price: 79.99,
-      duration: "75 min",
-      available: true,
-      createdAt: new Date("2023-03-10"),
-      isOnline: true,
-      capacity: 1,
-      serviceType: "one_on_one"
-    },
-    {
-      id: "service-4",
-      title: "Free Fitness Assessment",
-      description: "Initial fitness assessment to evaluate your current fitness level and discuss your goals. Includes body composition analysis and fitness tests.",
-      providerId: "coach-2",
-      providerName: "Sarah Johnson",
-      price: 0,
-      duration: "30 min",
-      available: true,
-      createdAt: new Date("2023-04-05"),
-      isOnline: false,
-      location: "Fitness Studio, 123 Main St",
-      capacity: 1,
-      serviceType: "one_on_one"
-    },
-    {
-      id: "service-5",
-      title: "Online Yoga Class",
-      description: "Virtual yoga sessions focusing on flexibility, strength, and mindfulness. Suitable for all levels from beginners to advanced practitioners.",
-      providerId: "coach-3",
-      providerName: "Emily Chen",
-      price: 19.99,
-      duration: "60 min",
-      available: true,
-      createdAt: new Date("2023-05-12"),
-      isOnline: true,
-      capacity: 15,
-      serviceType: "group"
-    }
   ];
 
   const mockSessions: Session[] = [
@@ -1099,7 +1105,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         posts,
         events,
         groups,
-        services,
+        services: allServices,
         sessions,
         sessionEnrollments,
         messages,
