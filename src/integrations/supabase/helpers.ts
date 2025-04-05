@@ -1,5 +1,4 @@
 
-
 import { supabase } from './client';
 import { Booking } from '@/types';
 
