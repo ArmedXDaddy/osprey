@@ -95,6 +95,9 @@ const Profile = () => {
   const coverImageInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   
+  const [profileImages, setProfileImages] = useState<{ name: string; url: string }[]>([]);
+  const [coverImages, setCoverImages] = useState<{ name: string; url: string }[]>([]);
+
   useEffect(() => {
     if (currentUser) {
       setProfileForm({
