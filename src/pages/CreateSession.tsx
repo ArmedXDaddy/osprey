@@ -115,7 +115,8 @@ const CreateSession = () => {
         isActive: data.isActive,
         isFree: data.price === 0,
         status: 'upcoming',
-        currentAttendees: 0
+        currentAttendees: 0,
+        available: true
       };
       
       const session = await createSession(sessionData);

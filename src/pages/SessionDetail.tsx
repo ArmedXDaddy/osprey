@@ -70,7 +70,13 @@ const SessionDetail = () => {
         return;
       }
       
-      await enrollInSession(session.id);
+      await enrollInSession(
+        session.id,
+        currentUser.id,
+        currentUser.name,
+        currentUser.email,
+        currentUser.profileImage
+      );
     } catch (error) {
       console.error('Error enrolling in session:', error);
     }

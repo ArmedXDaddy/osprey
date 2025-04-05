@@ -1,18 +1,39 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { UserRole, Session, SessionEnrollment, Event } from '@/types';
+import { UserRole, Session, SessionEnrollment, Event, Post, Group, Message, JoinRequest, GroupPrivacy, EventPrivacy, SessionType, SessionStatus, PaymentStatus } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
 
 interface DataContextType {
   events: Event[];
   sessions: Session[];
   sessionEnrollments: SessionEnrollment[];
+  posts: Post[];
+  groups: Group[];
+  services: Session[];
   loading: boolean;
+  
   createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session | null>;
   updateSession: (sessionId: string, updates: Partial<Session>) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
-  enrollInSession: (sessionId: string, userId: string, userName: string, userEmail: string, userProfileImage?: string) => Promise<void>;
+  enrollInSession: (sessionId: string, userId?: string, userName?: string, userEmail?: string, userProfileImage?: string) => Promise<void>;
   updateEnrollmentStatus: (enrollmentId: string, status: 'pending' | 'approved' | 'rejected') => Promise<void>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
+  
+  createEvent: (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
+  getEventRequests: (eventId: string) => JoinRequest[];
+  handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  
+  createGroup: (groupData: any) => Promise<Group>;
+  updateGroupDetails: (groupId: string, updates: any) => Promise<void>;
+  getGroupRequests: (groupId: string) => JoinRequest[];
+  handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  joinGroup: (groupId: string) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  requestToJoinGroup: (groupId: string) => Promise<void>;
+  removeGroupMember: (groupId: string, userId: string) => Promise<void>;
+  
+  likePost: (postId: string) => Promise<void>;
+  
+  sendMessage: (messageData: Omit<Message, 'id' | 'createdAt'>) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -21,19 +42,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [events, setEvents] = useState<Event[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock events
     const mockEvents: Event[] = [
-      // When creating mock events, use hostId, hostName, and hostRole instead of creatorId, creatorName, creatorRole
       {
         id: 'event-1',
         title: 'Yoga Session in the Park',
         description: 'Join us for a relaxing yoga session in the park.',
-        hostId: 'coach-1', // Previously creatorId
-        hostName: 'Sarah Johnson', // Previously creatorName
-        hostRole: 'coach' as UserRole, // Previously creatorRole
+        hostId: 'coach-1',
+        hostName: 'Sarah Johnson',
+        hostRole: 'coach' as UserRole,
         startDate: new Date('2023-06-15T10:00:00Z'),
         endDate: new Date('2023-06-15T11:30:00Z'),
         location: 'Central Park',
@@ -44,8 +65,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         privacy: 'public',
         image: '/images/yoga-park.jpg',
         createdAt: new Date('2023-06-01'),
-        attendees: [], // Add missing property
-        date: new Date('2023-06-15T10:00:00Z'), // For backward compatibility
+        attendees: [],
+        date: new Date('2023-06-15T10:00:00Z'),
       },
       {
         id: 'event-2',
@@ -65,8 +86,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         privacy: 'public',
         image: '/images/tech-meetup.jpg',
         createdAt: new Date('2023-07-01'),
-        attendees: [], // Add missing property
-        date: new Date('2023-07-20T18:00:00Z'), // For backward compatibility
+        attendees: [],
+        date: new Date('2023-07-20T18:00:00Z'),
       },
       {
         id: 'event-3',
@@ -85,13 +106,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         privacy: 'private',
         image: '/images/corporate-training.jpg',
         createdAt: new Date('2023-08-01'),
-        attendees: [], // Add missing property
-        date: new Date('2023-08-10T09:00:00Z'), // For backward compatibility
+        attendees: [],
+        date: new Date('2023-08-10T09:00:00Z'),
       },
     ];
     setEvents(mockEvents);
 
-    // Mock sessions
     const mockSessions: Session[] = [
       {
         id: 'session-1',
@@ -154,8 +174,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ];
     setSessions(mockSessions);
 
-    // Mock session enrollments
-    // For enrollment objects, ensure they include the required fields
     const mockEnrollment: SessionEnrollment = {
       id: 'enrollment-1',
       sessionId: 'session-1',
@@ -195,14 +213,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>): Promise<Session | null> => {
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Create coach info object
       const coachInfo = {
         id: sessionData.coachId,
         name: sessionData.coachName,
-        role: 'coach' as UserRole, // Add the missing role
+        role: 'coach' as UserRole,
         profileImage: sessionData.coach?.profileImage,
       };
 
@@ -213,9 +229,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date(),
         updatedAt: new Date(),
         sessionType: sessionData.type,
-        available: true,
+        available: sessionData.available !== undefined ? sessionData.available : true,
         currentAttendees: 0,
-        isActive: true,
+        isActive: sessionData.isActive !== undefined ? sessionData.isActive : true,
       };
 
       setSessions(prevSessions => [...prevSessions, newSession]);
@@ -228,7 +244,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateSession = async (sessionId: string, updates: Partial<Session>): Promise<void> => {
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setSessions(prevSessions =>
@@ -243,7 +258,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteSession = async (sessionId: string): Promise<void> => {
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setSessions(prevSessions => prevSessions.filter(session => session.id !== sessionId));
@@ -252,9 +266,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const enrollInSession = async (sessionId: string, userId: string, userName: string, userEmail: string, userProfileImage: string = ''): Promise<void> => {
+  const enrollInSession = async (sessionId: string, userId: string = 'user-1', userName: string = 'John Doe', userEmail: string = 'john@example.com', userProfileImage: string = ''): Promise<void> => {
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const newEnrollment: SessionEnrollment = {
@@ -280,7 +293,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateEnrollmentStatus = async (enrollmentId: string, status: 'pending' | 'approved' | 'rejected'): Promise<void> => {
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setSessionEnrollments(prevEnrollments =>
@@ -295,7 +307,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const cancelEnrollment = async (enrollmentId: string): Promise<void> => {
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 500));
 
       setSessionEnrollments(prevEnrollments =>
@@ -306,10 +317,114 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const createGroup = async (groupData: any): Promise<Group> => {
+    const newGroup: Group = {
+      id: `group-${Date.now()}`,
+      ...groupData,
+      members: 1,
+      pendingRequests: 0,
+      createdAt: new Date(),
+    };
+    
+    setGroups(prev => [...prev, newGroup]);
+    return newGroup;
+  };
+
+  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === groupId ? { ...group, ...updates } : group
+      )
+    );
+  };
+
+  const getGroupRequests = (groupId: string): JoinRequest[] => {
+    return [
+      {
+        id: 'request-1',
+        userId: 'user-2',
+        userName: 'Jane Smith',
+        userProfileImage: '/images/avatar-jane.jpg',
+        groupId,
+        status: 'pending',
+        createdAt: new Date(Date.now() - 3600000)
+      }
+    ];
+  };
+
+  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    console.log(`Join request ${requestId} ${status}`);
+  };
+
+  const joinGroup = async (groupId: string): Promise<void> => {
+    console.log(`Joined group ${groupId}`);
+  };
+
+  const leaveGroup = async (groupId: string): Promise<void> => {
+    console.log(`Left group ${groupId}`);
+  };
+
+  const requestToJoinGroup = async (groupId: string): Promise<void> => {
+    console.log(`Requested to join group ${groupId}`);
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
+    console.log(`Removed member ${userId} from group ${groupId}`);
+  };
+
+  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>): Promise<Event> => {
+    const newEvent: Event = {
+      id: `event-${Date.now()}`,
+      ...eventData,
+      hostId: eventData.creatorId as string || eventData.hostId,
+      hostName: eventData.creatorName as string || eventData.hostName,
+      hostRole: eventData.creatorRole as UserRole || eventData.hostRole,
+      endDate: eventData.endDate || new Date(new Date(eventData.startDate).getTime() + 3600000),
+      currentAttendees: 0,
+      createdAt: new Date(),
+    };
+    
+    setEvents(prev => [...prev, newEvent]);
+    return newEvent;
+  };
+
+  const getEventRequests = (eventId: string): JoinRequest[] => {
+    return [
+      {
+        id: `request-${eventId}-1`,
+        userId: 'user-2',
+        userName: 'Jane Smith',
+        userProfileImage: '/images/avatar-jane.jpg',
+        eventId,
+        status: 'pending',
+        createdAt: new Date(Date.now() - 3600000)
+      }
+    ];
+  };
+
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    console.log(`Event join request ${requestId} ${status}`);
+  };
+
+  const likePost = async (postId: string): Promise<void> => {
+    setPosts(prev => 
+      prev.map(post => 
+        post.id === postId ? { ...post, likes: (post.likes || 0) + 1, liked: true } : post
+      )
+    );
+  };
+
+  const sendMessage = async (messageData: Omit<Message, 'id' | 'createdAt'>): Promise<void> => {
+    console.log("Message sent:", messageData);
+  };
+
   const value = {
     events,
     sessions,
     sessionEnrollments,
+    posts,
+    groups,
+    services: sessions,
     loading,
     createSession,
     updateSession,
@@ -317,6 +432,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     enrollInSession,
     updateEnrollmentStatus,
     cancelEnrollment,
+    createGroup,
+    updateGroupDetails,
+    getGroupRequests,
+    handleJoinRequest,
+    joinGroup,
+    leaveGroup,
+    requestToJoinGroup,
+    removeGroupMember,
+    createEvent,
+    getEventRequests,
+    handleEventJoinRequest,
+    likePost,
+    sendMessage,
   };
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
