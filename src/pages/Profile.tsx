@@ -698,6 +698,230 @@ const Profile = () => {
         </div>
       </Card>
       
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+            <DialogDescription>
+              Update your profile information
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label htmlFor="name" className="text-sm font-medium">Name</label>
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="Your name"
+                  value={profileForm.name}
+                  onChange={handleProfileFormChange}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="bio" className="text-sm font-medium">Bio</label>
+                <Textarea
+                  id="bio"
+                  name="bio"
+                  placeholder="Tell us about yourself"
+                  value={profileForm.bio}
+                  onChange={handleProfileFormChange}
+                  rows={3}
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="location" className="text-sm font-medium">Location</label>
+                <Input
+                  id="location"
+                  name="location"
+                  placeholder="Your location"
+                  value={profileForm.location}
+                  onChange={handleProfileFormChange}
+                />
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h3 className="text-sm font-medium mb-2">Profile Image</h3>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100">
+                  {profileForm.profileImage ? (
+                    <img src={profileForm.profileImage} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-gray-200">
+                      <ImageIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => profileImageInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                    <span>Upload</span>
+                  </Button>
+                  
+                  {profileImages.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setGalleryType('profile');
+                        setIsGalleryDialogOpen(true);
+                      }}
+                    >
+                      Gallery
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <h3 className="text-sm font-medium mb-2">Cover Image</h3>
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-24 rounded overflow-hidden bg-gray-100">
+                  {profileForm.coverImage ? (
+                    <img src={profileForm.coverImage} alt="Cover" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="h-full w-full flex items-center justify-center bg-gray-200">
+                      <ImageIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => coverImageInputRef.current?.click()}
+                  >
+                    <Camera className="h-4 w-4" />
+                    <span>Upload</span>
+                  </Button>
+                  
+                  {coverImages.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setGalleryType('cover');
+                        setIsGalleryDialogOpen(true);
+                      }}
+                    >
+                      Gallery
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <Separator />
+            
+            <div>
+              <h3 className="text-sm font-medium mb-2">Social Links</h3>
+              <div className="grid grid-cols-1 gap-3">
+                <div className="flex items-center gap-2">
+                  <Instagram className="h-4 w-4 text-gray-500" />
+                  <Input
+                    name="instagram"
+                    placeholder="Instagram username"
+                    value={profileForm.instagram}
+                    onChange={handleProfileFormChange}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Twitter className="h-4 w-4 text-gray-500" />
+                  <Input
+                    name="twitter"
+                    placeholder="Twitter username"
+                    value={profileForm.twitter}
+                    onChange={handleProfileFormChange}
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-gray-500" />
+                  <Input
+                    name="website"
+                    placeholder="Website"
+                    value={profileForm.website}
+                    onChange={handleProfileFormChange}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleProfileUpdate}
+              disabled={uploading}
+            >
+              {uploading ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Crop Image</DialogTitle>
+            <DialogDescription>
+              Adjust your {cropImageType} image
+            </DialogDescription>
+          </DialogHeader>
+          
+          {cropImageSrc && (
+            <ImageCropper
+              imageSrc={cropImageSrc}
+              aspectRatio={cropAspectRatio}
+              onCropComplete={handleCropComplete}
+              loading={uploading}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Select Image</DialogTitle>
+            <DialogDescription>
+              Choose from your saved images
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ImageGallery
+            images={galleryType === 'profile' ? profileImages : coverImages}
+            onSelectImage={galleryType === 'profile' ? selectProfileImage : selectCoverImage}
+            onClose={() => setIsGalleryDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      
       <Tabs defaultValue="posts" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="posts">Posts</TabsTrigger>
@@ -719,177 +943,4 @@ const Profile = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.</p>
-              {isOwnProfile && currentUser?.role !== 'user' && (
-                <Link to="/create/post">
-                  <Button>Create Your First Post</Button>
-                </Link>
-              )}
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="events" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(3).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-80 rounded-lg" />
-              ))}
-            </div>
-          ) : userEvents.length > 0 ? (
-            <div>
-              {userCreatedEvents.length > 0 && (
-                <>
-                  <h3 className="text-lg font-medium mb-4">
-                    {isOwnProfile ? "Events You're Hosting" : `Events ${userToShow?.name} is Hosting`}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    {userCreatedEvents.map(event => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {joinedEvents.length > 0 && (
-                <>
-                  <h3 className="text-lg font-medium mb-4">
-                    {isOwnProfile ? "Events You're Attending" : `Events ${userToShow?.name} is Attending`}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {joinedEvents.map(event => (
-                      <EventCard key={event.id} event={event} />
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {userCreatedEvents.length === 0 && joinedEvents.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">
-                    {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any events yet.
-                  </p>
-                  <Link to="/events">
-                    <Button>Explore Events</Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any events yet.
-              </p>
-              <div className="flex justify-center gap-4">
-                <Link to="/events">
-                  <Button variant="outline">Explore Events</Button>
-                </Link>
-                {isOwnProfile && currentUser && ['influencer', 'coach', 'company'].includes(currentUser.role) && (
-                  <Link to="/create-event">
-                    <Button>Create Your First Event</Button>
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="groups" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(3).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-80 rounded-lg" />
-              ))}
-            </div>
-          ) : userGroups.length > 0 ? (
-            <div>
-              {userCreatedGroups.length > 0 && (
-                <>
-                  <h3 className="text-lg font-medium mb-4">
-                    {isOwnProfile ? "Groups You Manage" : `Groups ${userToShow?.name} Manages`}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                    {userCreatedGroups.map(group => (
-                      <GroupCard key={group.id} group={group} />
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {joinedGroups.length > 0 && (
-                <>
-                  <h3 className="text-lg font-medium mb-4">
-                    {isOwnProfile ? "Groups You've Joined" : `Groups ${userToShow?.name} Has Joined`}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {joinedGroups.map(group => (
-                      <GroupCard key={group.id} group={group} />
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {userCreatedGroups.length === 0 && joinedGroups.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">
-                    {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
-                  </p>
-                  <Link to="/groups">
-                    <Button>Explore Groups</Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
-              </p>
-              <div className="flex justify-center gap-4">
-                <Link to="/groups">
-                  <Button variant="outline">Explore Groups</Button>
-                </Link>
-                {isOwnProfile && currentUser && ['influencer', 'company'].includes(currentUser.role) && (
-                  <Link to="/create-group">
-                    <Button>Create Your First Group</Button>
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-        
-        {userToShow?.role === 'coach' && (
-          <TabsContent value="services" className="mt-6">
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array(3).fill(0).map((_, i) => (
-                  <Skeleton key={i} className="h-64 rounded-lg" />
-                ))}
-              </div>
-            ) : userServices.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {userServices.map(service => (
-                  <ServiceCard key={service.id} service={service} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">
-                  {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any services yet.
-                </p>
-                {isOwnProfile && (
-                  <Link to="/create/service">
-                    <Button>Create Your First Service</Button>
-                  </Link>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        )}
-      </Tabs>
-    </div>
-  );
-};
-
-export default Profile;
+              <p className="text-gray-500 mb-4">{isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any
