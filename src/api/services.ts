@@ -1,3 +1,4 @@
+
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -17,21 +18,21 @@ export const fetchServices = async (): Promise<Service[]> => {
     
     return data.map(service => ({
       id: service.id,
-      providerId: service.provider_id,
-      providerName: service.provider_name,
+      providerId: service.coach_id,
+      providerName: service.coach_name,
       title: service.title,
-      description: service.description,
-      sessionType: service.session_type,
+      description: service.description || '',
+      sessionType: service.service_type,
       price: service.price,
       isFree: service.is_free,
-      duration: service.duration,
-      startTime: service.start_time,
-      location: service.location,
+      duration: service.duration || '',
+      startTime: service.start_time ? new Date(service.start_time) : undefined,
+      location: service.location || '',
       isOnline: service.is_online,
-      meetingUrl: service.meeting_url,
-      capacity: service.capacity,
-      available: service.available,
-      createdAt: service.created_at,
+      meetingUrl: service.meeting_url || '',
+      capacity: service.capacity || undefined,
+      available: service.is_active,
+      createdAt: new Date(service.created_at),
     }));
   } catch (error) {
     console.error('Error in fetchServices:', error);
@@ -56,21 +57,21 @@ export const fetchServiceById = async (id: string): Promise<Service | null> => {
     
     return {
       id: data.id,
-      providerId: data.provider_id,
-      providerName: data.provider_name,
+      providerId: data.coach_id,
+      providerName: data.coach_name,
       title: data.title,
-      description: data.description,
-      sessionType: data.session_type,
+      description: data.description || '',
+      sessionType: data.service_type,
       price: data.price,
       isFree: data.is_free,
-      duration: data.duration,
-      startTime: data.start_time,
-      location: data.location,
+      duration: data.duration || '',
+      startTime: data.start_time ? new Date(data.start_time) : undefined,
+      location: data.location || '',
       isOnline: data.is_online,
-      meetingUrl: data.meeting_url,
-      capacity: data.capacity,
-      available: data.available,
-      createdAt: data.created_at,
+      meetingUrl: data.meeting_url || '',
+      capacity: data.capacity || undefined,
+      available: data.is_active,
+      createdAt: new Date(data.created_at),
     };
   } catch (error) {
     console.error('Error in fetchServiceById:', error);
@@ -78,14 +79,41 @@ export const fetchServiceById = async (id: string): Promise<Service | null> => {
   }
 };
 
-export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 'providerName' | 'providerId'>, userId: string, userName: string): Promise<Service> => {
+export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 'providerName' | 'providerId'>): Promise<Service> => {
   try {
+    // Get current user data to use as provider
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData?.user) {
+      throw new Error('User not authenticated');
+    }
+    
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userData.user.id)
+      .single();
+      
+    if (profileError || !profile) {
+      throw new Error('Failed to get user profile');
+    }
+    
     const { data, error } = await supabase
       .from('services')
       .insert({
-        ...service,
-        provider_id: userId,
-        provider_name: userName,
+        title: service.title,
+        description: service.description,
+        service_type: service.sessionType,
+        price: service.price,
+        is_free: service.isFree,
+        duration: service.duration,
+        start_time: service.startTime,
+        location: service.location,
+        is_online: service.isOnline,
+        meeting_url: service.meetingUrl,
+        capacity: service.capacity,
+        is_active: service.available,
+        coach_id: userData.user.id,
+        coach_name: profile.name,
       })
       .select('*')
       .single();
@@ -101,21 +129,21 @@ export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 
     
     return {
       id: data.id,
-      providerId: data.provider_id,
-      providerName: data.provider_name,
+      providerId: data.coach_id,
+      providerName: data.coach_name,
       title: data.title,
-      description: data.description,
-      sessionType: data.session_type,
+      description: data.description || '',
+      sessionType: data.service_type,
       price: data.price,
       isFree: data.is_free,
-      duration: data.duration,
-      startTime: data.start_time,
-      location: data.location,
+      duration: data.duration || '',
+      startTime: data.start_time ? new Date(data.start_time) : undefined,
+      location: data.location || '',
       isOnline: data.is_online,
-      meetingUrl: data.meeting_url,
-      capacity: data.capacity,
-      available: data.available,
-      createdAt: data.created_at,
+      meetingUrl: data.meeting_url || '',
+      capacity: data.capacity || undefined,
+      available: data.is_active,
+      createdAt: new Date(data.created_at),
     };
   } catch (error) {
     console.error('Error in createService:', error);
@@ -123,12 +151,23 @@ export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 
   }
 };
 
-export const updateService = async (id: string, service: Omit<Service, 'id' | 'createdAt' | 'providerName' | 'providerId'>): Promise<Service> => {
+export const updateService = async (id: string, service: Partial<Omit<Service, 'id' | 'createdAt' | 'providerName' | 'providerId'>>): Promise<Service> => {
   try {
     const { data, error } = await supabase
       .from('services')
       .update({
-        ...service,
+        title: service.title,
+        description: service.description,
+        service_type: service.sessionType,
+        price: service.price,
+        is_free: service.isFree,
+        duration: service.duration,
+        start_time: service.startTime,
+        location: service.location,
+        is_online: service.isOnline,
+        meeting_url: service.meetingUrl,
+        capacity: service.capacity,
+        is_active: service.available,
       })
       .eq('id', id)
       .select('*')
@@ -145,21 +184,21 @@ export const updateService = async (id: string, service: Omit<Service, 'id' | 'c
     
     return {
       id: data.id,
-      providerId: data.provider_id,
-      providerName: data.provider_name,
+      providerId: data.coach_id,
+      providerName: data.coach_name,
       title: data.title,
-      description: data.description,
-      sessionType: data.session_type,
+      description: data.description || '',
+      sessionType: data.service_type,
       price: data.price,
       isFree: data.is_free,
-      duration: data.duration,
-      startTime: data.start_time,
-      location: data.location,
+      duration: data.duration || '',
+      startTime: data.start_time ? new Date(data.start_time) : undefined,
+      location: data.location || '',
       isOnline: data.is_online,
-      meetingUrl: data.meeting_url,
-      capacity: data.capacity,
-      available: data.available,
-      createdAt: data.created_at,
+      meetingUrl: data.meeting_url || '',
+      capacity: data.capacity || undefined,
+      available: data.is_active,
+      createdAt: new Date(data.created_at),
     };
   } catch (error) {
     console.error('Error in updateService:', error);
@@ -209,7 +248,7 @@ export const fetchServiceEnrollments = async (serviceId: string): Promise<any[]>
       userProfileImage: enrollment.user_profile_image,
       status: enrollment.status,
       paymentStatus: enrollment.payment_status,
-      createdAt: enrollment.created_at,
+      createdAt: new Date(enrollment.created_at),
       amount: enrollment.amount
     }));
   } catch (error) {
@@ -236,7 +275,7 @@ export const updateEnrollmentStatus = async (enrollmentId: string, status: strin
   }
 };
 
-export const bookService = async (serviceId: string, isPaid: boolean = false) => {
+export const bookService = async (serviceId: string, isPaid: boolean = false): Promise<void> => {
   try {
     const { data: service, error: serviceError } = await supabase
       .from('services')
@@ -280,15 +319,18 @@ export const bookService = async (serviceId: string, isPaid: boolean = false) =>
       throw new Error('Profile not found');
     }
     
+    // For a paid service that's been paid, auto-approve booking
+    const enrollmentStatus = isPaid || service.is_free === false ? 'approved' : 'pending';
+    
     const { error } = await supabase
       .from('service_enrollments')
       .insert({
         service_id: serviceId,
         user_id: user.user.id,
-        user_name: profile.full_name,
+        user_name: profile.name,
         user_email: user.user.email,
-        user_profile_image: profile.avatar_url,
-        status: 'pending',
+        user_profile_image: profile.profile_image,
+        status: enrollmentStatus,
         payment_status: isPaid ? 'paid' : 'pending',
         amount: service.price,
       });
@@ -303,7 +345,7 @@ export const bookService = async (serviceId: string, isPaid: boolean = false) =>
   }
 };
 
-export const cancelServiceBooking = async (enrollmentId: string) => {
+export const cancelServiceBooking = async (enrollmentId: string): Promise<void> => {
   try {
     const { error } = await supabase
       .from('service_enrollments')

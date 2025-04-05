@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -35,7 +34,10 @@ const ServiceDetail = () => {
   });
   
   const bookServiceMutation = useMutation({
-    mutationFn: bookService,
+    mutationFn: (isPaid: boolean = false) => {
+      if (!id) throw new Error("Service ID is required");
+      return bookService(id, isPaid);
+    },
     onSuccess: () => {
       toast({
         title: "Booking Successful",
@@ -71,14 +73,7 @@ const ServiceDetail = () => {
   
   const handleBookService = () => {
     if (!currentUser || !service) return;
-    
-    bookServiceMutation.mutate({
-      serviceId: service.id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userEmail: currentUser.email,
-      userProfileImage: currentUser.profileImage,
-    });
+    bookServiceMutation.mutate(false);
   };
   
   const handleEditService = () => {

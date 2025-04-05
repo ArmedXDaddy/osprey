@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -63,7 +62,14 @@ const CreateService = () => {
   });
   
   const createServiceMutation = useMutation({
-    mutationFn: createService,
+    mutationFn: (data: FormValues) => {
+      const serviceData = {
+        ...data,
+        available: true,
+        isFree: data.price === 0,
+      };
+      return createService(serviceData);
+    },
     onSuccess: () => {
       toast({
         title: "Service Created",
@@ -82,16 +88,7 @@ const CreateService = () => {
   
   const onSubmit = (data: FormValues) => {
     if (!currentUser) return;
-    
-    const serviceData = {
-      ...data,
-      providerId: currentUser.id,
-      providerName: currentUser.name,
-      available: true,
-      isFree: data.price === 0,
-    };
-    
-    createServiceMutation.mutate(serviceData);
+    createServiceMutation.mutate(data);
   };
   
   const sessionType = form.watch('sessionType');
