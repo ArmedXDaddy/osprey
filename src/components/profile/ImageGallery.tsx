@@ -56,14 +56,14 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
                 )}
                 onClick={() => onSelectImage(image.url)}
               >
-                <div className="aspect-square w-full overflow-hidden">
+                <div className={cn(
+                  "overflow-hidden",
+                  aspectRatio === 'landscape' ? 'aspect-video' : 'aspect-square'
+                )}>
                   <img 
                     src={image.url} 
                     alt={`Image ${index + 1}`} 
-                    className={cn(
-                      "w-full h-full object-cover transition-all duration-300 group-hover:scale-105",
-                      aspectRatio === 'landscape' ? 'aspect-video' : 'aspect-square'
-                    )}
+                    className="w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
                   />
                 </div>
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">

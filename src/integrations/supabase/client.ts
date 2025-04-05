@@ -23,4 +23,4 @@ export const supabase = createClient<Database>(
   }
 );
 
-// Note: We no longer need to initialize the bucket here as it's created via SQL
+// Note: Storage buckets 'profiles' and 'covers' are already created
