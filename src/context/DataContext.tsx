@@ -14,7 +14,6 @@ import {
   getServiceChatMessages
 } from '@/integrations/supabase/helpers';
 
-// Create the context with undefined as default
 interface DataContextType {
   posts: Post[];
   events: Event[];
@@ -73,10 +72,8 @@ interface DataContextType {
   fetchUserServices: (userId: string) => Promise<Service[]>;
 }
 
-// Create the context
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
-// Create the hook to use the context
 export const useData = () => {
   const context = useContext(DataContext);
   if (!context) {
@@ -85,12 +82,10 @@ export const useData = () => {
   return context;
 };
 
-// Props interface for the DataProvider
 interface DataProviderProps {
   children: ReactNode;
 }
 
-// Create the DataProvider component
 export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
@@ -106,7 +101,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const { currentUser } = useAuth();
   
-  // Load mock data
   React.useEffect(() => {
     if (mockServices.length === 0) {
       const generatedMockServices = generateMockServices();
@@ -181,16 +175,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     fetchAllServices();
   }, []);
   
-  // ----------------------------------------
-  // Session Functions
-  // ----------------------------------------
-  
-  // Let's update just the createSession function to fix the endTime and status issues
   const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>): Promise<Session> => {
     if (!currentUser) throw new Error('You must be logged in to create a session');
     console.log('Creating session:', sessionData);
     
-    // Mock implementation
     const newSession: Session = {
       id: Date.now().toString(),
       title: sessionData.title,
@@ -216,22 +204,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const enrollInSession = async (sessionId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to enroll in a session');
-    // Implementation
   };
   
   const cancelEnrollment = async (enrollmentId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to cancel an enrollment');
-    // Implementation
   };
   
   const approveEnrollment = async (enrollmentId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be a coach to approve an enrollment');
-    // Implementation
   };
   
   const rejectEnrollment = async (enrollmentId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be a coach to reject an enrollment');
-    // Implementation
   };
   
   const getUserSessions = async (userId: string): Promise<Session[]> => {
@@ -248,35 +232,23 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const updateSession = async (sessionId: string, updates: any): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update a session');
-    // Implementation
   };
   
   const updateEnrollmentStatus = async (enrollmentId: string, status: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update enrollment status');
-    // Implementation
   };
-  
-  // ----------------------------------------
-  // Chat Functions
-  // ----------------------------------------
   
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a message');
-    // Implementation
   };
   
   const sendServiceChatMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a service chat message');
-    // Implementation
   };
   
   const getServiceChatMessages = async (serviceId: string): Promise<Message[]> => {
     return [];
   };
-  
-  // ----------------------------------------
-  // Service Functions
-  // ----------------------------------------
   
   const getServiceById = async (serviceId: string): Promise<Service | null> => {
     try {
@@ -316,7 +288,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to book a service');
     
     try {
-      // Use the helper function instead of direct table access
       const isPaid = notes === 'paid';
       const status = isPaid ? 'approved' : 'pending';
       
@@ -333,7 +304,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  // Override the existing function to use the helper
   const getUserBookingsImpl = async (userId: string): Promise<Booking[]> => {
     try {
       return await getUserBookings(userId);
@@ -343,7 +313,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  // Override the existing function to use the helper
   const getServiceBookingsImpl = async (serviceId: string): Promise<Booking[]> => {
     try {
       return await getServiceBookings(serviceId);
@@ -353,7 +322,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  // Override the existing function to use the helper
   const getUserBookingForServiceImpl = async (serviceId: string, userId: string): Promise<Booking | null> => {
     try {
       return await getUserBookingForService(serviceId, userId);
@@ -363,7 +331,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  // Override the existing function to use the helper
   const cancelBookingImpl = async (bookingId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to cancel a booking');
     
@@ -375,7 +342,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  // Override the existing function to use the helper
   const approveBookingImpl = async (bookingId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to approve a booking');
     
@@ -438,17 +404,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const updateService = async (serviceId: string, updates: any): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update a service');
-    // Implementation
   };
   
   const deleteService = async (serviceId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to delete a service');
-    // Implementation
   };
   
   const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a service message');
-    // Implementation
   };
   
   const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
@@ -497,56 +460,39 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // ----------------------------------------
-  // Post Functions
-  // ----------------------------------------
-  
   const createPost = async (content: string, image?: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to create a post');
-    // Implementation
   };
   
   const likePost = async (postId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to like a post');
-    // Implementation
   };
   
   const unlikePost = async (postId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to unlike a post');
-    // Implementation
   };
-  
-  // ----------------------------------------
-  // Event Functions
-  // ----------------------------------------
   
   const createEvent = async (eventData: any): Promise<Event> => {
     if (!currentUser) throw new Error('You must be logged in to create an event');
-    // Implementation
     return {} as Event;
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to join an event');
-    // Implementation
   };
   
   const leaveEvent = async (eventId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to leave an event');
-    // Implementation
   };
   
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to request to join an event');
-    // Implementation
   };
   
   const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
-    // Implementation
   };
   
   const rejectEventRequest = async (requestId: string): Promise<void> => {
-    // Implementation
   };
   
   const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
@@ -555,40 +501,29 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to handle a join request');
-    // Implementation
   };
-  
-  // ----------------------------------------
-  // Group Functions
-  // ----------------------------------------
   
   const createGroup = async (groupData: any): Promise<Group> => {
     if (!currentUser) throw new Error('You must be logged in to create a group');
-    // Implementation
     return {} as Group;
   };
   
   const joinGroup = async (groupId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to join a group');
-    // Implementation
   };
   
   const leaveGroup = async (groupId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to leave a group');
-    // Implementation
   };
   
   const requestToJoinGroup = async (groupId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to request to join a group');
-    // Implementation
   };
   
   const approveGroupRequest = async (requestId: string, groupId: string, userId: string): Promise<void> => {
-    // Implementation
   };
   
   const rejectGroupRequest = async (requestId: string): Promise<void> => {
-    // Implementation
   };
   
   const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
@@ -597,20 +532,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to handle a join request');
-    // Implementation
   };
   
   const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to remove a group member');
-    // Implementation
   };
   
   const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update a group');
-    // Implementation
   };
   
-  // Create context value
   const contextValue: DataContextType = {
     posts,
     events,

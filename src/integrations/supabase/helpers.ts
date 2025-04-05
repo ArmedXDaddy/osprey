@@ -169,36 +169,46 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
  */
 export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
-    // Using stored procedure to get a specific booking
-    const { data, error } = await supabase.rpc(
-      'get_user_booking_for_service' as any, // Type cast to avoid TypeScript errors
-      {
-        p_service_id: serviceId,
-        p_user_id: userId
-      }
-    );
+    // Query the booking directly from the database table instead of using the stored procedure
+    const { data, error } = await supabase
+      .from('service_bookings')
+      .select(`
+        id,
+        service_id,
+        user_id,
+        status,
+        payment_status,
+        notes,
+        created_at,
+        profiles:user_id (
+          name,
+          email
+        )
+      `)
+      .eq('service_id', serviceId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user booking for service:', error);
       throw new Error(error.message || 'Failed to fetch booking');
     }
 
-    if (!data || data.length === 0) return null;
+    if (!data) return null;
     
-    const item = data[0];
     return {
-      id: item.id,
-      serviceId: item.service_id,
-      userId: item.user_id,
-      userName: item.user_name || '',
-      userEmail: item.user_email || '',
-      status: item.status as BookingStatus,
-      paymentStatus: item.payment_status as PaymentStatus,
-      notes: item.notes || undefined,
-      preferredTime: undefined, // This field is not currently in our database
+      id: data.id,
+      serviceId: data.service_id,
+      userId: data.user_id,
+      userName: data.profiles?.name || '',
+      userEmail: data.profiles?.email || '',
+      status: data.status as BookingStatus,
+      paymentStatus: data.payment_status as PaymentStatus,
+      notes: data.notes || undefined,
+      preferredTime: undefined,
       scheduledTime: undefined,
-      isPaid: item.payment_status === 'paid',
-      createdAt: new Date(item.created_at)
+      isPaid: data.payment_status === 'paid',
+      createdAt: new Date(data.created_at)
     };
   } catch (error: any) {
     console.error('Error in getUserBookingForService:', error);
