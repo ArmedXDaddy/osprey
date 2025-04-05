@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus } from '@/types';
+import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus, ServiceBooking } from '@/types';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,7 @@ interface DataContextType {
   joinRequests: JoinRequest[];
   sessions: Session[];
   sessionEnrollments: SessionEnrollment[];
+  serviceBookings: ServiceBooking[];
   loading: boolean;
   createPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<Post>;
   createEvent: (event: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
@@ -21,7 +22,7 @@ interface DataContextType {
   createService: (service: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
   createSession: (session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
   updateSession: (sessionId: string, sessionData: Partial<Session>) => Promise<Session>;
-  enrollInSession: (sessionId: string, isPaid: boolean = false) => Promise<SessionEnrollment>;
+  enrollInSession: (sessionId: string, isPaid?: boolean) => Promise<SessionEnrollment>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
   updateEnrollmentStatus: (enrollmentId: string, status: SessionStatus) => Promise<void>;
   getUserSessions: (userId: string) => Session[];
@@ -43,6 +44,8 @@ interface DataContextType {
   getEventRequests: (eventId: string) => JoinRequest[];
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   updateGroupDetails: (groupId: string, groupData: Partial<Group>) => Promise<void>;
+  bookService: (serviceId: string, isPaid?: boolean) => Promise<ServiceBooking>;
+  cancelServiceBooking: (bookingId: string) => Promise<void>;
 }
 
 const MOCK_POSTS: Post[] = [
@@ -358,6 +361,33 @@ const MOCK_SESSION_ENROLLMENTS: SessionEnrollment[] = [
   }
 ];
 
+const MOCK_SERVICE_BOOKINGS: ServiceBooking[] = [
+  {
+    id: 'booking1',
+    serviceId: 's1',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userEmail: 'emma@example.com',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'approved',
+    paymentStatus: 'paid',
+    amount: 75,
+    createdAt: new Date('2023-08-20')
+  },
+  {
+    id: 'booking2',
+    serviceId: 's2',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userEmail: 'emma@example.com',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'pending',
+    paymentStatus: 'unpaid',
+    amount: 100,
+    createdAt: new Date('2023-09-01')
+  }
+];
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -369,6 +399,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(MOCK_JOIN_REQUESTS);
   const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(MOCK_SESSION_ENROLLMENTS);
+  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>(MOCK_SERVICE_BOOKINGS);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
 
@@ -678,7 +709,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const enrollInSession = async (sessionId: string, isPaid: boolean = false): Promise<SessionEnrollment> => {
+  const enrollInSession = async (sessionId: string, isPaid = false): Promise<SessionEnrollment> => {
     if (!currentUser) throw new Error('You must be logged in to enroll in a session');
     
     setLoading(true);
@@ -1649,6 +1680,97 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const bookService = async (serviceId: string, isPaid = false): Promise<ServiceBooking> => {
+    if (!currentUser) throw new Error('You must be logged in to book a service');
+    
+    setLoading(true);
+    
+    try {
+      const service = services.find(s => s.id === serviceId);
+      if (!service) throw new Error('Service not found');
+      
+      // Create booking object
+      const newBooking: Omit<ServiceBooking, 'id' | 'createdAt'> = {
+        serviceId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userProfileImage: currentUser.profileImage,
+        status: service.price > 0 && isPaid ? 'approved' : 'pending', // Automatically approve paid services
+        paymentStatus: service.price > 0 ? (isPaid ? 'paid' : 'unpaid') : 'paid', // Mark as paid for free or explicitly paid services
+        amount: service.price,
+      };
+      
+      const bookingId = crypto.randomUUID();
+      const createdAt = new Date();
+      
+      const bookingObject: ServiceBooking = {
+        ...newBooking,
+        id: bookingId,
+        createdAt,
+      };
+      
+      setServiceBookings(prev => [...prev, bookingObject]);
+      
+      toast({
+        title: isPaid ? 'Booking successful' : 'Request sent',
+        description: isPaid ? 'Your service has been booked successfully' : 'Your booking request has been sent to the provider',
+      });
+      
+      return bookingObject;
+    } catch (error: any) {
+      console.error('Error booking service:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'There was an error processing your request',
+        variant: 'destructive'
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const cancelServiceBooking = async (bookingId: string): Promise<void> => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to cancel a booking');
+      }
+      
+      const booking = serviceBookings.find(b => b.id === bookingId);
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      
+      const service = services.find(s => s.id === booking.serviceId);
+      
+      if (booking.userId !== currentUser.id && service?.providerId !== currentUser.id) {
+        throw new Error('You can only cancel your own bookings or bookings for your services');
+      }
+      
+      setServiceBookings(prev => 
+        prev.filter(b => b.id !== bookingId)
+      );
+      
+      toast({
+        title: 'Booking cancelled',
+        description: 'The service booking has been cancelled',
+      });
+    } catch (error: any) {
+      console.error('Error canceling service booking:', error);
+      toast({
+        title: 'Cancellation failed',
+        description: error.message,
+        variant: 'destructive'
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1659,6 +1781,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       joinRequests,
       sessions,
       sessionEnrollments,
+      serviceBookings,
       loading,
       createPost,
       createEvent,
@@ -1687,7 +1810,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       handleEventJoinRequest,
       getEventRequests,
       removeGroupMember,
-      updateGroupDetails
+      updateGroupDetails,
+      bookService,
+      cancelServiceBooking
     }}>
       {children}
     </DataContext.Provider>
