@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -33,6 +32,7 @@ const CreateGroup = () => {
   const [newRule, setNewRule] = useState('');
   const [loading, setLoading] = useState(false);
   const [showImageGallery, setShowImageGallery] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -77,7 +77,24 @@ const CreateGroup = () => {
 
   const handleImageSelect = (image: string) => {
     setFormData(prev => ({ ...prev, image }));
+    setUploadedImage(null);
     setShowImageGallery(false);
+  };
+
+  const handleFileUpload = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageDataUrl = e.target?.result as string;
+      setUploadedImage(imageDataUrl);
+      setFormData(prev => ({ ...prev, image: imageDataUrl }));
+      setShowImageGallery(false);
+    };
+    reader.readAsDataURL(file);
+    
+    toast({
+      title: "Image uploaded",
+      description: "Your image has been uploaded successfully"
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -92,7 +109,6 @@ const CreateGroup = () => {
       return;
     }
 
-    // Validate form
     if (!formData.name.trim() || !formData.description.trim()) {
       toast({
         title: "Missing information",
@@ -105,7 +121,6 @@ const CreateGroup = () => {
     setLoading(true);
 
     try {
-      // Create the group
       const groupData = {
         ...formData,
         creatorId: currentUser.id,
@@ -120,7 +135,6 @@ const CreateGroup = () => {
         description: `Your group "${newGroup.name}" has been created successfully.`
       });
       
-      // Redirect to the new group page
       navigate(`/groups/${newGroup.id}`);
     } catch (error) {
       console.error("Failed to create group:", error);
@@ -184,7 +198,7 @@ const CreateGroup = () => {
                   className="flex items-center space-x-2"
                 >
                   <Upload className="h-4 w-4" />
-                  <span>Choose from gallery</span>
+                  <span>{showImageGallery ? 'Hide gallery' : 'Choose image'}</span>
                 </Button>
                 {formData.image && (
                   <div className="relative w-16 h-16 overflow-hidden rounded border">
@@ -195,7 +209,10 @@ const CreateGroup = () => {
                     />
                     <button 
                       type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
+                      onClick={() => {
+                        setFormData(prev => ({ ...prev, image: '' }));
+                        setUploadedImage(null);
+                      }}
                       className="absolute top-0 right-0 bg-black/50 p-1 rounded-bl"
                     >
                       <X className="h-3 w-3 text-white" />
@@ -207,8 +224,9 @@ const CreateGroup = () => {
               {showImageGallery && (
                 <div className="mt-2">
                   <GroupImageGallery 
-                    selectedImage={formData.image}
+                    selectedImage={!uploadedImage ? formData.image : ''}
                     onSelect={handleImageSelect}
+                    onFileUpload={handleFileUpload}
                   />
                 </div>
               )}
