@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -7,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
-import { fetchServiceById, bookService, deleteService } from '@/api/services';
+import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link, ImageIcon } from 'lucide-react';
+import { fetchServiceById, bookService, deleteService, updateService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,8 +28,9 @@ const ServiceDetail = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
 
-  const { data: service, isLoading, error } = useQuery({
+  const { data: service, isLoading, error, refetch } = useQuery({
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
@@ -68,6 +70,45 @@ const ServiceDetail = () => {
       });
     },
   });
+
+  const uploadCoverImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!service) throw new Error('No service found');
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${service.id}_cover.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('service_images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('service_images')
+        .getPublicUrl(filePath);
+
+      await updateService(service.id, { coverImage: publicUrl });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cover Image Updated",
+        description: "Your service cover image has been updated successfully",
+      });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Image Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
   const handleBookService = () => {
     if (!currentUser || !service) return;
@@ -88,6 +129,14 @@ const ServiceDetail = () => {
   const handleDeleteService = () => {
     if (!id) return;
     deleteServiceMutation.mutate(id);
+  };
+
+  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      uploadCoverImageMutation.mutate(file);
+    }
   };
   
   const isOwner = currentUser?.id === service?.providerId;
@@ -125,6 +174,23 @@ const ServiceDetail = () => {
   
   return (
     <div className="space-y-6">
+      {isOwner && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Cover Image</h2>
+          <div className="flex items-center space-x-4">
+            <Input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleCoverImageChange}
+              className="w-64"
+            />
+            {uploadCoverImageMutation.isPending && (
+              <span>Uploading...</span>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold">{service.title}</h1>

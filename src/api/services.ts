@@ -1,4 +1,3 @@
-
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -125,6 +124,7 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     meeting_url: serviceData.meetingUrl,
     is_free: serviceData.isFree || false,
     image: serviceData.image,
+    cover_image: serviceData.coverImage,
   };
   
   const { data, error } = await supabase
@@ -157,6 +157,7 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     meetingUrl: data.meeting_url,
     image: data.image,
     isFree: data.is_free,
+    coverImage: data.cover_image,
   };
 };
 
@@ -177,6 +178,7 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;
   if (serviceData.image !== undefined) supabaseData.image = serviceData.image;
   if (serviceData.isFree !== undefined) supabaseData.is_free = serviceData.isFree;
+  if (serviceData.coverImage !== undefined) supabaseData.cover_image = serviceData.coverImage;
   
   const { data, error } = await supabase
     .from('services')
@@ -209,6 +211,7 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
     meetingUrl: data.meeting_url,
     image: data.image,
     isFree: data.is_free,
+    coverImage: data.cover_image,
   };
 };
 
