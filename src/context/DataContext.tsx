@@ -870,17 +870,19 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const { data, error } = await supabase
         .from('join_requests')
         .select('*')
-        .eq('groupId', groupId);
+        .eq('group_id', groupId);
 
       if (error) throw error;
 
+      if (!data) return [];
+
       return data.map(item => ({
         id: item.id,
-        groupId: item.groupId,
-        userId: item.userId,
-        userName: item.userName,
-        userProfileImage: item.userProfileImage,
-        status: item.status,
+        groupId: item.group_id,
+        userId: item.user_id,
+        userName: item.user_name,
+        userProfileImage: item.user_profile_image,
+        status: item.status as "approved" | "rejected" | "pending",
         createdAt: new Date(item.created_at),
       }));
     } catch (err: any) {
@@ -901,8 +903,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const { data: requestData, error: requestError } = await supabase
         .from('join_requests')
         .select('id')
-        .eq('groupId', groupId)
-        .eq('userId', userId)
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
         .single();
         
       if (requestError) throw requestError;
@@ -934,18 +936,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
-        .select('members, memberIds, creatorId')
+        .select('members, member_ids, creator_id')
         .eq('id', groupId)
         .single();
         
       if (groupError) throw groupError;
       
-      if (groupData.creatorId !== currentUser.id) {
+      if (groupData.creator_id !== currentUser.id) {
         throw new Error('Only the group creator can remove members');
       }
       
       const currentMembers = groupData?.members || 0;
-      const currentMemberIds = groupData?.memberIds || [];
+      const currentMemberIds = groupData?.member_ids || [];
       
       if (!currentMemberIds.includes(userId)) {
         console.log('User not a member of the group');
@@ -958,7 +960,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       const { error } = await supabase
         .from('groups')
-        .update({ members: updatedMembers, memberIds: updatedMemberIds })
+        .update({ members: updatedMembers, member_ids: updatedMemberIds })
         .eq('id', groupId);
         
       if (error) throw error;
@@ -984,19 +986,28 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
-        .select('creatorId')
+        .select('creator_id')
         .eq('id', groupId)
         .single();
         
       if (groupError) throw groupError;
       
-      if (groupData.creatorId !== currentUser.id) {
+      if (groupData.creator_id !== currentUser.id) {
         throw new Error('Only the group creator can update the group');
       }
       
+      const supabaseUpdates: any = {};
+      if (updates.name) supabaseUpdates.name = updates.name;
+      if (updates.description) supabaseUpdates.description = updates.description;
+      if (updates.image) supabaseUpdates.image = updates.image;
+      if (updates.privacy) supabaseUpdates.privacy = updates.privacy;
+      if (updates.price) supabaseUpdates.price = updates.price;
+      if (updates.rules) supabaseUpdates.rules = updates.rules;
+      if (updates.memberLimit) supabaseUpdates.member_limit = updates.memberLimit;
+      
       const { error } = await supabase
         .from('groups')
-        .update(updates)
+        .update(supabaseUpdates)
         .eq('id', groupId);
         
       if (error) throw error;
@@ -1011,6 +1022,212 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>): Promise<Session> => {
+    if (!currentUser) throw new Error('You must be logged in to create a session');
+
+    console.log('Creating session:', sessionData);
+    return {} as Session;
+  };
+
+  const enrollInSession = async (sessionId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to enroll in a session');
+  };
+
+  const cancelEnrollment = async (enrollmentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to cancel an enrollment');
+  };
+
+  const approveEnrollment = async (enrollmentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be a coach to approve an enrollment');
+  };
+
+  const rejectEnrollment = async (enrollmentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be a coach to reject an enrollment');
+  };
+
+  const getUserSessions = async (userId: string): Promise<Session[]> => {
+    return [];
+  };
+
+  const getCoachSessions = async (coachId: string): Promise<Session[]> => {
+    return [];
+  };
+
+  const getUserEnrollments = async (userId: string): Promise<SessionEnrollment[]> => {
+    return [];
+  };
+
+  const updateSession = async (sessionId: string, updates: Partial<Session>): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a session');
+  };
+
+  const updateEnrollmentStatus = async (enrollmentId: string, status: 'pending' | 'approved' | 'rejected' | 'completed'): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update enrollment status');
+  };
+
+  const sendMessage = async (messageData: Omit<Message, 'id' | 'createdAt' | 'userName' | 'userRole' | 'userProfileImage'>): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to send a message');
+  };
+
+  const getServiceById = async (serviceId: string): Promise<Service | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', serviceId)
+        .single();
+
+      if (error) throw error;
+
+      if (!data) return null;
+
+      return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url,
+      };
+    } catch (err: any) {
+      console.error("Error fetching service:", err);
+      return null;
+    }
+  };
+
+  const bookService = async (serviceId: string, notes?: string, preferredTime?: Date): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to book a service');
+  };
+
+  const cancelBooking = async (bookingId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to cancel a booking');
+  };
+
+  const getUserBookings = async (userId: string): Promise<any[]> => {
+    return [];
+  };
+
+  const getServiceBookings = async (serviceId: string): Promise<any[]> => {
+    return [];
+  };
+
+  const createService = async (serviceData: Omit<Service, 'id' | 'createdAt'>): Promise<Service> => {
+    if (!currentUser) throw new Error('You must be logged in to create a service');
+
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .insert({
+          title: serviceData.title,
+          description: serviceData.description,
+          coach_id: currentUser.id,
+          coach_name: currentUser.name,
+          price: serviceData.price || 0,
+          duration: serviceData.duration,
+          is_active: serviceData.available !== undefined ? serviceData.available : true,
+          is_online: serviceData.isOnline || false,
+          location: serviceData.location,
+          capacity: serviceData.capacity,
+          service_type: serviceData.serviceType,
+          cover_image: serviceData.coverImage,
+          meeting_url: serviceData.meetingUrl,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url,
+      };
+    } catch (err: any) {
+      console.error("Error creating service:", err);
+      setError(err.message);
+      throw err;
+    }
+  };
+
+  const updateService = async (serviceId: string, updates: Partial<Service>): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a service');
+  };
+
+  const deleteService = async (serviceId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a service');
+  };
+
+  const approveBooking = async (bookingId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to approve a booking');
+  };
+
+  const sendServiceMessage = async (messageData: Omit<Message, 'id' | 'createdAt' | 'userName' | 'userRole' | 'userProfileImage'>): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to send a service message');
+  };
+
+  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
+    return [];
+  };
+
+  const getUserBookingForService = async (serviceId: string, userId: string): Promise<any | null> => {
+    return null;
+  };
+
+  const fetchUserServices = async (userId: string): Promise<Service[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('coach_id', userId);
+
+      if (error) throw error;
+
+      if (!data) return [];
+
+      return data.map(item => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        providerId: item.coach_id,
+        providerName: item.coach_name,
+        price: item.price,
+        duration: item.duration,
+        available: item.is_active,
+        createdAt: new Date(item.created_at),
+        isOnline: item.is_online,
+        location: item.location,
+        capacity: item.capacity,
+        serviceType: item.service_type as ServiceType,
+        coverImage: item.cover_image,
+        meetingUrl: item.meeting_url,
+      }));
+    } catch (err: any) {
+      console.error("Error fetching user services:", err);
+      return [];
     }
   };
 
