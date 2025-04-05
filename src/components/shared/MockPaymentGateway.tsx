@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { 
   Dialog,
@@ -20,6 +19,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { logError } from '@/utils';
 
 interface MockPaymentGatewayProps {
   open: boolean;
@@ -28,6 +28,7 @@ interface MockPaymentGatewayProps {
   serviceName: string;
   onPaymentSuccess: () => void;
   onPaymentCancel: () => void;
+  serviceId?: string;
 }
 
 const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
@@ -37,6 +38,7 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
   serviceName,
   onPaymentSuccess,
   onPaymentCancel,
+  serviceId,
 }) => {
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -78,6 +80,9 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
       // Simulate successful payment after a short delay
       setTimeout(() => {
         try {
+          // Log service information for debugging
+          console.log("Payment successful for service:", { serviceId, serviceName, amount });
+          
           // Show success toast first
           toast({
             title: "Payment successful",
@@ -95,7 +100,7 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
             onOpenChange(false);
           }, 500);
         } catch (error) {
-          console.error('Error during payment success handling:', error);
+          logError('Payment success handling', error);
           toast({
             title: "Payment processed",
             description: "Your payment was processed, but there was an error updating your booking. Please contact support.",

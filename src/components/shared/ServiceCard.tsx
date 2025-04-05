@@ -10,6 +10,7 @@ import { useData } from '@/context/DataContext';
 import { useToast } from '@/hooks/use-toast';
 import MockPaymentGateway from './MockPaymentGateway';
 import { useNavigate } from 'react-router-dom';
+import { logError } from '@/utils';
 
 interface ServiceCardProps {
   service: Service;
@@ -70,7 +71,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
         }
       }
     } catch (error) {
-      console.error('Error booking service:', error);
+      logError('Error booking service', error);
       toast({
         title: "Error",
         description: "There was an error processing your request",
@@ -81,13 +82,13 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   
   const handlePaymentSuccess = async () => {
     try {
-      const serviceId = service?.id;
-      
-      if (!serviceId) {
-        throw new Error("Service ID is missing");
+      if (!service || !service.id) {
+        throw new Error("Service information is missing");
       }
       
-      const newBooking = await bookService(serviceId, true);
+      console.log("Payment successful, booking service with ID:", service.id);
+      
+      const newBooking = await bookService(service.id, true);
       
       if (newBooking) {
         setLocalIsEnrolled(true);
@@ -99,7 +100,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
         });
       }
     } catch (error) {
-      console.error('Error booking after payment:', error);
+      logError('Error booking after payment', error);
       toast({
         title: "Error",
         description: "There was an error processing your booking after payment",
@@ -130,7 +131,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
         description: "Your booking has been cancelled",
       });
     } catch (error) {
-      console.error('Error canceling booking:', error);
+      logError('Error canceling booking', error);
       toast({
         title: "Error",
         description: "There was an error cancelling your booking",
@@ -269,6 +270,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
         onOpenChange={setShowPaymentModal}
         amount={service.price}
         serviceName={service.title}
+        serviceId={service.id}
         onPaymentSuccess={handlePaymentSuccess}
         onPaymentCancel={handlePaymentCancel}
       />

@@ -393,7 +393,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         return existingBooking;
       }
 
-      const status = isPaid ? 'approved' as BookingStatus : 'pending' as BookingStatus;
+      const status: BookingStatus = isPaid ? 'approved' : 'pending';
+      const paymentStatus: PaymentStatus = isPaid ? 'paid' : 'unpaid';
       
       const newEnrollment: ServiceBooking = {
         id: generateId(),
@@ -402,8 +403,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         userName: currentUser.name,
         userEmail: currentUser.email,
         userProfileImage: currentUser.profileImage,
-        status: status,
-        paymentStatus: isPaid ? 'paid' as PaymentStatus : 'unpaid' as PaymentStatus,
+        status,
+        paymentStatus,
         amount: service.price,
         createdAt: new Date(),
       };
