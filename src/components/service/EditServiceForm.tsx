@@ -26,7 +26,7 @@ const formSchema = z.object({
     message: "Duration must be specified."
   }),
   capacity: z.number().optional(),
-  serviceType: z.enum(['one_on_one', 'group'] as const),
+  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course'] as const),
   isOnline: z.boolean(),
   location: z.string().optional(),
   meetingUrl: z.string().optional(),
@@ -52,7 +52,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave, onCa
       price: service.price,
       duration: service.duration || "60 min",
       capacity: service.capacity || 1,
-      serviceType: service.serviceType as ServiceType || "one_on_one",
+      serviceType: (service.serviceType as ServiceType) || "one_on_one",
       isOnline: service.isOnline || false,
       location: service.location || "",
       meetingUrl: service.meetingUrl || "",
@@ -174,6 +174,8 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave, onCa
                 <SelectContent>
                   <SelectItem value="one_on_one">One-on-One</SelectItem>
                   <SelectItem value="group">Group</SelectItem>
+                  <SelectItem value="webinar">Webinar</SelectItem>
+                  <SelectItem value="course">Course</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />

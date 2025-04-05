@@ -93,6 +93,8 @@ export interface Service {
   capacity?: number;
   serviceType?: ServiceType;
   sessionId?: string; // Reference to a session if linked
+  meetingUrl?: string; // Added for online services
+  coverImage?: string; // Added for service image
 }
 
 export interface Booking {

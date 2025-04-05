@@ -27,7 +27,7 @@ const formSchema = z.object({
     message: "Duration must be specified."
   }),
   capacity: z.number().optional(),
-  serviceType: z.enum(['one_on_one', 'group'] as const),
+  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course'] as const),
   isOnline: z.boolean(),
   location: z.string().optional(),
   meetingUrl: z.string().optional(),
@@ -74,7 +74,16 @@ const CreateService = () => {
 
       // Prepare service data
       const serviceData = {
-        ...data,
+        title: data.title,
+        description: data.description,
+        price: data.price,
+        duration: data.duration,
+        capacity: data.capacity,
+        serviceType: data.serviceType,
+        isOnline: data.isOnline,
+        location: data.location,
+        meetingUrl: data.meetingUrl,
+        coverImage: data.coverImage,
         providerId: currentUser.id,
         providerName: currentUser.name,
         available: true,
@@ -191,6 +200,8 @@ const CreateService = () => {
                   <SelectContent>
                     <SelectItem value="one_on_one">One-on-One</SelectItem>
                     <SelectItem value="group">Group</SelectItem>
+                    <SelectItem value="webinar">Webinar</SelectItem>
+                    <SelectItem value="course">Course</SelectItem>
                   </SelectContent>
                 </Select>
                 <FormMessage />
