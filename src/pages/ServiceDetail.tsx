@@ -2,15 +2,14 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchServiceById, createEnrollment, fetchServiceEnrollments } from '@/api/services';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from '@/hooks/use-toast';
-import { ArrowLeft, Users, Edit, Trash2 } from 'lucide-react';
-import { ServiceEnrollment, SessionStatus } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import ServiceDetailCard from '@/components/shared/ServiceDetailCard';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
+import { fetchServiceById, bookService, checkBookingStatus, deleteService } from '@/api/services';
+import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,340 +21,331 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { Badge } from '@/components/ui/badge';
-import { formatDistanceToNow } from 'date-fns';
+import MockPaymentGateway from '@/components/shared/MockPaymentGateway';
 
 const ServiceDetail = () => {
-  const { id } = useParams();
-  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState('details');
-  
-  const { data: service, isLoading, error } = useQuery({
+  const { toast } = useToast();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  const { data: service, isLoading: serviceLoading } = useQuery({
     queryKey: ['service', id],
-    queryFn: () => fetchServiceById(id!),
-    enabled: !!id
+    queryFn: () => fetchServiceById(id as string),
+    enabled: !!id,
   });
   
-  const { data: enrollments, isLoading: isLoadingEnrollments } = useQuery({
-    queryKey: ['serviceEnrollments', id],
-    queryFn: () => fetchServiceEnrollments(id!),
-    enabled: !!id && !!currentUser && (currentUser.role === 'coach' || currentUser.id === service?.coachId)
+  const { data: bookingStatus, isLoading: bookingStatusLoading } = useQuery({
+    queryKey: ['booking-status', id, currentUser?.id],
+    queryFn: () => checkBookingStatus(currentUser?.id || '', id as string),
+    enabled: !!id && !!currentUser,
   });
   
-  const enrollMutation = useMutation({
-    mutationFn: (data: Omit<ServiceEnrollment, 'id' | 'createdAt'>) => createEnrollment(data),
+  const bookServiceMutation = useMutation({
+    mutationFn: (isPaid?: boolean) => {
+      if (!currentUser || !service || !id) throw new Error('User or service not found');
+      
+      return bookService({
+        serviceId: id, // Use the id from URL params to ensure consistency
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userProfileImage: currentUser.profileImage,
+        isPaid,
+      });
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['serviceEnrollments', id] });
+      queryClient.invalidateQueries({ queryKey: ['booking-status', id, currentUser?.id] });
       toast({
-        title: 'Enrollment successful',
-        description: 'You have successfully enrolled in this service',
-        variant: 'success'
+        title: "Booking Successful",
+        description: "You have successfully booked this service",
       });
     },
     onError: (error: any) => {
       toast({
-        title: 'Enrollment failed',
-        description: error.message || 'Failed to enroll in this service. Please try again.',
-        variant: 'destructive'
+        title: "Booking Failed",
+        description: `Error: ${error.message}`,
+        variant: "destructive",
       });
-    }
+    },
   });
   
-  const handleEnroll = async () => {
+  const deleteServiceMutation = useMutation({
+    mutationFn: deleteService,
+    onSuccess: () => {
+      toast({
+        title: "Service Deleted",
+        description: "Your service has been deleted successfully",
+      });
+      navigate('/services');
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Deletion Failed",
+        description: `Error: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleBookService = () => {
     if (!currentUser) {
       toast({
-        title: 'Authentication required',
-        description: 'You must be logged in to enroll in services',
-        variant: 'destructive'
+        title: "Authentication required",
+        description: "Please log in to book this service",
+        variant: "destructive"
       });
       navigate('/auth/login');
       return;
     }
     
-    if (!service) return;
+    if (!service || !id) {
+      toast({
+        title: "Error",
+        description: "Service information is missing",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    const enrollmentData: Omit<ServiceEnrollment, 'id' | 'createdAt'> = {
-      serviceId: service.id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userEmail: currentUser.email,
-      userProfileImage: currentUser.profileImage,
-      status: service.serviceType === 'one_on_one' ? 'pending' : 'approved',
-      paymentStatus: service.isFree ? 'paid' : 'unpaid'
-    };
-    
-    enrollMutation.mutate(enrollmentData);
-  };
-  
-  const isEnrolled = React.useMemo(() => {
-    if (!currentUser || !enrollments) return false;
-    return enrollments.some(e => e.userId === currentUser.id);
-  }, [currentUser, enrollments]);
-  
-  const isOwner = React.useMemo(() => {
-    if (!currentUser || !service) return false;
-    return currentUser.id === service.coachId;
-  }, [currentUser, service]);
-  
-  const getStatusBadge = (status: SessionStatus) => {
-    switch (status) {
-      case 'pending':
-        return <Badge variant="outline">Pending</Badge>;
-      case 'approved':
-        return <Badge variant="success">Approved</Badge>;
-      case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
-      case 'completed':
-        return <Badge variant="secondary">Completed</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+    // If it's a paid service, show payment modal
+    if (!service.isFree && service.price > 0) {
+      setShowPaymentModal(true);
+    } else {
+      // For free services, just send a request
+      // Fixed: Pass false to indicate this is not a paid booking
+      bookServiceMutation.mutate(false);
     }
   };
   
-  const getPaymentBadge = (status: string) => {
-    return status === 'paid' 
-      ? <Badge variant="success">Paid</Badge>
-      : <Badge variant="outline">Unpaid</Badge>;
+  const handlePaymentSuccess = async () => {
+    // Book with payment status set to paid
+    bookServiceMutation.mutate(true);
   };
+  
+  const handlePaymentCancel = () => {
+    toast({
+      title: "Payment cancelled",
+      description: "Your payment has been cancelled",
+    });
+  };
+  
+  const handleEditService = () => {
+    navigate(`/services/${id}/edit`);
+  };
+  
+  const handleDeleteService = () => {
+    if (!id) return;
+    deleteServiceMutation.mutate(id);
+  };
+  
+  const isOwner = currentUser?.id === service?.providerId;
+  const isLoading = serviceLoading || bookingStatusLoading;
   
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/services')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-10 w-2/3" />
+        <Skeleton className="h-6 w-1/3" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 space-y-4">
+            <Skeleton className="h-40" />
+            <Skeleton className="h-20" />
+          </div>
+          <div>
+            <Skeleton className="h-60" />
+          </div>
         </div>
-        
-        <Skeleton className="h-[400px] rounded-lg" />
       </div>
     );
   }
   
-  if (error || !service) {
+  if (!service) {
     return (
-      <div className="space-y-6">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/services')}>
-          <ArrowLeft className="h-5 w-5" />
+      <div className="text-center py-10">
+        <AlertTriangle className="mx-auto h-10 w-10 text-red-500" />
+        <h2 className="mt-4 text-xl font-semibold">Service Not Found</h2>
+        <p className="mt-2 text-gray-500">The service you're looking for doesn't exist or has been removed</p>
+        <Button variant="outline" className="mt-4" onClick={() => navigate('/services')}>
+          Back to Services
         </Button>
-        
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-red-600">Service not found</h2>
-          <p className="text-gray-600 mt-2">
-            The service you're looking for might have been removed or doesn't exist.
-          </p>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/services')}
-            className="mt-4"
-          >
-            Back to Services
-          </Button>
-        </div>
       </div>
     );
   }
   
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/services')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h1 className="text-3xl font-bold">{service.title}</h1>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold">{service.title}</h1>
+          <p className="text-gray-500">by {service.providerName}</p>
+        </div>
+        
+        <div className="flex gap-2">
+          <Badge variant={service.sessionType === 'one_on_one' ? 'outline' : 'secondary'}>
+            {service.sessionType === 'one_on_one' ? '1:1 Session' : 'Group Session'}
+          </Badge>
+          
+          <Badge variant={service.price > 0 ? 'default' : 'success'}>
+            {service.price > 0 ? 'Paid' : 'Free'}
+          </Badge>
+        </div>
       </div>
       
-      {isOwner && (
-        <Tabs defaultValue={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList>
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="enrollments">
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                <span>Enrollments</span>
-              </div>
-            </TabsTrigger>
-          </TabsList>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="md:col-span-2 space-y-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Description</h2>
+            <p className="text-gray-700 whitespace-pre-line">{service.description}</p>
+          </div>
           
-          <TabsContent value="details" className="mt-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <ServiceDetailCard 
-                  service={service} 
-                  onEnroll={handleEnroll}
-                  isEnrolled={isEnrolled}
-                />
-              </div>
-              
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold">Service Management</h2>
+          {isOwner && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Manage Service</h2>
+              <div className="flex gap-4">
+                <Button onClick={handleEditService} variant="outline" className="flex items-center gap-2">
+                  <Edit className="h-4 w-4" />
+                  Edit Service
+                </Button>
                 
-                <div className="flex gap-2 flex-col">
-                  <Button 
-                    variant="outline" 
-                    className="w-full justify-start"
-                    onClick={() => navigate(`/services/${service.id}/edit`)}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit Service
-                  </Button>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button 
-                        variant="destructive" 
-                        className="w-full justify-start"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Service
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          This action cannot be undone. This will permanently delete
-                          your service and all associated enrollments.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => {
-                            // TODO: Implement delete functionality
-                            toast({
-                              title: "Service deleted",
-                              description: "The service has been successfully deleted",
-                              variant: "success"
-                            });
-                            navigate('/services');
-                          }}
-                        >
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="flex items-center gap-2">
+                      <Trash className="h-4 w-4" />
+                      Delete Service
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your
+                        service and remove it from our servers.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteService}>
+                        {deleteServiceMutation.isPending ? "Deleting..." : "Delete"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="enrollments" className="mt-6">
-            {isLoadingEnrollments ? (
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-64 w-full" />
-              </div>
-            ) : enrollments && enrollments.length > 0 ? (
-              <div className="rounded-lg border overflow-hidden">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead>Enrolled</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {enrollments.map(enrollment => (
-                      <TableRow key={enrollment.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            {enrollment.userProfileImage ? (
-                              <img 
-                                src={enrollment.userProfileImage} 
-                                alt={enrollment.userName}
-                                className="h-8 w-8 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                                {enrollment.userName.charAt(0)}
-                              </div>
-                            )}
-                            <span>{enrollment.userName}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>{enrollment.userEmail}</TableCell>
-                        <TableCell>{getStatusBadge(enrollment.status)}</TableCell>
-                        <TableCell>{getPaymentBadge(enrollment.paymentStatus)}</TableCell>
-                        <TableCell>
-                          {formatDistanceToNow(enrollment.createdAt, { addSuffix: true })}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                              Manage
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-12 border rounded-lg">
-                <h2 className="text-xl font-bold text-gray-600">No enrollments yet</h2>
-                <p className="text-gray-500 mt-2">
-                  No one has enrolled in this service yet.
-                </p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      )}
-      
-      {!isOwner && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <ServiceDetailCard 
-              service={service} 
-              onEnroll={handleEnroll}
-              isEnrolled={isEnrolled}
-            />
-          </div>
-          
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold">About the Coach</h2>
-            
-            <div className="flex items-center gap-3 p-4 border rounded-lg">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 flex items-center justify-center text-white font-bold">
-                {service.coachName.charAt(0)}
-              </div>
-              <div>
-                <h3 className="font-semibold">{service.coachName}</h3>
-                <p className="text-sm text-gray-500">Coach</p>
-              </div>
-            </div>
-            
-            <div className="p-4 border rounded-lg">
-              <h3 className="font-semibold mb-2">Services by this Coach</h3>
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => navigate(`/profile/${service.coachId}`)}
-              >
-                View Coach Profile
-              </Button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+        
+        <div>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Service Details</h3>
+                
+                <div className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-gray-500" />
+                  <span>{service.price > 0 ? `$${service.price}` : 'Free'}</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-gray-500" />
+                  <span>{service.duration}</span>
+                </div>
+                
+                {service.sessionType === 'group' && service.capacity && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-gray-500" />
+                    <span>{service.capacity} seats available</span>
+                  </div>
+                )}
+                
+                {service.startTime && (
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-500" />
+                    <span>{new Date(service.startTime).toLocaleString()}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center gap-2">
+                  {service.isOnline ? (
+                    <>
+                      <Video className="h-5 w-5 text-gray-500" />
+                      <span>Online Session</span>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="h-5 w-5 text-gray-500" />
+                      <span>{service.location || 'Location not specified'}</span>
+                    </>
+                  )}
+                </div>
+                
+                {service.isOnline && service.meetingUrl && bookingStatus?.status === 'approved' && (
+                  <div className="flex items-center gap-2">
+                    <Link className="h-5 w-5 text-gray-500" />
+                    <a 
+                      href={service.meetingUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline truncate"
+                    >
+                      Meeting Link
+                    </a>
+                  </div>
+                )}
+                
+                {!isOwner && (
+                  <>
+                    {bookingStatus ? (
+                      <div className="space-y-2 mt-4">
+                        <h4 className="font-medium">Booking Status</h4>
+                        <Badge className="w-full justify-center py-1" variant={
+                          bookingStatus.status === 'approved' ? 'success' :
+                          bookingStatus.status === 'rejected' ? 'destructive' : 'outline'
+                        }>
+                          {bookingStatus.status === 'approved' ? 'Approved' :
+                           bookingStatus.status === 'rejected' ? 'Rejected' : 'Pending Approval'}
+                        </Badge>
+                        
+                        {bookingStatus.status === 'approved' && bookingStatus.payment_status !== 'paid' && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className="w-full justify-center py-1">
+                              Payment: {bookingStatus.payment_status}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <Button 
+                        className="w-full mt-6" 
+                        disabled={!service.available || bookServiceMutation.isPending}
+                        onClick={handleBookService}
+                      >
+                        {!service.available 
+                          ? 'Currently Unavailable'
+                          : bookServiceMutation.isPending 
+                            ? 'Processing...' 
+                            : service.isFree ? 'Request Booking' : `Book for $${service.price}`}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      
+      <MockPaymentGateway 
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        amount={service.price}
+        serviceName={service.title}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentCancel={handlePaymentCancel}
+      />
     </div>
   );
 };

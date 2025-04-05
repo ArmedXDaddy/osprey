@@ -1,8 +1,9 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus } from '@/types';
+import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus, ServiceBooking } from '@/types';
 import { useAuth } from './AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import crypto from 'crypto';
 
 interface DataContextType {
   posts: Post[];
@@ -13,6 +14,7 @@ interface DataContextType {
   joinRequests: JoinRequest[];
   sessions: Session[];
   sessionEnrollments: SessionEnrollment[];
+  serviceBookings: ServiceBooking[];
   loading: boolean;
   createPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<Post>;
   createEvent: (event: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
@@ -20,7 +22,7 @@ interface DataContextType {
   createService: (service: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
   createSession: (session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
   updateSession: (sessionId: string, sessionData: Partial<Session>) => Promise<Session>;
-  enrollInSession: (sessionId: string) => Promise<SessionEnrollment>;
+  enrollInSession: (sessionId: string, isPaid?: boolean) => Promise<SessionEnrollment>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
   updateEnrollmentStatus: (enrollmentId: string, status: SessionStatus) => Promise<void>;
   getUserSessions: (userId: string) => Session[];
@@ -42,43 +44,60 @@ interface DataContextType {
   getEventRequests: (eventId: string) => JoinRequest[];
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   updateGroupDetails: (groupId: string, groupData: Partial<Group>) => Promise<void>;
+  bookService: (serviceId: string, isPaid?: boolean) => Promise<ServiceBooking>;
+  cancelServiceBooking: (bookingId: string) => Promise<void>;
 }
 
 const MOCK_POSTS: Post[] = [
   {
     id: 'p1',
-    userId: '2',
-    userName: 'Sophia Williams',
-    userRole: 'influencer',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
     content: 'Just finished my morning HIIT session! Who else loves to start their day with a high-intensity workout? 💪 #morningworkout #fitnessmotivation',
+    authorId: '2',
+    authorName: 'Sophia Williams',
+    authorRole: 'influencer',
+    authorImage: 'https://randomuser.me/api/portraits/women/68.jpg',
     image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
     likes: 342,
     comments: 45,
-    createdAt: new Date('2023-09-18T08:30:00')
+    createdAt: new Date('2023-09-18T08:30:00'),
+    // For backward compatibility
+    userId: '2',
+    userName: 'Sophia Williams',
+    userRole: 'influencer',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg'
   },
   {
     id: 'p2',
+    content: "New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting",
+    authorId: '3',
+    authorName: 'Alexandra Chen',
+    authorRole: 'coach',
+    authorImage: 'https://randomuser.me/api/portraits/women/33.jpg',
+    likes: 128,
+    comments: 23,
+    createdAt: new Date('2023-09-17T14:45:00'),
+    // For backward compatibility
     userId: '3',
     userName: 'Alexandra Chen',
     userRole: 'coach',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    content: "New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting",
-    likes: 128,
-    comments: 23,
-    createdAt: new Date('2023-09-17T14:45:00')
+    userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg'
   },
   {
     id: 'p3',
-    userId: '4',
-    userName: 'FitTech Apparel',
-    userRole: 'company',
-    userProfileImage: 'https://via.placeholder.com/150?text=FT',
     content: 'Our new performance leggings are finally here! Designed with sweat-wicking technology and a high-rise waistband for maximum comfort during your toughest workouts.',
+    authorId: '4',
+    authorName: 'FitTech Apparel',
+    authorRole: 'company',
+    authorImage: 'https://via.placeholder.com/150?text=FT',
     image: 'https://images.unsplash.com/photo-1506292926-9e0b21854fd1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=826&q=80',
     likes: 215,
     comments: 31,
-    createdAt: new Date('2023-09-16T11:20:00')
+    createdAt: new Date('2023-09-16T11:20:00'),
+    // For backward compatibility
+    userId: '4',
+    userName: 'FitTech Apparel',
+    userRole: 'company',
+    userProfileImage: 'https://via.placeholder.com/150?text=FT'
   }
 ];
 
@@ -91,10 +110,14 @@ const MOCK_EVENTS: Event[] = [
     creatorName: 'Alexandra Chen',
     creatorRole: 'coach',
     location: 'Millennium Park, Chicago',
+    isOnline: false,
+    startDate: new Date('2023-10-02T09:00:00'),
     date: new Date('2023-10-02T09:00:00'),
     image: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=775&q=80',
-    attendees: ['3', '4', '5'], // Changed from number to string array
+    attendees: ['3', '4', '5'],
+    currentAttendees: 3,
     privacy: 'public',
+    price: 0,
     createdAt: new Date('2023-08-15')
   },
   {
@@ -105,10 +128,14 @@ const MOCK_EVENTS: Event[] = [
     creatorName: 'Sophia Williams',
     creatorRole: 'influencer',
     location: 'Serenity Retreat Center, Malibu',
+    isOnline: false,
+    startDate: new Date('2023-11-10T16:00:00'),
     date: new Date('2023-11-10T16:00:00'),
     image: 'https://images.unsplash.com/photo-1588286840104-8957b019727f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
-    attendees: ['1', '2', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28'], // Changed
+    attendees: ['1', '2', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28'],
+    currentAttendees: 28,
     privacy: 'private',
+    price: 0,
     pendingRequests: 3,
     createdAt: new Date('2023-09-01')
   },
@@ -120,9 +147,12 @@ const MOCK_EVENTS: Event[] = [
     creatorName: 'FitTech Apparel',
     creatorRole: 'company',
     location: 'FitTech Flagship Store, NYC',
+    isOnline: false,
+    startDate: new Date('2023-10-15T18:00:00'),
     date: new Date('2023-10-15T18:00:00'),
     image: 'https://images.unsplash.com/photo-1543165796-35a3418c27df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-    attendees: Array.from({ length: 120 }, (_, i) => `attendee-${i + 1}`), // Convert to string array
+    attendees: Array.from({ length: 120 }, (_, i) => `attendee-${i + 1}`),
+    currentAttendees: 120,
     privacy: 'paid',
     price: 49.99,
     createdAt: new Date('2023-09-10')
@@ -134,50 +164,43 @@ const MOCK_SERVICES: Service[] = [
     id: 's1',
     title: '1:1 Strength Coaching',
     description: 'Personalized strength training sessions tailored to your goals and fitness level.',
-    coachId: '3',
-    coachName: 'Alexandra Chen',
-    serviceType: 'one_on_one',
+    providerId: '3',
+    providerName: 'Alexandra Chen',
     price: 75,
-    isFree: false,
     duration: '60 min',
-    isActive: true,
-    isOnline: false,
-    location: 'Fitness Studio, Downtown',
-    createdAt: new Date('2023-03-15'),
-    updatedAt: new Date('2023-03-15')
+    available: true,
+    sessionType: 'one_on_one',
+    isOnline: true,
+    isFree: false,
+    createdAt: new Date('2023-03-15')
   },
   {
     id: 's2',
     title: 'Nutrition Consultation',
     description: 'Comprehensive assessment of your current diet with personalized recommendations for your fitness goals.',
-    coachId: '3',
-    coachName: 'Alexandra Chen',
-    serviceType: 'one_on_one',
+    providerId: '3',
+    providerName: 'Alexandra Chen',
     price: 100,
-    isFree: false,
     duration: '90 min',
-    isActive: true,
+    available: true,
+    sessionType: 'one_on_one',
     isOnline: true,
-    meetingUrl: 'https://zoom.us/j/example',
-    createdAt: new Date('2023-05-20'),
-    updatedAt: new Date('2023-05-20')
+    isFree: false,
+    createdAt: new Date('2023-05-20')
   },
   {
     id: 's3',
     title: 'Online Coaching (Monthly)',
     description: 'Full month of programming, check-ins, and support to help you reach your fitness goals.',
-    coachId: '2',
-    coachName: 'Sophia Williams',
-    serviceType: 'group',
-    capacity: 10,
+    providerId: '2',
+    providerName: 'Sophia Williams',
     price: 250,
-    isFree: false,
     duration: '30 days',
-    isActive: true,
+    available: true,
+    sessionType: 'one_on_one',
     isOnline: true,
-    meetingUrl: 'https://zoom.us/j/example2',
-    createdAt: new Date('2023-01-10'),
-    updatedAt: new Date('2023-01-10')
+    isFree: false,
+    createdAt: new Date('2023-01-10')
   }
 ];
 
@@ -338,6 +361,33 @@ const MOCK_SESSION_ENROLLMENTS: SessionEnrollment[] = [
   }
 ];
 
+const MOCK_SERVICE_BOOKINGS: ServiceBooking[] = [
+  {
+    id: 'booking1',
+    serviceId: 's1',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userEmail: 'emma@example.com',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'approved',
+    paymentStatus: 'paid',
+    amount: 75,
+    createdAt: new Date('2023-08-20')
+  },
+  {
+    id: 'booking2',
+    serviceId: 's2',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userEmail: 'emma@example.com',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'pending',
+    paymentStatus: 'unpaid',
+    amount: 100,
+    createdAt: new Date('2023-09-01')
+  }
+];
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -349,6 +399,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(MOCK_JOIN_REQUESTS);
   const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(MOCK_SESSION_ENROLLMENTS);
+  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>(MOCK_SERVICE_BOOKINGS);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
 
@@ -412,7 +463,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newPost: Post = {
         ...postData,
         id: `p${Date.now()}`,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Ensure authorId, authorName, authorRole are set
+        authorId: postData.userId || postData.authorId,
+        authorName: postData.userName || postData.authorName,
+        authorRole: postData.userRole || postData.authorRole,
+        authorImage: postData.userProfileImage || postData.authorImage
       };
       
       setPosts(prev => [newPost, ...prev]);
@@ -432,8 +488,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...eventData,
         id: `e${Date.now()}`,
         attendees: [], // Initialize as empty array
+        currentAttendees: 0,
         pendingRequests: 0,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Ensure date is set if not already
+        date: eventData.date || eventData.startDate
       };
       
       setEvents(prev => [newEvent, ...prev]);
@@ -528,7 +587,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newService: Service = {
         ...serviceData,
         id: `s${Date.now()}`,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Ensure these properties are set if not provided
+        sessionType: serviceData.sessionType || 'one_on_one',
+        isOnline: serviceData.isOnline !== undefined ? serviceData.isOnline : true,
+        isFree: serviceData.price === 0
       };
       
       setServices(prev => [newService, ...prev]);
@@ -646,72 +709,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const enrollInSession = async (sessionId: string) => {
+  const enrollInSession = async (sessionId: string, isPaid = false): Promise<SessionEnrollment> => {
+    if (!currentUser) throw new Error('You must be logged in to enroll in a session');
+    
     setLoading(true);
     
     try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to enroll in a session');
-      }
-      
       const session = sessions.find(s => s.id === sessionId);
-      if (!session) {
-        throw new Error('Session not found');
-      }
+      if (!session) throw new Error('Session not found');
       
-      if (!session.isActive) {
-        throw new Error('This session is not currently active');
-      }
-      
-      if (session.sessionType === 'group' && session.capacity !== undefined) {
-        const currentEnrollments = sessionEnrollments.filter(e => 
-          e.sessionId === sessionId && e.status !== 'rejected'
-        ).length;
-        
-        if (currentEnrollments >= session.capacity) {
-          throw new Error('This session is at full capacity');
-        }
-      }
-      
-      // Check if user is already enrolled
-      const existingEnrollment = sessionEnrollments.find(e => 
-        e.sessionId === sessionId && e.userId === currentUser.id
-      );
-      
-      if (existingEnrollment) {
-        throw new Error('You are already enrolled in this session');
-      }
-      
-      const newEnrollment: SessionEnrollment = {
-        id: `enroll${Date.now()}`,
-        sessionId: sessionId,
+      // For new enrollment, create an enrollment object
+      const newEnrollment: Omit<SessionEnrollment, 'id' | 'createdAt'> = {
+        sessionId,
         userId: currentUser.id,
         userName: currentUser.name,
         userEmail: currentUser.email,
         userProfileImage: currentUser.profileImage,
-        status: 'pending',
-        paymentStatus: 'unpaid',
-        createdAt: new Date()
+        status: session.price > 0 && isPaid ? 'approved' : 'pending', // Automatically approve paid sessions
+        paymentStatus: session.price > 0 ? (isPaid ? 'paid' : 'unpaid') : 'paid', // Mark as paid for free or explicitly paid sessions
       };
       
-      setSessionEnrollments(prev => [...prev, newEnrollment]);
+      // Use DataContext to update the session enrollments
+      const enrollmentId = crypto.randomUUID();
+      const createdAt = new Date();
       
-      toast({
-        title: session.sessionType === 'one_on_one' ? "Request sent" : "Enrollment successful",
-        description: session.sessionType === 'one_on_one' 
-          ? "Your request for a one-on-one session has been sent to the coach" 
-          : "You have successfully enrolled in the group session",
-        variant: "success"
-      });
+      const enrollmentObject: SessionEnrollment = {
+        ...newEnrollment,
+        id: enrollmentId,
+        createdAt,
+      };
       
-      return newEnrollment;
-    } catch (error: any) {
+      setSessionEnrollments(prev => [...prev, enrollmentObject]);
+      
+      return enrollmentObject;
+    } catch (error) {
       console.error('Error enrolling in session:', error);
-      toast({
-        title: "Enrollment failed",
-        description: error.message,
-        variant: "destructive"
-      });
       throw error;
     } finally {
       setLoading(false);
@@ -1278,14 +1310,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Check if user is already attending
-      if (event.attendees.includes(currentUser.id)) {
+      if (Array.isArray(event.attendees) && event.attendees.includes(currentUser.id)) {
         throw new Error('You are already attending this event');
       }
       
       // Add attendee
       const updatedEvent = {
         ...event,
-        attendees: [...event.attendees, currentUser.id]
+        attendees: Array.isArray(event.attendees) 
+          ? [...event.attendees, currentUser.id] 
+          : [currentUser.id],
+        currentAttendees: event.currentAttendees + 1
       };
       
       setEvents(prev => 
@@ -1326,14 +1361,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Check if user is attending
-      if (!event.attendees.includes(currentUser.id)) {
+      if (!Array.isArray(event.attendees) || !event.attendees.includes(currentUser.id)) {
         throw new Error('You are not attending this event');
       }
       
       // Remove attendee
       const updatedEvent = {
         ...event,
-        attendees: event.attendees.filter(id => id !== currentUser.id)
+        attendees: Array.isArray(event.attendees)
+          ? event.attendees.filter(id => id !== currentUser.id)
+          : [],
+        currentAttendees: Math.max(0, event.currentAttendees - 1)
       };
       
       setEvents(prev => 
@@ -1470,7 +1508,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Add attendee
         updatedEvent = {
           ...updatedEvent,
-          attendees: [...event.attendees, request.userId]
+          attendees: [...(Array.isArray(event.attendees) ? event.attendees : []), request.userId],
+          currentAttendees: event.currentAttendees + 1
         };
       }
       
@@ -1641,6 +1680,97 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const bookService = async (serviceId: string, isPaid = false): Promise<ServiceBooking> => {
+    if (!currentUser) throw new Error('You must be logged in to book a service');
+    
+    setLoading(true);
+    
+    try {
+      const service = services.find(s => s.id === serviceId);
+      if (!service) throw new Error('Service not found');
+      
+      // Create booking object
+      const newBooking: Omit<ServiceBooking, 'id' | 'createdAt'> = {
+        serviceId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userProfileImage: currentUser.profileImage,
+        status: service.price > 0 && isPaid ? 'approved' : 'pending', // Automatically approve paid services
+        paymentStatus: service.price > 0 ? (isPaid ? 'paid' : 'unpaid') : 'paid', // Mark as paid for free or explicitly paid services
+        amount: service.price,
+      };
+      
+      const bookingId = crypto.randomUUID();
+      const createdAt = new Date();
+      
+      const bookingObject: ServiceBooking = {
+        ...newBooking,
+        id: bookingId,
+        createdAt,
+      };
+      
+      setServiceBookings(prev => [...prev, bookingObject]);
+      
+      toast({
+        title: isPaid ? 'Booking successful' : 'Request sent',
+        description: isPaid ? 'Your service has been booked successfully' : 'Your booking request has been sent to the provider',
+      });
+      
+      return bookingObject;
+    } catch (error: any) {
+      console.error('Error booking service:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'There was an error processing your request',
+        variant: 'destructive'
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const cancelServiceBooking = async (bookingId: string): Promise<void> => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to cancel a booking');
+      }
+      
+      const booking = serviceBookings.find(b => b.id === bookingId);
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+      
+      const service = services.find(s => s.id === booking.serviceId);
+      
+      if (booking.userId !== currentUser.id && service?.providerId !== currentUser.id) {
+        throw new Error('You can only cancel your own bookings or bookings for your services');
+      }
+      
+      setServiceBookings(prev => 
+        prev.filter(b => b.id !== bookingId)
+      );
+      
+      toast({
+        title: 'Booking cancelled',
+        description: 'The service booking has been cancelled',
+      });
+    } catch (error: any) {
+      console.error('Error canceling service booking:', error);
+      toast({
+        title: 'Cancellation failed',
+        description: error.message,
+        variant: 'destructive'
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1651,6 +1781,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       joinRequests,
       sessions,
       sessionEnrollments,
+      serviceBookings,
       loading,
       createPost,
       createEvent,
@@ -1679,7 +1810,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       handleEventJoinRequest,
       getEventRequests,
       removeGroupMember,
-      updateGroupDetails
+      updateGroupDetails,
+      bookService,
+      cancelServiceBooking
     }}>
       {children}
     </DataContext.Provider>
