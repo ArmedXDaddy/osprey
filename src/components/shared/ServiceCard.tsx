@@ -4,7 +4,7 @@ import { Service } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, DollarSign, Users, Calendar } from 'lucide-react';
+import { Clock, DollarSign, Users, Calendar, Video, Link, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface ServiceCardProps {
@@ -68,6 +68,26 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, showActions = true }
               </span>
             </div>
           )}
+          
+          <div className="flex items-center gap-1">
+            {service.isOnline ? (
+              <>
+                <Video className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-700">Online Session</span>
+                
+                {service.meetingUrl && (
+                  <Link className="h-4 w-4 ml-1 text-blue-500" />
+                )}
+              </>
+            ) : (
+              <>
+                <MapPin className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-700">
+                  {service.location || 'Location not specified'}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </CardContent>
       

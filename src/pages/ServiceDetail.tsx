@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle } from 'lucide-react';
+import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
 import { fetchServiceById, bookService, deleteService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -230,6 +230,20 @@ const ServiceDetail = () => {
                   )}
                 </div>
                 
+                {service.isOnline && service.meetingUrl && (isOwner || bookServiceMutation.isSuccess) && (
+                  <div className="flex items-center gap-2">
+                    <Link className="h-5 w-5 text-gray-500" />
+                    <a 
+                      href={service.meetingUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline truncate"
+                    >
+                      Meeting Link
+                    </a>
+                  </div>
+                )}
+                
                 <Button 
                   className="w-full mt-6" 
                   disabled={!service.available || isOwner || bookServiceMutation.isPending}
@@ -241,7 +255,9 @@ const ServiceDetail = () => {
                       ? 'Currently Unavailable'
                       : bookServiceMutation.isPending 
                         ? 'Processing...' 
-                        : 'Book Now'}
+                        : bookServiceMutation.isSuccess
+                          ? 'Booked Successfully'
+                          : 'Book Now'}
                 </Button>
               </div>
             </CardContent>

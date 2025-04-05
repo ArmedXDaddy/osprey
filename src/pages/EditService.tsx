@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useForm } from 'react-hook-form';
-import { useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -13,27 +13,50 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Switch } from '@/components/ui/switch';
 import { Link } from 'lucide-react';
-import { createService } from '@/api/services';
+import { fetchServiceById, updateService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const CreateService = () => {
+const EditService = () => {
+  const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  // Redirect if not a coach
+  // Fetch service data
+  const { data: service, isLoading, error } = useQuery({
+    queryKey: ['service', id],
+    queryFn: () => fetchServiceById(id as string),
+    enabled: !!id,
+  });
+  
+  // Redirect if not a coach or not the owner of the service
   React.useEffect(() => {
-    if (currentUser && currentUser.role !== 'coach') {
-      navigate('/services');
+    if (isLoading) return;
+    
+    if (error) {
       toast({
-        title: "Access Denied",
-        description: "Only coaches can create services",
+        title: "Error",
+        description: "Failed to load service information",
         variant: "destructive"
       });
+      navigate('/services');
+      return;
     }
-  }, [currentUser, navigate, toast]);
+    
+    if (currentUser && service) {
+      if (currentUser.role !== 'coach' || currentUser.id !== service.providerId) {
+        toast({
+          title: "Access Denied",
+          description: "You can only edit your own services",
+          variant: "destructive"
+        });
+        navigate('/services');
+      }
+    }
+  }, [currentUser, service, error, isLoading, navigate, toast]);
   
-  // Service creation form schema
+  // Service update form schema
   const formSchema = z.object({
     title: z.string().min(3, "Title must be at least 3 characters"),
     description: z.string().min(10, "Description must be at least 10 characters"),
@@ -41,9 +64,10 @@ const CreateService = () => {
     price: z.coerce.number().min(0, "Price must be 0 or greater"),
     duration: z.string().min(2, "Please specify the duration (e.g., '1 hour')"),
     capacity: z.coerce.number().optional(),
-    isOnline: z.boolean().default(true),
+    isOnline: z.boolean(),
     location: z.string().optional(),
     meetingUrl: z.string().url("Please enter a valid URL").optional(),
+    available: z.boolean(),
   });
   
   type FormValues = z.infer<typeof formSchema>;
@@ -59,49 +83,94 @@ const CreateService = () => {
       isOnline: true,
       location: '',
       meetingUrl: '',
+      available: true,
     },
   });
   
-  const createServiceMutation = useMutation({
-    mutationFn: createService,
+  // Update form when service data is loaded
+  React.useEffect(() => {
+    if (service) {
+      form.reset({
+        title: service.title,
+        description: service.description,
+        sessionType: service.sessionType,
+        price: service.price,
+        duration: service.duration,
+        capacity: service.capacity,
+        isOnline: service.isOnline,
+        location: service.location || '',
+        meetingUrl: service.meetingUrl || '',
+        available: service.available,
+      });
+    }
+  }, [service, form]);
+  
+  const updateServiceMutation = useMutation({
+    mutationFn: (data: FormValues) => updateService(id as string, {
+      ...data,
+      isFree: data.price === 0,
+    }),
     onSuccess: () => {
       toast({
-        title: "Service Created",
-        description: "Your service has been created successfully",
+        title: "Service Updated",
+        description: "Your service has been updated successfully",
       });
-      navigate('/services');
+      navigate(`/services/${id}`);
     },
     onError: (error) => {
       toast({
         title: "Error",
-        description: `Failed to create service: ${error.message}`,
+        description: `Failed to update service: ${error.message}`,
         variant: "destructive",
       });
     },
   });
   
   const onSubmit = (data: FormValues) => {
-    if (!currentUser) return;
-    
-    const serviceData = {
-      ...data,
-      providerId: currentUser.id,
-      providerName: currentUser.name,
-      available: true,
-      isFree: data.price === 0,
-    };
-    
-    createServiceMutation.mutate(serviceData);
+    updateServiceMutation.mutate(data);
   };
   
   const sessionType = form.watch('sessionType');
   const isOnline = form.watch('isOnline');
   
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-4 w-1/2" />
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/4" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-1/4" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error || !service) {
+    return (
+      <div className="max-w-2xl mx-auto text-center py-10">
+        <h2 className="text-2xl font-bold mb-2">Service Not Found</h2>
+        <p className="text-gray-500 mb-4">The service you're trying to edit doesn't exist or has been removed</p>
+        <Button onClick={() => navigate('/services')}>Back to Services</Button>
+      </div>
+    );
+  }
+  
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Create a New Service</h1>
-        <p className="text-gray-500">Share your expertise with others by creating a coaching service</p>
+        <h1 className="text-2xl font-bold">Edit Service</h1>
+        <p className="text-gray-500">Update your service information</p>
       </div>
       
       <Form {...form}>
@@ -115,9 +184,6 @@ const CreateService = () => {
                 <FormControl>
                   <Input placeholder="E.g., Career Coaching Session" {...field} />
                 </FormControl>
-                <FormDescription>
-                  Make it clear and attractive to potential clients
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -136,9 +202,6 @@ const CreateService = () => {
                     {...field} 
                   />
                 </FormControl>
-                <FormDescription>
-                  Explain what you offer, your expertise, and what clients can expect
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -152,7 +215,7 @@ const CreateService = () => {
                 <FormLabel>Session Type</FormLabel>
                 <FormControl>
                   <RadioGroup
-                    defaultValue={field.value}
+                    value={field.value}
                     onValueChange={field.onChange}
                     className="flex flex-col space-y-1"
                   >
@@ -188,6 +251,7 @@ const CreateService = () => {
                       min={2}
                       placeholder="E.g., 10" 
                       {...field} 
+                      value={field.value || ''}
                       onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
                     />
                   </FormControl>
@@ -277,6 +341,7 @@ const CreateService = () => {
                         placeholder="https://zoom.us/j/12345" 
                         className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                         {...field} 
+                        value={field.value || ''}
                       />
                     </div>
                   </FormControl>
@@ -308,19 +373,40 @@ const CreateService = () => {
             />
           )}
           
+          <FormField
+            control={form.control}
+            name="available"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Active Service</FormLabel>
+                  <FormDescription>
+                    Is this service currently available for booking?
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
           <div className="pt-4 flex justify-end space-x-4">
             <Button 
               type="button" 
               variant="outline" 
-              onClick={() => navigate('/services')}
+              onClick={() => navigate(`/services/${id}`)}
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
-              disabled={createServiceMutation.isPending}
+              disabled={updateServiceMutation.isPending}
             >
-              {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
+              {updateServiceMutation.isPending ? 'Updating...' : 'Update Service'}
             </Button>
           </div>
         </form>
@@ -329,4 +415,4 @@ const CreateService = () => {
   );
 };
 
-export default CreateService;
+export default EditService;
