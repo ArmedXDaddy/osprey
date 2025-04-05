@@ -1,7 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -46,13 +46,35 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
     }
   };
 
+  // Setup real-time subscription
   useEffect(() => {
+    if (!service?.id) return;
+
+    // Initial fetch
     fetchMessages();
-    
-    // Set up polling to check for new messages every 15 seconds
-    const interval = setInterval(fetchMessages, 15000);
-    
-    return () => clearInterval(interval);
+
+    // Real-time subscription
+    const channel = supabase
+      .channel('service_messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'service_messages',
+          filter: `service_id=eq.${service.id}`
+        },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          setMessages((prevMessages) => [...prevMessages, newMessage]);
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [service?.id]);
 
   // Scroll to bottom on new messages
@@ -75,9 +97,6 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
         content: newMessage,
       });
       setNewMessage('');
-      
-      // Refetch messages after sending
-      await fetchMessages();
     } catch (error: any) {
       console.error("Failed to send message:", error);
       toast({
