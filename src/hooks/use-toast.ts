@@ -15,6 +15,7 @@ export type Toast = {
   description?: string;
   action?: ToastActionElement;
   variant?: "default" | "destructive";
+  open?: boolean;
 };
 
 let count = 0;
@@ -113,23 +114,12 @@ function dispatch(action: any) {
   });
 }
 
-type Toast = {
-  id: string;
-  title?: string;
-  description?: string;
-  action?: ToastActionElement;
-  variant?: "default" | "destructive";
-};
+type ToastProps = Omit<Toast, "id">;
 
-function toast({
-  title,
-  description,
-  variant,
-  action,
-}: Omit<Toast, "id">) {
+function toast({ title, description, variant, action }: ToastProps) {
   const id = genId();
 
-  const update = (props: Omit<Toast, "id">) =>
+  const update = (props: ToastProps) =>
     dispatch({
       type: "UPDATE_TOAST",
       toastId: id,

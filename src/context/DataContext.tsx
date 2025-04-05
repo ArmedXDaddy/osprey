@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy } from '@/types';
+import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole } from '@/types';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -269,7 +269,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             description: group.description,
             creatorId: group.creator_id,
             creatorName: group.creator_name,
-            creatorRole: group.creator_role,
+            creatorRole: group.creator_role as UserRole, // Cast to UserRole
             members: group.members,
             privacy: group.privacy as GroupPrivacy,
             price: group.price || undefined,
@@ -389,7 +389,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: data.description,
         creatorId: data.creator_id,
         creatorName: data.creator_name,
-        creatorRole: data.creator_role,
+        creatorRole: data.creator_role as UserRole, // Cast to UserRole
         members: data.members,
         privacy: data.privacy as GroupPrivacy,
         price: data.price || undefined,
@@ -482,7 +482,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         groupId: data.group_id,
         userId: data.user_id,
         userName: data.user_name,
-        userRole: data.user_role,
+        userRole: data.user_role as UserRole, // Cast to UserRole
         userProfileImage: data.user_profile_image,
         content: data.content,
         createdAt: new Date(data.created_at)
@@ -863,6 +863,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const event = events.find(e => e.id === eventId);
       if (!event) return;
       
+      // Since we don't have an 'events' table in Supabase, let's use the mock data instead
+      /* 
       const { error } = await supabase
         .from('events')
         .update({ attendees: event.attendees - 1 })
@@ -877,6 +879,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
         return;
       }
+      */
+      
+      // Update local state
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId ? { ...e, attendees: Math.max(e.attendees - 1, 0) } : e
+        )
+      );
       
       toast({
         title: "You left the event",
@@ -930,6 +940,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
       
+      // Here, we won't try to update the events table since it doesn't exist in Supabase
+      /*
       const { error: updateError } = await supabase
         .from('events')
         .update({ pending_requests: (event.pendingRequests || 0) + 1 })
@@ -938,6 +950,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (updateError) {
         console.error('Error updating event pending requests count:', updateError);
       }
+      */
       
       const newRequest: JoinRequest = {
         id: data.id,
@@ -951,6 +964,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       setJoinRequests(prev => [...prev, newRequest]);
       
+      // Update local state only
       setEvents(prevEvents => 
         prevEvents.map(e => 
           e.id === eventId ? { ...e, pendingRequests: (e.pendingRequests || 0) + 1 } : e
@@ -1001,6 +1015,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const event = events.find(e => e.id === request.eventId);
         if (!event) return;
         
+        // Don't try to update the events table since it doesn't exist in Supabase
+        /*
         const { error: updateError } = await supabase
           .from('events')
           .update({ 
@@ -1012,7 +1028,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updateError) {
           console.error('Error updating event counts:', updateError);
         }
+        */
         
+        // Update local state only
         setEvents(prevEvents => 
           prevEvents.map(e => 
             e.id === request.eventId ? 
@@ -1032,6 +1050,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const event = events.find(e => e.id === request.eventId);
         if (!event) return;
         
+        // Don't try to update the events table since it doesn't exist in Supabase
+        /*
         const { error: updateError } = await supabase
           .from('events')
           .update({ pending_requests: Math.max((event.pendingRequests || 0) - 1, 0) })
@@ -1040,7 +1060,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (updateError) {
           console.error('Error updating event pending requests count:', updateError);
         }
+        */
         
+        // Update local state only
         setEvents(prevEvents => 
           prevEvents.map(e => 
             e.id === request.eventId ? 

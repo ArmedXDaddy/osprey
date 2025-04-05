@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Message } from '@/types';
+import { Message, UserRole } from '@/types';
 
 interface GroupChatSectionProps {
   groupId: string;
@@ -47,7 +47,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
             groupId: msg.group_id,
             userId: msg.user_id,
             userName: msg.user_name,
-            userRole: msg.user_role,
+            userRole: msg.user_role as UserRole, // Cast to UserRole
             userProfileImage: msg.user_profile_image,
             content: msg.content,
             createdAt: new Date(msg.created_at)
@@ -84,7 +84,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
             groupId: newMsg.group_id,
             userId: newMsg.user_id,
             userName: newMsg.user_name,
-            userRole: newMsg.user_role,
+            userRole: newMsg.user_role as UserRole, // Cast to UserRole
             userProfileImage: newMsg.user_profile_image,
             content: newMsg.content,
             createdAt: new Date(newMsg.created_at)
