@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -45,6 +46,36 @@ const Profile = () => {
   const { currentUser, updateProfile } = useAuth();
   const { posts, events, groups, services, loading } = useData();
   const { toast } = useToast();
+
+  // Filter data for the current user
+  const userPosts = currentUser ? posts.filter(post => post.userId === currentUser.id) : [];
+  
+  const userEvents = currentUser ? events.filter(event => 
+    event.creatorId === currentUser.id || event.attendees.includes(currentUser.id)
+  ) : [];
+  
+  const userCreatedEvents = currentUser ? events.filter(event => 
+    event.creatorId === currentUser.id
+  ) : [];
+  
+  const joinedEvents = currentUser ? events.filter(event => 
+    event.creatorId !== currentUser.id && event.attendees.includes(currentUser.id)
+  ) : [];
+
+  const userGroups = currentUser ? groups.filter(group => 
+    group.creatorId === currentUser.id || (group.memberIds && group.memberIds.includes(currentUser.id))
+  ) : [];
+  
+  const userCreatedGroups = currentUser ? groups.filter(group => 
+    group.creatorId === currentUser.id
+  ) : [];
+  
+  const joinedGroups = currentUser ? groups.filter(group => 
+    group.creatorId !== currentUser.id && group.memberIds && group.memberIds.includes(currentUser.id)
+  ) : [];
+
+  const userServices = currentUser && currentUser.role === 'coach' ? 
+    services.filter(service => service.providerId === currentUser.id) : [];
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
