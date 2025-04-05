@@ -85,7 +85,6 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
           console.log("Payment successful for service:", { serviceId, serviceName, amount });
           
           // Call the onPaymentSuccess callback - this needs to happen while the dialog is still open
-          // This comes BEFORE showing the toast to ensure the callback executes before any UI updates
           onPaymentSuccess();
           
           // Show success toast after callback has been triggered
@@ -167,7 +166,12 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
   };
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen && !isProcessing) {
+        handleCancel();
+      }
+      onOpenChange(newOpen);
+    }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Complete Your Payment</DialogTitle>

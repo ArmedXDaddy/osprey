@@ -10,7 +10,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
 import { fetchServiceById, bookService, deleteService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client'; // Added missing import
+import { supabase } from '@/integrations/supabase/client';
+import MockPaymentGateway from '@/components/shared/MockPaymentGateway';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { logError } from '@/utils';
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,45 +35,57 @@ const ServiceDetail = () => {
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
+    retry: 2,
   });
   
   const [isBooked, setIsBooked] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
+  // Check if user has already booked this service
   useEffect(() => {
     if (currentUser && service) {
-      const hasBooking = async () => {
+      const checkBookingStatus = async () => {
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('service_enrollments')
             .select('*')
             .eq('service_id', id)
             .eq('user_id', currentUser.id)
             .maybeSingle();
             
+          if (error) throw error;
+          
           setIsBooked(!!data);
+          if (data) {
+            setBookingStatus(data.status);
+          }
         } catch (error) {
           console.error('Error checking booking status:', error);
         }
       };
       
-      hasBooking();
+      checkBookingStatus();
     }
   }, [currentUser, service, id]);
 
+  // Mutation for booking a service
   const bookServiceMutation = useMutation({
     mutationFn: (isPaid: boolean = false) => {
       if (!id) throw new Error("Service ID is required");
       return bookService(id, isPaid);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
       setIsBooked(true);
+      setBookingStatus(data?.status || 'pending');
       refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      logError('Book service mutation error', error);
       toast({
         title: "Booking Failed",
         description: `Error: ${error.message}`,
@@ -80,6 +94,7 @@ const ServiceDetail = () => {
     },
   });
   
+  // Mutation for deleting a service
   const deleteServiceMutation = useMutation({
     mutationFn: deleteService,
     onSuccess: () => {
@@ -89,7 +104,8 @@ const ServiceDetail = () => {
       });
       navigate('/services');
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      logError('Delete service mutation error', error);
       toast({
         title: "Deletion Failed",
         description: `Error: ${error.message}`,
@@ -98,16 +114,47 @@ const ServiceDetail = () => {
     },
   });
   
+  // Handle booking request for free services
   const handleBookService = () => {
-    if (!currentUser || !service) return;
+    if (!currentUser || !service) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to book this service",
+        variant: "destructive"
+      });
+      navigate('/auth/login');
+      return;
+    }
+    
     bookServiceMutation.mutate(false);
   };
   
+  // Handle opening payment modal for paid services
   const handlePaidBookService = () => {
-    if (!currentUser || !service) return;
+    if (!currentUser || !service) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to book this service",
+        variant: "destructive"
+      });
+      navigate('/auth/login');
+      return;
+    }
+    
+    setShowPaymentModal(true);
+  };
+  
+  // Handle successful payment
+  const handlePaymentSuccess = () => {
     bookServiceMutation.mutate(true);
   };
   
+  // Handle payment cancellation
+  const handlePaymentCancel = () => {
+    setShowPaymentModal(false);
+  };
+  
+  // Navigation handlers
   const handleEditService = () => {
     navigate(`/services/${id}/edit`);
   };
@@ -116,6 +163,7 @@ const ServiceDetail = () => {
     navigate(`/services/${id}/manage`);
   };
   
+  // Handle service deletion
   const handleDeleteService = () => {
     if (!id) return;
     deleteServiceMutation.mutate(id);
@@ -183,7 +231,7 @@ const ServiceDetail = () => {
           {isOwner && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">Manage Service</h2>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-4">
                 <Button onClick={handleEditService} variant="outline" className="flex items-center gap-2">
                   <Edit className="h-4 w-4" />
                   Edit Service
@@ -266,7 +314,7 @@ const ServiceDetail = () => {
                   )}
                 </div>
                 
-                {service.isOnline && service.meetingUrl && (isOwner || bookServiceMutation.isSuccess) && (
+                {service.isOnline && service.meetingUrl && (isOwner || (isBooked && bookingStatus === 'approved')) && (
                   <div className="flex items-center gap-2">
                     <Link className="h-5 w-5 text-gray-500" />
                     <a 
@@ -308,10 +356,17 @@ const ServiceDetail = () => {
                 
                 {!isOwner && service.available && isBooked && (
                   <div className="space-y-2 mt-6">
-                    <Badge className="w-full flex justify-center py-2" variant="success">
-                      Booked
+                    <Badge className="w-full flex justify-center py-2" variant={
+                      bookingStatus === 'approved' ? 'success' : 
+                      bookingStatus === 'rejected' ? 'destructive' : 
+                      'outline'
+                    }>
+                      {bookingStatus === 'approved' ? 'Approved' : 
+                       bookingStatus === 'rejected' ? 'Rejected' : 
+                       'Pending Approval'}
                     </Badge>
-                    {service.isOnline && service.meetingUrl && (
+                    
+                    {bookingStatus === 'approved' && service.isOnline && service.meetingUrl && (
                       <Button 
                         className="w-full" 
                         variant="outline"
@@ -337,22 +392,27 @@ const ServiceDetail = () => {
                 {isOwner && (
                   <Button 
                     className="w-full mt-6" 
-                    disabled={true}
+                    onClick={handleManageService}
+                    variant="outline"
                   >
-                    You own this service
+                    Manage This Service
                   </Button>
-                )}
-                
-                {bookServiceMutation.isSuccess && (
-                  <div className="mt-2 text-center p-2 bg-green-50 text-green-700 rounded-md">
-                    Booking confirmed! {service.isOnline && service.meetingUrl ? "You can now join the meeting." : "Check your email for details."}
-                  </div>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      <MockPaymentGateway 
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        amount={service.price}
+        serviceName={service.title}
+        serviceId={service.id}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentCancel={handlePaymentCancel}
+      />
     </div>
   );
 };

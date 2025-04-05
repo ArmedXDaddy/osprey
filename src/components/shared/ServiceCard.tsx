@@ -28,11 +28,13 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   const [localIsEnrolled, setLocalIsEnrolled] = useState(isEnrolled);
   const [localEnrollment, setLocalEnrollment] = useState(enrollment);
   
+  // Update local state when props change
   useEffect(() => {
     setLocalIsEnrolled(isEnrolled);
     setLocalEnrollment(enrollment);
   }, [isEnrolled, enrollment]);
   
+  // Check if user is enrolled in this service
   useEffect(() => {
     if (currentUser && service && serviceBookings && !localIsEnrolled) {
       const userBooking = serviceBookings.find(
@@ -54,14 +56,18 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
           description: "Please log in to book this service",
           variant: "destructive"
         });
+        navigate('/auth/login');
         return;
       }
       
       if (!service.isFree && service.price > 0) {
+        // For paid services, show payment modal
         setShowPaymentModal(true);
       } else {
+        // For free services, process booking request directly
         console.log("Booking free service with ID:", service.id);
         const newBooking = await bookService(service.id);
+        
         if (newBooking) {
           setLocalIsEnrolled(true);
           setLocalEnrollment(newBooking);
@@ -153,6 +159,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   const isCoach = currentUser?.role === 'coach';
   const isOwnService = isCoach && currentUser?.id === service.providerId;
   
+  // Render the card
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
@@ -189,7 +196,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-700">
-                {format(service.startTime, 'PPp')}
+                {format(new Date(service.startTime), 'PPp')}
               </span>
             </div>
           )}
@@ -223,8 +230,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
             <Button variant="outline" className="w-full" onClick={handleViewService}>
               View Service
             </Button>
-            <Button className="w-full" asChild>
-              <a href={`/services/${service.id}/manage`}>Manage Service</a>
+            <Button className="w-full" onClick={() => navigate(`/services/${service.id}/manage`)}>
+              Manage Service
             </Button>
           </div>
         ) : localIsEnrolled ? (
