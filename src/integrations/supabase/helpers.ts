@@ -1,6 +1,6 @@
 
 import { supabase } from './client';
-import { Booking } from '@/types';
+import { Booking, BookingStatus, PaymentStatus } from '@/types';
 
 /**
  * Uploads an image to Supabase storage
@@ -54,22 +54,24 @@ export const createServiceBooking = async (
   status: string = 'pending'
 ): Promise<string> => {
   try {
-    // Using RPC to execute a function that inserts the booking
-    // This avoids TypeScript issues with the table structure
-    const { data, error } = await supabase.rpc('create_service_booking', {
-      p_service_id: serviceId,
-      p_user_id: userId,
-      p_notes: notes || null,
-      p_payment_status: paymentStatus,
-      p_status: status
-    });
+    // Using direct SQL query with custom PostgreSQL function
+    const { data, error } = await supabase.rpc(
+      'create_service_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId,
+        p_notes: notes || null,
+        p_payment_status: paymentStatus,
+        p_status: status
+      }
+    );
 
     if (error) {
       console.error('Error booking service:', error);
       throw new Error(error.message || 'Failed to book service');
     }
 
-    return data;
+    return data as string;
   } catch (error: any) {
     console.error('Error in createServiceBooking:', error);
     throw new Error(error.message || 'Failed to book service');
@@ -84,9 +86,12 @@ export const createServiceBooking = async (
 export const getUserBookings = async (userId: string): Promise<Booking[]> => {
   try {
     // Using stored procedure to get bookings
-    const { data, error } = await supabase.rpc('get_user_bookings', {
-      p_user_id: userId
-    });
+    const { data, error } = await supabase.rpc(
+      'get_user_bookings' as any, // Type cast to avoid TypeScript errors
+      {
+        p_user_id: userId
+      }
+    );
 
     if (error) {
       console.error('Error fetching user bookings:', error);
@@ -99,8 +104,8 @@ export const getUserBookings = async (userId: string): Promise<Booking[]> => {
       userId: item.user_id,
       userName: item.user_name || '',
       userEmail: item.user_email || '',
-      status: item.status,
-      paymentStatus: item.payment_status,
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
       notes: item.notes || undefined,
       preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
@@ -123,9 +128,12 @@ export const getUserBookings = async (userId: string): Promise<Booking[]> => {
 export const getServiceBookings = async (serviceId: string): Promise<Booking[]> => {
   try {
     // Using stored procedure to get bookings
-    const { data, error } = await supabase.rpc('get_service_bookings', {
-      p_service_id: serviceId
-    });
+    const { data, error } = await supabase.rpc(
+      'get_service_bookings' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId
+      }
+    );
 
     if (error) {
       console.error('Error fetching service bookings:', error);
@@ -138,8 +146,8 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
       userId: item.user_id,
       userName: item.user_name || '',
       userEmail: item.user_email || '',
-      status: item.status,
-      paymentStatus: item.payment_status,
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
       notes: item.notes || undefined,
       preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
@@ -161,10 +169,13 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
 export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
     // Using stored procedure to get a specific booking
-    const { data, error } = await supabase.rpc('get_user_booking_for_service', {
-      p_service_id: serviceId,
-      p_user_id: userId
-    });
+    const { data, error } = await supabase.rpc(
+      'get_user_booking_for_service' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId
+      }
+    );
 
     if (error) {
       console.error('Error fetching user booking for service:', error);
@@ -180,8 +191,8 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       userId: item.user_id,
       userName: item.user_name || '',
       userEmail: item.user_email || '',
-      status: item.status,
-      paymentStatus: item.payment_status,
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
       notes: item.notes || undefined,
       preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
@@ -202,9 +213,12 @@ export const getUserBookingForService = async (serviceId: string, userId: string
 export const cancelBooking = async (bookingId: string): Promise<void> => {
   try {
     // Using stored procedure to cancel a booking
-    const { error } = await supabase.rpc('cancel_booking', {
-      p_booking_id: bookingId
-    });
+    const { error } = await supabase.rpc(
+      'cancel_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_booking_id: bookingId
+      }
+    );
 
     if (error) {
       console.error('Error cancelling booking:', error);
@@ -224,9 +238,12 @@ export const cancelBooking = async (bookingId: string): Promise<void> => {
 export const approveBooking = async (bookingId: string): Promise<void> => {
   try {
     // Using stored procedure to approve a booking
-    const { error } = await supabase.rpc('approve_booking', {
-      p_booking_id: bookingId
-    });
+    const { error } = await supabase.rpc(
+      'approve_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_booking_id: bookingId
+      }
+    );
 
     if (error) {
       console.error('Error approving booking:', error);
