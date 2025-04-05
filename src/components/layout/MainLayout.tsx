@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,7 +15,8 @@ import {
   User,
   Menu,
   X,
-  NetworkIcon
+  NetworkIcon,
+  DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -112,6 +114,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
               <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
               <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+              <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
               <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
               {currentUser?.role === 'admin' && (
                 <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
@@ -150,6 +153,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
             <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
             <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+            <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
             {currentUser?.role === 'admin' && (
               <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
