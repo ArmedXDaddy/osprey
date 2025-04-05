@@ -83,7 +83,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-	const [mockServices, setMockServices] = useState<Service[]>([]);
+  const [mockServices, setMockServices] = useState<Service[]>([]);
   const { currentUser } = useAuth();
 
   useEffect(() => {
@@ -114,13 +114,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     loadMockData();
   }, []);
 
-  // Add a useEffect to fetch ALL services from Supabase when the component mounts
   useEffect(() => {
     const fetchAllServices = async () => {
       try {
         setLoading(true);
         
-        // Fetch all services from Supabase
         const { data, error } = await supabase
           .from('services')
           .select('*')
@@ -131,7 +129,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         }
         
         if (data) {
-          // Map Supabase data to Service type
           const servicesData: Service[] = data.map(item => ({
             id: item.id,
             title: item.title,
@@ -213,14 +210,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       setLoading(true);
-      // Optimistically update the local state
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post.id === postId ? { ...post, likes: post.likes + 1 } : post
         )
       );
 
-      // Update the like count in Supabase
       const { error } = await supabase
         .from('posts')
         .update({ likes: () => 'likes + 1' })
@@ -232,7 +227,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err: any) {
       console.error("Error liking post:", err);
       setError(err.message);
-      // Revert the optimistic update if the Supabase update fails
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post.id === postId ? { ...post, likes: post.likes - 1 } : post
@@ -248,14 +242,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     try {
       setLoading(true);
-      // Optimistically update the local state
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post.id === postId ? { ...post, likes: post.likes - 1 } : post
         )
       );
 
-      // Update the like count in Supabase
       const { error } = await supabase
         .from('posts')
         .update({ likes: () => 'likes - 1' })
@@ -267,7 +259,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (err: any) {
       console.error("Error unliking post:", err);
       setError(err.message);
-      // Revert the optimistic update if the Supabase update fails
       setPosts(prevPosts =>
         prevPosts.map(post =>
           post.id === postId ? { ...post, likes: post.likes + 1 } : post
@@ -336,7 +327,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Fetch the event to get the current attendees
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('attendees')
@@ -347,16 +337,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       const currentAttendees = eventData?.attendees || [];
 
-      // Check if the user is already attending
       if (currentAttendees.includes(currentUser.id)) {
         console.log('User already attending event');
         return;
       }
 
-      // Add the current user to the attendees array
       const updatedAttendees = [...currentAttendees, currentUser.id];
 
-      // Update the event with the new attendees array
       const { error } = await supabase
         .from('events')
         .update({ attendees: updatedAttendees })
@@ -364,7 +351,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      // Update local state
       setEvents(prevEvents =>
         prevEvents.map(event =>
           event.id === eventId ? { ...event, attendees: updatedAttendees } : event
@@ -384,7 +370,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Fetch the event to get the current attendees
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('attendees')
@@ -395,16 +380,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       const currentAttendees = eventData?.attendees || [];
 
-      // Check if the user is attending
       if (!currentAttendees.includes(currentUser.id)) {
         console.log('User not attending event');
         return;
       }
 
-      // Remove the current user from the attendees array
       const updatedAttendees = currentAttendees.filter(attendeeId => attendeeId !== currentUser.id);
 
-      // Update the event with the new attendees array
       const { error } = await supabase
         .from('events')
         .update({ attendees: updatedAttendees })
@@ -412,7 +394,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      // Update local state
       setEvents(prevEvents =>
         prevEvents.map(event =>
           event.id === eventId ? { ...event, attendees: updatedAttendees } : event
@@ -469,7 +450,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Update the join request status to 'approved'
       const { error: updateError } = await supabase
         .from('join_requests')
         .update({ status: 'approved' })
@@ -477,7 +457,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (updateError) throw updateError;
 
-      // Fetch the event to get the current attendees
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('attendees')
@@ -488,16 +467,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       const currentAttendees = eventData?.attendees || [];
 
-      // Check if the user is already attending
       if (currentAttendees.includes(userId)) {
         console.log('User already attending event');
         return;
       }
 
-      // Add the user to the attendees array
       const updatedAttendees = [...currentAttendees, userId];
 
-      // Update the event with the new attendees array
       const { error: updateEventError } = await supabase
         .from('events')
         .update({ attendees: updatedAttendees })
@@ -505,7 +481,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (updateEventError) throw updateEventError;
 
-      // Update local state
       setEvents(prevEvents =>
         prevEvents.map(event =>
           event.id === eventId ? { ...event, attendees: updatedAttendees } : event
@@ -529,7 +504,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Update the join request status to 'rejected'
       const { error } = await supabase
         .from('join_requests')
         .update({ status: 'rejected' })
@@ -581,76 +555,30 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected') => {
     if (!currentUser) throw new Error('You must be logged in to handle a join request');
-
+    
     try {
       setLoading(true);
-
-      // Find the join request
+      
       const { data: requestData, error: requestError } = await supabase
         .from('join_requests')
-        .select('*')
+        .select('id')
         .eq('eventId', eventId)
         .eq('userId', userId)
         .single();
-
+        
       if (requestError) throw requestError;
-
+      
       if (!requestData) {
         console.log('Join request not found');
         return;
       }
-
-      // Update the join request status
-      const { error: updateError } = await supabase
-        .from('join_requests')
-        .update({ status })
-        .eq('id', requestData.id);
-
-      if (updateError) throw updateError;
-
+      
       if (status === 'approved') {
-        // Fetch the event to get the current attendees
-        const { data: eventData, error: eventError } = await supabase
-          .from('events')
-          .select('attendees')
-          .eq('id', eventId)
-          .single();
-
-        if (eventError) throw eventError;
-
-        const currentAttendees = eventData?.attendees || [];
-
-        // Check if the user is already attending
-        if (currentAttendees.includes(userId)) {
-          console.log('User already attending event');
-          return;
-        }
-
-        // Add the user to the attendees array
-        const updatedAttendees = [...currentAttendees, userId];
-
-        // Update the event with the new attendees array
-        const { error: updateEventError } = await supabase
-          .from('events')
-          .update({ attendees: updatedAttendees })
-          .eq('id', eventId);
-
-        if (updateEventError) throw updateEventError;
-
-        // Update local state
-        setEvents(prevEvents =>
-          prevEvents.map(event =>
-            event.id === eventId ? { ...event, attendees: updatedAttendees } : event
-          )
-        );
+        await approveEventRequest(requestData.id, eventId, userId);
+      } else {
+        await rejectEventRequest(requestData.id);
       }
-
-      // Update local state
-      setJoinRequests(prevRequests =>
-        prevRequests.map(request =>
-          request.id === requestData.id ? { ...request, status } : request
-        )
-      );
+      
     } catch (err: any) {
       console.error("Error handling join request:", err);
       setError(err.message);
@@ -719,7 +647,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Fetch the group to get the current members and memberIds
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
         .select('members, memberIds, memberLimit')
@@ -732,24 +659,19 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const currentMemberIds = groupData?.memberIds || [];
       const memberLimit = groupData?.memberLimit || null;
 
-      // Check if the group has a member limit and if it's reached
       if (memberLimit !== null && currentMembers >= memberLimit) {
         throw new Error('Group is full');
       }
 
-      // Check if the user is already a member
       if (currentMemberIds.includes(currentUser.id)) {
         console.log('User already a member of the group');
         return;
       }
 
-      // Add the current user to the memberIds array
       const updatedMemberIds = [...currentMemberIds, currentUser.id];
 
-      // Increment the members count
       const updatedMembers = currentMembers + 1;
 
-      // Update the group with the new members count and memberIds array
       const { error } = await supabase
         .from('groups')
         .update({ members: updatedMembers, memberIds: updatedMemberIds })
@@ -757,7 +679,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      // Update local state
       setGroups(prevGroups =>
         prevGroups.map(group =>
           group.id === groupId ? { ...group, members: updatedMembers, memberIds: updatedMemberIds } : group
@@ -777,7 +698,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Fetch the group to get the current members and memberIds
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
         .select('members, memberIds')
@@ -789,19 +709,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const currentMembers = groupData?.members || 0;
       const currentMemberIds = groupData?.memberIds || [];
 
-      // Check if the user is a member
       if (!currentMemberIds.includes(currentUser.id)) {
         console.log('User not a member of the group');
         return;
       }
 
-      // Remove the current user from the memberIds array
       const updatedMemberIds = currentMemberIds.filter(memberId => memberId !== currentUser.id);
 
-      // Decrement the members count
       const updatedMembers = currentMembers - 1;
 
-      // Update the group with the new members count and memberIds array
       const { error } = await supabase
         .from('groups')
         .update({ members: updatedMembers, memberIds: updatedMemberIds })
@@ -809,7 +725,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      // Update local state
       setGroups(prevGroups =>
         prevGroups.map(group =>
           group.id === groupId ? { ...group, members: updatedMembers, memberIds: updatedMemberIds } : group
@@ -866,7 +781,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Update the join request status to 'approved'
       const { error: updateError } = await supabase
         .from('join_requests')
         .update({ status: 'approved' })
@@ -874,7 +788,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (updateError) throw updateError;
 
-      // Fetch the group to get the current members and memberIds
       const { data: groupData, error: groupError } = await supabase
         .from('groups')
         .select('members, memberIds, memberLimit')
@@ -887,24 +800,19 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const currentMemberIds = groupData?.memberIds || [];
       const memberLimit = groupData?.memberLimit || null;
 
-      // Check if the group has a member limit and if it's reached
       if (memberLimit !== null && currentMembers >= memberLimit) {
         throw new Error('Group is full');
       }
 
-      // Check if the user is already a member
       if (currentMemberIds.includes(userId)) {
         console.log('User already a member of the group');
         return;
       }
 
-      // Add the user to the memberIds array
       const updatedMemberIds = [...currentMemberIds, userId];
 
-      // Increment the members count
       const updatedMembers = currentMembers + 1;
 
-      // Update the group with the new members count and memberIds array
       const { error: updateGroupError } = await supabase
         .from('groups')
         .update({ members: updatedMembers, memberIds: updatedMemberIds })
@@ -912,7 +820,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (updateGroupError) throw updateGroupError;
 
-      // Update local state
       setGroups(prevGroups =>
         prevGroups.map(group =>
           group.id === groupId ? { ...group, members: updatedMembers, memberIds: updatedMemberIds } : group
@@ -936,7 +843,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setLoading(true);
 
-      // Update the join request status to 'rejected'
       const { error } = await supabase
         .from('join_requests')
         .update({ status: 'rejected' })
@@ -971,4 +877,204 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       return data.map(item => ({
         id: item.id,
         groupId: item.groupId,
-        userId: item
+        userId: item.userId,
+        userName: item.userName,
+        userProfileImage: item.userProfileImage,
+        status: item.status,
+        createdAt: new Date(item.created_at),
+      }));
+    } catch (err: any) {
+      console.error("Error fetching group requests:", err);
+      setError(err.message);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected') => {
+    if (!currentUser) throw new Error('You must be logged in to handle a join request');
+    
+    try {
+      setLoading(true);
+      
+      const { data: requestData, error: requestError } = await supabase
+        .from('join_requests')
+        .select('id')
+        .eq('groupId', groupId)
+        .eq('userId', userId)
+        .single();
+        
+      if (requestError) throw requestError;
+      
+      if (!requestData) {
+        console.log('Join request not found');
+        return;
+      }
+      
+      if (status === 'approved') {
+        await approveGroupRequest(requestData.id, groupId, userId);
+      } else {
+        await rejectGroupRequest(requestData.id);
+      }
+      
+    } catch (err: any) {
+      console.error("Error handling join request:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string) => {
+    if (!currentUser) throw new Error('You must be logged in to remove a group member');
+    
+    try {
+      setLoading(true);
+      
+      const { data: groupData, error: groupError } = await supabase
+        .from('groups')
+        .select('members, memberIds, creatorId')
+        .eq('id', groupId)
+        .single();
+        
+      if (groupError) throw groupError;
+      
+      if (groupData.creatorId !== currentUser.id) {
+        throw new Error('Only the group creator can remove members');
+      }
+      
+      const currentMembers = groupData?.members || 0;
+      const currentMemberIds = groupData?.memberIds || [];
+      
+      if (!currentMemberIds.includes(userId)) {
+        console.log('User not a member of the group');
+        return;
+      }
+      
+      const updatedMemberIds = currentMemberIds.filter(memberId => memberId !== userId);
+      
+      const updatedMembers = currentMembers - 1;
+      
+      const { error } = await supabase
+        .from('groups')
+        .update({ members: updatedMembers, memberIds: updatedMemberIds })
+        .eq('id', groupId);
+        
+      if (error) throw error;
+      
+      setGroups(prevGroups =>
+        prevGroups.map(group =>
+          group.id === groupId ? { ...group, members: updatedMembers, memberIds: updatedMemberIds } : group
+        )
+      );
+    } catch (err: any) {
+      console.error("Error removing group member:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateGroupDetails = async (groupId: string, updates: Partial<Group>) => {
+    if (!currentUser) throw new Error('You must be logged in to update a group');
+    
+    try {
+      setLoading(true);
+      
+      const { data: groupData, error: groupError } = await supabase
+        .from('groups')
+        .select('creatorId')
+        .eq('id', groupId)
+        .single();
+        
+      if (groupError) throw groupError;
+      
+      if (groupData.creatorId !== currentUser.id) {
+        throw new Error('Only the group creator can update the group');
+      }
+      
+      const { error } = await supabase
+        .from('groups')
+        .update(updates)
+        .eq('id', groupId);
+        
+      if (error) throw error;
+      
+      setGroups(prevGroups =>
+        prevGroups.map(group =>
+          group.id === groupId ? { ...group, ...updates } : group
+        )
+      );
+    } catch (err: any) {
+      console.error("Error updating group details:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <DataContext.Provider
+      value={{
+        posts,
+        events,
+        groups,
+        services,
+        sessions,
+        sessionEnrollments,
+        messages,
+        joinRequests,
+        loading,
+        error,
+        createPost,
+        likePost,
+        unlikePost,
+        createEvent,
+        joinEvent,
+        leaveEvent,
+        requestToJoinEvent,
+        approveEventRequest,
+        rejectEventRequest,
+        getEventRequests,
+        handleEventJoinRequest,
+        createGroup,
+        joinGroup,
+        leaveGroup,
+        requestToJoinGroup,
+        approveGroupRequest,
+        rejectGroupRequest,
+        getGroupRequests,
+        handleJoinRequest,
+        removeGroupMember,
+        updateGroupDetails,
+        createSession,
+        enrollInSession,
+        cancelEnrollment,
+        approveEnrollment,
+        rejectEnrollment,
+        getUserSessions,
+        getCoachSessions,
+        getUserEnrollments,
+        updateSession,
+        updateEnrollmentStatus,
+        sendMessage,
+        getServiceById,
+        bookService,
+        cancelBooking,
+        getUserBookings,
+        getServiceBookings,
+        createService,
+        updateService,
+        deleteService,
+        approveBooking,
+        sendServiceMessage,
+        getServiceMessages,
+        getUserBookingForService,
+        fetchUserServices,
+      }}
+    >
+      {children}
+    </DataContext.Provider>
+  );
+};
