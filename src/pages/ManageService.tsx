@@ -216,7 +216,6 @@ const ManageService = () => {
       {isEditModalOpen && (
         <EditServiceForm 
           service={service}
-          isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
         />
       )}
