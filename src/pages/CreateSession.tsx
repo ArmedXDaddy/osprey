@@ -60,6 +60,13 @@ const CreateSession = () => {
   const { createSession, loading } = useData();
   const { toast } = useToast();
   
+  const coachForSession = {
+    id: currentUser.id,
+    name: currentUser.name,
+    role: currentUser.role,
+    profileImage: currentUser.profileImage || '',
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -94,11 +101,7 @@ const CreateSession = () => {
         description: data.description,
         coachId: currentUser.id,
         coachName: currentUser.name,
-        coach: {
-          id: currentUser.id,
-          name: currentUser.name,
-          profileImage: currentUser.profileImage
-        },
+        coach: coachForSession,
         type: data.sessionType,
         sessionType: data.sessionType,
         capacity: data.sessionType === 'group' ? data.capacity : undefined,

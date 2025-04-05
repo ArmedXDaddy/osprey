@@ -16,6 +16,7 @@ export interface User {
   verified?: boolean;
   socialLinks?: Record<string, string>;
   coverImage?: string;
+  createdAt?: Date;
 }
 
 // Service related types
@@ -109,11 +110,11 @@ export interface Event {
   
   // Additional properties used in components
   date?: Date;
+  attendees?: any[];
+  pendingRequests?: number;
   creatorId?: string;
   creatorName?: string;
   creatorRole?: UserRole;
-  attendees?: any[];
-  pendingRequests?: number;
 }
 
 // Message related types
@@ -144,7 +145,7 @@ export interface JoinRequest {
 
 // Session related types
 export type SessionType = 'one_on_one' | 'group';
-export type SessionStatus = 'scheduled' | 'canceled' | 'completed' | 'upcoming';
+export type SessionStatus = 'scheduled' | 'canceled' | 'completed' | 'upcoming' | 'pending' | 'approved' | 'rejected';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
 
 export interface Session {

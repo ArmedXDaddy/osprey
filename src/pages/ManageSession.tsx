@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -99,7 +98,8 @@ const ManageSession = () => {
     if (!selectedEnrollment || !actionType) return;
     
     try {
-      const newStatus: SessionStatus = actionType === 'approve' ? 'approved' : 'rejected';
+      // Cast to the required status type
+      const newStatus = actionType === 'approve' ? 'approved' as 'pending' | 'approved' | 'rejected' : 'rejected' as 'pending' | 'approved' | 'rejected';
       await updateEnrollmentStatus(selectedEnrollment.id, newStatus);
       
       // Update local state to reflect changes
@@ -114,10 +114,10 @@ const ManageSession = () => {
       
       if (newStatus === 'approved') {
         setPendingEnrollments(prev => prev.filter(e => e.id !== selectedEnrollment.id));
-        setApprovedEnrollments(prev => [...prev, updatedEnrollment]);
+        setApprovedEnrollments(prev => [...prev, updatedEnrollment as SessionEnrollment]);
       } else {
         setPendingEnrollments(prev => prev.filter(e => e.id !== selectedEnrollment.id));
-        setRejectedEnrollments(prev => [...prev, updatedEnrollment]);
+        setRejectedEnrollments(prev => [...prev, updatedEnrollment as SessionEnrollment]);
       }
       
       toast({
