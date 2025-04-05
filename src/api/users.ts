@@ -18,6 +18,9 @@ export const fetchUserById = async (id: string): Promise<User | null> => {
 
     if (!data) return null;
 
+    // Handle the social links object properly
+    const socialLinksObj = data.social_links as Record<string, string> | null;
+    
     return {
       id: data.id,
       name: data.name,
@@ -30,10 +33,10 @@ export const fetchUserById = async (id: string): Promise<User | null> => {
       following: data.following,
       followers: data.followers,
       verified: data.verified,
-      socialLinks: data.social_links ? {
-        instagram: data.social_links.instagram,
-        twitter: data.social_links.twitter,
-        website: data.social_links.website
+      socialLinks: socialLinksObj ? {
+        instagram: socialLinksObj.instagram,
+        twitter: socialLinksObj.twitter,
+        website: socialLinksObj.website
       } : undefined,
       createdAt: new Date(data.created_at)
     };
@@ -69,6 +72,9 @@ export const updateUserProfile = async (id: string, userData: Partial<User>): Pr
     
     if (!data) return null;
     
+    // Handle the social links object properly
+    const socialLinksObj = data.social_links as Record<string, string> | null;
+    
     return {
       id: data.id,
       name: data.name,
@@ -81,10 +87,10 @@ export const updateUserProfile = async (id: string, userData: Partial<User>): Pr
       following: data.following,
       followers: data.followers,
       verified: data.verified,
-      socialLinks: data.social_links ? {
-        instagram: data.social_links.instagram,
-        twitter: data.social_links.twitter,
-        website: data.social_links.website
+      socialLinks: socialLinksObj ? {
+        instagram: socialLinksObj.instagram,
+        twitter: socialLinksObj.twitter,
+        website: socialLinksObj.website
       } : undefined,
       createdAt: new Date(data.created_at)
     };

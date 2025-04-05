@@ -57,6 +57,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             .single();
             
           if (profile) {
+            // Properly handle social_links as a potential JSON object
+            const socialLinksObj = profile.social_links as Record<string, string> | null;
+            
             const user: User = {
               id: profile.id,
               name: profile.name,
@@ -69,10 +72,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               following: profile.following,
               followers: profile.followers,
               verified: profile.verified,
-              socialLinks: profile.social_links ? {
-                instagram: profile.social_links.instagram,
-                twitter: profile.social_links.twitter,
-                website: profile.social_links.website
+              socialLinks: socialLinksObj ? {
+                instagram: socialLinksObj.instagram,
+                twitter: socialLinksObj.twitter,
+                website: socialLinksObj.website
               } : undefined,
               createdAt: new Date(profile.created_at)
             };
@@ -103,6 +106,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               .single();
               
             if (profile) {
+              // Properly handle social_links as a potential JSON object
+              const socialLinksObj = profile.social_links as Record<string, string> | null;
+              
               const user: User = {
                 id: profile.id,
                 name: profile.name,
@@ -115,10 +121,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 following: profile.following,
                 followers: profile.followers,
                 verified: profile.verified,
-                socialLinks: profile.social_links ? {
-                  instagram: profile.social_links.instagram,
-                  twitter: profile.social_links.twitter,
-                  website: profile.social_links.website
+                socialLinks: socialLinksObj ? {
+                  instagram: socialLinksObj.instagram,
+                  twitter: socialLinksObj.twitter,
+                  website: socialLinksObj.website
                 } : undefined,
                 createdAt: new Date(profile.created_at)
               };
