@@ -455,15 +455,6 @@ const Profile = () => {
             className="h-48 bg-gradient-to-r from-primary to-accent transition-all duration-500"
             style={currentUser?.coverImage ? { backgroundImage: `url(${currentUser.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
           ></div>
-          <Button 
-            size="sm" 
-            variant="secondary"
-            className="absolute right-4 bottom-4 gap-1 shadow-md"
-            onClick={() => coverImageInputRef.current?.click()}
-          >
-            <ImageIcon className="h-4 w-4" />
-            <span>Change Cover</span>
-          </Button>
           <input
             ref={coverImageInputRef}
             type="file"
@@ -489,14 +480,6 @@ const Profile = () => {
                   </AvatarFallback>
                 </Avatar>
               </div>
-              <Button 
-                size="sm" 
-                variant="secondary" 
-                className="absolute bottom-0 right-0 h-8 w-8 p-0 rounded-full shadow-md"
-                onClick={() => profileImageInputRef.current?.click()}
-              >
-                <Camera className="h-4 w-4" />
-              </Button>
               <input
                 ref={profileImageInputRef}
                 type="file"
@@ -834,7 +817,7 @@ const Profile = () => {
                   className="h-8 gap-1"
                   onClick={() => profileImageInputRef.current?.click()}
                 >
-                  <ImageIcon className="h-4 w-4" />
+                  <Camera className="h-4 w-4" />
                   <span>Choose Image</span>
                 </Button>
               </label>
@@ -862,7 +845,7 @@ const Profile = () => {
                   onClick={() => coverImageInputRef.current?.click()}
                 >
                   <ImageIcon className="h-4 w-4" />
-                  <span>Choose Image</span>
+                  <span>Change Cover</span>
                 </Button>
               </label>
               {profileForm.coverImage && (
