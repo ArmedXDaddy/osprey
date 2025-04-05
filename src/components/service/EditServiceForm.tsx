@@ -23,12 +23,10 @@ import { useData } from '@/context/DataContext';
 import { Service, ServiceType } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import { ImageIcon } from 'lucide-react';
-import { uploadImage } from '@/integrations/supabase/helpers';
+import { supabase } from '@/integrations/supabase/client';
 
-interface EditServiceFormProps {
-  service?: Service;
-  onSave?: (service: Service) => void;
-}
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -54,6 +52,7 @@ const formSchema = z.object({
   meetingUrl: z.string().optional(),
   capacity: z.string().optional(),
   available: z.boolean().default(true),
+  coverImage: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -101,6 +100,62 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
     }
   };
 
+  const handleImageUpload = async (file: File) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to upload images.",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "File too large",
+        description: "Image must be less than 5MB.",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Only JPEG, PNG, WebP, and GIF images are allowed.",
+        variant: "destructive"
+      });
+      return null;
+    }
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${currentUser.id}/${Date.now()}.${fileExt}`;
+      const filePath = `services/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('covers')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+      if (error) throw error;
+
+      const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading the image.",
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
+
   const handleSubmit = async (data: FormData) => {
     if (!currentUser) {
       toast({
@@ -116,13 +171,12 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
     try {
       let uploadedCoverImageUrl: string | null = null;
       if (coverImage) {
-        uploadedCoverImageUrl = await uploadImage(coverImage, `services/${currentUser.id}/${Date.now()}`);
+        uploadedCoverImageUrl = await handleImageUpload(coverImage);
       }
 
       let serviceData: Service;
       
       if (isEditMode && service) {
-        // Update existing service
         await updateService(service.id, {
           title: data.title,
           description: data.description,
@@ -152,10 +206,8 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           coverImage: uploadedCoverImageUrl || coverImageUrl,
         };
         
-        // Call onSave with the updated service data
         if (onSave) onSave(serviceData);
       } else {
-        // Create new service
         serviceData = await createService({
           title: data.title,
           description: data.description,
@@ -170,7 +222,6 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           coverImage: uploadedCoverImageUrl || coverImageUrl,
         });
         
-        // Call onSave with the new service data
         if (onSave) onSave(serviceData);
         navigate('/services');
       }
