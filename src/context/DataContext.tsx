@@ -1,9 +1,10 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
-import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType } from '@/types';
-import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking } from '@/integrations/supabase/helpers';
+import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment } from '@/types';
+import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking, uploadImage } from '@/integrations/supabase/helpers';
+import { useToast } from '@/components/ui/use-toast';
 
 interface DataContextType {
   posts: Post[];
@@ -16,9 +17,11 @@ interface DataContextType {
   joinRequests: JoinRequest[];
   loading: boolean;
   error: Error | null;
-  createPost: (content: string, image?: string) => Promise<void>;
+  postComments: Record<string, Comment[]>;
+  createPost: (content: string, imageFile?: File | null) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
   unlikePost: (postId: string) => Promise<void>;
+  addComment: (postId: string, content: string) => Promise<void>;
   createEvent: (eventData: any) => Promise<Event>;
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
@@ -89,21 +92,45 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [mockServices, setMockServices] = useState<Service[]>([]);
+  const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   
+  const { toast } = useToast();
   const { currentUser } = useAuth();
-  
-  React.useEffect(() => {
-    if (mockServices.length === 0) {
-      const generatedMockServices = generateMockServices();
-      setMockServices(generatedMockServices);
-    }
-  }, [mockServices.length]);
   
   React.useEffect(() => {
     const loadMockData = async () => {
       try {
         setLoading(true);
-        setPosts(generateMockPosts());
+        
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*, post_likes(*)')
+          .order('created_at', { ascending: false });
+          
+        if (postsError) {
+          console.error("Error fetching posts:", postsError);
+          setPosts(generateMockPosts());
+        } else if (postsData && postsData.length > 0) {
+          const transformedPosts: Post[] = postsData.map(post => ({
+            id: post.id,
+            userId: post.user_id,
+            userName: post.user_name,
+            userRole: post.user_role,
+            userProfileImage: post.user_profile_image,
+            content: post.content,
+            image: post.image,
+            likes: post.likes_count || 0,
+            comments: post.comments_count || 0,
+            userLikes: post.post_likes?.map((like: any) => like.user_id) || [],
+            createdAt: new Date(post.created_at)
+          }));
+          setPosts(transformedPosts);
+          
+          fetchCommentsForPosts(postsData.map((post: any) => post.id));
+        } else {
+          setPosts(generateMockPosts());
+        }
+        
         setEvents(generateMockEvents());
         setGroups(generateMockGroups());
         setSessions(generateMockSessions());
@@ -117,7 +144,190 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       }
     };
     loadMockData();
+    
+    const postsChannel = supabase.channel('public:posts');
+    const commentsChannel = supabase.channel('public:comments');
+    const likesChannel = supabase.channel('public:post_likes');
+    
+    postsChannel
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'posts' }, 
+        async (payload) => {
+          console.log('New post:', payload);
+          const newPost = payload.new as any;
+          
+          const post: Post = {
+            id: newPost.id,
+            userId: newPost.user_id,
+            userName: newPost.user_name,
+            userRole: newPost.user_role,
+            userProfileImage: newPost.user_profile_image,
+            content: newPost.content,
+            image: newPost.image,
+            likes: newPost.likes_count || 0,
+            comments: newPost.comments_count || 0,
+            userLikes: [],
+            createdAt: new Date(newPost.created_at)
+          };
+          
+          setPosts(prevPosts => [post, ...prevPosts]);
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'posts' },
+        (payload) => {
+          console.log('Updated post:', payload);
+          const updatedPost = payload.new as any;
+          
+          setPosts(prevPosts => prevPosts.map(post => {
+            if (post.id === updatedPost.id) {
+              return {
+                ...post,
+                content: updatedPost.content,
+                image: updatedPost.image,
+                likes: updatedPost.likes_count || post.likes,
+                comments: updatedPost.comments_count || post.comments,
+              };
+            }
+            return post;
+          }));
+        }
+      )
+      .subscribe();
+      
+    commentsChannel
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments' },
+        (payload) => {
+          console.log('New comment:', payload);
+          const newComment = payload.new as any;
+          
+          const comment: Comment = {
+            id: newComment.id,
+            postId: newComment.post_id,
+            userId: newComment.user_id,
+            userName: newComment.user_name,
+            userRole: newComment.user_role,
+            userProfileImage: newComment.user_profile_image,
+            content: newComment.content,
+            createdAt: new Date(newComment.created_at)
+          };
+          
+          setPostComments(prev => {
+            const updatedComments = { ...prev };
+            if (!updatedComments[comment.postId]) {
+              updatedComments[comment.postId] = [];
+            }
+            updatedComments[comment.postId] = [comment, ...updatedComments[comment.postId]];
+            return updatedComments;
+          });
+          
+          setPosts(prevPosts => 
+            prevPosts.map(post => 
+              post.id === comment.postId 
+                ? { ...post, comments: post.comments + 1 } 
+                : post
+            )
+          );
+        }
+      )
+      .subscribe();
+      
+    likesChannel
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'post_likes' },
+        (payload) => {
+          console.log('New like:', payload);
+          const newLike = payload.new as any;
+          
+          setPosts(prevPosts => 
+            prevPosts.map(post => {
+              if (post.id === newLike.post_id) {
+                const userLikes = post.userLikes || [];
+                if (!userLikes.includes(newLike.user_id)) {
+                  return {
+                    ...post,
+                    userLikes: [...userLikes, newLike.user_id],
+                    likes: post.likes + 1
+                  };
+                }
+              }
+              return post;
+            })
+          );
+        }
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'post_likes' },
+        (payload) => {
+          console.log('Deleted like:', payload);
+          const deletedLike = payload.old as any;
+          
+          setPosts(prevPosts => 
+            prevPosts.map(post => {
+              if (post.id === deletedLike.post_id) {
+                const userLikes = post.userLikes || [];
+                return {
+                  ...post,
+                  userLikes: userLikes.filter(id => id !== deletedLike.user_id),
+                  likes: Math.max(0, post.likes - 1)
+                };
+              }
+              return post;
+            })
+          );
+        }
+      )
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(commentsChannel);
+      supabase.removeChannel(likesChannel);
+    };
   }, []);
+  
+  const fetchCommentsForPosts = async (postIds: string[]) => {
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .in('post_id', postIds)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error("Error fetching comments:", error);
+        return;
+      }
+      
+      if (data) {
+        const commentsByPost: Record<string, Comment[]> = {};
+        
+        data.forEach((comment: any) => {
+          const transformedComment: Comment = {
+            id: comment.id,
+            postId: comment.post_id,
+            userId: comment.user_id,
+            userName: comment.user_name,
+            userRole: comment.user_role,
+            userProfileImage: comment.user_profile_image,
+            content: comment.content,
+            createdAt: new Date(comment.created_at)
+          };
+          
+          if (!commentsByPost[comment.post_id]) {
+            commentsByPost[comment.post_id] = [];
+          }
+          
+          commentsByPost[comment.post_id].push(transformedComment);
+        });
+        
+        setPostComments(commentsByPost);
+      }
+    } catch (err) {
+      console.error("Error in fetchCommentsForPosts:", err);
+    }
+  };
   
   React.useEffect(() => {
     const fetchAllServices = async () => {
@@ -410,7 +620,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       if (error) throw error;
       
-      // Update the services state with the updated service
       setServices(prev => 
         prev.map(service => 
           service.id === serviceId 
@@ -529,86 +738,114 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  const createPost = async (content: string, image?: string): Promise<void> => {
+  const createPost = async (content: string, imageFile: File | null = null): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to create a post');
+    
+    try {
+      let imageUrl = null;
+      
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile, 'posts');
+      }
+      
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage,
+          content,
+          image: imageUrl,
+          likes_count: 0,
+          comments_count: 0
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      return data;
+    } catch (err: any) {
+      console.error("Error creating post:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to create post",
+        variant: "destructive"
+      });
+      throw err;
+    }
   };
   
   const likePost = async (postId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to like a post');
+    
+    try {
+      const { error } = await supabase
+        .from('post_likes')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id
+        });
+        
+      if (error) {
+        if (error.code === '23505') {
+          console.log('User already liked this post');
+          return;
+        }
+        throw error;
+      }
+      
+      await supabase.rpc('increment_post_likes', { post_id: postId });
+    } catch (err: any) {
+      console.error("Error liking post:", err);
+      throw err;
+    }
   };
   
   const unlikePost = async (postId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to unlike a post');
+    
+    try {
+      const { error } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+        
+      if (error) throw error;
+      
+      await supabase.rpc('decrement_post_likes', { post_id: postId });
+    } catch (err: any) {
+      console.error("Error unliking post:", err);
+      throw err;
+    }
   };
   
-  const createEvent = async (eventData: any): Promise<Event> => {
-    if (!currentUser) throw new Error('You must be logged in to create an event');
-    return {} as Event;
-  };
-  
-  const joinEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to join an event');
-  };
-  
-  const leaveEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to leave an event');
-  };
-  
-  const requestToJoinEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to request to join an event');
-  };
-  
-  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
-  };
-  
-  const rejectEventRequest = async (requestId: string): Promise<void> => {
-  };
-  
-  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    return [];
-  };
-  
-  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to handle a join request');
-  };
-  
-  const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    return {} as Group;
-  };
-  
-  const joinGroup = async (groupId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to join a group');
-  };
-  
-  const leaveGroup = async (groupId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to leave a group');
-  };
-  
-  const requestToJoinGroup = async (groupId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to request to join a group');
-  };
-  
-  const approveGroupRequest = async (requestId: string, groupId: string, userId: string): Promise<void> => {
-  };
-  
-  const rejectGroupRequest = async (requestId: string): Promise<void> => {
-  };
-  
-  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
-    return [];
-  };
-  
-  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to handle a join request');
-  };
-  
-  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to remove a group member');
-  };
-  
-  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to update a group');
+  const addComment = async (postId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to comment on a post');
+    
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage,
+          content
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      await supabase.rpc('increment_post_comments', { post_id: postId });
+    } catch (err: any) {
+      console.error("Error adding comment:", err);
+      throw err;
+    }
   };
   
   const contextValue: DataContextType = {
@@ -622,9 +859,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     joinRequests,
     loading,
     error,
+    postComments,
     createPost,
     likePost,
     unlikePost,
+    addComment,
     createEvent,
     joinEvent,
     leaveEvent,

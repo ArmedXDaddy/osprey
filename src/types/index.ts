@@ -1,3 +1,4 @@
+
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -39,6 +40,18 @@ export interface Post {
   image?: string;
   likes: number;
   comments: number;
+  userLikes?: string[]; // Array of user IDs who liked the post
+  createdAt: Date;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  userProfileImage?: string;
+  content: string;
   createdAt: Date;
 }
 

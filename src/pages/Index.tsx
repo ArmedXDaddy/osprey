@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -6,6 +5,7 @@ import PostCard from '@/components/shared/PostCard';
 import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
+import CreatePost from '@/components/shared/CreatePost';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,7 +16,7 @@ import { Calendar, Users, DollarSign, Award, Star, TrendingUp } from 'lucide-rea
 
 const HomePage = () => {
   const { currentUser } = useAuth();
-  const { posts, events, groups, services, loading } = useData();
+  const { posts, events, groups, services, loading, postComments } = useData();
   
   if (!currentUser) {
     return (
@@ -141,6 +141,9 @@ const HomePage = () => {
             </TabsList>
             
             <TabsContent value="for-you" className="space-y-4 mt-4">
+              {/* Create Post Component */}
+              <CreatePost />
+              
               {loading ? (
                 Array(3).fill(0).map((_, i) => (
                   <Card key={i}>
@@ -159,7 +162,13 @@ const HomePage = () => {
                   </Card>
                 ))
               ) : (
-                posts.map(post => <PostCard key={post.id} post={post} />)
+                posts.map(post => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    comments={postComments[post.id] || []}
+                  />
+                ))
               )}
             </TabsContent>
             
