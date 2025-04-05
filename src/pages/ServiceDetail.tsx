@@ -55,9 +55,17 @@ const ServiceDetail = () => {
         
         // Check if user has already booked this service
         if (currentUser) {
-          const booking = getUserBookingForService(currentUser.id, id);
-          setUserBooking(booking || null);
-          setHasBooked(!!booking);
+          try {
+            const booking = await getUserBookingForService(serviceData.id, currentUser.id);
+            if (booking) {
+              setUserBooking(booking);
+              setHasBooked(true);
+            } else {
+              setHasBooked(false);
+            }
+          } catch (error) {
+            console.error("Error checking user booking:", error);
+          }
         }
       } catch (error: any) {
         console.error("Error loading service:", error);
@@ -73,7 +81,7 @@ const ServiceDetail = () => {
     };
     
     fetchServiceDetails();
-  }, [id, currentUser, getServiceById, getUserBookings, getUserBookingForService, navigate]);
+  }, [id, currentUser, getServiceById, getUserBookings, getUserBookingForService, navigate, toast]);
 
   const handleBook = () => {
     if (!currentUser) {
@@ -93,10 +101,20 @@ const ServiceDetail = () => {
     setHasBooked(true);
     
     // Refresh booking data
-    if (currentUser && id) {
-      const booking = getUserBookingForService(currentUser.id, id);
-      setUserBooking(booking || null);
-    }
+    const refreshBookingData = async () => {
+      if (currentUser && id && service) {
+        try {
+          const booking = await getUserBookingForService(service.id, currentUser.id);
+          if (booking) {
+            setUserBooking(booking);
+          }
+        } catch (error) {
+          console.error("Error refreshing booking data:", error);
+        }
+      }
+    };
+    
+    refreshBookingData();
   };
 
   const isProvider = currentUser && service && currentUser.id === service.providerId;

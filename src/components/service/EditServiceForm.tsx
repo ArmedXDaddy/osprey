@@ -1,85 +1,189 @@
-
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Service, ServiceType } from '@/types';
-import { useData } from '@/context/DataContext';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
-import { DialogFooter } from "@/components/ui/dialog";
-import { toast } from "@/hooks/use-toast";
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { useAuth } from '@/context/AuthContext';
+import { useData } from '@/context/DataContext';
+import { Service, ServiceType } from '@/types';
+import { useNavigate } from 'react-router-dom';
+import { ImageIcon } from 'lucide-react';
+import { uploadImage } from '@/integrations/supabase/helpers';
+
+interface EditServiceFormProps {
+  service?: Service;
+  onSave?: (service: Service) => void;
+}
 
 const formSchema = z.object({
   title: z.string().min(2, {
-    message: "Title must be at least 2 characters."
+    message: "Title must be at least 2 characters.",
   }),
   description: z.string().min(10, {
-    message: "Description must be at least 10 characters."
+    message: "Description must be at least 10 characters.",
   }),
-  price: z.number().min(0),
-  duration: z.string().min(2, {
-    message: "Duration must be specified."
+  price: z.string().refine(value => {
+    const num = Number(value);
+    return !isNaN(num) && num >= 0;
+  }, {
+    message: "Price must be a valid number and greater than or equal to 0.",
   }),
-  capacity: z.number().optional(),
-  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course'] as const),
-  isOnline: z.boolean(),
+  duration: z.string().min(1, {
+    message: "Duration is required.",
+  }),
+  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course'], {
+    required_error: "Please select a service type.",
+  }),
+  isOnline: z.boolean().default(false),
   location: z.string().optional(),
   meetingUrl: z.string().optional(),
-  coverImage: z.string().optional(),
-  isActive: z.boolean(),
+  capacity: z.string().optional(),
+  available: z.boolean().default(true),
 });
 
-interface EditServiceFormProps {
-  service: Service;
-  onSave: (updatedService: Service) => void;
-  onCancel: () => void;
-}
+type FormData = z.infer<typeof formSchema>;
 
-const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave, onCancel }) => {
-  const { updateService } = useData();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) => {
+  const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const { createService, updateService } = useData();
+  const navigate = useNavigate();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const isEditMode = !!service;
+
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      title: service.title,
-      description: service.description || "",
-      price: service.price,
-      duration: service.duration || "60 min",
-      capacity: service.capacity || 1,
-      serviceType: (service.serviceType as ServiceType) || "one_on_one",
-      isOnline: service.isOnline || false,
-      location: service.location || "",
-      meetingUrl: service.meetingUrl || "",
-      coverImage: service.coverImage || "",
-      isActive: service.available !== undefined ? service.available : true,
-    }
+      title: service?.title || "",
+      description: service?.description || "",
+      price: service?.price?.toString() || "0",
+      duration: service?.duration || "",
+      serviceType: service?.serviceType || "one_on_one",
+      isOnline: service?.isOnline || false,
+      location: service?.location || "",
+      meetingUrl: service?.meetingUrl || "",
+      capacity: service?.capacity?.toString() || "1",
+      available: service?.available !== undefined ? service.available : true,
+    },
+    mode: "onChange",
   });
 
-  const watchServiceType = form.watch("serviceType");
-  const watchIsOnline = form.watch("isOnline");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(service?.coverImage || null);
 
-  const handleSubmit = async (data: z.infer<typeof formSchema>) => {
-    try {
-      setIsSubmitting(true);
+  useEffect(() => {
+    if (service?.coverImage) {
+      setCoverImageUrl(service.coverImage);
+    }
+  }, [service?.coverImage]);
 
-      // Prepare updated service data
-      const updatedService = await updateService(service.id, {
-        ...data,
-        available: data.isActive,
-      });
-      
-      onSave(updatedService);
-    } catch (err: any) {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImage(file);
+      setCoverImageUrl(URL.createObjectURL(file));
+    }
+  };
+
+  const handleSubmit = async (data: FormData) => {
+    if (!currentUser) {
       toast({
-        variant: "destructive",
-        title: "Error updating service",
-        description: err.message || "There was an error updating your service. Please try again."
+        title: "Authentication required",
+        description: "You must be logged in to create or edit services.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      let uploadedCoverImageUrl: string | null = null;
+      if (coverImage) {
+        uploadedCoverImageUrl = await uploadImage(coverImage, `services/${currentUser.id}/${Date.now()}`);
+      }
+
+      let serviceData: Service;
+      
+      if (isEditMode && service) {
+        // Update existing service
+        await updateService(service.id, {
+          title: data.title,
+          description: data.description,
+          price: Number(data.price),
+          duration: data.duration,
+          serviceType: data.serviceType as ServiceType,
+          isOnline: data.isOnline,
+          location: !data.isOnline ? data.location : undefined,
+          meetingUrl: data.isOnline ? data.meetingUrl : undefined,
+          capacity: data.serviceType !== 'one_on_one' ? Number(data.capacity) : 1,
+          available: data.available,
+          coverImage: uploadedCoverImageUrl || coverImageUrl,
+        });
+        
+        serviceData = {
+          ...service,
+          title: data.title,
+          description: data.description,
+          price: Number(data.price),
+          duration: data.duration,
+          serviceType: data.serviceType as ServiceType,
+          isOnline: data.isOnline,
+          location: !data.isOnline ? data.location : undefined,
+          meetingUrl: data.isOnline ? data.meetingUrl : undefined,
+          capacity: data.serviceType !== 'one_on_one' ? Number(data.capacity) : 1,
+          available: data.available,
+          coverImage: uploadedCoverImageUrl || coverImageUrl,
+        };
+      } else {
+        // Create new service
+        serviceData = await createService({
+          title: data.title,
+          description: data.description,
+          price: Number(data.price),
+          duration: data.duration,
+          serviceType: data.serviceType as ServiceType,
+          isOnline: data.isOnline,
+          location: !data.isOnline ? data.location : undefined,
+          meetingUrl: data.isOnline ? data.meetingUrl : undefined,
+          capacity: data.serviceType !== 'one_on_one' ? Number(data.capacity) : 1,
+          available: data.available,
+          coverImage: uploadedCoverImageUrl || coverImageUrl,
+        });
+      }
+
+      toast({
+        title: isEditMode ? "Service updated!" : "Service created!",
+        description: isEditMode 
+          ? "Your service has been updated successfully." 
+          : "Your new service has been created successfully."
+      });
+
+      // Pass the service data to the onSave callback
+      if (onSave) onSave(serviceData);
+      navigate('/services');
+    } catch (error: any) {
+      console.error("Error saving service:", error);
+      toast({
+        title: "Error",
+        description: error.message || "There was an error saving your service. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -88,218 +192,218 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave, onCa
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="title"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Title</FormLabel>
-              <FormControl>
-                <Input placeholder="Service title" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="description"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Description</FormLabel>
-              <FormControl>
-                <Textarea 
-                  placeholder="Detail what this service offers..." 
-                  className="resize-none min-h-[100px]"
-                  {...field} 
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="title"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Service Title" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Write a detailed description about your service"
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0.00" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="duration"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Duration</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., 60 minutes" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="serviceType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Service Type</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a service type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="one_on_one">One-on-One</SelectItem>
+                      <SelectItem value="group">Group</SelectItem>
+                      <SelectItem value="webinar">Webinar</SelectItem>
+                      <SelectItem value="course">Course</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="available"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel>Available</FormLabel>
+                    <FormDescription>
+                      Set service availability.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="space-y-4">
+            <FormField
+              control={form.control}
+              name="isOnline"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel>Online Service</FormLabel>
+                    <FormDescription>
+                      Is this service provided online?
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {form.getValues("isOnline") ? (
+              <FormField
+                control={form.control}
+                name="meetingUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Meeting URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://meet.google.com/abc-defg-hij" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <FormField
+                control={form.control}
+                name="location"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Service Location" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {form.getValues("serviceType") === "group" && (
+              <FormField
+                control={form.control}
+                name="capacity"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Capacity</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        placeholder="Number of participants"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            <div>
+              <Label htmlFor="coverImage">Cover Image</Label>
+              <Input
+                type="file"
+                id="coverImage"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+              <Button variant="outline" size="sm" asChild>
+                <label htmlFor="coverImage" className="cursor-pointer">
+                  {coverImage ? "Change Cover Image" : "Upload a Cover Image"}
+                  <ImageIcon className="ml-2 h-4 w-4" />
+                </label>
+              </Button>
+              {coverImageUrl && (
+                <img
+                  src={coverImageUrl}
+                  alt="Cover"
+                  className="mt-2 rounded-md object-cover aspect-video"
                 />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00" 
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          
-          <FormField
-            control={form.control}
-            name="duration"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Duration</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g. 60 min" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              )}
+            </div>
+          </div>
         </div>
-        
-        <FormField
-          control={form.control}
-          name="serviceType"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Service Type</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                defaultValue={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select service type" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="one_on_one">One-on-One</SelectItem>
-                  <SelectItem value="group">Group</SelectItem>
-                  <SelectItem value="webinar">Webinar</SelectItem>
-                  <SelectItem value="course">Course</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        {watchServiceType === 'group' && (
-          <FormField
-            control={form.control}
-            name="capacity"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Capacity</FormLabel>
-                <FormControl>
-                  <Input 
-                    type="number" 
-                    placeholder="Maximum participants" 
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        
-        <FormField
-          control={form.control}
-          name="isOnline"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Online Service</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  This service will be delivered online
-                </p>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        
-        {!watchIsOnline && (
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input placeholder="Physical location for this service" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        
-        {watchIsOnline && (
-          <FormField
-            control={form.control}
-            name="meetingUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Meeting URL (Optional)</FormLabel>
-                <FormControl>
-                  <Input placeholder="Zoom, Google Meet, etc. link" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        )}
-        
-        <FormField
-          control={form.control}
-          name="coverImage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Cover Image URL (Optional)</FormLabel>
-              <FormControl>
-                <Input placeholder="URL for service cover image" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        
-        <FormField
-          control={form.control}
-          name="isActive"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-              <div className="space-y-0.5">
-                <FormLabel className="text-base">Active Service</FormLabel>
-                <p className="text-sm text-muted-foreground">
-                  Make this service available for booking
-                </p>
-              </div>
-              <FormControl>
-                <Switch
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        
-        <DialogFooter className="flex justify-between">
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </DialogFooter>
+
+        <Button type="submit" disabled={isSubmitting}>
+          {isEditMode ? (isSubmitting ? "Updating..." : "Update Service") : (isSubmitting ? "Creating..." : "Create Service")}
+        </Button>
       </form>
     </Form>
   );

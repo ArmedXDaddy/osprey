@@ -1,534 +1,420 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import GroupChatSection from '@/components/group/GroupChatSection';
-import GroupRequestsSection from '@/components/group/GroupRequestsSection';
-import GroupMembersSection from '@/components/group/GroupMembersSection';
-import EditGroupForm from '@/components/group/EditGroupForm';
-import {
-  ChevronLeft,
-  Users,
-  Calendar,
-  Share,
-  MoreHorizontal,
-  MessageSquare,
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  Users, 
+  Lock, 
+  Unlock, 
+  DollarSign, 
+  Edit, 
+  Plus, 
+  X, 
+  ArrowLeft,
   UserPlus,
-  Bell,
-  BellOff,
-  Globe,
-  UserCheck,
-  Lock,
-  UserX,
-  DollarSign,
-  Edit,
-  Trash2,
-  Shield,
+  User,
+  Eye,
+  EyeOff
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import PostCard from '@/components/shared/PostCard';
-import EventCard from '@/components/shared/EventCard';
+import { Group, UserRole, GroupPrivacy, JoinRequest } from '@/types';
+import { format } from 'date-fns';
+import GroupRequestsSection from '@/components/group/GroupRequestsSection';
+import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { groups, events, posts, loading, joinGroup, leaveGroup, requestToJoinGroup, getGroupRequests, removeGroupMember } = useData();
-  const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [joined, setJoined] = useState(false);
-  const [notifications, setNotifications] = useState(true);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [removeMemberDialogOpen, setRemoveMemberDialogOpen] = useState(false);
-  const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
-
-  const group = groups.find(g => g.id === id);
+  const { currentUser } = useAuth();
+  const { groups, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails, getGroupRequests } = useData();
+  const [group, setGroup] = useState<Group | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
+  const [isRequestSent, setIsRequestSent] = useState(false);
+  const [isGroupAdmin, setIsGroupAdmin] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [editingRules, setEditingRules] = useState(false);
+  const [newRule, setNewRule] = useState('');
+  const [tempRules, setTempRules] = useState<string[]>([]);
+  const [showMemberLimit, setShowMemberLimit] = useState(false);
+  const [editingMemberLimit, setEditingMemberLimit] = useState(false);
+  const [tempMemberLimit, setTempMemberLimit] = useState<number | undefined>(undefined);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   useEffect(() => {
-    if (group && currentUser) {
-      const hasJoined = group.creatorId === currentUser.id || Math.random() > 0.5;
-      setJoined(hasJoined);
+    if (id && groups.length > 0) {
+      const foundGroup = groups.find(g => g.id === id);
+      if (foundGroup) {
+        setGroup(foundGroup);
+      }
+    }
+  }, [id, groups]);
+
+  useEffect(() => {
+    if (group) {
+      setLoading(false);
+      if (currentUser) {
+        setIsMember(group.memberIds?.includes(currentUser.id) || false);
+        setIsRequestSent(false); // Implement logic to check if request is sent
+        setIsGroupAdmin(group.creatorId === currentUser.id);
+      }
+      setTempRules(group.rules || []);
+      setTempMemberLimit(group.memberLimit);
     }
   }, [group, currentUser]);
 
-  const groupEvents = events.filter(event => event.creatorId === group?.creatorId);
-  const groupPosts = posts.filter(post => post.userId === group?.creatorId);
-
-  const isCreator = group?.creatorId === currentUser?.id;
-  const pendingRequests = isCreator && group ? getGroupRequests(group.id) : [];
+  if (loading || !group) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[250px]" />
+            <Skeleton className="h-4 w-[200px]" />
+          </div>
+        </div>
+        <Skeleton className="h-[300px] w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-[150px] w-full" />
+          <Skeleton className="h-[150px] w-full" />
+        </div>
+      </div>
+    );
+  }
 
   const handleJoinGroup = async () => {
-    if (!group) return;
-    
+    if (!currentUser) {
+      navigate('/auth/login');
+      return;
+    }
+
     if (group.privacy === 'private') {
-      await requestToJoinGroup(group.id);
+      await requestToJoinGroup(id);
+      setIsRequestSent(true);
     } else {
-      await joinGroup(group.id);
-      setJoined(true);
+      await joinGroup(id);
+      setIsMember(true);
     }
   };
 
   const handleLeaveGroup = async () => {
-    if (!group) return;
-    await leaveGroup(group.id);
-    setJoined(false);
-  };
-
-  const handleNotificationToggle = () => {
-    setNotifications(!notifications);
+    if (!currentUser) return;
+    await leaveGroup(id);
+    setIsMember(false);
   };
 
   const handleRemoveMember = async (userId: string) => {
-    setMemberToRemove(userId);
-    setRemoveMemberDialogOpen(true);
+    if (!currentUser) return;
+    await removeGroupMember(id, userId);
+    setGroup(prevGroup => {
+      if (prevGroup) {
+        return {
+          ...prevGroup,
+          members: prevGroup.members - 1,
+          memberIds: prevGroup.memberIds?.filter(memberId => memberId !== userId)
+        };
+      }
+      return prevGroup;
+    });
   };
 
-  const confirmRemoveMember = async () => {
-    if (!group || !memberToRemove) return;
-    
-    await removeGroupMember(group.id, memberToRemove);
-    setRemoveMemberDialogOpen(false);
-    setMemberToRemove(null);
+  const handleToggleRules = () => {
+    setShowRules(!showRules);
   };
 
-  const getJoinButtonText = () => {
-    if (!group) return 'Join Group';
-    
-    switch (group.privacy) {
-      case 'private':
-        return 'Request to Join';
-      case 'paid':
-        return `Join ($${group.price}/month)`;
-      default:
-        return 'Join Group';
+  const handleEditRules = () => {
+    setEditingRules(true);
+  };
+
+  const handleAddRule = () => {
+    if (newRule.trim() !== '') {
+      setTempRules([...tempRules, newRule]);
+      setNewRule('');
     }
   };
 
-  const canAccessRestrictedContent = Boolean(isCreator || joined);
-
-  if (loading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm">
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-        </div>
-        <div className="rounded-xl overflow-hidden">
-          <Skeleton className="h-64 w-full" />
-        </div>
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-3/4" />
-          <Skeleton className="h-20 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!group) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold">Group not found</h2>
-        <p className="text-gray-500 mb-4">The group you're looking for doesn't exist or has been removed.</p>
-        <Button onClick={() => navigate('/groups')}>
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          Back to Groups
-        </Button>
-      </div>
-    );
-  }
-
-  const getPrivacyIcon = () => {
-    switch (group.privacy) {
-      case 'private':
-        return <Lock className="h-3 w-3 mr-1" />;
-      case 'paid':
-        return <DollarSign className="h-3 w-3 mr-1" />;
-      default:
-        return <Globe className="h-3 w-3 mr-1" />;
-    }
+  const handleRemoveRule = (index: number) => {
+    const newRules = [...tempRules];
+    newRules.splice(index, 1);
+    setTempRules(newRules);
   };
 
-  const renderChatTab = () => {
-    if (!canAccessRestrictedContent) {
-      return (
-        <div className="text-center py-12">
-          <Lock className="h-12 w-12 mx-auto text-gray-300" />
-          <h3 className="mt-4 text-lg font-medium">Chat is only available to members</h3>
-          <p className="text-gray-500 mb-4">
-            {group?.privacy === 'private' 
-              ? 'Request to join this group to participate in the chat' 
-              : group?.privacy === 'paid' 
-                ? `Subscribe for $${group?.price}/month to join the conversation`
-                : 'Join this group to participate in the chat'}
-          </p>
-          <Button onClick={handleJoinGroup}>
-            {group?.privacy === 'private' ? 'Request to Join' : group?.privacy === 'paid' ? `Join ($${group?.price}/month)` : 'Join Group'}
-          </Button>
-        </div>
-      );
-    }
-    
-    return group ? <GroupChatSection group={group} /> : null;
+  const handleSaveRules = async () => {
+    await updateGroupDetails(id, { rules: tempRules });
+    setGroup(prevGroup => {
+      if (prevGroup) {
+        return { ...prevGroup, rules: tempRules };
+      }
+      return prevGroup;
+    });
+    setEditingRules(false);
+  };
+
+  const handleCancelEditRules = () => {
+    setTempRules(group.rules || []);
+    setEditingRules(false);
+  };
+
+  const handleToggleMemberLimit = () => {
+    setShowMemberLimit(!showMemberLimit);
+  };
+
+  const handleEditMemberLimit = () => {
+    setEditingMemberLimit(true);
+    setTempMemberLimit(group.memberLimit);
+  };
+
+  const handleSaveMemberLimit = async () => {
+    await updateGroupDetails(id, { memberLimit: tempMemberLimit });
+    setGroup(prevGroup => {
+      if (prevGroup) {
+        return { ...prevGroup, memberLimit: tempMemberLimit };
+      }
+      return prevGroup;
+    });
+    setEditingMemberLimit(false);
+  };
+
+  const handleCancelEditMemberLimit = () => {
+    setTempMemberLimit(group.memberLimit);
+    setEditingMemberLimit(false);
   };
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/groups')}>
-            <ChevronLeft className="h-4 w-4 mr-1" />
-            Back to Groups
-          </Button>
-          
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm">
-              <Share className="h-4 w-4 mr-1" />
-              Share
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {isCreator ? (
-                  <>
-                    <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Group
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-destructive">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete Group
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <DropdownMenuItem>
-                    <Shield className="h-4 w-4 mr-2" />
-                    Report Group
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        
-        <div className="rounded-xl overflow-hidden relative">
-          <img 
-            src={group.image || 'https://images.unsplash.com/photo-1576678927484-cc907957088c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'} 
-            alt={group.name} 
-            className="w-full h-64 object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-          <div className="absolute bottom-0 left-0 p-6 text-white">
-            <div className="flex items-center gap-2">
-              <Badge className={`bg-${group.creatorRole === 'influencer' ? 'red' : group.creatorRole === 'coach' ? 'teal' : 'blue'}-500`}>
-                {group.creatorRole}
-              </Badge>
-              <Badge variant="outline" className="border-white text-white">
-                {getPrivacyIcon()}
-                {group.privacy === 'paid' ? `Paid ($${group.price}/month)` : group.privacy === 'private' ? 'Private' : 'Public'}
-              </Badge>
-            </div>
-            <h1 className="text-3xl font-bold mt-2">{group.name}</h1>
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center">
-                <Users className="h-4 w-4 mr-1" />
-                {group.members} / {group.memberLimit || '∞'} members
-              </div>
-              <div className="flex items-center text-sm">
-                <span>Created by {group.creatorName}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {!isCreator && !joined && (
-            <Button 
-              variant="default" 
-              onClick={handleJoinGroup}
-              className="flex-1 md:flex-none"
-            >
-              {group.privacy === 'private' ? 
-                <UserPlus className="h-4 w-4 mr-2" /> : 
-                group.privacy === 'paid' ? 
-                <DollarSign className="h-4 w-4 mr-2" /> : 
-                <UserPlus className="h-4 w-4 mr-2" />}
-              {getJoinButtonText()}
-            </Button>
-          )}
-
-          {!isCreator && joined && (
-            <Button 
-              variant="outline" 
-              onClick={handleLeaveGroup}
-              className="flex-1 md:flex-none"
-            >
-              <UserX className="h-4 w-4 mr-2" />
-              Leave Group
-            </Button>
-          )}
-          
-          {joined && (
-            <Button 
-              variant="outline" 
-              onClick={handleNotificationToggle}
-              className="flex-1 md:flex-none"
-            >
-              {notifications ? <BellOff className="h-4 w-4 mr-2" /> : <Bell className="h-4 w-4 mr-2" />}
-              {notifications ? 'Mute Notifications' : 'Enable Notifications'}
-            </Button>
-          )}
-          
-          {isCreator && (
-            <Button className="flex-1 md:flex-none">
-              <Calendar className="h-4 w-4 mr-2" />
-              Create Event
-            </Button>
-          )}
-          
-          {isCreator && (
-            <Button 
-              variant="outline" 
-              onClick={() => setEditDialogOpen(true)}
-              className="flex-1 md:flex-none"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Group
-            </Button>
-          )}
-        </div>
-        
-        <Card>
-          <Tabs defaultValue="about" className="w-full">
-            <TabsList className="grid grid-cols-5 w-full">
-              <TabsTrigger value="about">About</TabsTrigger>
-              <TabsTrigger value="members" disabled={!canAccessRestrictedContent}>
-                Members {!canAccessRestrictedContent && <Lock className="h-3 w-3 ml-1" />}
-              </TabsTrigger>
-              <TabsTrigger value="events">Events</TabsTrigger>
-              <TabsTrigger value="posts">Posts</TabsTrigger>
-              <TabsTrigger value="chat" disabled={!canAccessRestrictedContent}>
-                Chat {!canAccessRestrictedContent && <Lock className="h-3 w-3 ml-1" />}
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="about" className="p-6">
-              <h3 className="text-lg font-medium mb-2">Description</h3>
-              <p className="text-gray-700">{group.description}</p>
-              
-              <Separator className="my-6" />
-              
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Group Rules</h3>
-                  {group.rules && group.rules.length > 0 ? (
-                    <ul className="list-disc list-inside text-gray-700 space-y-1">
-                      {group.rules.map((rule, index) => (
-                        <li key={index}>{rule}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-500">No specific rules have been set for this group.</p>
-                  )}
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Member Limit</h3>
-                  <p className="text-gray-700">{group.members} / {group.memberLimit || '∞'} members</p>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Created</h3>
-                  <p className="text-gray-700">{new Date(group.createdAt).toLocaleDateString()}</p>
-                </div>
-              </div>
-              
-              {isCreator && group.privacy === 'private' && pendingRequests?.length > 0 && (
-                <>
-                  <Separator className="my-6" />
-                  <GroupRequestsSection groupId={group.id} />
-                </>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="members" className="p-6">
-              {canAccessRestrictedContent ? (
-                <>
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">Members ({group.members})</h3>
-                    <div className="relative md:w-64">
-                      <input 
-                        type="search" 
-                        placeholder="Search members..." 
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(group.creatorName)}&background=random`} />
-                          <AvatarFallback>{group.creatorName.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">{group.creatorName}</p>
-                          <p className="text-xs text-gray-500">Creator</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline">Admin</Badge>
-                    </div>
-                    
-                    {Array.from({ length: 2 }).map((_, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={`https://ui-avatars.com/api/?name=Member${i}&background=random`} />
-                            <AvatarFallback>M</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">Member {i + 1}</p>
-                            <p className="text-xs text-gray-500">Joined {i + 1} months ago</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button variant="ghost" size="sm">View Profile</Button>
-                          {isCreator && (
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleRemoveMember(`member-${i}`)}
-                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Remove
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-12">
-                  <Lock className="h-12 w-12 mx-auto text-gray-300" />
-                  <h3 className="mt-4 text-lg font-medium">Members list is only visible to group members</h3>
-                  <p className="text-gray-500 mb-4">Join this group to see all members and interact with them</p>
-                  <Button onClick={handleJoinGroup}>
-                    {group.privacy === 'private' ? 'Request to Join' : group.privacy === 'paid' ? `Join ($${group.price}/month)` : 'Join Group'}
-                  </Button>
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="events" className="p-6">
-              {groupEvents.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {groupEvents.map(event => (
-                    <Link to={`/events/${event.id}`} key={event.id}>
-                      <EventCard event={event} compact />
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Calendar className="h-12 w-12 mx-auto text-gray-300" />
-                  <h3 className="mt-4 text-lg font-medium">No events yet</h3>
-                  <p className="text-gray-500">This group hasn't scheduled any events</p>
-                  {isCreator && (
-                    <Button className="mt-4">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Create Event
-                    </Button>
-                  )}
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="posts" className="p-6">
-              {groupPosts.length > 0 ? (
-                <div className="space-y-4">
-                  {groupPosts.map(post => (
-                    <PostCard key={post.id} post={post} />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <MessageSquare className="h-12 w-12 mx-auto text-gray-300" />
-                  <h3 className="mt-4 text-lg font-medium">No posts yet</h3>
-                  <p className="text-gray-500">There's no activity in this group yet</p>
-                  {(isCreator || joined) && (
-                    <Button className="mt-4">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Create Post
-                    </Button>
-                  )}
-                </div>
-              )}
-            </TabsContent>
-            
-            <TabsContent value="chat" className="p-6">
-              {renderChatTab()}
-            </TabsContent>
-          </Tabs>
-        </Card>
+    <div className="container py-8">
+      <div className="flex items-center mb-6">
+        <Link to="/groups" className="flex items-center text-gray-600 hover:text-gray-800">
+          <ArrowLeft className="mr-2 h-5 w-5" />
+          Back to Groups
+        </Link>
       </div>
-      
-      {group && editDialogOpen && (
-        <EditGroupForm
-          group={group}
-          isOpen={editDialogOpen}
-          onClose={() => setEditDialogOpen(false)}
-        />
+
+      <Card className="space-y-4">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={group.image} alt={group.name} />
+                <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <CardTitle className="text-2xl font-bold">{group.name}</CardTitle>
+            </div>
+            {isGroupAdmin && (
+              <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/edit`)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Group
+              </Button>
+            )}
+          </div>
+          <CardDescription>{group.description}</CardDescription>
+        </CardHeader>
+
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Group Details</h3>
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <Users className="h-5 w-5 mr-2 text-gray-500" />
+                <span>{group.members} Members</span>
+              </div>
+              <div className="flex items-center">
+                {group.privacy === 'public' && <Unlock className="h-5 w-5 mr-2 text-gray-500" />}
+                {group.privacy === 'private' && <Lock className="h-5 w-5 mr-2 text-gray-500" />}
+                <span>{group.privacy === 'public' ? 'Public Group' : 'Private Group'}</span>
+              </div>
+              {group.price && (
+                <div className="flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2 text-gray-500" />
+                  <span>Price: ${group.price}</span>
+                </div>
+              )}
+              {group.memberLimit && (
+                <div className="flex items-center">
+                  <User className="h-5 w-5 mr-2 text-gray-500" />
+                  <span>Member Limit: {group.memberLimit}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Actions</h3>
+            {!currentUser ? (
+              <Button onClick={() => navigate('/auth/login')}>Login to Join</Button>
+            ) : isGroupAdmin ? (
+              <div className="space-y-2">
+                <Button variant="destructive" onClick={() => console.log('Delete group')}>
+                  Delete Group
+                </Button>
+              </div>
+            ) : isMember ? (
+              <Button variant="secondary" onClick={handleLeaveGroup}>
+                Leave Group
+              </Button>
+            ) : isRequestSent ? (
+              <div className="text-gray-500">Request Sent</div>
+            ) : (
+              <Button onClick={handleJoinGroup}>Join Group</Button>
+            )}
+          </div>
+        </CardContent>
+
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Group Rules</h3>
+                <Button variant="ghost" size="sm" onClick={handleToggleRules}>
+                  {showRules ? (
+                    <>
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      Hide Rules
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Show Rules
+                    </>
+                  )}
+                </Button>
+              </div>
+              {showRules && (
+                <div className="mt-4">
+                  {editingRules ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="New rule"
+                            value={newRule}
+                            onChange={(e) => setNewRule(e.target.value)}
+                            className="border p-2 rounded w-full"
+                          />
+                          <Button size="sm" onClick={handleAddRule}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {tempRules.map((rule, index) => (
+                          <div key={index} className="flex items-center justify-between">
+                            <span>{rule}</span>
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelEditRules}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveRules}>
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {group.rules && group.rules.length > 0 ? (
+                        <ul className="list-disc pl-5">
+                          {group.rules.map((rule, index) => (
+                            <li key={index}>{rule}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-gray-500">No rules specified for this group.</div>
+                      )}
+                      {isGroupAdmin && (
+                        <Button variant="outline" size="sm" onClick={handleEditRules}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Rules
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Member Limit</h3>
+                <Button variant="ghost" size="sm" onClick={handleToggleMemberLimit}>
+                  {showMemberLimit ? (
+                    <>
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      Hide Limit
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Show Limit
+                    </>
+                  )}
+                </Button>
+              </div>
+              {showMemberLimit && (
+                <div className="mt-4">
+                  {editingMemberLimit ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <input
+                          type="number"
+                          placeholder="Member limit"
+                          value={tempMemberLimit !== undefined ? tempMemberLimit.toString() : ''}
+                          onChange={(e) => setTempMemberLimit(e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+                          className="border p-2 rounded w-full"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelEditMemberLimit}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveMemberLimit}>
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {group.memberLimit ? (
+                        <div className="text-gray-700">Member limit: {group.memberLimit}</div>
+                      ) : (
+                        <div className="text-gray-500">No member limit specified for this group.</div>
+                      )}
+                      {isGroupAdmin && (
+                        <Button variant="outline" size="sm" onClick={handleEditMemberLimit}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Limit
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+
+        {group.pendingRequests && group.pendingRequests > 0 && isGroupAdmin && (
+          <div className="mt-8">
+            <h3 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequestsCount})</h3>
+            <GroupRequestsSection groupId={id} />
+          </div>
+        )}
+      </Card>
+
+      {isMember && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Group Chat</h2>
+          <OriginalGroupChatSection groupId={id} />
+        </div>
       )}
-      
-      <AlertDialog open={removeMemberDialogOpen} onOpenChange={setRemoveMemberDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Member</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to remove this member from the group? 
-              They will need to rejoin if they want to access the group again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmRemoveMember} className="bg-red-500 hover:bg-red-600">
-              Remove
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    </div>
   );
 };
 

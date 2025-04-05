@@ -67,7 +67,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
       setIsProcessing(true);
 
       // Call the bookService function with appropriate parameters
-      await bookService(service.id, !isFreeService);
+      await bookService(service.id, isFreeService ? 'unpaid' : 'paid');
 
       toast({
         title: "Booking successful!",
@@ -103,8 +103,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      // For free services, we pass false for isPaid
-      await bookService(service.id, false);
+      // For free services, we pass 'unpaid' for payment status
+      await bookService(service.id, 'unpaid');
 
       toast({
         title: "Request submitted!",

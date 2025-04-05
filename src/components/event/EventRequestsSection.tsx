@@ -25,9 +25,9 @@ const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) 
     );
   }
 
-  const handleEventJoinRequest = (requestId: string, status: 'approved' | 'rejected') => {
+  const handleEventJoinRequest = (requestId: string, userId: string, status: 'approved' | 'rejected') => {
     if (status === 'approved') {
-      approveEventRequest(requestId);
+      approveEventRequest(requestId, eventId, userId);
     } else {
       rejectEventRequest(requestId);
     }
@@ -58,7 +58,7 @@ const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) 
                 variant="outline" 
                 size="sm" 
                 className="h-7 px-2 text-xs border-gray-200 hover:bg-gray-100 hover:text-gray-700"
-                onClick={() => handleEventJoinRequest(request.id, 'rejected')}
+                onClick={() => handleEventJoinRequest(request.id, request.userId, 'rejected')}
               >
                 <X className="h-3.5 w-3.5 mr-1" />
                 Reject
@@ -67,7 +67,7 @@ const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) 
               <Button 
                 size="sm"
                 className="h-7 px-2 text-xs"
-                onClick={() => handleEventJoinRequest(request.id, 'approved')}
+                onClick={() => handleEventJoinRequest(request.id, request.userId, 'approved')}
               >
                 <Check className="h-3.5 w-3.5 mr-1" />
                 Approve

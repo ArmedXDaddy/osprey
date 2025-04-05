@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { Booking, Service } from '@/types';
@@ -20,9 +20,25 @@ const BookingsTab: React.FC<BookingsTabProps> = ({ userId, isOwnProfile }) => {
   const { currentUser } = useAuth();
   const { getUserBookings, getServiceById, cancelBooking } = useData();
   const { toast } = useToast();
+  const [userBookings, setUserBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  // Get user's bookings
-  const userBookings = getUserBookings(userId);
+  // Fetch user's bookings
+  useEffect(() => {
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        const bookings = await getUserBookings(userId);
+        setUserBookings(bookings);
+      } catch (error) {
+        console.error("Error fetching bookings:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchBookings();
+  }, [userId, getUserBookings]);
   
   // Group bookings by status
   const pendingBookings = userBookings.filter(b => b.status === 'pending');
@@ -37,6 +53,13 @@ const BookingsTab: React.FC<BookingsTabProps> = ({ userId, isOwnProfile }) => {
         title: "Booking cancelled",
         description: "Your booking has been cancelled successfully.",
       });
+      
+      // Update the local state after cancellation
+      setUserBookings(prev => 
+        prev.map(booking => 
+          booking.id === bookingId ? { ...booking, status: 'cancelled' } : booking
+        )
+      );
     } catch (error: any) {
       toast({
         title: "Error cancelling booking",
@@ -45,6 +68,10 @@ const BookingsTab: React.FC<BookingsTabProps> = ({ userId, isOwnProfile }) => {
       });
     }
   };
+  
+  if (loading) {
+    return <div className="text-center py-6">Loading bookings...</div>;
+  }
   
   if (userBookings.length === 0) {
     return (

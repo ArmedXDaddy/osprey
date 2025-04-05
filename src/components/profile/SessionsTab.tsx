@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { Session, SessionEnrollment } from '@/types';
@@ -23,25 +22,47 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
     getUserSessions, 
     getCoachSessions,
     getUserEnrollments,
-    loading 
+    loading: dataLoading 
   } = useData();
+  
+  const [userSessions, setUserSessions] = useState<Session[]>([]);
+  const [coachSessionsList, setCoachSessionsList] = useState<Session[]>([]);
+  const [userEnrollmentsList, setUserEnrollmentsList] = useState<SessionEnrollment[]>([]);
+  const [loading, setLoading] = useState(true);
   
   const isCoach = isOwnProfile ? currentUser?.role === 'coach' : false;
   
-  // Get sessions data
-  const userEnrollments = getUserEnrollments(userId);
-  const coachSessions = isCoach ? getCoachSessions(userId) : [];
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        
+        if (isCoach) {
+          const coachSessions = await getCoachSessions(userId);
+          setCoachSessionsList(coachSessions);
+        }
+        
+        const enrollments = await getUserEnrollments(userId);
+        setUserEnrollmentsList(enrollments);
+      } catch (error) {
+        console.error("Error fetching sessions data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, [userId, isCoach, getCoachSessions, getUserEnrollments]);
   
-  // Process enrollments to group by status
-  const pendingEnrollments = userEnrollments.filter(e => e.status === 'pending');
-  const approvedEnrollments = userEnrollments.filter(e => e.status === 'approved');
-  const rejectedEnrollments = userEnrollments.filter(e => e.status === 'rejected');
+  const pendingEnrollments = userEnrollmentsList.filter(e => e.status === 'pending');
+  const approvedEnrollments = userEnrollmentsList.filter(e => e.status === 'approved');
+  const rejectedEnrollments = userEnrollmentsList.filter(e => e.status === 'rejected');
   
-  if (loading) {
+  if (loading || dataLoading) {
     return <div className="text-center py-6">Loading...</div>;
   }
   
-  if (!isCoach && userEnrollments.length === 0) {
+  if (!isCoach && userEnrollmentsList.length === 0) {
     return (
       <div className="text-center py-12">
         <User className="h-12 w-12 mx-auto text-gray-300" />
@@ -60,7 +81,7 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
     );
   }
   
-  if (isCoach && coachSessions.length === 0 && userEnrollments.length === 0) {
+  if (isCoach && coachSessionsList.length === 0 && userEnrollmentsList.length === 0) {
     return (
       <div className="text-center py-12">
         <User className="h-12 w-12 mx-auto text-gray-300" />
@@ -93,7 +114,7 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {coachSessions.map(session => (
+            {coachSessionsList.map(session => (
               <CoachSessionCard
                 key={session.id}
                 session={session}
@@ -102,7 +123,7 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
             ))}
           </div>
           
-          {userEnrollments.length > 0 && (
+          {userEnrollmentsList.length > 0 && (
             <div className="mt-8 pt-6 border-t">
               <h3 className="text-lg font-medium mb-4">
                 {isOwnProfile ? "Sessions I'm Enrolled In" : "Sessions Enrolled In"}
