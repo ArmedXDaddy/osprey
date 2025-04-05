@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
-import { UserRole } from '@/types';
+import { UserRole, Service } from '@/types'; // Add Service to imports
 import { Calendar, Users, DollarSign, Award, Star, TrendingUp } from 'lucide-react';
 
 const HomePage = () => {

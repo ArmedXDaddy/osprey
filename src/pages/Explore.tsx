@@ -10,6 +10,7 @@ import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Service } from '@/types';
 
 const Explore = () => {
   const { events, groups, services, loading } = useData();
@@ -17,15 +18,12 @@ const Explore = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   
-  // Get the active tab from URL or default to 'events'
   const activeTab = searchParams.get('tab') || 'events';
   
-  // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
   };
   
-  // Filter items based on search term
   const filteredEvents = events.filter(event => 
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||

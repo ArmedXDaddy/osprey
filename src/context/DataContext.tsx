@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { UserRole, Session, SessionEnrollment, Event, Post, Group, Message, JoinRequest, GroupPrivacy, EventPrivacy, SessionType, SessionStatus, PaymentStatus } from '@/types';
+import { UserRole, Session, SessionEnrollment, Event, Post, Group, Message, JoinRequest, GroupPrivacy, EventPrivacy, SessionType, SessionStatus, PaymentStatus, Service } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
 
 interface DataContextType {
@@ -8,8 +8,9 @@ interface DataContextType {
   sessionEnrollments: SessionEnrollment[];
   posts: Post[];
   groups: Group[];
-  services: Session[];
+  services: Service[];
   loading: boolean;
+  group?: Group;
   
   createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session | null>;
   updateSession: (sessionId: string, updates: Partial<Session>) => Promise<void>;
@@ -45,6 +46,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [posts, setPosts] = useState<Post[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
+  const [group, setGroup] = useState<Group | undefined>(undefined);
 
   useEffect(() => {
     const mockEvents: Event[] = [
@@ -429,8 +431,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     sessionEnrollments,
     posts,
     groups,
-    services: sessions,
+    services: sessions as unknown as Service[],
     loading,
+    group,
     createSession,
     updateSession,
     deleteSession,

@@ -17,10 +17,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useToast } from '@/hooks/use-toast';
+import { Group } from '@/types';
 
 const GroupDetail = () => {
   const { groupId } = useParams<{ groupId: string }>();
-  const { group, getGroupRequests, handleJoinRequest, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails } = useData();
+  const { groups, getGroupRequests, handleJoinRequest, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -28,28 +29,21 @@ const GroupDetail = () => {
   const [isMember, setIsMember] = useState(false);
   const [isPending, setIsPending] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0); // Key to force refresh useEffect
-  
-  const groupData = group || {
-    id: 'group-1',
-    name: 'Fitness Fanatics',
-    description: 'A group for fitness enthusiasts to share tips and motivate each other.',
-    creatorId: 'user-1',
-    creatorName: 'John Doe',
-    creatorRole: 'user',
-    members: 25,
-    privacy: 'public',
-    createdAt: new Date(),
-    image: '/images/group-fitness.jpg',
-  };
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [currentGroup, setCurrentGroup] = useState<Group | null>(null);
   
   useEffect(() => {
-    // Simulate checking membership status
+    if (groupId && groups.length > 0) {
+      const foundGroup = groups.find(g => g.id === groupId) || null;
+      setCurrentGroup(foundGroup);
+    }
+  }, [groupId, groups]);
+  
+  useEffect(() => {
     const checkMembership = async () => {
       setLoading(true);
-      // Replace with actual logic to check if user is a member or has a pending request
-      setIsMember(Math.random() > 0.5); // Mock membership status
-      setIsPending(Math.random() < 0.3); // Mock pending status
+      setIsMember(Math.random() > 0.5);
+      setIsPending(Math.random() < 0.3);
       setLoading(false);
     };
     
@@ -59,6 +53,8 @@ const GroupDetail = () => {
   }, [groupId, refreshKey]);
   
   const handleJoinGroup = async () => {
+    if (!requestToJoinGroup) return;
+    
     try {
       await requestToJoinGroup(groupId);
       toast({
@@ -66,7 +62,6 @@ const GroupDetail = () => {
         description: "Your request to join this group has been sent.",
       });
       
-      // Refresh group data
       setRefreshKey(prev => prev + 1);
     } catch (error: any) {
       toast({
@@ -78,6 +73,8 @@ const GroupDetail = () => {
   };
   
   const handleLeaveGroup = async () => {
+    if (!leaveGroup) return;
+    
     try {
       await leaveGroup(groupId);
       toast({
@@ -85,7 +82,6 @@ const GroupDetail = () => {
         description: "You have left this group.",
       });
       
-      // Refresh group data
       setRefreshKey(prev => prev + 1);
     } catch (error: any) {
       toast({
@@ -96,15 +92,20 @@ const GroupDetail = () => {
     }
   };
   
-  const isCreator = currentUser?.id === groupData?.creatorId;
+  const isCreator = currentUser?.id === currentGroup?.creatorId;
+  
+  if (!currentGroup && !loading) {
+    return <div>Group not found</div>;
+  }
   
   return (
     <div className="container max-w-4xl mx-auto mt-8 space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-2xl font-bold">{groupData?.name || <Skeleton className="h-8 w-40" />}</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {loading ? <Skeleton className="h-8 w-40" /> : currentGroup?.name}
+          </CardTitle>
           
-          {/* Actions Dropdown */}
           {currentUser && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -139,7 +140,7 @@ const GroupDetail = () => {
           {loading ? (
             <Skeleton className="h-4 w-full" />
           ) : (
-            <p>{groupData?.description}</p>
+            <p>{currentGroup?.description}</p>
           )}
           
           <div className="flex items-center space-x-2">
@@ -147,15 +148,15 @@ const GroupDetail = () => {
             {loading ? (
               <Skeleton className="h-5 w-20" />
             ) : (
-              <span>{groupData?.members} members</span>
+              <span>{currentGroup?.members} members</span>
             )}
             
-            {groupData?.privacy === 'private' ? (
+            {currentGroup?.privacy === 'private' ? (
               <Lock className="h-4 w-4 text-gray-500" />
             ) : (
               <LockOpen className="h-4 w-4 text-gray-500" />
             )}
-            <span>{groupData?.privacy}</span>
+            <span>{currentGroup?.privacy}</span>
           </div>
           
           {currentUser && !isCreator && (
