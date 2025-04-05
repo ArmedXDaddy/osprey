@@ -42,7 +42,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ImageGallery from '@/components/profile/ImageGallery';
 import ImageCropper from '@/components/shared/ImageCropper';
 import { cn } from '@/lib/utils';
-import { User, UserRole } from '@/types';
+import { User, UserRole, Post, Group, Event } from '@/types';
 import FollowButton from '@/components/profile/FollowButton';
 import FollowersList from '@/components/profile/FollowersList';
 import { useFollowers } from '@/hooks/useFollowers';
@@ -100,19 +100,19 @@ const Profile = () => {
   const isCurrentUserProfile = isOwnProfile || (profileUser && profileUser.id === currentUser?.id);
   
   const isPostOwner = (post: Post) => 
-    isCurrentUserProfile && (post.authorId === user?.id || post.userId === user?.id);
+    isCurrentUserProfile && (post.authorId === currentUser?.id || post.userId === currentUser?.id);
     
   const isEventAttending = (event: Event) => 
-    Array.isArray(event.attendees) && user && event.attendees.includes(user.id);
+    currentUser && Array.isArray(event.attendees) && currentUser.id && event.attendees.includes(currentUser.id);
     
   const isEventOwner = (event: Event) => 
-    isCurrentUserProfile && event.creatorId === user?.id;
+    isCurrentUserProfile && event.creatorId === currentUser?.id;
     
   const isGroupMember = (group: Group) => 
-    Array.isArray(group.memberIds) && user && group.memberIds.includes(user.id);
+    currentUser && Array.isArray(group.memberIds) && currentUser.id && group.memberIds.includes(currentUser.id);
     
   const isGroupOwner = (group: Group) => 
-    isCurrentUserProfile && group.creatorId === user?.id;
+    isCurrentUserProfile && group.creatorId === currentUser?.id;
 
   useEffect(() => {
     if (currentUser && isOwnProfile) {
