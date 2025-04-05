@@ -411,7 +411,61 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_service_bookings: {
+        Args: {
+          p_service_id: string
+        }
+        Returns: {
+          id: string
+          service_id: string
+          user_id: string
+          user_name: string
+          user_email: string
+          status: string
+          payment_status: string
+          notes: string
+          created_at: string
+        }[]
+      }
+      get_user_booking_for_service: {
+        Args: {
+          p_service_id: string
+          p_user_id: string
+        }
+        Returns: {
+          id: string
+          service_id: string
+          user_id: string
+          user_name: string
+          user_email: string
+          status: string
+          payment_status: string
+          notes: string
+          created_at: string
+        }[]
+      }
+      get_user_bookings: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          id: string
+          service_id: string
+          user_id: string
+          user_name: string
+          user_email: string
+          status: string
+          payment_status: string
+          notes: string
+          created_at: string
+          service_title: string
+          coach_name: string
+          price: number
+          duration: string
+          is_online: boolean
+          service_type: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

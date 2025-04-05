@@ -1,4 +1,5 @@
 
+
 import { supabase } from './client';
 import { Booking } from '@/types';
 
@@ -102,7 +103,7 @@ export const getUserBookings = async (userId: string): Promise<Booking[]> => {
       status: item.status,
       paymentStatus: item.payment_status,
       notes: item.notes || undefined,
-      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
+      preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
       isPaid: item.payment_status === 'paid',
       createdAt: new Date(item.created_at),
@@ -141,7 +142,7 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
       status: item.status,
       paymentStatus: item.payment_status,
       notes: item.notes || undefined,
-      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
+      preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
       isPaid: item.payment_status === 'paid',
       createdAt: new Date(item.created_at)
@@ -183,7 +184,7 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       status: item.status,
       paymentStatus: item.payment_status,
       notes: item.notes || undefined,
-      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
+      preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
       isPaid: item.payment_status === 'paid',
       createdAt: new Date(item.created_at)
