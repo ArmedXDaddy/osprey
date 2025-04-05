@@ -29,6 +29,7 @@ export interface User {
   email: string;
   role: UserRole;
   profileImage?: string;
+  coverImage?: string;
   bio?: string;
   location?: string;
   interests?: string[];
@@ -55,6 +56,7 @@ export interface Post {
   authorId: string;
   authorName: string;
   authorRole: UserRole;
+  authorImage?: string;
   authorProfileImage?: string;
 }
 
@@ -70,6 +72,7 @@ export interface Event {
   meetingUrl?: string;
   startDate: Date;
   endDate?: Date;
+  date?: Date;  // For backward compatibility
   price: number;
   capacity?: number;
   image?: string;
@@ -122,12 +125,12 @@ export interface JoinRequest {
   userProfileImage?: string;
   groupId?: string;
   eventId?: string;
-  status: 'pending' | 'accepted' | 'rejected';
+  status: 'pending' | 'accepted' | 'rejected' | 'approved';
   createdAt: Date;
 }
 
 export type SessionType = 'one_on_one' | 'group';
-export type SessionStatus = 'upcoming' | 'completed' | 'cancelled';
+export type SessionStatus = 'upcoming' | 'completed' | 'cancelled' | 'pending' | 'approved' | 'rejected';
 export type PaymentStatus = 'paid' | 'unpaid' | 'refunded';
 
 export interface Session {
@@ -141,6 +144,8 @@ export interface Session {
     name: string;
     profileImage?: string;
   };
+  coachId?: string;
+  coachName?: string;
   isOnline: boolean;
   meetingUrl?: string;
   location?: string;
@@ -150,8 +155,13 @@ export interface Session {
   isFree: boolean;
   status: SessionStatus;
   type: SessionType;
+  sessionType?: SessionType;
+  capacity?: number;
+  duration?: string;
+  isActive?: boolean;
   image?: string;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 export interface SessionEnrollment {

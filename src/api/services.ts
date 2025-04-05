@@ -186,39 +186,44 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.isFree !== undefined) supabaseData.is_free = serviceData.isFree;
   if (serviceData.coverImage !== undefined) supabaseData.cover_image = serviceData.coverImage;
   
-  const { data, error } = await supabase
-    .from('services')
-    .update(supabaseData)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .update(supabaseData)
+      .eq('id', id)
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error updating service:', error);
+      throw new Error(error.message);
+    }
     
-  if (error) {
-    console.error('Error updating service:', error);
-    throw new Error(error.message);
+    // Return the updated service
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description || '',
+      providerId: data.coach_id,
+      providerName: data.coach_name,
+      price: data.price,
+      duration: data.duration || '1 hour',
+      available: data.is_active,
+      createdAt: new Date(data.created_at),
+      sessionType: data.service_type as 'one_on_one' | 'group',
+      capacity: data.capacity,
+      startTime: data.start_time ? new Date(data.start_time) : undefined,
+      location: data.location,
+      isOnline: data.is_online,
+      meetingUrl: data.meeting_url,
+      image: data.image,
+      isFree: data.is_free,
+      coverImage: data.cover_image,
+    };
+  } catch (error: any) {
+    console.error('Update error:', error);
+    throw error;
   }
-  
-  // Return the updated service
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description || '',
-    providerId: data.coach_id,
-    providerName: data.coach_name,
-    price: data.price,
-    duration: data.duration || '1 hour',
-    available: data.is_active,
-    createdAt: new Date(data.created_at),
-    sessionType: data.service_type as 'one_on_one' | 'group',
-    capacity: data.capacity,
-    startTime: data.start_time ? new Date(data.start_time) : undefined,
-    location: data.location,
-    isOnline: data.is_online,
-    meetingUrl: data.meeting_url,
-    image: data.image,
-    isFree: data.is_free,
-    coverImage: data.cover_image,
-  };
 };
 
 // Delete a service
