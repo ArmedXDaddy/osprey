@@ -1,3 +1,4 @@
+
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -85,6 +86,7 @@ export interface Service {
   duration: string;
   available: boolean;
   createdAt: Date;
+  sessionId?: string; // Added for linking to sessions
 }
 
 export interface Session {
