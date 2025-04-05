@@ -287,15 +287,26 @@ const MOCK_SESSIONS: Session[] = [
     id: 'sess1',
     title: 'Strength Training Fundamentals',
     description: 'Learn proper form and techniques for key strength exercises.',
+    coach: {
+      id: '3',
+      name: 'Alexandra Chen',
+      profileImage: undefined
+    },
     coachId: '3',
     coachName: 'Alexandra Chen',
     sessionType: 'group',
+    type: 'group',
     capacity: 10,
     price: 30,
     duration: '60 min',
     location: 'Fitness Studio, Downtown',
     isOnline: false,
     isActive: true,
+    isFree: false,
+    startTime: new Date('2023-06-10'),
+    endTime: new Date('2023-06-10'),
+    status: 'upcoming',
+    currentAttendees: 0,
     createdAt: new Date('2023-06-10'),
     updatedAt: new Date('2023-06-10')
   },
@@ -303,14 +314,25 @@ const MOCK_SESSIONS: Session[] = [
     id: 'sess2',
     title: 'Personal Training Session',
     description: 'One-on-one training tailored to your specific fitness goals.',
+    coach: {
+      id: '3',
+      name: 'Alexandra Chen',
+      profileImage: undefined
+    },
     coachId: '3',
     coachName: 'Alexandra Chen',
     sessionType: 'one_on_one',
+    type: 'one_on_one',
     price: 75,
     duration: '45 min',
     isOnline: false,
     location: 'Fitness Studio, Downtown',
     isActive: true,
+    isFree: false,
+    startTime: new Date('2023-07-15'),
+    endTime: new Date('2023-07-15'),
+    status: 'upcoming',
+    currentAttendees: 0,
     createdAt: new Date('2023-07-15'),
     updatedAt: new Date('2023-07-15')
   },
@@ -318,15 +340,26 @@ const MOCK_SESSIONS: Session[] = [
     id: 'sess3',
     title: 'Virtual HIIT Workout',
     description: 'High-intensity interval training session conducted via Zoom.',
+    coach: {
+      id: '2',
+      name: 'Sophia Williams',
+      profileImage: undefined
+    },
     coachId: '2',
     coachName: 'Sophia Williams',
     sessionType: 'group',
+    type: 'group',
     capacity: 20,
     price: 15,
     duration: '30 min',
     isOnline: true,
     meetingUrl: 'https://zoom.us/j/example',
     isActive: true,
+    isFree: false,
+    startTime: new Date('2023-05-22'),
+    endTime: new Date('2023-05-22'),
+    status: 'upcoming',
+    currentAttendees: 0,
     createdAt: new Date('2023-05-22'),
     updatedAt: new Date('2023-05-22')
   }
@@ -586,7 +619,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: sessionData.description,
         coach_id: currentUser.id,
         coach_name: currentUser.name,
-        session_type: sessionData.sessionType,
+        session_type: sessionData.sessionType || sessionData.type,
         capacity: sessionData.capacity,
         price: sessionData.price,
         duration: sessionData.duration,
@@ -603,6 +636,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         id: `sess${Date.now()}`,
         coachId: currentUser.id,
         coachName: currentUser.name,
+        coach: {
+          id: currentUser.id,
+          name: currentUser.name,
+          profileImage: currentUser.profileImage
+        },
+        startTime: sessionData.startTime || new Date(),
+        endTime: sessionData.endTime || new Date(),
+        status: 'upcoming',
+        isFree: sessionData.price === 0,
+        currentAttendees: 0,
+        type: sessionData.sessionType || sessionData.type || 'one_on_one',
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -1116,7 +1160,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGroups(prev => 
         prev.map(g => 
           g.id === groupId 
-            ? { ...g, pendingRequests: (g.pendingRequests || 0) + 1 }
+            ? { 
+                ...g, 
+                pendingRequests: (g.pendingRequests || 0) + 1
+              }
             : g
         )
       );

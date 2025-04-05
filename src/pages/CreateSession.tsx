@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -95,15 +94,25 @@ const CreateSession = () => {
         description: data.description,
         coachId: currentUser.id,
         coachName: currentUser.name,
+        coach: {
+          id: currentUser.id,
+          name: currentUser.name,
+          profileImage: currentUser.profileImage
+        },
+        type: data.sessionType,
         sessionType: data.sessionType,
         capacity: data.sessionType === 'group' ? data.capacity : undefined,
         price: data.price,
         duration: data.duration,
-        startTime: data.startTime,
+        startTime: data.startTime || new Date(),
+        endTime: data.startTime ? new Date(data.startTime.getTime() + 60*60*1000) : new Date(),
         location: !data.isOnline ? data.location : undefined,
         isOnline: data.isOnline,
         meetingUrl: data.isOnline ? data.meetingUrl : undefined,
         isActive: data.isActive,
+        isFree: data.price === 0,
+        status: 'upcoming',
+        currentAttendees: 0
       };
       
       const session = await createSession(sessionData);

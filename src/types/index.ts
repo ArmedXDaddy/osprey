@@ -144,8 +144,8 @@ export interface Session {
     name: string;
     profileImage?: string;
   };
-  coachId?: string;
-  coachName?: string;
+  coachId?: string;  // Adding this for backward compatibility
+  coachName?: string; // Adding this for backward compatibility
   isOnline: boolean;
   meetingUrl?: string;
   location?: string;
@@ -155,7 +155,7 @@ export interface Session {
   isFree: boolean;
   status: SessionStatus;
   type: SessionType;
-  sessionType?: SessionType;
+  sessionType?: SessionType; // Adding this for backward compatibility
   capacity?: number;
   duration?: string;
   isActive?: boolean;
