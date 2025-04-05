@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Send } from 'lucide-react';
 import { Service, Booking, Message } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { sendServiceChatMessage, getServiceChatMessages } from '@/integrations/supabase/helpers';
 
 interface ServiceChatProps {
   service: Service;
@@ -18,7 +18,6 @@ interface ServiceChatProps {
 
 const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
   const { currentUser } = useAuth();
-  const { sendServiceMessage, getServiceMessages } = useData();
   const [newMessage, setNewMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -28,13 +27,22 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
   useEffect(() => {
     const fetchMessages = async () => {
       if (service?.id) {
-        const serviceMessages = await getServiceMessages(service.id);
-        setMessages(serviceMessages);
+        try {
+          const serviceMessages = await getServiceChatMessages(service.id);
+          setMessages(serviceMessages);
+        } catch (error: any) {
+          console.error("Failed to load messages:", error);
+          toast({
+            variant: "destructive",
+            title: "Failed to load messages",
+            description: error.message || "There was an error loading messages"
+          });
+        }
       }
     };
     
     fetchMessages();
-  }, [service?.id, getServiceMessages]);
+  }, [service?.id]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -51,14 +59,16 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
     
     try {
       setIsSubmitting(true);
-      await sendServiceMessage({
-        serviceId: service.id,
-        content: newMessage,
-      });
+      await sendServiceChatMessage(
+        service.id,
+        currentUser.id,
+        newMessage
+      );
+      
       setNewMessage('');
       
       // Refetch messages after sending
-      const updatedMessages = await getServiceMessages(service.id);
+      const updatedMessages = await getServiceChatMessages(service.id);
       setMessages(updatedMessages);
     } catch (error: any) {
       console.error("Failed to send message:", error);

@@ -1,6 +1,5 @@
-
 import { supabase } from './client';
-import { Booking, BookingStatus, PaymentStatus } from '@/types';
+import { Booking, BookingStatus, PaymentStatus, Message } from '@/types';
 
 /**
  * Uploads an image to Supabase storage
@@ -252,5 +251,75 @@ export const approveBooking = async (bookingId: string): Promise<void> => {
   } catch (error: any) {
     console.error('Error in approveBooking:', error);
     throw new Error(error.message || 'Failed to approve booking');
+  }
+};
+
+/**
+ * Send a message to a service chat
+ * @param serviceId Service ID to send message to
+ * @param userId User ID sending the message
+ * @param content Message content
+ * @returns ID of the created message
+ */
+export const sendServiceChatMessage = async (
+  serviceId: string,
+  userId: string,
+  content: string
+): Promise<string> => {
+  try {
+    // Using stored procedure to send a message
+    const { data, error } = await supabase.rpc(
+      'send_service_chat_message' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId,
+        p_content: content
+      }
+    );
+
+    if (error) {
+      console.error('Error sending message:', error);
+      throw new Error(error.message || 'Failed to send message');
+    }
+
+    return data as string;
+  } catch (error: any) {
+    console.error('Error in sendServiceChatMessage:', error);
+    throw new Error(error.message || 'Failed to send message');
+  }
+};
+
+/**
+ * Get messages for a service chat
+ * @param serviceId Service ID to get messages for
+ * @returns Array of messages
+ */
+export const getServiceChatMessages = async (serviceId: string): Promise<Message[]> => {
+  try {
+    // Using stored procedure to get messages
+    const { data, error } = await supabase.rpc(
+      'get_service_chat_messages' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId
+      }
+    );
+
+    if (error) {
+      console.error('Error fetching service messages:', error);
+      throw new Error(error.message || 'Failed to fetch messages');
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name,
+      userProfileImage: item.user_profile_image,
+      content: item.content,
+      createdAt: new Date(item.created_at)
+    })) as Message[];
+  } catch (error: any) {
+    console.error('Error in getServiceChatMessages:', error);
+    return [];
   }
 };

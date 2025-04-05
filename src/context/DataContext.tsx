@@ -3,7 +3,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
 import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType } from '@/types';
-import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking } from '@/integrations/supabase/helpers';
+import { 
+  createServiceBooking, 
+  getUserBookings, 
+  getServiceBookings, 
+  getUserBookingForService, 
+  cancelBooking, 
+  approveBooking,
+  sendServiceChatMessage,
+  getServiceChatMessages
+} from '@/integrations/supabase/helpers';
 
 // Create the context with undefined as default
 interface DataContextType {
@@ -256,6 +265,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     // Implementation
   };
   
+  const sendServiceChatMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to send a service chat message');
+    // Implementation
+  };
+  
+  const getServiceChatMessages = async (serviceId: string): Promise<Message[]> => {
+    return [];
+  };
+  
   // ----------------------------------------
   // Service Functions
   // ----------------------------------------
@@ -435,6 +453,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
     return [];
+  };
+  
+  const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
+    try {
+      return await getUserBookingForService(serviceId, userId);
+    } catch (err: any) {
+      console.error("Error fetching user booking for service:", err);
+      return null;
+    }
   };
   
   const fetchUserServices = async (userId: string): Promise<Service[]> => {

@@ -340,6 +340,44 @@ export type Database = {
           },
         ]
       }
+      service_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          service_id: string
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          service_id: string
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          service_id?: string
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_messages_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       services: {
         Row: {
           capacity: number | null
@@ -427,6 +465,20 @@ export type Database = {
           created_at: string
         }[]
       }
+      get_service_chat_messages: {
+        Args: {
+          p_service_id: string
+        }
+        Returns: {
+          id: string
+          service_id: string
+          user_id: string
+          user_name: string
+          user_profile_image: string
+          content: string
+          created_at: string
+        }[]
+      }
       get_user_booking_for_service: {
         Args: {
           p_service_id: string
@@ -465,6 +517,14 @@ export type Database = {
           is_online: boolean
           service_type: string
         }[]
+      }
+      send_service_chat_message: {
+        Args: {
+          p_service_id: string
+          p_user_id: string
+          p_content: string
+        }
+        Returns: string
       }
     }
     Enums: {
