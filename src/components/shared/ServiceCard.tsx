@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Service, ServiceBooking } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,6 +60,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       if (!service.isFree && service.price > 0) {
         setShowPaymentModal(true);
       } else {
+        console.log("Booking free service with ID:", service.id);
         const newBooking = await bookService(service.id);
         if (newBooking) {
           setLocalIsEnrolled(true);
@@ -88,7 +90,9 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       
       console.log("Payment successful, booking service with ID:", service.id);
       
+      // Pass the serviceId and isPaid=true to bookService
       const newBooking = await bookService(service.id, true);
+      console.log("Booking result:", newBooking);
       
       if (newBooking) {
         setLocalIsEnrolled(true);
@@ -98,6 +102,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
           title: "Booking successful",
           description: "Your payment was processed and your service has been booked",
         });
+      } else {
+        throw new Error("Booking failed after payment");
       }
     } catch (error) {
       logError('Error booking after payment', error);

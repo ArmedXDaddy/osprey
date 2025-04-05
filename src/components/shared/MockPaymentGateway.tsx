@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   Dialog,
@@ -83,7 +84,11 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
           // Log service information for debugging
           console.log("Payment successful for service:", { serviceId, serviceName, amount });
           
-          // Show success toast first
+          // Call the onPaymentSuccess callback - this needs to happen while the dialog is still open
+          // This comes BEFORE showing the toast to ensure the callback executes before any UI updates
+          onPaymentSuccess();
+          
+          // Show success toast after callback has been triggered
           toast({
             title: "Payment successful",
             description: `Your payment of $${amount.toFixed(2)} for ${serviceName} has been processed.`,
@@ -91,9 +96,6 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
           
           // Reset form
           resetForm();
-          
-          // Call the onPaymentSuccess callback - this needs to happen while the dialog is still open
-          onPaymentSuccess();
           
           // Close dialog after a short delay to allow the success callback to complete
           setTimeout(() => {

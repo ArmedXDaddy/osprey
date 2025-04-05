@@ -80,7 +80,6 @@ export const fetchServiceById = async (id: string): Promise<Service | null> => {
 
 export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 'providerName' | 'providerId'>): Promise<Service> => {
   try {
-    // Get current user data to use as provider
     const { data: userData } = await supabase.auth.getUser();
     if (!userData?.user) {
       throw new Error('User not authenticated');
@@ -224,7 +223,6 @@ export const deleteService = async (id: string): Promise<void> => {
   }
 };
 
-// Fetch service enrollments
 export const fetchServiceEnrollments = async (serviceId: string): Promise<any[]> => {
   try {
     const { data, error } = await supabase
@@ -258,7 +256,6 @@ export const fetchServiceEnrollments = async (serviceId: string): Promise<any[]>
   }
 };
 
-// Update enrollment status
 export const updateEnrollmentStatus = async (enrollmentId: string, status: string): Promise<void> => {
   try {
     const { error } = await supabase
@@ -276,8 +273,10 @@ export const updateEnrollmentStatus = async (enrollmentId: string, status: strin
   }
 };
 
-export const bookService = async (serviceId: string, isPaid: boolean = false): Promise<void> => {
+export const bookService = async (serviceId: string, isPaid: boolean = false): Promise<any> => {
   try {
+    console.log("bookService called with:", { serviceId, isPaid });
+    
     const { data: service, error: serviceError } = await supabase
       .from('services')
       .select('*')
@@ -290,10 +289,12 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
     }
     
     if (!service) {
+      console.error('Service not found with ID:', serviceId);
       throw new Error('Service not found');
     }
     
-    // Get current user data
+    console.log("Service found:", service);
+    
     const { data: user, error: userError } = await supabase.auth.getUser();
     
     if (userError) {
@@ -302,8 +303,11 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
     }
     
     if (!user?.user) {
+      console.error('User not found in auth');
       throw new Error('User not found');
     }
+    
+    console.log("User found:", user.user.id);
     
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -317,15 +321,17 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
     }
     
     if (!profile) {
+      console.error('Profile not found for user:', user.user.id);
       throw new Error('Profile not found');
     }
     
-    // For a paid service that's been paid, auto-approve booking
-    // For free services, set the status to pending (requiring approval)
+    console.log("Profile found:", profile);
+    
     const enrollmentStatus = isPaid ? 'approved' : 'pending';
     const paymentStatus = isPaid ? 'paid' : 'unpaid';
     
-    // First, check if the user already has a booking for this service
+    console.log("Setting status:", { enrollmentStatus, paymentStatus });
+    
     const { data: existingBooking, error: existingBookingError } = await supabase
       .from('service_enrollments')
       .select('*')
@@ -338,32 +344,65 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
       throw new Error(existingBookingError.message);
     }
     
-    // If there's already a booking, update it if needed
     if (existingBooking) {
-      // If the existing booking status is lower priority than the new one, update it
+      console.log("Existing booking found:", existingBooking);
+      
       if (
         (existingBooking.status === 'pending' && enrollmentStatus === 'approved') ||
         (existingBooking.payment_status === 'unpaid' && paymentStatus === 'paid')
       ) {
-        const { error: updateError } = await supabase
+        console.log("Updating existing booking");
+        
+        const { data: updatedBooking, error: updateError } = await supabase
           .from('service_enrollments')
           .update({
             status: enrollmentStatus,
             payment_status: paymentStatus
           })
-          .eq('id', existingBooking.id);
+          .eq('id', existingBooking.id)
+          .select('*')
+          .single();
           
         if (updateError) {
           console.error('Error updating booking:', updateError);
           throw new Error(updateError.message);
         }
+        
+        console.log("Booking updated successfully:", updatedBooking);
+        
+        if (updatedBooking) {
+          return {
+            id: updatedBooking.id,
+            serviceId: updatedBooking.service_id,
+            userId: updatedBooking.user_id,
+            userName: updatedBooking.user_name,
+            userEmail: updatedBooking.user_email,
+            userProfileImage: updatedBooking.user_profile_image,
+            status: updatedBooking.status,
+            paymentStatus: updatedBooking.payment_status,
+            amount: updatedBooking.amount,
+            createdAt: new Date(updatedBooking.created_at),
+          };
+        }
       }
       
-      return; // Exit as the booking already exists
+      return {
+        id: existingBooking.id,
+        serviceId: existingBooking.service_id,
+        userId: existingBooking.user_id,
+        userName: existingBooking.user_name,
+        userEmail: existingBooking.user_email,
+        userProfileImage: existingBooking.user_profile_image,
+        status: existingBooking.status,
+        paymentStatus: existingBooking.payment_status,
+        amount: existingBooking.amount,
+        createdAt: new Date(existingBooking.created_at),
+      };
     }
     
-    // Otherwise, create a new booking
-    const { error } = await supabase
+    console.log("Creating new booking");
+    
+    const { data: newBooking, error } = await supabase
       .from('service_enrollments')
       .insert({
         service_id: serviceId,
@@ -374,12 +413,34 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
         status: enrollmentStatus,
         payment_status: paymentStatus,
         amount: service.price,
-      });
+      })
+      .select('*')
+      .single();
       
     if (error) {
       console.error('Error booking service:', error);
       throw new Error(error.message);
     }
+    
+    console.log("New booking created:", newBooking);
+    
+    if (!newBooking) {
+      console.error('No booking data returned after insert');
+      throw new Error('Failed to create booking');
+    }
+    
+    return {
+      id: newBooking.id,
+      serviceId: newBooking.service_id,
+      userId: newBooking.user_id,
+      userName: newBooking.user_name,
+      userEmail: newBooking.user_email,
+      userProfileImage: newBooking.user_profile_image,
+      status: newBooking.status,
+      paymentStatus: newBooking.payment_status,
+      amount: newBooking.amount,
+      createdAt: new Date(newBooking.created_at),
+    };
   } catch (error) {
     console.error('Error in bookService:', error);
     throw error;
