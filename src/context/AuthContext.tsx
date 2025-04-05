@@ -1,79 +1,61 @@
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '@/types';
-import { Session } from '@supabase/supabase-js';
-import { Json } from '@/integrations/supabase/types';
-
-// Helper function to safely convert Json to a Record object
-const jsonToRecord = (json: Json | null): Record<string, string> | undefined => {
-  if (!json || typeof json !== 'object' || Array.isArray(json)) {
-    return undefined;
-  }
-  return json as Record<string, string>;
-};
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   currentUser: User | null;
-  session: Session | null;
   isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<{ error: any }>;
-  register: (email: string, password: string, userData: Partial<User>) => Promise<{ error: any }>;
-  logout: () => Promise<void>;
-  signOut: () => Promise<void>; // alias for logout for backward compatibility
+  error: Error | null;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
-  session: null,
   isLoading: true,
-  isAuthenticated: false,
-  login: async () => ({ error: null }),
-  register: async () => ({ error: null }),
-  logout: async () => {},
+  error: null,
+  signIn: async () => {},
+  signUp: async () => {},
   signOut: async () => {}
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // Get initial session
-    const initializeAuth = async () => {
+    // Check for existing session
+    const checkSession = async () => {
       try {
-        setIsLoading(true);
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         
-        // Get current session
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        if (sessionError) {
+          throw sessionError;
+        }
         
-        if (currentSession) {
-          setSession(currentSession);
-          
-          // Fetch user profile data
-          const { data: profile } = await supabase
+        if (session?.user) {
+          // Fetch user profile
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', currentSession.user.id)
+            .eq('id', session.user.id)
             .single();
-            
+          
+          if (profileError) {
+            throw profileError;
+          }
+          
           if (profile) {
-            // Properly handle social_links as a potential JSON object
-            const socialLinksObj = jsonToRecord(profile.social_links);
-            
-            const user: User = {
+            setCurrentUser({
               id: profile.id,
               name: profile.name,
               email: profile.email,
-              role: profile.role as UserRole,
+              role: profile.role,
               profileImage: profile.profile_image,
               bio: profile.bio,
               location: profile.location,
@@ -81,134 +63,142 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               following: profile.following,
               followers: profile.followers,
               verified: profile.verified,
-              socialLinks: socialLinksObj ? {
-                instagram: socialLinksObj.instagram,
-                twitter: socialLinksObj.twitter,
-                website: socialLinksObj.website
-              } : undefined,
+              socialLinks: profile.social_links,
               createdAt: new Date(profile.created_at)
-            };
-            setCurrentUser(user);
+            });
           }
         }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+        console.error('Auth error:', err);
       } finally {
         setIsLoading(false);
       }
     };
     
-    initializeAuth();
+    checkSession();
     
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, newSession) => {
-        setSession(newSession);
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        // Fetch user profile
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
         
-        if (newSession) {
-          try {
-            // Fetch user profile data
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', newSession.user.id)
-              .single();
-              
-            if (profile) {
-              // Properly handle social_links as a potential JSON object
-              const socialLinksObj = jsonToRecord(profile.social_links);
-              
-              const user: User = {
-                id: profile.id,
-                name: profile.name,
-                email: profile.email,
-                role: profile.role as UserRole,
-                profileImage: profile.profile_image,
-                bio: profile.bio,
-                location: profile.location,
-                interests: profile.interests,
-                following: profile.following,
-                followers: profile.followers,
-                verified: profile.verified,
-                socialLinks: socialLinksObj ? {
-                  instagram: socialLinksObj.instagram,
-                  twitter: socialLinksObj.twitter,
-                  website: socialLinksObj.website
-                } : undefined,
-                createdAt: new Date(profile.created_at)
-              };
-              setCurrentUser(user);
-            }
-          } catch (error) {
-            console.error('Error fetching user profile:', error);
-          }
-        } else {
-          setCurrentUser(null);
+        if (profileError) {
+          setError(profileError);
+          return;
         }
+        
+        if (profile) {
+          setCurrentUser({
+            id: profile.id,
+            name: profile.name,
+            email: profile.email,
+            role: profile.role,
+            profileImage: profile.profile_image,
+            bio: profile.bio,
+            location: profile.location,
+            interests: profile.interests,
+            following: profile.following,
+            followers: profile.followers,
+            verified: profile.verified,
+            socialLinks: profile.social_links,
+            createdAt: new Date(profile.created_at)
+          });
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
       }
-    );
+    });
     
     return () => {
       subscription.unsubscribe();
     };
   }, []);
   
-  const login = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      return { error };
-    } catch (error) {
-      console.error('Error during login:', error);
-      return { error };
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  const register = async (email: string, password: string, userData: Partial<User>) => {
+  const signUp = async (email: string, password: string, name: string, role: UserRole) => {
     try {
+      setIsLoading(true);
+      setError(null);
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name: userData.name,
-            role: userData.role || 'user'
+            name,
+            role
           }
         }
       });
       
-      return { error };
-    } catch (error) {
-      console.error('Error during registration:', error);
-      return { error };
+      if (error) {
+        throw error;
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        throw error;
+      }
+      
+      setCurrentUser(null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
+      throw err;
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setCurrentUser(null);
-    setSession(null);
+  const value = {
+    currentUser,
+    isLoading,
+    error,
+    signIn,
+    signUp,
+    signOut
   };
   
-  // Alias for logout for backward compatibility
-  const signOut = logout;
-  
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        session,
-        isLoading,
-        isAuthenticated: !!currentUser,
-        login,
-        register,
-        logout,
-        signOut
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
