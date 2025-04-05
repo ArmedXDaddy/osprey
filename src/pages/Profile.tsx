@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -943,4 +944,69 @@ const Profile = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">{isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.</
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="events" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userEvents.length > 0 ? (
+            <div className="space-y-4">
+              {userEvents.map(event => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} participated in any events yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="groups" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userGroups.length > 0 ? (
+            <div className="space-y-4">
+              {userGroups.map(group => (
+                <GroupCard key={group.id} group={group} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="services" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userServices.length > 0 ? (
+            <div className="space-y-4">
+              {userServices.map(service => (
+                <ServiceCard key={service.id} service={service} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any services yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default Profile;
