@@ -3,7 +3,7 @@ import React from 'react';
 import { Service } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, DollarSign, Users, MapPin, Video } from 'lucide-react';
+import { Clock, DollarSign, Users, MapPin, Video, Image } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 
@@ -18,6 +18,20 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
 }) => {
   return (
     <Card className="h-full flex flex-col">
+      {service.coverImage ? (
+        <div className="relative w-full h-36 overflow-hidden rounded-t-lg">
+          <img 
+            src={service.coverImage} 
+            alt={service.title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="w-full h-36 bg-gray-100 flex items-center justify-center rounded-t-lg">
+          <Image className="h-12 w-12 text-gray-300" />
+        </div>
+      )}
+      
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
@@ -31,7 +45,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({
       </CardHeader>
       
       <CardContent className="pb-2 flex-grow">
-        <p className="text-gray-700 text-sm mb-4">{service.description}</p>
+        <p className="text-gray-700 text-sm mb-4 line-clamp-2">{service.description}</p>
         
         <div className="space-y-2">
           <div className="flex items-center gap-1">
