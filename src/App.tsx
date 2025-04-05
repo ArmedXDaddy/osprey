@@ -40,26 +40,35 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-            <MainLayout>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/explore" element={<Explore />} />
-                <Route path="/networking" element={<Networking />} />
-                <Route path="/events" element={<Events />} />
-                <Route path="/events/:id" element={<EventDetail />} />
-                <Route path="/create-event" element={<CreateEvent />} />
-                <Route path="/groups" element={<Groups />} />
-                <Route path="/groups/:id" element={<GroupDetail />} />
-                <Route path="/create-group" element={<CreateGroup />} />
-                <Route path="/sessions" element={<Sessions />} />
-                <Route path="/sessions/:id" element={<SessionDetail />} />
-                <Route path="/sessions/create" element={<CreateSession />} />
-                <Route path="/sessions/:id/manage" element={<ManageSession />} />
-                <Route path="/services" element={<Services />} />
-                <Route path="/services/:id" element={<ServiceDetail />} />
-                <Route path="/services/create" element={<CreateService />} />
-              </Routes>
-            </MainLayout>
+            <Routes>
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/auth/register" element={<Register />} />
+              <Route path="*" element={
+                <MainLayout>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/explore" element={<Explore />} />
+                    <Route path="/networking" element={<Networking />} />
+                    <Route path="/events" element={<Events />} />
+                    <Route path="/events/:id" element={<EventDetail />} />
+                    <Route path="/create-event" element={<CreateEvent />} />
+                    <Route path="/groups" element={<Groups />} />
+                    <Route path="/groups/:id" element={<GroupDetail />} />
+                    <Route path="/create-group" element={<CreateGroup />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/profile/:id" element={<Profile />} />
+                    <Route path="/sessions" element={<Sessions />} />
+                    <Route path="/sessions/:id" element={<SessionDetail />} />
+                    <Route path="/sessions/create" element={<CreateSession />} />
+                    <Route path="/sessions/:id/manage" element={<ManageSession />} />
+                    <Route path="/services" element={<Services />} />
+                    <Route path="/services/:id" element={<ServiceDetail />} />
+                    <Route path="/services/create" element={<CreateService />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </MainLayout>
+              } />
+            </Routes>
           </BrowserRouter>
         </DataProvider>
       </AuthProvider>

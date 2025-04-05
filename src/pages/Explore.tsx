@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -8,7 +9,6 @@ import { Search, Users } from 'lucide-react';
 import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
-import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 const Explore = () => {
@@ -87,7 +87,7 @@ const Explore = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredEvents.map(event => (
                 <Link to={`/events/${event.id}`} key={event.id}>
-                  <EventCard key={event.id} event={event} />
+                  <EventCard event={event} />
                 </Link>
               ))}
             </div>
@@ -109,7 +109,7 @@ const Explore = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredGroups.map(group => (
                 <Link to={`/groups/${group.id}`} key={group.id}>
-                  <GroupCard key={group.id} group={group} />
+                  <GroupCard group={group} />
                 </Link>
               ))}
             </div>
@@ -130,7 +130,9 @@ const Explore = () => {
           ) : filteredServices.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredServices.map(service => (
-                <ServiceCard key={service.id} service={service} />
+                <Link to={`/services/${service.id}`} key={service.id}>
+                  <ServiceCard service={service} />
+                </Link>
               ))}
             </div>
           ) : (

@@ -5,7 +5,7 @@ import { Post } from '@/types';
 // Fetch posts by user ID - using mock data for now
 export const fetchPostsByUserId = async (userId: string): Promise<Post[]> => {
   try {
-    // For now, we'll return mock data since the posts table doesn't exist in Supabase yet
+    // Mock data since posts table doesn't exist in Supabase yet
     return [
       {
         id: '1',

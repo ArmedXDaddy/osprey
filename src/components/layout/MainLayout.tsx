@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -28,7 +29,7 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { currentUser, isLoading, logout } = useAuth();
+  const { currentUser, isLoading, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -42,7 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout failed:', error);
