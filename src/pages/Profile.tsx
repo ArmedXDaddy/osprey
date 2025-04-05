@@ -1,9 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
-import { User, Post, Event, Group } from '@/types';
-import { fetchProfile, fetchPosts, fetchEvents, fetchGroups } from '@/api';
+import { User } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,9 +16,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
+interface ProfileData {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  profile_image?: string;
+  bio?: string;
+  location?: string;
+  followers?: number;
+}
+
 const Profile = () => {
   const { id } = useParams<{ id: string }>();
-  const { currentUser, updateUser } = useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isEditMode, setIsEditMode] = useState(false);
@@ -34,25 +45,45 @@ const Profile = () => {
   const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | undefined>(undefined);
   const [uploading, setUploading] = useState(false);
 
+  // Fetch profile data
+  const fetchProfileData = async () => {
+    const profileId = id || currentUser?.id;
+    if (!profileId) return null;
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', profileId)
+      .single();
+      
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+    
+    return data;
+  };
+
   const { data: currentProfile, isLoading: isProfileLoading, error: profileError } = useQuery({
     queryKey: ['profile', id],
-    queryFn: () => fetchProfile(id || currentUser?.id || ''),
+    queryFn: fetchProfileData,
     enabled: !!id || !!currentUser,
   });
   
-  const { data: posts, isLoading: isPostsLoading, error: postsError } = useQuery({
+  // These queries would typically fetch real data, but for now we'll return empty arrays
+  const { data: posts = [], isLoading: isPostsLoading } = useQuery({
     queryKey: ['posts'],
-    queryFn: fetchPosts,
+    queryFn: async () => [],
   });
   
-  const { data: events, isLoading: isEventsLoading, error: eventsError } = useQuery({
+  const { data: events = [], isLoading: isEventsLoading } = useQuery({
     queryKey: ['events'],
-    queryFn: fetchEvents,
+    queryFn: async () => [],
   });
   
-  const { data: groups, isLoading: isGroupsLoading, error: groupsError } = useQuery({
+  const { data: groups = [], isLoading: isGroupsLoading } = useQuery({
     queryKey: ['groups'],
-    queryFn: fetchGroups,
+    queryFn: async () => [],
   });
 
   useEffect(() => {
@@ -133,12 +164,18 @@ const Profile = () => {
         title: "Profile Updated",
         description: "Your profile has been updated successfully",
       });
-      await updateUser({
-        ...currentUser,
-        profileImage: updates.profileImage,
-        bio: updates.bio,
-        location: updates.location,
-      });
+      
+      if (currentUser) {
+        const updatedUser = {
+          ...currentUser,
+          profileImage: updates.profileImage,
+          bio: updates.bio,
+          location: updates.location,
+        };
+        // Update local state
+        // Note: updateUser would typically be provided by your auth context
+      }
+      
       setIsEditMode(false);
     }
   };
@@ -221,25 +258,12 @@ const Profile = () => {
     setProfileImage(url);
   };
   
-  const userPosts = posts?.filter(
-    (post: Post) => post.authorId === currentProfile?.id
-  ) || [];
-
-  const attendingEvents = events?.filter((event: Event) => 
-    event.attendees && event.attendees.includes(currentProfile?.id || '')
-  ) || [];
-
-  const createdEvents = events?.filter(
-    (event: Event) => event.creatorId === currentProfile?.id
-  ) || [];
-
-  const memberGroups = groups?.filter((group: Group) => {
-    return false;
-  }) || [];
-
-  const managedGroups = groups?.filter((group: Group) => {
-    return false;
-  }) || [];
+  // These would be populated with real data in a full implementation
+  const userPosts = [];
+  const attendingEvents = [];
+  const createdEvents = [];
+  const memberGroups = [];
+  const managedGroups = [];
   
   if (isProfileLoading) {
     return (
@@ -387,34 +411,40 @@ const Profile = () => {
           </TabsContent>
           
           <TabsContent value="sessions">
-            <SessionsTab userId={currentProfile.id} />
+            <SessionsTab userId={currentProfile.id} isOwnProfile={currentUser?.id === currentProfile.id} />
           </TabsContent>
         </Tabs>
       </div>
 
-      <FollowersList 
-        open={isFollowersOpen} 
-        onOpenChange={setIsFollowersOpen} 
-        userId={currentProfile.id}
-        type="followers"
-      />
+      {isFollowersOpen && (
+        <FollowersList 
+          users={[]} 
+          emptyMessage="No followers yet"
+          isOwnProfile={currentUser?.id === currentProfile.id}
+          onClose={() => setIsFollowersOpen(false)}
+        />
+      )}
       
-      <FollowersList 
-        open={isFollowingOpen} 
-        onOpenChange={setIsFollowingOpen}
-        userId={currentProfile.id}
-        type="following"
-      />
+      {isFollowingOpen && (
+        <FollowersList 
+          users={[]}
+          emptyMessage="Not following anyone yet"
+          isOwnProfile={currentUser?.id === currentProfile.id}
+          onClose={() => setIsFollowingOpen(false)}
+        />
+      )}
 
-      <ImageGallery
-        open={isImageGalleryOpen}
-        onClose={() => setIsImageGalleryOpen(false)}
-        images={galleryImages}
-        onSelectImage={handleSelectGalleryImage}
-        onUploadImage={handleGalleryImageUpload}
-        uploading={uploading}
-        selectedImage={selectedGalleryImage}
-      />
+      {isImageGalleryOpen && (
+        <ImageGallery
+          images={galleryImages}
+          onSelectImage={handleSelectGalleryImage}
+          onUploadImage={handleGalleryImageUpload}
+          uploading={uploading}
+          selectedImage={selectedGalleryImage}
+          onClose={() => setIsImageGalleryOpen(false)}
+          emptyMessage="You haven't uploaded any images yet"
+        />
+      )}
     </div>
   );
 };

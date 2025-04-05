@@ -1,3 +1,4 @@
+
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -27,7 +28,7 @@ export const fetchServices = async (): Promise<Service[]> => {
     createdAt: new Date(item.created_at),
     sessionType: item.service_type as 'one_on_one' | 'group',
     capacity: item.capacity,
-    startTime: undefined, // The database doesn't have start_time field
+    startTime: item.start_time ? new Date(item.start_time) : undefined,
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
@@ -63,7 +64,7 @@ export const fetchServiceById = async (id: string): Promise<Service> => {
     createdAt: new Date(data.created_at),
     sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: undefined, // The database doesn't have start_time field
+    startTime: data.start_time ? new Date(data.start_time) : undefined,
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
@@ -99,7 +100,7 @@ export const fetchServicesByProviderId = async (providerId: string): Promise<Ser
     createdAt: new Date(item.created_at),
     sessionType: item.service_type as 'one_on_one' | 'group',
     capacity: item.capacity,
-    startTime: undefined, // The database doesn't have start_time field
+    startTime: item.start_time ? new Date(item.start_time) : undefined,
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
@@ -122,6 +123,7 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     is_active: true,
     service_type: serviceData.sessionType,
     capacity: serviceData.capacity,
+    start_time: serviceData.startTime,
     is_online: serviceData.isOnline,
     location: serviceData.location,
     meeting_url: serviceData.meetingUrl,
@@ -154,7 +156,7 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     createdAt: new Date(data.created_at),
     sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: undefined, // The database doesn't have start_time field
+    startTime: data.start_time ? new Date(data.start_time) : undefined,
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
@@ -176,6 +178,7 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.available !== undefined) supabaseData.is_active = serviceData.available;
   if (serviceData.sessionType !== undefined) supabaseData.service_type = serviceData.sessionType;
   if (serviceData.capacity !== undefined) supabaseData.capacity = serviceData.capacity;
+  if (serviceData.startTime !== undefined) supabaseData.start_time = serviceData.startTime;
   if (serviceData.location !== undefined) supabaseData.location = serviceData.location;
   if (serviceData.isOnline !== undefined) supabaseData.is_online = serviceData.isOnline;
   if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;
@@ -208,7 +211,7 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
     createdAt: new Date(data.created_at),
     sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: undefined, // The database doesn't have start_time field
+    startTime: data.start_time ? new Date(data.start_time) : undefined,
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
@@ -234,7 +237,7 @@ export const deleteService = async (id: string): Promise<void> => {
     }
     
     console.log('Service deleted successfully');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Deletion error:', error);
     throw error;
   }
