@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link, ImageIcon } from 'lucide-react';
-import { fetchServiceById, bookService, deleteService, updateService } from '@/api/services';
+import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link, ImageIcon, Check } from 'lucide-react';
+import { fetchServiceById, bookService, deleteService, updateService, checkBookingStatus } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,11 +37,21 @@ const ServiceDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
 
   const { data: service, isLoading, error, refetch } = useQuery({
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
+  });
+  
+  const { data: bookingStatus, isLoading: isLoadingBookingStatus } = useQuery({
+    queryKey: ['booking-status', id, currentUser?.id],
+    queryFn: () => checkBookingStatus(id as string, currentUser?.id as string),
+    enabled: !!id && !!currentUser?.id,
   });
   
   const bookServiceMutation = useMutation({
@@ -43,6 +61,8 @@ const ServiceDetail = () => {
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
+      refetch();
+      setIsPaymentModalOpen(false);
     },
     onError: (error) => {
       toast({
@@ -114,6 +134,16 @@ const ServiceDetail = () => {
   const handleBookService = () => {
     if (!currentUser || !service) return;
     
+    if (service.price > 0) {
+      setIsPaymentModalOpen(true);
+    } else {
+      processBooking();
+    }
+  };
+  
+  const processBooking = () => {
+    if (!currentUser || !service) return;
+    
     bookServiceMutation.mutate({
       serviceId: service.id,
       userId: currentUser.id,
@@ -121,6 +151,19 @@ const ServiceDetail = () => {
       userEmail: currentUser.email,
       userProfileImage: currentUser.profileImage,
     });
+  };
+  
+  const handleProcessPayment = () => {
+    if (cardNumber.length < 16 || cardExpiry.length < 5 || cardCvc.length < 3) {
+      toast({
+        title: "Invalid Card Details",
+        description: "Please enter valid card information",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    processBooking();
   };
   
   const handleEditService = () => {
@@ -142,6 +185,7 @@ const ServiceDetail = () => {
   };
   
   const isOwner = currentUser?.id === service?.providerId;
+  const isAlreadyBooked = bookingStatus?.isBooked;
   
   if (isLoading) {
     return (
@@ -314,24 +358,102 @@ const ServiceDetail = () => {
                 
                 <Button 
                   className="w-full mt-6" 
-                  disabled={!service.available || isOwner || bookServiceMutation.isPending}
+                  disabled={!service?.available || isOwner || bookServiceMutation.isPending || isAlreadyBooked}
                   onClick={handleBookService}
                 >
                   {isOwner 
                     ? 'You own this service' 
-                    : !service.available 
+                    : !service?.available 
                       ? 'Currently Unavailable'
-                      : bookServiceMutation.isPending 
-                        ? 'Processing...' 
-                        : bookServiceMutation.isSuccess
-                          ? 'Booked Successfully'
-                          : 'Book Now'}
+                      : isAlreadyBooked
+                        ? 'Already Booked'
+                        : bookServiceMutation.isPending 
+                          ? 'Processing...' 
+                          : bookServiceMutation.isSuccess
+                            ? 'Booked Successfully'
+                            : 'Book Now'}
                 </Button>
+                
+                {isAlreadyBooked && (
+                  <div className="flex items-center justify-center gap-2 text-green-600">
+                    <Check className="h-4 w-4" />
+                    <span>You've already booked this service</span>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+      
+      <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Payment</DialogTitle>
+            <DialogDescription>
+              Enter your payment details to book this service.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="cardNumber" className="text-sm font-medium">Card Number</label>
+              <Input 
+                id="cardNumber" 
+                placeholder="1234 5678 9012 3456" 
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="expiry" className="text-sm font-medium">Expiry Date</label>
+                <Input 
+                  id="expiry" 
+                  placeholder="MM/YY" 
+                  value={cardExpiry}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    if (val.length <= 2) {
+                      setCardExpiry(val);
+                    } else if (val.length <= 4) {
+                      setCardExpiry(`${val.slice(0, 2)}/${val.slice(2)}`);
+                    }
+                  }}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="cvc" className="text-sm font-medium">CVC</label>
+                <Input 
+                  id="cvc" 
+                  placeholder="123" 
+                  value={cardCvc}
+                  onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                />
+              </div>
+            </div>
+            
+            <div className="pt-4 font-semibold text-lg flex justify-between">
+              <span>Total:</span>
+              <span>${service?.price || 0}</span>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleProcessPayment}
+              disabled={bookServiceMutation.isPending}
+            >
+              {bookServiceMutation.isPending ? "Processing..." : "Pay Now"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
