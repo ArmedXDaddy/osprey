@@ -855,3 +855,342 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       toast({
         title: "Authentication required",
         description: "Please log in to join this event",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    const event = events.find(e => e.id === eventId);
+    if (!event) return false;
+
+    if (event.privacy === 'paid') {
+      toast({
+        title: "Paid ticket required",
+        description: `This event requires a payment of $${event.price} to join`,
+      });
+      return false;
+    }
+
+    if (event.privacy === 'private') {
+      return requestToJoinEvent(eventId).then(() => false);
+    }
+
+    try {
+      if (event.attendees.includes(currentUser.id)) {
+        toast({
+          title: "Already attending",
+          description: "You are already registered for this event",
+        });
+        return true;
+      }
+
+      const updatedAttendees = [...event.attendees, currentUser.id];
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId ? { ...e, attendees: updatedAttendees } : e
+        )
+      );
+      
+      toast({
+        title: "Success!",
+        description: `You've registered for ${event.title}`,
+      });
+      
+      return true;
+    } catch (error: any) {
+      console.error('Error joining event:', error);
+      toast({
+        title: "Error joining event",
+        description: error.message,
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const leaveEvent = async (eventId: string) => {
+    if (!currentUser) return;
+
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) return;
+      
+      const updatedAttendees = event.attendees.filter(id => id !== currentUser.id);
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId ? { ...e, attendees: updatedAttendees } : e
+        )
+      );
+      
+      toast({
+        title: "You left the event",
+        description: "You have been removed from the attendee list",
+      });
+    } catch (error: any) {
+      console.error('Error leaving event:', error);
+      toast({
+        title: "Error leaving event",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const requestToJoinEvent = async (eventId: string) => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to request joining this event",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const event = events.find(e => e.id === eventId);
+    if (!event) return;
+
+    try {
+      const requestData = {
+        event_id: eventId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_profile_image: currentUser.profileImage,
+        status: 'pending'
+      };
+      
+      const newRequest: JoinRequest = {
+        id: `jr${Date.now()}`,
+        eventId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userProfileImage: currentUser.profileImage,
+        status: 'pending',
+        createdAt: new Date()
+      };
+      
+      setJoinRequests(prev => [...prev, newRequest]);
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId ? { ...e, pendingRequests: (e.pendingRequests || 0) + 1 } : e
+        )
+      );
+      
+      toast({
+        title: "Request sent",
+        description: "Your request to join this event is pending approval",
+      });
+    } catch (error: any) {
+      console.error('Error requesting to join event:', error);
+      toast({
+        title: "Error requesting to join event",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    const request = joinRequests.find(r => r.id === requestId);
+    if (!request || !request.eventId) return;
+
+    try {
+      setJoinRequests(prev => 
+        prev.map(r => 
+          r.id === requestId ? { ...r, status } : r
+        )
+      );
+      
+      if (status === 'approved') {
+        const event = events.find(e => e.id === request.eventId);
+        if (!event) return;
+        
+        const updatedAttendees = [...event.attendees, request.userId];
+        
+        setEvents(prevEvents => 
+          prevEvents.map(e => 
+            e.id === request.eventId ? 
+              { 
+                ...e, 
+                attendees: updatedAttendees,
+                pendingRequests: (e.pendingRequests || 0) - 1
+              } : e
+          )
+        );
+        
+        toast({
+          title: "Request approved",
+          description: `${request.userName} has been added to the event`,
+        });
+      } else {
+        setEvents(prevEvents => 
+          prevEvents.map(e => 
+            e.id === request.eventId ? 
+              { 
+                ...e, 
+                pendingRequests: Math.max((e.pendingRequests || 0) - 1, 0)
+              } : e
+          )
+        );
+        
+        toast({
+          title: "Request rejected",
+          description: `${request.userName}'s request has been rejected`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error handling event join request:', error);
+      toast({
+        title: "Error handling join request",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const getEventRequests = (eventId: string) => {
+    return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string) => {
+    try {
+      const group = groups.find(g => g.id === groupId);
+      if (!group) return;
+      
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', groupId)
+        .eq('user_id', userId);
+      
+      if (error) {
+        console.error('Error removing group member:', error);
+        toast({
+          title: "Error removing member",
+          description: error.message,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ members: Math.max(group.members - 1, 0) })
+        .eq('id', groupId);
+      
+      if (updateError) {
+        console.error('Error updating group members count:', updateError);
+      }
+      
+      setGroups(prevGroups => 
+        prevGroups.map(g => 
+          g.id === groupId ? { ...g, members: Math.max(g.members - 1, 0) } : g
+        )
+      );
+      
+      toast({
+        title: "Member removed",
+        description: "The member has been removed from the group",
+      });
+    } catch (error: any) {
+      console.error('Error removing group member:', error);
+      toast({
+        title: "Error removing member",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const updateGroupDetails = async (groupId: string, groupData: Partial<Group>) => {
+    try {
+      const group = groups.find(g => g.id === groupId);
+      if (!group) {
+        throw new Error('Group not found');
+      }
+
+      const supabaseGroupData = {
+        name: groupData.name !== undefined ? groupData.name : group.name,
+        description: groupData.description !== undefined ? groupData.description : group.description,
+        privacy: groupData.privacy !== undefined ? groupData.privacy : group.privacy,
+        price: (groupData.privacy === 'paid' || group.privacy === 'paid') ? 
+               (groupData.price !== undefined ? groupData.price : group.price) : null,
+        image: groupData.image !== undefined ? groupData.image : group.image,
+        rules: groupData.rules !== undefined ? groupData.rules : group.rules,
+        member_limit: groupData.memberLimit !== undefined ? groupData.memberLimit : group.memberLimit
+      };
+      
+      const { error } = await supabase
+        .from('groups')
+        .update(supabaseGroupData)
+        .eq('id', groupId);
+      
+      if (error) {
+        console.error('Error updating group:', error);
+        throw new Error(error.message);
+      }
+      
+      setGroups(prevGroups => 
+        prevGroups.map(g => 
+          g.id === groupId ? { ...g, ...groupData } : g
+        )
+      );
+      
+      toast({
+        title: "Group updated",
+        description: "Group details have been updated successfully",
+      });
+    } catch (error: any) {
+      console.error('Error updating group:', error);
+      toast({
+        title: "Error updating group",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  const value = {
+    posts,
+    events,
+    groups,
+    services,
+    messages,
+    joinRequests,
+    loading,
+    createPost,
+    createEvent,
+    createGroup,
+    createService,
+    likePost,
+    sendMessage,
+    getGroupMessages,
+    joinGroup,
+    leaveGroup,
+    requestToJoinGroup,
+    handleJoinRequest,
+    getGroupRequests,
+    joinEvent,
+    leaveEvent,
+    requestToJoinEvent,
+    handleEventJoinRequest,
+    getEventRequests,
+    removeGroupMember,
+    updateGroupDetails
+  };
+
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
+};
+
+export const useData = () => {
+  const context = useContext(DataContext);
+  if (context === undefined) {
+    throw new Error('useData must be used within a DataProvider');
+  }
+  return context;
+};
+
+export default DataContext;
