@@ -91,14 +91,17 @@ const CreateService = () => {
 
       // Create service
       const newService = await createService(serviceData);
+      console.log("Service created successfully:", newService);
       
       toast({
         title: "Service created successfully!",
         description: "Your service has been created."
       });
       
+      // Ensure we're navigating to the correct ID
       navigate(`/services/${newService.id}`);
     } catch (err: any) {
+      console.error("Error creating service:", err);
       toast({
         variant: "destructive",
         title: "Error creating service",

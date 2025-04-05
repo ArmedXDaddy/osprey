@@ -704,7 +704,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getServiceById = async (serviceId: string): Promise<Service> => {
-    const service = mockServices.find(s => s.id === serviceId);
+    console.log("Looking for service with ID:", serviceId);
+    const service = services.find(s => s.id === serviceId);
+    console.log("Found service:", service);
     if (!service) {
       throw new Error("Service not found");
     }
@@ -761,12 +763,16 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to create a service');
     if (currentUser.role !== 'coach') throw new Error('Only coaches can create services');
 
+    const newId = generateId();
+    console.log("Creating service with ID:", newId);
+    
     const newService: Service = {
-      id: generateId(),
+      id: newId,
       ...serviceData,
       createdAt: new Date(),
     };
 
+    console.log("New service created:", newService);
     setServices(prevServices => [...prevServices, newService]);
     return newService;
   };

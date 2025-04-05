@@ -35,9 +35,11 @@ const ServiceDetail = () => {
       
       try {
         setLoading(true);
+        console.log("Fetching service with ID:", id);
         const serviceData = await getServiceById(id);
         
         if (!serviceData) {
+          console.error("Service not found for ID:", id);
           toast({
             variant: "destructive",
             title: "Service not found",
@@ -47,6 +49,7 @@ const ServiceDetail = () => {
           return;
         }
         
+        console.log("Service data retrieved:", serviceData);
         setService(serviceData);
         
         // Check if user has already booked this service
@@ -58,11 +61,13 @@ const ServiceDetail = () => {
           setHasBooked(!!existingBooking);
         }
       } catch (error: any) {
+        console.error("Error loading service:", error);
         toast({
           variant: "destructive",
           title: "Error loading service",
           description: error.message || "There was an error loading this service."
         });
+        navigate('/services');
       } finally {
         setLoading(false);
       }
