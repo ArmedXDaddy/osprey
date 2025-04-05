@@ -42,7 +42,7 @@ import { supabase } from '@/integrations/supabase/client';
 import ImageGallery from '@/components/profile/ImageGallery';
 import ImageCropper from '@/components/shared/ImageCropper';
 import { cn } from '@/lib/utils';
-import { User, UserRole, Post, Group, Event } from '@/types';
+import { User, UserRole } from '@/types';
 import FollowButton from '@/components/profile/FollowButton';
 import FollowersList from '@/components/profile/FollowersList';
 import { useFollowers } from '@/hooks/useFollowers';
@@ -97,23 +97,6 @@ const Profile = () => {
     currentUser?.id
   );
   
-  const isCurrentUserProfile = isOwnProfile || (profileUser && profileUser.id === currentUser?.id);
-  
-  const isPostOwner = (post: Post) => 
-    isCurrentUserProfile && (post.authorId === currentUser?.id || post.userId === currentUser?.id);
-    
-  const isEventAttending = (event: Event) => 
-    currentUser && Array.isArray(event.attendees) && currentUser.id && event.attendees.includes(currentUser.id);
-    
-  const isEventOwner = (event: Event) => 
-    isCurrentUserProfile && event.creatorId === currentUser?.id;
-    
-  const isGroupMember = (group: Group) => 
-    currentUser && Array.isArray(group.memberIds) && currentUser.id && group.memberIds.includes(currentUser.id);
-    
-  const isGroupOwner = (group: Group) => 
-    isCurrentUserProfile && group.creatorId === currentUser?.id;
-
   useEffect(() => {
     if (currentUser && isOwnProfile) {
       setProfileForm({

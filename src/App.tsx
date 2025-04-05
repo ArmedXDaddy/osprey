@@ -26,11 +26,6 @@ import Sessions from "./pages/Sessions";
 import SessionDetail from "./pages/SessionDetail";
 import CreateSession from "./pages/CreateSession";
 import ManageSession from "./pages/ManageSession";
-// Add new service pages
-import Services from "./pages/Services";
-import ServiceDetail from "./pages/ServiceDetail";
-import CreateService from "./pages/CreateService";
-import EditService from "./pages/EditService";
 
 const queryClient = new QueryClient();
 
@@ -57,11 +52,6 @@ const App = () => (
                 <Route path="/sessions/:id" element={<SessionDetail />} />
                 <Route path="/sessions/create" element={<CreateSession />} />
                 <Route path="/sessions/:id/manage" element={<ManageSession />} />
-                {/* Add new service routes */}
-                <Route path="/services" element={<Services />} />
-                <Route path="/services/:id" element={<ServiceDetail />} />
-                <Route path="/services/create" element={<CreateService />} />
-                <Route path="/services/:id/edit" element={<EditService />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />
