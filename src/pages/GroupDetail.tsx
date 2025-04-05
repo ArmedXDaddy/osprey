@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -64,26 +63,18 @@ const GroupDetail = () => {
   const [removeMemberDialogOpen, setRemoveMemberDialogOpen] = useState(false);
   const [memberToRemove, setMemberToRemove] = useState<string | null>(null);
 
-  // Find the group
   const group = groups.find(g => g.id === id);
 
-  // Check if user has joined the group
   useEffect(() => {
     if (group && currentUser) {
-      // In a real app, you would check if the user is in the members list
-      // For this mock app, we'll just set a dummy state
       const hasJoined = group.creatorId === currentUser.id || Math.random() > 0.5;
       setJoined(hasJoined);
     }
   }, [group, currentUser]);
 
-  // Group events
   const groupEvents = events.filter(event => event.creatorId === group?.creatorId);
-
-  // Group posts
   const groupPosts = posts.filter(post => post.userId === group?.creatorId);
 
-  // Get pending requests for this group (if the user is the creator)
   const isCreator = group?.creatorId === currentUser?.id;
   const pendingRequests = isCreator && group ? getGroupRequests(group.id) : [];
 
@@ -93,10 +84,8 @@ const GroupDetail = () => {
     if (group.privacy === 'private') {
       await requestToJoinGroup(group.id);
     } else {
-      const success = await joinGroup(group.id);
-      if (success) {
-        setJoined(true);
-      }
+      await joinGroup(group.id);
+      setJoined(true);
     }
   };
 
@@ -108,7 +97,6 @@ const GroupDetail = () => {
 
   const handleNotificationToggle = () => {
     setNotifications(!notifications);
-    // In a real app, this would update user preferences
   };
 
   const handleRemoveMember = async (userId: string) => {
@@ -137,8 +125,7 @@ const GroupDetail = () => {
     }
   };
 
-  // Check if user can access restricted content
-  const canAccessRestrictedContent = isCreator || joined;
+  const canAccessRestrictedContent = Boolean(isCreator || joined);
 
   if (loading) {
     return (
@@ -183,11 +170,33 @@ const GroupDetail = () => {
         return <Globe className="h-3 w-3 mr-1" />;
     }
   };
-  
+
+  const renderChatTab = () => {
+    if (!canAccessRestrictedContent) {
+      return (
+        <div className="text-center py-12">
+          <Lock className="h-12 w-12 mx-auto text-gray-300" />
+          <h3 className="mt-4 text-lg font-medium">Chat is only available to members</h3>
+          <p className="text-gray-500 mb-4">
+            {group?.privacy === 'private' 
+              ? 'Request to join this group to participate in the chat' 
+              : group?.privacy === 'paid' 
+                ? `Subscribe for $${group?.price}/month to join the conversation`
+                : 'Join this group to participate in the chat'}
+          </p>
+          <Button onClick={handleJoinGroup}>
+            {group?.privacy === 'private' ? 'Request to Join' : group?.privacy === 'paid' ? `Join ($${group?.price}/month)` : 'Join Group'}
+          </Button>
+        </div>
+      );
+    }
+    
+    return group ? <GroupChatSection group={group} /> : null;
+  };
+
   return (
     <>
       <div className="space-y-6">
-        {/* Back button */}
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate('/groups')}>
             <ChevronLeft className="h-4 w-4 mr-1" />
@@ -230,7 +239,6 @@ const GroupDetail = () => {
           </div>
         </div>
         
-        {/* Cover image */}
         <div className="rounded-xl overflow-hidden relative">
           <img 
             src={group.image || 'https://images.unsplash.com/photo-1576678927484-cc907957088c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'} 
@@ -261,7 +269,6 @@ const GroupDetail = () => {
           </div>
         </div>
         
-        {/* Group actions */}
         <div className="flex flex-wrap gap-2">
           {!isCreator && !joined && (
             <Button 
@@ -319,7 +326,6 @@ const GroupDetail = () => {
           )}
         </div>
         
-        {/* Group info with tabs */}
         <Card>
           <Tabs defaultValue="about" className="w-full">
             <TabsList className="grid grid-cols-5 w-full">
@@ -388,7 +394,6 @@ const GroupDetail = () => {
                   </div>
                   
                   <div className="space-y-4">
-                    {/* Group creator */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <Avatar>
@@ -403,7 +408,6 @@ const GroupDetail = () => {
                       <Badge variant="outline">Admin</Badge>
                     </div>
                     
-                    {/* Mock members (in a real app, these would be real members) */}
                     {Array.from({ length: 2 }).map((_, i) => (
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -493,30 +497,12 @@ const GroupDetail = () => {
             </TabsContent>
             
             <TabsContent value="chat" className="p-6">
-              {canAccessRestrictedContent ? (
-                <GroupChatSection groupId={group.id} />
-              ) : (
-                <div className="text-center py-12">
-                  <Lock className="h-12 w-12 mx-auto text-gray-300" />
-                  <h3 className="mt-4 text-lg font-medium">Chat is only available to members</h3>
-                  <p className="text-gray-500 mb-4">
-                    {group.privacy === 'private' 
-                      ? 'Request to join this group to participate in the chat' 
-                      : group.privacy === 'paid' 
-                        ? `Subscribe for $${group.price}/month to join the conversation`
-                        : 'Join this group to participate in the chat'}
-                  </p>
-                  <Button onClick={handleJoinGroup}>
-                    {group.privacy === 'private' ? 'Request to Join' : group.privacy === 'paid' ? `Join ($${group.price}/month)` : 'Join Group'}
-                  </Button>
-                </div>
-              )}
+              {renderChatTab()}
             </TabsContent>
           </Tabs>
         </Card>
       </div>
       
-      {/* Edit Group Dialog */}
       {group && editDialogOpen && (
         <EditGroupForm
           group={group}
@@ -525,7 +511,6 @@ const GroupDetail = () => {
         />
       )}
       
-      {/* Remove Member Confirmation Dialog */}
       <AlertDialog open={removeMemberDialogOpen} onOpenChange={setRemoveMemberDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -13,7 +13,8 @@ import {
   Booking,
   ServiceType,
   BookingStatus,
-  PaymentStatus
+  PaymentStatus,
+  SessionStatus
 } from '@/types';
 import { useAuth } from './AuthContext';
 
@@ -95,16 +96,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Helper function to generate IDs
   const generateId = () => uuidv4();
 
-  // Fetch initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // In a real app, you would fetch data from an API here
-        // For now, we'll use mock data
         setPosts(mockPosts);
         setEvents(mockEvents);
         setGroups(mockGroups);
@@ -123,7 +120,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     fetchData();
   }, []);
 
-  // Posts
   const createPost = async (content: string, image?: string): Promise<Post> => {
     if (!currentUser) throw new Error('You must be logged in to create a post');
 
@@ -160,7 +156,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  // Events
   const createEvent = async (eventData: Omit<Event, 'id' | 'creatorId' | 'creatorName' | 'creatorRole' | 'attendees' | 'createdAt'>): Promise<Event> => {
     if (!currentUser) throw new Error('You must be logged in to create an event');
 
@@ -209,12 +204,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!event) throw new Error('Event not found');
 
     if (event.privacy === 'public') {
-      // If the event is public, join directly
       await joinEvent(eventId);
       return;
     }
 
-    // Check if a request already exists
     const existingRequest = joinRequests.find(
       req => req.eventId === eventId && req.userId === currentUser.id
     );
@@ -232,7 +225,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     setJoinRequests(prevRequests => [...prevRequests, newRequest]);
 
-    // Update event pending requests count
     setEvents(prevEvents =>
       prevEvents.map(event =>
         event.id === eventId
@@ -247,14 +239,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!request) throw new Error('Request not found');
     if (!request.eventId) throw new Error('Invalid request: no event ID');
 
-    // Update request status
     setJoinRequests(prevRequests =>
       prevRequests.map(req =>
         req.id === requestId ? { ...req, status: 'approved' } : req
       )
     );
 
-    // Add user to event attendees
     setEvents(prevEvents =>
       prevEvents.map(event =>
         event.id === request.eventId
@@ -273,14 +263,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!request) throw new Error('Request not found');
     if (!request.eventId) throw new Error('Invalid request: no event ID');
 
-    // Update request status
     setJoinRequests(prevRequests =>
       prevRequests.map(req =>
         req.id === requestId ? { ...req, status: 'rejected' } : req
       )
     );
 
-    // Decrease pending requests count
     setEvents(prevEvents =>
       prevEvents.map(event =>
         event.id === request.eventId
@@ -290,14 +278,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  // Get event requests
-  const getEventRequests = (eventId: string) => {
+  const getEventRequests = (eventId: string): JoinRequest[] => {
     return joinRequests.filter(
       request => request.eventId === eventId && request.status === 'pending'
     );
   };
 
-  // Handle event join request (approve or reject)
   const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
     if (status === 'approved') {
       await approveEventRequest(requestId);
@@ -306,7 +292,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Groups
   const createGroup = async (groupData: Omit<Group, 'id' | 'creatorId' | 'creatorName' | 'creatorRole' | 'members' | 'createdAt'>): Promise<Group> => {
     if (!currentUser) throw new Error('You must be logged in to create a group');
 
@@ -372,12 +357,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!group) throw new Error('Group not found');
 
     if (group.privacy === 'public') {
-      // If the group is public, join directly
       await joinGroup(groupId);
       return;
     }
 
-    // Check if a request already exists
     const existingRequest = joinRequests.find(
       req => req.groupId === groupId && req.userId === currentUser.id
     );
@@ -395,7 +378,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     setJoinRequests(prevRequests => [...prevRequests, newRequest]);
 
-    // Update group pending requests count
     setGroups(prevGroups =>
       prevGroups.map(group =>
         group.id === groupId
@@ -410,14 +392,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!request) throw new Error('Request not found');
     if (!request.groupId) throw new Error('Invalid request: no group ID');
 
-    // Update request status
     setJoinRequests(prevRequests =>
       prevRequests.map(req =>
         req.id === requestId ? { ...req, status: 'approved' } : req
       )
     );
 
-    // Add user to group members
     setGroups(prevGroups =>
       prevGroups.map(group => {
         if (group.id === request.groupId) {
@@ -439,14 +419,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!request) throw new Error('Request not found');
     if (!request.groupId) throw new Error('Invalid request: no group ID');
 
-    // Update request status
     setJoinRequests(prevRequests =>
       prevRequests.map(req =>
         req.id === requestId ? { ...req, status: 'rejected' } : req
       )
     );
 
-    // Decrease pending requests count
     setGroups(prevGroups =>
       prevGroups.map(group =>
         group.id === request.groupId
@@ -456,7 +434,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  // Handle group join request (approve or reject)
+  const getGroupRequests = (groupId: string): JoinRequest[] => {
+    return joinRequests.filter(
+      request => request.groupId === groupId && request.status === 'pending'
+    );
+  };
+
   const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
     if (status === 'approved') {
       await approveGroupRequest(requestId);
@@ -465,14 +448,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Remove group member
   const removeGroupMember = async (groupId: string, memberId: string) => {
     if (!currentUser) throw new Error('You must be logged in to remove a group member');
 
     const group = groups.find(g => g.id === groupId);
     if (!group) throw new Error('Group not found');
 
-    // Check if user is the group creator
     if (group.creatorId !== currentUser.id) {
       throw new Error('Only the group creator can remove members');
     }
@@ -494,7 +475,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  // Update group details
   const updateGroupDetails = async (groupId: string, details: Partial<Group>): Promise<Group> => {
     if (!currentUser) throw new Error('You must be logged in to update a group');
 
@@ -503,7 +483,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     const group = groups[groupIndex];
     
-    // Check if user is the group creator
     if (group.creatorId !== currentUser.id) {
       throw new Error('Only the group creator can update the group details');
     }
@@ -518,7 +497,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return updatedGroup;
   };
 
-  // Sessions
   const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>): Promise<Session> => {
     if (!currentUser) throw new Error('You must be logged in to create a session');
     if (currentUser.role !== 'coach') throw new Error('Only coaches can create sessions');
@@ -541,14 +519,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!session) throw new Error('Session not found');
     if (!session.isActive) throw new Error('This session is not currently active');
 
-    // Check if user is already enrolled
     const existingEnrollment = sessionEnrollments.find(
       e => e.sessionId === sessionId && e.userId === currentUser.id
     );
     if (existingEnrollment) throw new Error('You are already enrolled in this session');
 
-    // For one-on-one sessions, enrollment requires approval
-    // For group sessions, check capacity
     if (session.sessionType === 'group' && session.capacity) {
       const currentEnrollments = sessionEnrollments.filter(
         e => e.sessionId === sessionId && e.status !== 'rejected'
@@ -580,7 +555,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
     if (!enrollment) throw new Error('Enrollment not found');
 
-    // Only the enrolled user or the session coach can cancel an enrollment
     const session = sessions.find(s => s.id === enrollment.sessionId);
     if (!session) throw new Error('Session not found');
 
@@ -588,7 +562,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error('You do not have permission to cancel this enrollment');
     }
 
-    // Remove the enrollment
     setSessionEnrollments(prevEnrollments =>
       prevEnrollments.filter(e => e.id !== enrollmentId)
     );
@@ -600,7 +573,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
     if (!enrollment) throw new Error('Enrollment not found');
 
-    // Only the session coach can approve an enrollment
     const session = sessions.find(s => s.id === enrollment.sessionId);
     if (!session) throw new Error('Session not found');
 
@@ -608,7 +580,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error('Only the session coach can approve enrollments');
     }
 
-    // Update enrollment status
     setSessionEnrollments(prevEnrollments =>
       prevEnrollments.map(e =>
         e.id === enrollmentId ? { ...e, status: 'approved' } : e
@@ -622,7 +593,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
     if (!enrollment) throw new Error('Enrollment not found');
 
-    // Only the session coach can reject an enrollment
     const session = sessions.find(s => s.id === enrollment.sessionId);
     if (!session) throw new Error('Session not found');
 
@@ -630,7 +600,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       throw new Error('Only the session coach can reject enrollments');
     }
 
-    // Update enrollment status
     setSessionEnrollments(prevEnrollments =>
       prevEnrollments.map(e =>
         e.id === enrollmentId ? { ...e, status: 'rejected' } : e
@@ -639,7 +608,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getUserSessions = (userId: string): Session[] => {
-    // Get all sessions where the user is enrolled
     const userEnrollmentSessionIds = sessionEnrollments
       .filter(e => e.userId === userId)
       .map(e => e.sessionId);
@@ -648,16 +616,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const getCoachSessions = (coachId: string): Session[] => {
-    // Get all sessions created by the coach
     return sessions.filter(session => session.coachId === coachId);
   };
 
   const getUserEnrollments = (userId: string): SessionEnrollment[] => {
-    // Get all enrollments for the user
     return sessionEnrollments.filter(enrollment => enrollment.userId === userId);
   };
 
-  // Update session
   const updateSession = async (sessionId: string, data: Partial<Session>): Promise<Session> => {
     if (!currentUser) throw new Error('You must be logged in to update a session');
 
@@ -666,7 +631,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     const session = sessions[sessionIndex];
     
-    // Check if user is the session coach
     if (session.coachId !== currentUser.id) {
       throw new Error('Only the session coach can update the session');
     }
@@ -681,7 +645,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return updatedSession;
   };
 
-  // Update enrollment status
   const updateEnrollmentStatus = async (enrollmentId: string, status: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update an enrollment');
 
@@ -690,11 +653,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
     const enrollment = sessionEnrollments[enrollmentIndex];
 
-    // Get the session to check permissions
     const session = sessions.find(s => s.id === enrollment.sessionId);
     if (!session) throw new Error('Session not found');
 
-    // Check if user is the session coach
     if (session.coachId !== currentUser.id) {
       throw new Error('Only the session coach can update enrollment status');
     }
@@ -706,7 +667,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  // Messages
   const sendMessage = async (
     groupId: string,
     content: string,
@@ -718,7 +678,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     const group = groups.find(g => g.id === groupId);
     if (!group) throw new Error('Group not found');
 
-    // Check if user is a member of the group
     const memberIds = group.memberIds || [];
     if (!memberIds.includes(currentUser.id)) {
       throw new Error('You must be a member of the group to send messages');
@@ -740,8 +699,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setMessages(prevMessages => [...prevMessages, newMessage]);
     return newMessage;
   };
-  
-  // Get service by ID
+
   const getServiceById = async (serviceId: string): Promise<Service> => {
     const service = mockServices.find(s => s.id === serviceId);
     if (!service) {
@@ -749,16 +707,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
     return service;
   };
-  
-  // Book a service
+
   const bookService = async (serviceId: string, isPaid: boolean): Promise<Booking> => {
-    // Check if service exists
     const service = await getServiceById(serviceId);
     if (!service) {
       throw new Error("Service not found");
     }
-    
-    // Create new booking
+
     const newBooking: Booking = {
       id: generateId(),
       serviceId,
@@ -770,41 +725,35 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       isPaid,
       createdAt: new Date(),
     };
-    
-    // Add to bookings state
+
     setBookings(prev => [...prev, newBooking]);
-    
+
     return newBooking;
   };
-  
-  // Cancel a booking
+
   const cancelBooking = async (bookingId: string): Promise<void> => {
     const bookingIndex = bookings.findIndex(b => b.id === bookingId);
     if (bookingIndex === -1) {
       throw new Error("Booking not found");
     }
-    
-    // Update booking status
+
     const updatedBookings = [...bookings];
     updatedBookings[bookingIndex] = {
       ...updatedBookings[bookingIndex],
       status: 'cancelled'
     };
-    
+
     setBookings(updatedBookings);
   };
-  
-  // Get user's bookings
+
   const getUserBookings = (userId: string): Booking[] => {
     return bookings.filter(booking => booking.userId === userId);
   };
-  
-  // Get service bookings
+
   const getServiceBookings = (serviceId: string): Booking[] => {
     return bookings.filter(booking => booking.serviceId === serviceId);
   };
 
-  // Mock data
   const mockPosts: Post[] = [
     {
       id: '1',
@@ -1100,12 +1049,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         loading,
         error,
         
-        // Posts
         createPost,
         likePost,
         unlikePost,
         
-        // Events
         createEvent,
         joinEvent,
         leaveEvent,
@@ -1115,7 +1062,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         getEventRequests,
         handleEventJoinRequest,
         
-        // Groups
         createGroup,
         joinGroup,
         leaveGroup,
@@ -1127,7 +1073,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         removeGroupMember,
         updateGroupDetails,
         
-        // Sessions
         createSession,
         enrollInSession,
         cancelEnrollment,
@@ -1139,10 +1084,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         updateSession,
         updateEnrollmentStatus,
         
-        // Messages
         sendMessage,
         
-        // Services
         getServiceById,
         bookService,
         cancelBooking,
