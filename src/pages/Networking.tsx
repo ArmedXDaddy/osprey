@@ -90,28 +90,36 @@ const Networking = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        let query = supabase
-          .from('profiles')
-          .select('*');
+        // We need to use the REST API directly instead of the typed client
+        // since the types are not updated with our new profiles table
+        const url = `https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles`;
+        
+        let queryParams = new URLSearchParams();
+        queryParams.append('select', '*');
         
         // Only fetch users who are influencers, coaches, or companies
         if (activeTab !== 'all') {
-          query = query.eq('role', activeTab);
+          queryParams.append('role', 'eq.' + activeTab);
         } else {
-          query = query.in('role', ['influencer', 'coach', 'company']);
+          queryParams.append('role', 'in.(influencer,coach,company)');
         }
         
-        const { data, error } = await query;
+        const response = await fetch(`${url}?${queryParams.toString()}`, {
+          method: 'GET',
+          headers: {
+            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ',
+            'Content-Type': 'application/json'
+          }
+        });
         
-        if (error) {
-          console.error('Error fetching users:', error);
-          toast({
-            title: "Error fetching users",
-            description: error.message,
-            variant: "destructive"
-          });
-        } else if (data) {
-          const formattedUsers: User[] = data.map(user => ({
+        if (!response.ok) {
+          throw new Error(`Error fetching profiles: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data) {
+          const formattedUsers: User[] = data.map((user: any) => ({
             id: user.id,
             name: user.name || 'Unknown User',
             email: user.email || '',
