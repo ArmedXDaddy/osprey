@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { 
   User, 
@@ -81,6 +81,9 @@ interface DataContextType {
   createService: (serviceData: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
   updateService: (serviceId: string, data: Partial<Service>) => Promise<Service>;
   deleteService: (serviceId: string) => Promise<void>;
+  
+  // Method to approve a booking
+  approveBooking: (bookingId: string) => Promise<Booking>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -1099,6 +1102,25 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     },
   ];
 
+  const approveBooking = useCallback(async (bookingId: string) => {
+    try {
+      const bookingIndex = bookings.findIndex(b => b.id === bookingId);
+      if (bookingIndex === -1) throw new Error("Booking not found");
+      
+      const updatedBookings = [...bookings];
+      updatedBookings[bookingIndex] = {
+        ...updatedBookings[bookingIndex],
+        status: 'approved'
+      };
+      
+      setBookings(updatedBookings);
+      return updatedBookings[bookingIndex];
+    } catch (error) {
+      console.error("Error approving booking:", error);
+      throw error;
+    }
+  }, [bookings]);
+
   return (
     <DataContext.Provider
       value={{
@@ -1157,7 +1179,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         getServiceBookings,
         createService,
         updateService,
-        deleteService
+        deleteService,
+        
+        approveBooking
       }}
     >
       {children}

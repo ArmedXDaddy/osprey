@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -16,18 +15,20 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Service } from '@/types';
+import { Service, Booking } from '@/types';
 import PaymentModal from '@/components/payment/PaymentModal';
+import ServiceChatAccess from '@/components/service/ServiceChatAccess';
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, getUserBookings } = useData();
+  const { getServiceById, getUserBookings, getUserBookingForService } = useData();
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [hasBooked, setHasBooked] = useState(false);
+  const [userBooking, setUserBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     const fetchServiceDetails = async () => {
@@ -54,11 +55,9 @@ const ServiceDetail = () => {
         
         // Check if user has already booked this service
         if (currentUser) {
-          const userBookings = getUserBookings(currentUser.id);
-          const existingBooking = userBookings.find(
-            booking => booking.serviceId === id && ['pending', 'approved'].includes(booking.status)
-          );
-          setHasBooked(!!existingBooking);
+          const booking = getUserBookingForService(currentUser.id, id);
+          setUserBooking(booking || null);
+          setHasBooked(!!booking);
         }
       } catch (error: any) {
         console.error("Error loading service:", error);
@@ -74,7 +73,7 @@ const ServiceDetail = () => {
     };
     
     fetchServiceDetails();
-  }, [id, currentUser, getServiceById, getUserBookings, navigate]);
+  }, [id, currentUser, getServiceById, getUserBookings, getUserBookingForService, navigate]);
 
   const handleBook = () => {
     if (!currentUser) {
@@ -92,6 +91,12 @@ const ServiceDetail = () => {
 
   const handleBookingSuccess = () => {
     setHasBooked(true);
+    
+    // Refresh booking data
+    if (currentUser && id) {
+      const booking = getUserBookingForService(currentUser.id, id);
+      setUserBooking(booking || null);
+    }
   };
 
   const isProvider = currentUser && service && currentUser.id === service.providerId;
@@ -166,7 +171,9 @@ const ServiceDetail = () => {
                   {service.price > 0 ? `$${service.price}` : 'Free'}
                 </Badge>
                 <Badge variant="outline">
-                  {service.serviceType === 'one_on_one' ? '1-on-1' : 'Group'}
+                  {service.serviceType === 'one_on_one' ? '1-on-1' : 
+                   service.serviceType === 'group' ? 'Group' : 
+                   service.serviceType === 'webinar' ? 'Webinar' : 'Course'}
                 </Badge>
                 <Badge variant="outline">
                   {service.isOnline ? 'Online' : 'In-person'}
@@ -193,12 +200,10 @@ const ServiceDetail = () => {
                   </div>
                 )}
                 
-                {service.capacity && (
+                {service.capacity && service.capacity > 1 && (
                   <div className="flex items-center">
                     <Users className="h-5 w-5 text-gray-500 mr-2" />
-                    <span>
-                      {service.capacity === 1 ? '1-on-1 Session' : `Group (up to ${service.capacity})`}
-                    </span>
+                    <span>Group (up to {service.capacity})</span>
                   </div>
                 )}
                 
@@ -215,6 +220,13 @@ const ServiceDetail = () => {
                 <p className="text-gray-700 whitespace-pre-line">{service.description}</p>
               </div>
             </div>
+            
+            {currentUser && !isProvider && hasBooked && (
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold mb-3">Service Chat</h3>
+                <ServiceChatAccess service={service} booking={userBooking} />
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-1">
@@ -230,7 +242,11 @@ const ServiceDetail = () => {
                   <div className="mt-2 space-y-3">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Type:</span>
-                      <span>{service.serviceType === 'one_on_one' ? 'One-on-One' : 'Group'}</span>
+                      <span>
+                        {service.serviceType === 'one_on_one' ? 'One-on-One' : 
+                         service.serviceType === 'group' ? 'Group' : 
+                         service.serviceType === 'webinar' ? 'Webinar' : 'Course'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Duration:</span>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -35,7 +34,7 @@ const ManageService = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, getServiceBookings, cancelBooking } = useData();
+  const { getServiceById, getServiceBookings, cancelBooking, approveBooking } = useData();
   const [service, setService] = useState<Service | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +58,6 @@ const ManageService = () => {
           return;
         }
         
-        // Check if user is authorized to manage this service
         if (currentUser?.id !== serviceData.providerId) {
           toast({
             variant: "destructive",
@@ -72,7 +70,6 @@ const ManageService = () => {
         
         setService(serviceData);
         
-        // Fetch service bookings
         const serviceBookings = getServiceBookings(id);
         setBookings(serviceBookings);
       } catch (error: any) {
@@ -93,7 +90,6 @@ const ManageService = () => {
     try {
       await cancelBooking(bookingId);
       
-      // Update local state
       setBookings(prevBookings => 
         prevBookings.map(booking => 
           booking.id === bookingId 
@@ -111,6 +107,31 @@ const ManageService = () => {
         variant: "destructive",
         title: "Error cancelling booking",
         description: error.message || "There was an error cancelling the booking."
+      });
+    }
+  };
+
+  const handleApproveBooking = async (bookingId: string) => {
+    try {
+      await approveBooking(bookingId);
+      
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === bookingId 
+            ? { ...booking, status: 'approved' as BookingStatus } 
+            : booking
+        )
+      );
+      
+      toast({
+        title: "Booking approved",
+        description: "The booking has been approved successfully."
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error approving booking",
+        description: error.message || "There was an error approving the booking."
       });
     }
   };
@@ -318,7 +339,12 @@ const ManageService = () => {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
-                              <Button variant="outline" size="sm" className="h-8 gap-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 gap-1"
+                                onClick={() => handleApproveBooking(booking.id)}
+                              >
                                 <Check className="h-4 w-4" />
                                 Approve
                               </Button>
