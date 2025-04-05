@@ -1,319 +1,294 @@
 
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Service } from '@/types';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { 
-  Clock, 
-  DollarSign, 
-  MapPin, 
-  Video,
-  Users,
-  ChevronLeft,
-  Calendar
-} from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { format } from 'date-fns';
-import { Skeleton } from '@/components/ui/skeleton';
+  ArrowLeft,
+  Calendar,
+  Clock,
+  DollarSign,
+  Edit,
+  MapPin,
+  Users,
+  Video,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { toast } from '@/hooks/use-toast';
+import { Service } from '@/types';
+import PaymentModal from '@/components/payment/PaymentModal';
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, bookService } = useData();
-  const { toast } = useToast();
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  
-  // Fetch service data
-  const { data: service, isLoading, error } = useQuery({
-    queryKey: ['service', id],
-    queryFn: () => getServiceById(id as string),
-    enabled: !!id,
-  });
-  
-  // Book service mutation
-  const bookServiceMutation = useMutation({
-    mutationFn: (isPaid: boolean) => bookService(service?.id as string, isPaid),
-    onSuccess: () => {
-      toast({
-        title: "Booking successful",
-        description: service?.price ? "Your payment was successful and your booking is confirmed." : "Your booking request has been sent to the coach.",
-      });
-      navigate('/profile'); // Redirect to profile after booking
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Booking failed",
-        description: error.message || "There was an error with your booking. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  const handleBookNow = () => {
+  const { getServiceById, getUserBookings } = useData();
+  const [service, setService] = useState<Service | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [hasBooked, setHasBooked] = useState(false);
+
+  useEffect(() => {
+    const fetchServiceDetails = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const serviceData = await getServiceById(id);
+        
+        if (!serviceData) {
+          toast({
+            variant: "destructive",
+            title: "Service not found",
+            description: "The requested service could not be found."
+          });
+          navigate('/services');
+          return;
+        }
+        
+        setService(serviceData);
+        
+        // Check if user has already booked this service
+        if (currentUser) {
+          const userBookings = getUserBookings(currentUser.id);
+          const existingBooking = userBookings.find(
+            booking => booking.serviceId === id && ['pending', 'approved'].includes(booking.status)
+          );
+          setHasBooked(!!existingBooking);
+        }
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error loading service",
+          description: error.message || "There was an error loading this service."
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchServiceDetails();
+  }, [id, currentUser, getServiceById, getUserBookings, navigate]);
+
+  const handleBook = () => {
     if (!currentUser) {
       toast({
+        variant: "destructive",
         title: "Authentication required",
-        description: "Please log in to book a session",
-        variant: "destructive"
+        description: "Please log in to book this service."
       });
       navigate('/auth/login');
       return;
     }
     
-    if (service?.price && service.price > 0) {
-      setShowPaymentDialog(true);
-    } else {
-      // For free services, request directly
-      bookServiceMutation.mutate(false);
-    }
+    setShowPaymentModal(true);
   };
-  
-  const handleProceedPayment = () => {
-    // Here we would implement actual payment processing
-    // For now, we'll just simulate a successful payment
-    bookServiceMutation.mutate(true);
-    setShowPaymentDialog(false);
+
+  const handleBookingSuccess = () => {
+    setHasBooked(true);
   };
-  
-  if (isLoading) {
+
+  const isProvider = currentUser && service && currentUser.id === service.providerId;
+
+  if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-10 w-24" />
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <Skeleton className="h-64 w-full" />
-          </div>
-          <Skeleton className="h-64 w-full" />
+      <div className="container py-8">
+        <div className="flex justify-center items-center min-h-[300px]">
+          <p>Loading service details...</p>
         </div>
       </div>
     );
   }
-  
-  if (error || !service) {
+
+  if (!service) {
     return (
-      <div className="text-center py-10">
-        <h2 className="text-xl font-semibold mb-2">Service Not Found</h2>
-        <p className="text-gray-500 mb-4">The service you're looking for doesn't exist or has been removed.</p>
-        <Button onClick={() => navigate(-1)}>Go Back</Button>
+      <div className="container py-8">
+        <div className="flex justify-center items-center min-h-[300px]">
+          <p>Service not found</p>
+        </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
-          <ChevronLeft className="h-4 w-4 mr-1" /> Back
-        </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="container py-8">
+      <div className="flex flex-col space-y-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/services')}
+              className="mr-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold">Service Details</h1>
+          </div>
+
+          {isProvider && (
+            <Button 
+              variant="outline" 
+              className="mt-4 md:mt-0 gap-2"
+              onClick={() => navigate(`/services/${id}/manage`)}
+            >
+              <Edit className="h-4 w-4" />
+              Manage Service
+            </Button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            {service.coverImage ? (
+              <img 
+                src={service.coverImage} 
+                alt={service.title} 
+                className="w-full h-auto rounded-lg object-cover aspect-video" 
+              />
+            ) : (
+              <div className="w-full rounded-lg bg-muted flex items-center justify-center aspect-video">
+                <p className="text-muted-foreground">No cover image</p>
+              </div>
+            )}
+
+            <div>
+              <h2 className="text-3xl font-bold">{service.title}</h2>
+              
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <Badge variant={service.price > 0 ? "default" : "outline"}>
+                  {service.price > 0 ? `$${service.price}` : 'Free'}
+                </Badge>
+                <Badge variant="outline">
+                  {service.serviceType === 'one_on_one' ? '1-on-1' : 'Group'}
+                </Badge>
+                <Badge variant="outline">
+                  {service.isOnline ? 'Online' : 'In-person'}
+                </Badge>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
+                <div className="flex items-center">
+                  <Clock className="h-5 w-5 text-gray-500 mr-2" />
+                  <span>{service.duration}</span>
+                </div>
+                
+                {service.location && (
+                  <div className="flex items-center">
+                    <MapPin className="h-5 w-5 text-gray-500 mr-2" />
+                    <span>{service.location}</span>
+                  </div>
+                )}
+                
+                {service.isOnline && (
+                  <div className="flex items-center">
+                    <Video className="h-5 w-5 text-gray-500 mr-2" />
+                    <span>Online Service</span>
+                  </div>
+                )}
+                
+                {service.capacity && (
+                  <div className="flex items-center">
+                    <Users className="h-5 w-5 text-gray-500 mr-2" />
+                    <span>
+                      {service.capacity === 1 ? '1-on-1 Session' : `Group (up to ${service.capacity})`}
+                    </span>
+                  </div>
+                )}
+                
+                {service.price > 0 && (
+                  <div className="flex items-center">
+                    <DollarSign className="h-5 w-5 text-gray-500 mr-2" />
+                    <span>${service.price}</span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-8">
+                <h3 className="text-xl font-semibold mb-3">Description</h3>
+                <p className="text-gray-700 whitespace-pre-line">{service.description}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-1">
+            <div className="bg-card rounded-lg border shadow-sm p-6 sticky top-20">
+              <div className="flex flex-col space-y-6">
                 <div>
-                  <CardTitle className="text-2xl">{service.title}</CardTitle>
-                  <div className="flex items-center mt-2">
-                    <Badge variant={service.capacity === 1 ? "outline" : "secondary"} className="mr-2">
-                      {service.capacity === 1 ? '1-on-1 Session' : 'Group Session'}
-                    </Badge>
-                    {service.isOnline ? (
-                      <Badge variant="outline">Online</Badge>
+                  <h3 className="text-xl font-semibold">Provider</h3>
+                  <p className="mt-2">{service.providerName}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-xl font-semibold">Service Details</h3>
+                  <div className="mt-2 space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type:</span>
+                      <span>{service.serviceType === 'one_on_one' ? 'One-on-One' : 'Group'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Duration:</span>
+                      <span>{service.duration}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Price:</span>
+                      <span>{service.price > 0 ? `$${service.price}` : 'Free'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Location:</span>
+                      <span>{service.isOnline ? 'Online' : service.location}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {!isProvider && (
+                  <div className="pt-4">
+                    {hasBooked ? (
+                      <Button className="w-full" disabled>
+                        Already Booked
+                      </Button>
                     ) : (
-                      <Badge variant="outline">In-Person</Badge>
+                      <Button 
+                        className="w-full" 
+                        onClick={handleBook}
+                        disabled={!service.available}
+                      >
+                        {service.price > 0 ? 'Book Now' : 'Request Free Service'}
+                      </Button>
+                    )}
+                    {!service.available && (
+                      <p className="text-sm text-muted-foreground text-center mt-2">
+                        This service is currently unavailable
+                      </p>
                     )}
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <div className="text-2xl font-bold">
-                    {service.price > 0 ? `$${service.price}` : 'Free'}
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              <p className="text-gray-700">{service.description}</p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-gray-500" />
-                    <span className="text-gray-700">{service.duration}</span>
-                  </div>
-                  
-                  {service.capacity && (
-                    <div className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-gray-500" />
-                      <span className="text-gray-700">
-                        {service.capacity === 1 
-                          ? 'One-on-One Session' 
-                          : `Group Session (max ${service.capacity} people)`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  {!service.isOnline && service.location && (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-gray-500" />
-                      <span className="text-gray-700">{service.location}</span>
-                    </div>
-                  )}
-                  
-                  {service.isOnline && (
-                    <div className="flex items-center gap-2">
-                      <Video className="h-5 w-5 text-gray-500" />
-                      <span className="text-gray-700">Online Session</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              <div className="pt-4">
-                <h3 className="text-lg font-medium mb-2">About This Session</h3>
-                <p className="text-sm text-gray-600">
-                  {service.isOnline 
-                    ? "This session will be conducted online. The coach will provide you with the meeting link after your booking is confirmed." 
-                    : "This session will take place at the specified location. Please arrive 10 minutes early."}
-                </p>
-                
-                {service.price > 0 ? (
-                  <p className="text-sm text-gray-600 mt-2">
-                    This is a paid session. Your booking will be confirmed immediately after payment.
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-600 mt-2">
-                    This is a free session. Your booking request will be sent to the coach for approval.
-                  </p>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Coach</CardTitle>
-            </CardHeader>
-            
-            <CardContent>
-              <div className="flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src="" alt={service.providerName} />
-                  <AvatarFallback>{service.providerName.charAt(0)}</AvatarFallback>
-                </Avatar>
                 
-                <div>
-                  <div className="font-medium">{service.providerName}</div>
-                  <div className="text-gray-500 text-sm">Coach</div>
-                </div>
-              </div>
-              
-              <div className="mt-6 space-y-4">
-                <Button 
-                  className="w-full"
-                  onClick={handleBookNow}
-                  disabled={!service.available || bookServiceMutation.isPending}
-                >
-                  {bookServiceMutation.isPending 
-                    ? "Processing..." 
-                    : service.price > 0 
-                      ? "Book Now" 
-                      : "Request Session"}
-                </Button>
-                
-                {!service.available && (
-                  <p className="text-sm text-red-500 text-center">
-                    This service is currently unavailable
-                  </p>
+                {isProvider && (
+                  <div className="pt-4">
+                    <Button 
+                      className="w-full" 
+                      onClick={() => navigate(`/services/${id}/manage`)}
+                    >
+                      Manage Service
+                    </Button>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-      
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Complete Your Booking</DialogTitle>
-            <DialogDescription>
-              Review your session details and confirm payment to book.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <h3 className="font-medium">Session Details</h3>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Session</span>
-                <span>{service.title}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Coach</span>
-                <span>{service.providerName}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Duration</span>
-                <span>{service.duration}</span>
-              </div>
-              <div className="flex justify-between text-sm font-medium">
-                <span>Total</span>
-                <span>${service.price}</span>
-              </div>
-            </div>
-            
-            <div className="border-t pt-4">
-              <div className="rounded-md bg-gray-50 p-4">
-                <div className="flex items-center">
-                  <div className="flex-shrink-0">
-                    <Calendar className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <div className="ml-3 text-sm text-gray-700">
-                    <p>Your session will be scheduled after your booking is confirmed.</p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleProceedPayment}
-              disabled={bookServiceMutation.isPending}
-            >
-              {bookServiceMutation.isPending ? "Processing..." : "Confirm Payment"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </div>
+
+      {showPaymentModal && service && (
+        <PaymentModal 
+          isOpen={showPaymentModal}
+          service={service}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handleBookingSuccess}
+        />
+      )}
     </div>
   );
 };

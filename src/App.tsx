@@ -27,6 +27,9 @@ import SessionDetail from "./pages/SessionDetail";
 import ServiceDetail from "./pages/ServiceDetail";
 import CreateSession from "./pages/CreateSession";
 import ManageSession from "./pages/ManageSession";
+import Services from "./pages/Services";
+import CreateService from "./pages/CreateService";
+import ManageService from "./pages/ManageService";
 
 const queryClient = new QueryClient();
 
@@ -53,7 +56,10 @@ const App = () => (
                 <Route path="/sessions/:id" element={<SessionDetail />} />
                 <Route path="/sessions/create" element={<CreateSession />} />
                 <Route path="/sessions/:id/manage" element={<ManageSession />} />
+                <Route path="/services" element={<Services />} />
+                <Route path="/services/create" element={<CreateService />} />
                 <Route path="/services/:id" element={<ServiceDetail />} />
+                <Route path="/services/:id/manage" element={<ManageService />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />

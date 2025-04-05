@@ -78,6 +78,9 @@ interface DataContextType {
   cancelBooking: (bookingId: string) => Promise<void>;
   getUserBookings: (userId: string) => Booking[];
   getServiceBookings: (serviceId: string) => Booking[];
+  createService: (serviceData: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
+  updateService: (serviceId: string, data: Partial<Service>) => Promise<Service>;
+  deleteService: (serviceId: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -754,6 +757,55 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return bookings.filter(booking => booking.serviceId === serviceId);
   };
 
+  const createService = async (serviceData: Omit<Service, 'id' | 'createdAt'>): Promise<Service> => {
+    if (!currentUser) throw new Error('You must be logged in to create a service');
+    if (currentUser.role !== 'coach') throw new Error('Only coaches can create services');
+
+    const newService: Service = {
+      id: generateId(),
+      ...serviceData,
+      createdAt: new Date(),
+    };
+
+    setServices(prevServices => [...prevServices, newService]);
+    return newService;
+  };
+
+  const updateService = async (serviceId: string, data: Partial<Service>): Promise<Service> => {
+    if (!currentUser) throw new Error('You must be logged in to update a service');
+
+    const serviceIndex = services.findIndex(s => s.id === serviceId);
+    if (serviceIndex === -1) throw new Error('Service not found');
+
+    const service = services[serviceIndex];
+    
+    if (service.providerId !== currentUser.id) {
+      throw new Error('Only the service provider can update the service');
+    }
+
+    const updatedService = { ...service, ...data };
+    setServices(prevServices => {
+      const newServices = [...prevServices];
+      newServices[serviceIndex] = updatedService;
+      return newServices;
+    });
+
+    return updatedService;
+  };
+
+  const deleteService = async (serviceId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a service');
+
+    const service = services.find(s => s.id === serviceId);
+    if (!service) throw new Error('Service not found');
+
+    if (service.providerId !== currentUser.id) {
+      throw new Error('Only the service provider can delete the service');
+    }
+
+    setServices(prevServices => prevServices.filter(s => s.id !== serviceId));
+  };
+
   const mockPosts: Post[] = [
     {
       id: '1',
@@ -1090,7 +1142,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         bookService,
         cancelBooking,
         getUserBookings,
-        getServiceBookings
+        getServiceBookings,
+        createService,
+        updateService,
+        deleteService
       }}
     >
       {children}
