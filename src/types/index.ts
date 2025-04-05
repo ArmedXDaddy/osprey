@@ -1,22 +1,20 @@
-
 export interface Service {
   id: string;
-  title: string;
-  description: string;
   providerId: string;
   providerName: string;
+  title: string;
+  description: string;
+  sessionType: 'one_on_one' | 'group';
   price: number;
+  isFree: boolean;
   duration: string;
+  startTime?: Date;
+  location: string;
+  isOnline: boolean;
+  meetingUrl: string;
+  capacity?: number;
   available: boolean;
   createdAt: Date;
-  sessionType: 'one_on_one' | 'group';
-  capacity?: number;
-  startTime?: Date;
-  location?: string;
-  isOnline: boolean;
-  meetingUrl?: string;
-  image?: string;
-  isFree: boolean;
 }
 
 export interface User {

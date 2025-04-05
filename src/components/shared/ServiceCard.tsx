@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@/hooks/use-toast';
 import MockPaymentGateway from './MockPaymentGateway';
+import { useNavigate } from 'react-router-dom';
 
 interface ServiceCardProps {
   service: Service;
@@ -21,6 +22,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   const { currentUser } = useAuth();
   const { bookService, cancelServiceBooking } = useData();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   const handleBooking = async () => {
@@ -101,6 +103,10 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
     }
   };
   
+  const handleViewService = () => {
+    navigate(`/services/${service.id}`);
+  };
+  
   const isCoach = currentUser?.role === 'coach';
   const isOwnService = isCoach && currentUser?.id === service.providerId;
   
@@ -119,7 +125,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       </CardHeader>
       
       <CardContent className="pb-2">
-        <p className="text-gray-700 text-sm mb-4">{service.description}</p>
+        <p className="text-gray-700 text-sm mb-4 line-clamp-2">{service.description}</p>
         
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -170,9 +176,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       
       <CardFooter className="pt-2">
         {isOwnService ? (
-          <Button variant="outline" className="w-full" asChild>
-            <a href={`/services/${service.id}/manage`}>Manage Service</a>
-          </Button>
+          <div className="w-full space-y-2">
+            <Button variant="outline" className="w-full" onClick={handleViewService}>
+              View Service
+            </Button>
+            <Button className="w-full" asChild>
+              <a href={`/services/${service.id}/manage`}>Manage Service</a>
+            </Button>
+          </div>
         ) : isEnrolled ? (
           <div className="w-full space-y-2">
             {enrollment?.status === 'pending' ? (
@@ -188,13 +199,24 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
             </Button>
           </div>
         ) : (
-          <Button className="w-full" onClick={handleBooking} disabled={!service.available}>
-            {service.available ? (
-              service.isFree ? 'Request Booking' : `Book for $${service.price}`
-            ) : (
-              'Currently Unavailable'
-            )}
-          </Button>
+          <div className="w-full space-y-2">
+            <Button className="w-full" onClick={handleViewService}>
+              View Details
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleBooking} 
+              disabled={!service.available}
+            >
+              {service.available ? (
+                service.isFree ? 'Request Booking' : `Book for $${service.price}`
+              ) : (
+                'Currently Unavailable'
+              )}
+            </Button>
+          </div>
         )}
       </CardFooter>
       

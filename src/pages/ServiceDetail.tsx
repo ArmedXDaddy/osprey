@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -27,7 +28,7 @@ const ServiceDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: service, isLoading, error } = useQuery({
+  const { data: service, isLoading, error, refetch } = useQuery({
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
@@ -43,6 +44,8 @@ const ServiceDetail = () => {
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
+      // Refetch the service to update UI
+      refetch();
     },
     onError: (error) => {
       toast({
@@ -76,8 +79,17 @@ const ServiceDetail = () => {
     bookServiceMutation.mutate(false);
   };
   
+  const handlePaidBookService = () => {
+    if (!currentUser || !service) return;
+    bookServiceMutation.mutate(true);
+  };
+  
   const handleEditService = () => {
     navigate(`/services/${id}/edit`);
+  };
+  
+  const handleManageService = () => {
+    navigate(`/services/${id}/manage`);
   };
   
   const handleDeleteService = () => {
@@ -151,6 +163,11 @@ const ServiceDetail = () => {
                 <Button onClick={handleEditService} variant="outline" className="flex items-center gap-2">
                   <Edit className="h-4 w-4" />
                   Edit Service
+                </Button>
+                
+                <Button onClick={handleManageService} variant="outline" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Manage Bookings
                 </Button>
                 
                 <AlertDialog>
@@ -239,21 +256,55 @@ const ServiceDetail = () => {
                   </div>
                 )}
                 
-                <Button 
-                  className="w-full mt-6" 
-                  disabled={!service.available || isOwner || bookServiceMutation.isPending}
-                  onClick={handleBookService}
-                >
-                  {isOwner 
-                    ? 'You own this service' 
-                    : !service.available 
-                      ? 'Currently Unavailable'
-                      : bookServiceMutation.isPending 
-                        ? 'Processing...' 
-                        : bookServiceMutation.isSuccess
-                          ? 'Booked Successfully'
-                          : 'Book Now'}
-                </Button>
+                {!isOwner && service.available && (
+                  <div className="space-y-2 mt-6">
+                    {service.price > 0 ? (
+                      <Button 
+                        className="w-full" 
+                        disabled={bookServiceMutation.isPending}
+                        onClick={handlePaidBookService}
+                      >
+                        {bookServiceMutation.isPending 
+                          ? 'Processing...' 
+                          : `Pay Now $${service.price}`}
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="w-full" 
+                        disabled={bookServiceMutation.isPending}
+                        onClick={handleBookService}
+                      >
+                        {bookServiceMutation.isPending 
+                          ? 'Processing...' 
+                          : 'Book for Free (Requires Approval)'}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
+                {!isOwner && !service.available && (
+                  <Button 
+                    className="w-full mt-6" 
+                    disabled={true}
+                  >
+                    Currently Unavailable
+                  </Button>
+                )}
+                
+                {isOwner && (
+                  <Button 
+                    className="w-full mt-6" 
+                    disabled={true}
+                  >
+                    You own this service
+                  </Button>
+                )}
+                
+                {bookServiceMutation.isSuccess && (
+                  <div className="mt-2 text-center p-2 bg-green-50 text-green-700 rounded-md">
+                    Booking confirmed! Check your email for details.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

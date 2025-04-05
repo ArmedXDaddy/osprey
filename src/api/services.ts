@@ -22,7 +22,7 @@ export const fetchServices = async (): Promise<Service[]> => {
       providerName: service.coach_name,
       title: service.title,
       description: service.description || '',
-      sessionType: service.service_type,
+      sessionType: service.service_type as "one_on_one" | "group",
       price: service.price,
       isFree: service.is_free,
       duration: service.duration || '',
@@ -61,7 +61,7 @@ export const fetchServiceById = async (id: string): Promise<Service | null> => {
       providerName: data.coach_name,
       title: data.title,
       description: data.description || '',
-      sessionType: data.service_type,
+      sessionType: data.service_type as "one_on_one" | "group",
       price: data.price,
       isFree: data.is_free,
       duration: data.duration || '',
@@ -106,7 +106,7 @@ export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 
         price: service.price,
         is_free: service.isFree,
         duration: service.duration,
-        start_time: service.startTime,
+        start_time: service.startTime ? service.startTime.toISOString() : null,
         location: service.location,
         is_online: service.isOnline,
         meeting_url: service.meetingUrl,
@@ -133,7 +133,7 @@ export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 
       providerName: data.coach_name,
       title: data.title,
       description: data.description || '',
-      sessionType: data.service_type,
+      sessionType: data.service_type as "one_on_one" | "group",
       price: data.price,
       isFree: data.is_free,
       duration: data.duration || '',
@@ -153,22 +153,24 @@ export const createService = async (service: Omit<Service, 'id' | 'createdAt' | 
 
 export const updateService = async (id: string, service: Partial<Omit<Service, 'id' | 'createdAt' | 'providerName' | 'providerId'>>): Promise<Service> => {
   try {
+    const updateData: any = {};
+    
+    if (service.title !== undefined) updateData.title = service.title;
+    if (service.description !== undefined) updateData.description = service.description;
+    if (service.sessionType !== undefined) updateData.service_type = service.sessionType;
+    if (service.price !== undefined) updateData.price = service.price;
+    if (service.isFree !== undefined) updateData.is_free = service.isFree;
+    if (service.duration !== undefined) updateData.duration = service.duration;
+    if (service.startTime !== undefined) updateData.start_time = service.startTime ? service.startTime.toISOString() : null;
+    if (service.location !== undefined) updateData.location = service.location;
+    if (service.isOnline !== undefined) updateData.is_online = service.isOnline;
+    if (service.meetingUrl !== undefined) updateData.meeting_url = service.meetingUrl;
+    if (service.capacity !== undefined) updateData.capacity = service.capacity;
+    if (service.available !== undefined) updateData.is_active = service.available;
+    
     const { data, error } = await supabase
       .from('services')
-      .update({
-        title: service.title,
-        description: service.description,
-        service_type: service.sessionType,
-        price: service.price,
-        is_free: service.isFree,
-        duration: service.duration,
-        start_time: service.startTime,
-        location: service.location,
-        is_online: service.isOnline,
-        meeting_url: service.meetingUrl,
-        capacity: service.capacity,
-        is_active: service.available,
-      })
+      .update(updateData)
       .eq('id', id)
       .select('*')
       .single();
@@ -188,7 +190,7 @@ export const updateService = async (id: string, service: Partial<Omit<Service, '
       providerName: data.coach_name,
       title: data.title,
       description: data.description || '',
-      sessionType: data.service_type,
+      sessionType: data.service_type as "one_on_one" | "group",
       price: data.price,
       isFree: data.is_free,
       duration: data.duration || '',
@@ -320,7 +322,9 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
     }
     
     // For a paid service that's been paid, auto-approve booking
-    const enrollmentStatus = isPaid || service.is_free === false ? 'approved' : 'pending';
+    // For free services, set the status to pending (requiring approval)
+    const enrollmentStatus = isPaid ? 'approved' : (service.is_free ? 'pending' : 'pending');
+    const paymentStatus = isPaid ? 'paid' : 'pending';
     
     const { error } = await supabase
       .from('service_enrollments')
@@ -331,7 +335,7 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
         user_email: user.user.email,
         user_profile_image: profile.profile_image,
         status: enrollmentStatus,
-        payment_status: isPaid ? 'paid' : 'pending',
+        payment_status: paymentStatus,
         amount: service.price,
       });
       
