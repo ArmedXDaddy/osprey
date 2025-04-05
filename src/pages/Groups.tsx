@@ -81,8 +81,8 @@ const Groups = () => {
             />
           </div>
           
-          {/* Allow all logged-in users to create groups */}
-          {currentUser && (
+          {/* Only allow influencers and companies to create groups */}
+          {currentUser && ['influencer', 'company'].includes(currentUser.role) && (
             <Link to="/create-group">
               <Button>Create Group</Button>
             </Link>
@@ -195,9 +195,11 @@ const Groups = () => {
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto text-gray-300" />
                 <h3 className="mt-4 text-lg font-medium">You haven't created any groups yet</h3>
-                <Link to="/create-group" className="mt-4 inline-block">
-                  <Button>Create Your First Group</Button>
-                </Link>
+                {['influencer', 'company'].includes(currentUser.role) && (
+                  <Link to="/create-group" className="mt-4 inline-block">
+                    <Button>Create Your First Group</Button>
+                  </Link>
+                )}
               </div>
             )}
           </TabsContent>
