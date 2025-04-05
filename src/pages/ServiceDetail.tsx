@@ -1,14 +1,14 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
-import { fetchServiceById, bookService, deleteService } from '@/api/services';
+import { fetchServiceById, bookService, checkBookingStatus, deleteService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -21,28 +21,49 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import MockPaymentGateway from '@/components/shared/MockPaymentGateway';
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
-  const { data: service, isLoading, error } = useQuery({
+  const { data: service, isLoading: serviceLoading } = useQuery({
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
   });
   
+  const { data: bookingStatus, isLoading: bookingStatusLoading } = useQuery({
+    queryKey: ['booking-status', id, currentUser?.id],
+    queryFn: () => checkBookingStatus(currentUser?.id || '', id as string),
+    enabled: !!id && !!currentUser,
+  });
+  
   const bookServiceMutation = useMutation({
-    mutationFn: bookService,
+    mutationFn: (isPaid?: boolean) => {
+      if (!currentUser || !service) throw new Error('User or service not found');
+      
+      return bookService({
+        serviceId: service.id,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userProfileImage: currentUser.profileImage,
+        isPaid,
+      });
+    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['booking-status', id, currentUser?.id] });
       toast({
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Booking Failed",
         description: `Error: ${error.message}`,
@@ -60,7 +81,7 @@ const ServiceDetail = () => {
       });
       navigate('/services');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
         title: "Deletion Failed",
         description: `Error: ${error.message}`,
@@ -70,14 +91,36 @@ const ServiceDetail = () => {
   });
   
   const handleBookService = () => {
-    if (!currentUser || !service) return;
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to book this service",
+        variant: "destructive"
+      });
+      navigate('/auth/login');
+      return;
+    }
     
-    bookServiceMutation.mutate({
-      serviceId: service.id,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userEmail: currentUser.email,
-      userProfileImage: currentUser.profileImage,
+    if (!service) return;
+    
+    // If it's a paid service, show payment modal
+    if (!service.isFree && service.price > 0) {
+      setShowPaymentModal(true);
+    } else {
+      // For free services, just send a request
+      bookServiceMutation.mutate();
+    }
+  };
+  
+  const handlePaymentSuccess = async () => {
+    // Book with payment status set to paid
+    bookServiceMutation.mutate(true);
+  };
+  
+  const handlePaymentCancel = () => {
+    toast({
+      title: "Payment cancelled",
+      description: "Your payment has been cancelled",
     });
   };
   
@@ -91,6 +134,7 @@ const ServiceDetail = () => {
   };
   
   const isOwner = currentUser?.id === service?.providerId;
+  const isLoading = serviceLoading || bookingStatusLoading;
   
   if (isLoading) {
     return (
@@ -110,7 +154,7 @@ const ServiceDetail = () => {
     );
   }
   
-  if (error || !service) {
+  if (!service) {
     return (
       <div className="text-center py-10">
         <AlertTriangle className="mx-auto h-10 w-10 text-red-500" />
@@ -230,7 +274,7 @@ const ServiceDetail = () => {
                   )}
                 </div>
                 
-                {service.isOnline && service.meetingUrl && (isOwner || bookServiceMutation.isSuccess) && (
+                {service.isOnline && service.meetingUrl && bookingStatus?.status === 'approved' && (
                   <div className="flex items-center gap-2">
                     <Link className="h-5 w-5 text-gray-500" />
                     <a 
@@ -244,26 +288,56 @@ const ServiceDetail = () => {
                   </div>
                 )}
                 
-                <Button 
-                  className="w-full mt-6" 
-                  disabled={!service.available || isOwner || bookServiceMutation.isPending}
-                  onClick={handleBookService}
-                >
-                  {isOwner 
-                    ? 'You own this service' 
-                    : !service.available 
-                      ? 'Currently Unavailable'
-                      : bookServiceMutation.isPending 
-                        ? 'Processing...' 
-                        : bookServiceMutation.isSuccess
-                          ? 'Booked Successfully'
-                          : 'Book Now'}
-                </Button>
+                {!isOwner && (
+                  <>
+                    {bookingStatus ? (
+                      <div className="space-y-2 mt-4">
+                        <h4 className="font-medium">Booking Status</h4>
+                        <Badge className="w-full justify-center py-1" variant={
+                          bookingStatus.status === 'approved' ? 'success' :
+                          bookingStatus.status === 'rejected' ? 'destructive' : 'outline'
+                        }>
+                          {bookingStatus.status === 'approved' ? 'Approved' :
+                           bookingStatus.status === 'rejected' ? 'Rejected' : 'Pending Approval'}
+                        </Badge>
+                        
+                        {bookingStatus.status === 'approved' && bookingStatus.payment_status !== 'paid' && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className="w-full justify-center py-1">
+                              Payment: {bookingStatus.payment_status}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <Button 
+                        className="w-full mt-6" 
+                        disabled={!service.available || bookServiceMutation.isPending}
+                        onClick={handleBookService}
+                      >
+                        {!service.available 
+                          ? 'Currently Unavailable'
+                          : bookServiceMutation.isPending 
+                            ? 'Processing...' 
+                            : service.isFree ? 'Request Booking' : `Book for $${service.price}`}
+                      </Button>
+                    )}
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
+      
+      <MockPaymentGateway 
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        amount={service.price}
+        serviceName={service.title}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentCancel={handlePaymentCancel}
+      />
     </div>
   );
 };

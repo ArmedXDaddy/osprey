@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@/hooks/use-toast';
 import MockPaymentGateway from './MockPaymentGateway';
+import { useNavigate } from 'react-router-dom';
 
 interface ServiceCardProps {
   service: Service;
@@ -21,6 +22,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   const { currentUser } = useAuth();
   const { bookService, cancelServiceBooking } = useData();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   const handleBooking = async () => {
@@ -31,6 +33,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
           description: "Please log in to book this service",
           variant: "destructive"
         });
+        navigate('/auth/login');
         return;
       }
       
@@ -65,6 +68,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       });
     } catch (error) {
       console.error('Error booking after payment:', error);
+      toast({
+        title: "Error",
+        description: "There was an error finalizing your booking",
+        variant: "destructive"
+      });
     }
   };
   
@@ -86,6 +94,11 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       });
     } catch (error) {
       console.error('Error canceling booking:', error);
+      toast({
+        title: "Error",
+        description: "There was an error cancelling your booking",
+        variant: "destructive"
+      });
     }
   };
   
@@ -128,7 +141,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-700">
-                {format(service.startTime, 'PPp')}
+                {format(new Date(service.startTime), 'PPp')}
               </span>
             </div>
           )}
@@ -158,8 +171,8 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
       
       <CardFooter className="pt-2">
         {isOwnService ? (
-          <Button variant="outline" className="w-full" asChild>
-            <a href={`/services/${service.id}/manage`}>Manage Service</a>
+          <Button variant="outline" className="w-full" onClick={() => navigate(`/services/${service.id}/manage`)}>
+            Manage Service
           </Button>
         ) : isEnrolled ? (
           <div className="w-full space-y-2">

@@ -1,4 +1,3 @@
-
 export interface Service {
   id: string;
   title: string;
@@ -175,6 +174,8 @@ export interface ServiceBooking {
   paymentStatus: PaymentStatus;
   amount: number;
   createdAt: Date;
+  notes?: string;
+  preferredTime?: string;
 }
 
 export type BookingStatus = 'pending' | 'approved' | 'rejected';

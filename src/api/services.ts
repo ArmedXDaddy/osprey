@@ -232,6 +232,8 @@ export const bookService = async (bookingData: {
   userEmail: string;
   userProfileImage?: string;
   isPaid?: boolean;
+  notes?: string;
+  preferredTime?: string;
 }): Promise<void> => {
   const { error } = await supabase
     .from('service_enrollments')
@@ -243,6 +245,8 @@ export const bookService = async (bookingData: {
       user_profile_image: bookingData.userProfileImage,
       status: bookingData.isPaid ? 'approved' : 'pending', // Auto-approve paid bookings
       payment_status: bookingData.isPaid ? 'paid' : 'unpaid',
+      notes: bookingData.notes,
+      preferred_time: bookingData.preferredTime,
     });
     
   if (error) {
