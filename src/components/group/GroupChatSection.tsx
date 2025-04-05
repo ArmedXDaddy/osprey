@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -63,7 +64,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           userRole: msg.user_role as UserRole,
           userProfileImage: msg.user_profile_image,
           content: msg.content,
-          mediaUrl: msg.media_url || undefined,
+          mediaUrl: msg.media_url,
           mediaType: msg.media_type as 'image' | 'video' | 'file' | undefined,
           createdAt: new Date(msg.created_at)
         }));
@@ -107,7 +108,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
               userRole: newMsg.user_role as UserRole,
               userProfileImage: newMsg.user_profile_image,
               content: newMsg.content,
-              mediaUrl: newMsg.media_url || undefined,
+              mediaUrl: newMsg.media_url,
               mediaType: newMsg.media_type as 'image' | 'video' | 'file' | undefined,
               createdAt: new Date(newMsg.created_at)
             };
