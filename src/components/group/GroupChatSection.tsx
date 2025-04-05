@@ -587,13 +587,14 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           <GroupImageGallery
             selectedImage=""
             onSelect={() => {}}
-            onFileUpload={(file) => {
-              handleFileUpload(file)
+            onFileUpload={async (file: File): Promise<void> => {
+              return handleFileUpload(file)
                 .then(() => {
                   setImageDialogOpen(false);
                 })
                 .catch((err) => {
                   console.error("Failed to upload file:", err);
+                  throw err;
                 });
             }}
           />
