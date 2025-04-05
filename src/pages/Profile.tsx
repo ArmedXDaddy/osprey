@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -19,8 +18,7 @@ import {
   Users, 
   X,
   Camera,
-  Upload,
-  Image as ImageIcon
+  ImageIcon
 } from 'lucide-react';
 import PostCard from '@/components/shared/PostCard';
 import EventCard from '@/components/shared/EventCard';
@@ -41,6 +39,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import ImageGallery from '@/components/profile/ImageGallery';
+import ImageCropper from '@/components/shared/ImageCropper';
 import { cn } from '@/lib/utils';
 
 const Profile = () => {
@@ -99,6 +98,11 @@ const Profile = () => {
   const [profileImages, setProfileImages] = useState<{ name: string; url: string }[]>([]);
   const [coverImages, setCoverImages] = useState<{ name: string; url: string }[]>([]);
 
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropImageType, setCropImageType] = useState<'profile' | 'cover'>('profile');
+  const [cropAspectRatio, setCropAspectRatio] = useState(1);
+  
   useEffect(() => {
     if (currentUser) {
       setProfileForm({
@@ -201,27 +205,36 @@ const Profile = () => {
     }
   };
   
-  const uploadProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !currentUser) {
-      return;
-    }
-    
+  const handleCrop = (imageUrl: string, type: 'profile' | 'cover') => {
+    setCropImageSrc(imageUrl);
+    setCropImageType(type);
+    setCropAspectRatio(type === 'profile' ? 1 : 2.5);
+    setIsCropDialogOpen(true);
+  };
+  
+  const handleCropComplete = async (croppedImageUrl: string) => {
     try {
       setUploading(true);
-      const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${currentUser.id}/${fileName}`;
       
-      // First check if we have a valid session
+      if (!currentUser) return;
+      
+      const response = await fetch(croppedImageUrl);
+      const blob = await response.blob();
+      
+      const fileExt = 'jpg';
+      const fileName = `cropped_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('You must be logged in to upload images');
       }
       
-      // Then upload the file
+      const bucket = cropImageType === 'profile' ? 'profiles' : 'covers';
+      const filePath = `${currentUser.id}/${fileName}`;
+      
       const { error: uploadError } = await supabase.storage
-        .from('profiles')
+        .from(bucket)
         .upload(filePath, file);
       
       if (uploadError) {
@@ -229,33 +242,57 @@ const Profile = () => {
         throw uploadError;
       }
       
-      // Get the public URL
       const { data: urlData } = await supabase.storage
-        .from('profiles')
+        .from(bucket)
         .getPublicUrl(filePath);
       
-      // Update the profile form
       setProfileForm(prev => ({
         ...prev,
-        profileImage: urlData.publicUrl
+        [cropImageType === 'profile' ? 'profileImage' : 'coverImage']: urlData.publicUrl
       }));
       
-      // Refresh the image gallery
-      await fetchProfileImages();
+      if (cropImageType === 'profile') {
+        await fetchProfileImages();
+      } else {
+        await fetchCoverImages();
+      }
       
       toast({
-        title: "Upload successful",
-        description: "Your profile image has been uploaded and selected",
+        title: "Crop and upload successful",
+        description: `Your ${cropImageType} image has been cropped and uploaded`,
       });
     } catch (error: any) {
-      console.error('Error uploading image:', error);
+      console.error('Error cropping and uploading image:', error);
       toast({
         title: "Upload failed",
-        description: error.message || "There was an error uploading your profile image",
+        description: error.message || `There was an error uploading your ${cropImageType} image`,
         variant: "destructive"
       });
     } finally {
       setUploading(false);
+      setIsCropDialogOpen(false);
+      setCropImageSrc(null);
+    }
+  };
+  
+  const uploadProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !currentUser) {
+      return;
+    }
+    
+    try {
+      const file = event.target.files[0];
+      
+      const previewUrl = URL.createObjectURL(file);
+      
+      handleCrop(previewUrl, 'profile');
+    } catch (error: any) {
+      console.error('Error processing image:', error);
+      toast({
+        title: "Image processing failed",
+        description: error.message || "There was an error processing your profile image",
+        variant: "destructive"
+      });
     }
   };
   
@@ -265,78 +302,27 @@ const Profile = () => {
     }
     
     try {
-      setUploading(true);
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${currentUser.id}/${fileName}`;
       
-      // First check if we have a valid session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('You must be logged in to upload images');
-      }
+      const previewUrl = URL.createObjectURL(file);
       
-      // Then upload the file
-      const { error: uploadError } = await supabase.storage
-        .from('covers')
-        .upload(filePath, file);
-      
-      if (uploadError) {
-        console.error('Upload error details:', uploadError);
-        throw uploadError;
-      }
-      
-      // Get the public URL
-      const { data: urlData } = await supabase.storage
-        .from('covers')
-        .getPublicUrl(filePath);
-      
-      // Update the profile form
-      setProfileForm(prev => ({
-        ...prev,
-        coverImage: urlData.publicUrl
-      }));
-      
-      // Refresh the image gallery
-      await fetchCoverImages();
-      
-      toast({
-        title: "Upload successful",
-        description: "Your cover image has been uploaded and selected",
-      });
+      handleCrop(previewUrl, 'cover');
     } catch (error: any) {
-      console.error('Error uploading image:', error);
+      console.error('Error processing image:', error);
       toast({
-        title: "Upload failed",
-        description: error.message || "There was an error uploading your cover image",
+        title: "Image processing failed",
+        description: error.message || "There was an error processing your cover image",
         variant: "destructive"
       });
-    } finally {
-      setUploading(false);
     }
   };
   
   const selectProfileImage = (url: string) => {
-    setProfileForm(prev => ({
-      ...prev,
-      profileImage: url
-    }));
-    toast({
-      title: "Profile image selected",
-      description: "Click Save Changes to update your profile"
-    });
+    handleCrop(url, 'profile');
   };
   
   const selectCoverImage = (url: string) => {
-    setProfileForm(prev => ({
-      ...prev,
-      coverImage: url
-    }));
-    toast({
-      title: "Cover image selected",
-      description: "Click Save Changes to update your profile"
-    });
+    handleCrop(url, 'cover');
   };
   
   const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -458,6 +444,9 @@ const Profile = () => {
     { id: '6', name: 'Health Plus', profileImage: '', role: 'company', isFollowing: true }
   ];
 
+  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+  const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
+
   return (
     <div className="space-y-8">
       <Card className="overflow-hidden">
@@ -489,11 +478,16 @@ const Profile = () => {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="-mt-12 shrink-0 relative">
               <div className="h-32 w-32 rounded-full border-4 border-white overflow-hidden shadow-md bg-white">
-                <img 
-                  src={currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'User')}&background=random&size=150`} 
-                  alt={currentUser?.name}
-                  className="h-full w-full object-cover"
-                />
+                <Avatar className="h-full w-full">
+                  <AvatarImage 
+                    src={currentUser?.profileImage} 
+                    alt={currentUser?.name || 'User'}
+                    onError={() => console.log("Profile image failed to load")}
+                  />
+                  <AvatarFallback>
+                    {currentUser?.name?.substring(0, 2).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
               </div>
               <Button 
                 size="sm" 
@@ -971,6 +965,78 @@ const Profile = () => {
               {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
             </div>
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isCropDialogOpen} onOpenChange={(open) => {
+        if (!open && cropImageSrc) {
+          URL.revokeObjectURL(cropImageSrc);
+        }
+        setIsCropDialogOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Crop {cropImageType === 'profile' ? 'Profile' : 'Cover'} Image</DialogTitle>
+            <DialogDescription>
+              Drag, zoom, and position your image for the perfect fit.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {cropImageSrc && (
+            <ImageCropper
+              imageSrc={cropImageSrc}
+              aspectRatio={cropAspectRatio}
+              onCropComplete={handleCropComplete}
+              onCancel={() => {
+                if (cropImageSrc) {
+                  URL.revokeObjectURL(cropImageSrc);
+                }
+                setIsCropDialogOpen(false);
+                setCropImageSrc(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
+        <DialogContent className="sm:max-w-[680px]">
+          <DialogHeader>
+            <DialogTitle>Select from Your Gallery</DialogTitle>
+            <DialogDescription>
+              Choose an existing image or upload a new one.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            {galleryType === 'profile' ? (
+              <ImageGallery
+                images={profileImages}
+                onSelectImage={selectProfileImage}
+                onUploadImage={uploadProfileImage}
+                uploading={uploading}
+                emptyMessage="You haven't uploaded any profile images yet."
+                aspectRatio="square"
+                selectedImage={profileForm.profileImage}
+              />
+            ) : (
+              <ImageGallery
+                images={coverImages}
+                onSelectImage={selectCoverImage}
+                onUploadImage={uploadCoverImage}
+                uploading={uploading}
+                emptyMessage="You haven't uploaded any cover images yet."
+                aspectRatio="landscape"
+                selectedImage={profileForm.coverImage}
+              />
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" onClick={() => setIsGalleryDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
