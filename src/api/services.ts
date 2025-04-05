@@ -226,6 +226,37 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   }
 };
 
+// Book a service (now handling different workflows for free and paid services)
+export const bookService = async (bookingData: {
+  serviceId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userProfileImage?: string;
+}): Promise<void> => {
+  // First, fetch the service to determine if it's free or paid
+  const service = await fetchServiceById(bookingData.serviceId);
+
+  const { error } = await supabase
+    .from('service_enrollments')
+    .insert({
+      service_id: bookingData.serviceId,
+      user_id: bookingData.userId,
+      user_name: bookingData.userName,
+      user_email: bookingData.userEmail,
+      user_profile_image: bookingData.userProfileImage,
+      status: service.isFree ? 'pending' : 'approved',
+      payment_status: 'unpaid',
+      payment_required: !service.isFree,
+      amount: service.price
+    });
+    
+  if (error) {
+    console.error('Error booking service:', error);
+    throw new Error(error.message);
+  }
+};
+
 // Delete a service
 export const deleteService = async (id: string): Promise<void> => {
   console.log('Attempting to delete service with ID:', id);
@@ -245,31 +276,5 @@ export const deleteService = async (id: string): Promise<void> => {
   } catch (error: any) {
     console.error('Deletion error:', error);
     throw error;
-  }
-};
-
-// Book a service
-export const bookService = async (bookingData: {
-  serviceId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userProfileImage?: string;
-}): Promise<void> => {
-  const { error } = await supabase
-    .from('service_enrollments')
-    .insert({
-      service_id: bookingData.serviceId,
-      user_id: bookingData.userId,
-      user_name: bookingData.userName,
-      user_email: bookingData.userEmail,
-      user_profile_image: bookingData.userProfileImage,
-      status: 'pending',
-      payment_status: 'unpaid',
-    });
-    
-  if (error) {
-    console.error('Error booking service:', error);
-    throw new Error(error.message);
   }
 };
