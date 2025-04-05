@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,23 +25,30 @@ import Sessions from "./pages/Sessions";
 import SessionDetail from "./pages/SessionDetail";
 import CreateSession from "./pages/CreateSession";
 import ManageSession from "./pages/ManageSession";
-// Add new service pages
 import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
 import CreateService from "./pages/CreateService";
 import EditService from "./pages/EditService";
-import ManageService from "./pages/ManageService"; // Import the new ManageService page
+import ManageService from "./pages/ManageService";
 
-const queryClient = new QueryClient();
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
         <DataProvider>
-          <Toaster />
-          <Sonner />
           <BrowserRouter>
+            <Toaster />
+            <Sonner />
             <MainLayout>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -58,12 +64,11 @@ const App = () => (
                 <Route path="/sessions/:id" element={<SessionDetail />} />
                 <Route path="/sessions/create" element={<CreateSession />} />
                 <Route path="/sessions/:id/manage" element={<ManageSession />} />
-                {/* Service routes */}
                 <Route path="/services" element={<Services />} />
                 <Route path="/services/:id" element={<ServiceDetail />} />
                 <Route path="/services/create" element={<CreateService />} />
                 <Route path="/services/:id/edit" element={<EditService />} />
-                <Route path="/services/:id/manage" element={<ManageService />} /> {/* Add the new route */}
+                <Route path="/services/:id/manage" element={<ManageService />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />
