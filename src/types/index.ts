@@ -146,7 +146,7 @@ export interface SessionEnrollment {
 export interface Message {
   id: string;
   groupId?: string;
-  serviceId?: string; // Added for service messages
+  serviceId?: string; // Make sure this property exists
   userId: string;
   userName: string;
   userRole: UserRole;

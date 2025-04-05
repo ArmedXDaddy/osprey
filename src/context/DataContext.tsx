@@ -84,6 +84,11 @@ interface DataContextType {
   
   // Method to approve a booking
   approveBooking: (bookingId: string) => Promise<Booking>;
+  
+  // New functions
+  sendServiceMessage: (serviceId: string, content: string, mediaUrl?: string, mediaType?: 'image' | 'video' | 'file') => Promise<Message>;
+  getServiceMessages: (serviceId: string) => Message[];
+  getUserBookingForService: (userId: string, serviceId: string) => Booking | null;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -1121,6 +1126,56 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [bookings]);
 
+  const sendServiceMessage = async (
+    serviceId: string,
+    content: string,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video' | 'file'
+  ): Promise<Message> => {
+    if (!currentUser) throw new Error('You must be logged in to send a message');
+
+    const service = allServices.find(s => s.id === serviceId);
+    if (!service) throw new Error('Service not found');
+
+    // Check if user has an approved booking for this service
+    const userBooking = bookings.find(
+      b => b.serviceId === serviceId && 
+           b.userId === currentUser.id && 
+           (b.status === 'approved' || (service.price > 0 && b.paymentStatus === 'paid'))
+    );
+    
+    if (!userBooking) {
+      throw new Error('You must have an approved booking to send messages');
+    }
+
+    const newMessage: Message = {
+      id: generateId(),
+      serviceId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userRole: currentUser.role,
+      userProfileImage: currentUser.profileImage,
+      content,
+      mediaUrl,
+      mediaType,
+      createdAt: new Date(),
+    };
+
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+    return newMessage;
+  };
+
+  const getServiceMessages = (serviceId: string): Message[] => {
+    return messages.filter(message => message.serviceId === serviceId);
+  };
+
+  const getUserBookingForService = (userId: string, serviceId: string): Booking | null => {
+    const booking = bookings.find(
+      b => b.userId === userId && b.serviceId === serviceId && b.status !== 'cancelled'
+    );
+    return booking || null;
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -1181,7 +1236,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         updateService,
         deleteService,
         
-        approveBooking
+        approveBooking,
+        
+        sendServiceMessage,
+        getServiceMessages,
+        getUserBookingForService
       }}
     >
       {children}

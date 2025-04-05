@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { Send } from 'lucide-react';
 import { Service, Booking, Message } from '@/types';
+import { toast } from '@/hooks/use-toast';
 
 interface ServiceChatProps {
   service: Service;
@@ -52,8 +53,13 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
       // Refetch messages after sending
       const updatedMessages = getServiceMessages(service.id);
       setMessages(updatedMessages);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send message:", error);
+      toast({
+        variant: "destructive",
+        title: "Failed to send message",
+        description: error.message || "There was an error sending your message"
+      });
     } finally {
       setIsSubmitting(false);
     }
