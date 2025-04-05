@@ -39,9 +39,7 @@ const mapEnrollmentFromDB = (enrollmentData: any): ServiceEnrollment => ({
 // Fetch all services
 export const fetchServices = async (): Promise<Service[]> => {
   const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .rpc('get_all_services');
 
   if (error) {
     console.error('Error fetching services:', error);
@@ -54,26 +52,24 @@ export const fetchServices = async (): Promise<Service[]> => {
 // Fetch a specific service by ID
 export const fetchServiceById = async (id: string): Promise<Service> => {
   const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('id', id)
-    .single();
+    .rpc('get_service_by_id', { service_id: id });
 
   if (error) {
     console.error(`Error fetching service with id ${id}:`, error);
     throw error;
   }
 
-  return mapServiceFromDB(data);
+  if (!data || data.length === 0) {
+    throw new Error(`Service with id ${id} not found`);
+  }
+
+  return mapServiceFromDB(data[0]);
 };
 
 // Fetch services by coach ID
 export const fetchServicesByCoachId = async (coachId: string): Promise<Service[]> => {
   const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('coach_id', coachId)
-    .order('created_at', { ascending: false });
+    .rpc('get_services_by_coach_id', { coach_id: coachId });
 
   if (error) {
     console.error(`Error fetching services for coach ${coachId}:`, error);
@@ -104,20 +100,21 @@ export const createService = async (serviceData: Omit<Service, 'id' | 'createdAt
 
   // Use rpc (stored procedure) instead of direct table insertion to bypass Supabase TS issues
   const { data, error } = await supabase
-    .rpc('create_service', dbData)
-    .single();
+    .rpc('create_service', dbData);
 
   if (error) {
     console.error('Error creating service:', error);
     throw error;
   }
 
-  return mapServiceFromDB(data);
+  return mapServiceFromDB(data[0]);
 };
 
 // Update an existing service
 export const updateService = async (id: string, serviceData: Partial<Service>): Promise<Service> => {
-  const dbData: any = {};
+  const dbData: any = {
+    id
+  };
   
   if (serviceData.title !== undefined) dbData.title = serviceData.title;
   if (serviceData.description !== undefined) dbData.description = serviceData.description;
@@ -131,20 +128,17 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.isOnline !== undefined) dbData.is_online = serviceData.isOnline;
   if (serviceData.meetingUrl !== undefined) dbData.meeting_url = serviceData.meetingUrl;
   if (serviceData.isActive !== undefined) dbData.is_active = serviceData.isActive;
-  
-  dbData.updated_at = new Date().toISOString();
 
   // Use rpc (stored procedure) instead of direct table update to bypass Supabase TS issues
   const { data, error } = await supabase
-    .rpc('update_service', { id, ...dbData })
-    .single();
+    .rpc('update_service', dbData);
 
   if (error) {
     console.error(`Error updating service ${id}:`, error);
     throw error;
   }
 
-  return mapServiceFromDB(data);
+  return mapServiceFromDB(data[0]);
 };
 
 // Delete a service
@@ -201,15 +195,14 @@ export const createEnrollment = async (enrollmentData: Omit<ServiceEnrollment, '
 
   // Use rpc (stored procedure) instead of direct table insertion to bypass Supabase TS issues
   const { data, error } = await supabase
-    .rpc('create_service_enrollment', dbData)
-    .single();
+    .rpc('create_service_enrollment', dbData);
 
   if (error) {
     console.error('Error creating enrollment:', error);
     throw error;
   }
 
-  return mapEnrollmentFromDB(data);
+  return mapEnrollmentFromDB(data[0]);
 };
 
 // Update an enrollment's status
@@ -219,13 +212,12 @@ export const updateEnrollmentStatus = async (id: string, status: string, payment
 
   // Use rpc (stored procedure) instead of direct table update to bypass Supabase TS issues
   const { data, error } = await supabase
-    .rpc('update_enrollment_status', dbData)
-    .single();
+    .rpc('update_enrollment_status', dbData);
 
   if (error) {
     console.error(`Error updating enrollment ${id}:`, error);
     throw error;
   }
 
-  return mapEnrollmentFromDB(data);
+  return mapEnrollmentFromDB(data[0]);
 };

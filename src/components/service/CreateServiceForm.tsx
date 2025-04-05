@@ -89,14 +89,14 @@ const CreateServiceForm: React.FC = () => {
         coachId: currentUser.id,
         coachName: currentUser.name,
         serviceType: values.serviceType,
-        capacity: values.capacity,
-        price: values.price,
+        capacity: values.serviceType === 'group' ? values.capacity : undefined,
+        price: values.isFree ? 0 : values.price,
         isFree: values.isFree,
         duration: values.duration,
-        image: values.image,
-        location: values.location,
+        image: values.image || undefined,
+        location: !values.isOnline ? values.location : undefined,
         isOnline: values.isOnline,
-        meetingUrl: values.meetingUrl,
+        meetingUrl: values.isOnline ? values.meetingUrl : undefined,
         isActive: values.isActive
       };
       

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { useSearchParams } from 'react-router-dom';
@@ -41,7 +40,7 @@ const Explore = () => {
   const filteredServices = services.filter(service => 
     service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.providerName.toLowerCase().includes(searchTerm.toLowerCase())
+    service.coachName.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   return (

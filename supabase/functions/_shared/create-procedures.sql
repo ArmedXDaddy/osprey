@@ -170,3 +170,31 @@ BEGIN
   RETURNING *;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get all services
+CREATE OR REPLACE FUNCTION public.get_all_services() RETURNS SETOF services AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM public.services
+  ORDER BY created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get service by ID
+CREATE OR REPLACE FUNCTION public.get_service_by_id(service_id UUID) RETURNS SETOF services AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM public.services
+  WHERE services.id = get_service_by_id.service_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get services by coach ID
+CREATE OR REPLACE FUNCTION public.get_services_by_coach_id(coach_id UUID) RETURNS SETOF services AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM public.services
+  WHERE services.coach_id = get_services_by_coach_id.coach_id
+  ORDER BY created_at DESC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
