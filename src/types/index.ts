@@ -1,3 +1,4 @@
+
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -5,7 +6,6 @@ export type EventPrivacy = 'public' | 'private' | 'paid';
 export type SessionType = 'one_on_one' | 'group';
 export type SessionStatus = 'pending' | 'approved' | 'rejected' | 'completed';
 export type PaymentStatus = 'unpaid' | 'paid';
-export type ServiceType = 'one_on_one' | 'group';
 
 export interface User {
   id: string;
@@ -80,32 +80,13 @@ export interface Service {
   id: string;
   title: string;
   description: string;
-  coachId: string;
-  coachName: string;
-  serviceType: ServiceType;
-  capacity?: number;
+  providerId: string;
+  providerName: string;
   price: number;
-  isFree: boolean;
   duration: string;
-  image?: string;
-  location?: string;
-  isOnline: boolean;
-  meetingUrl?: string;
-  isActive: boolean;
+  available: boolean;
   createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface ServiceEnrollment {
-  id: string;
-  serviceId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userProfileImage?: string;
-  status: SessionStatus;
-  paymentStatus: PaymentStatus;
-  createdAt: Date;
+  sessionId?: string; // Added for linking to sessions
 }
 
 export interface Session {

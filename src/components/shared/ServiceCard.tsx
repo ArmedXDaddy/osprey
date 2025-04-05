@@ -7,15 +7,14 @@ import { Clock, DollarSign } from 'lucide-react';
 
 interface ServiceCardProps {
   service: Service;
-  onClick?: () => void;
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
+const ServiceCard: React.FC<ServiceCardProps> = ({ service }) => {
   return (
-    <Card onClick={onClick} className={onClick ? "cursor-pointer" : ""}>
+    <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg">{service.title}</CardTitle>
-        <div className="text-sm text-gray-500">by {service.coachName}</div>
+        <div className="text-sm text-gray-500">by {service.providerName}</div>
       </CardHeader>
       
       <CardContent className="pb-2">
@@ -29,14 +28,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onClick }) => {
           
           <div className="flex items-center gap-1">
             <DollarSign className="h-4 w-4 text-gray-500" />
-            <span className="text-sm font-medium">{service.isFree ? 'Free' : `$${service.price}`}</span>
+            <span className="text-sm font-medium">${service.price}</span>
           </div>
         </div>
       </CardContent>
       
       <CardFooter className="pt-2">
-        <Button className="w-full" disabled={!service.isActive}>
-          {service.isActive ? 'Book Session' : 'Currently Unavailable'}
+        <Button className="w-full" disabled={!service.available}>
+          {service.available ? 'Book Session' : 'Currently Unavailable'}
         </Button>
       </CardFooter>
     </Card>

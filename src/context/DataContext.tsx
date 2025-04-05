@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus } from '@/types';
 import { useAuth } from './AuthContext';
@@ -134,50 +135,34 @@ const MOCK_SERVICES: Service[] = [
     id: 's1',
     title: '1:1 Strength Coaching',
     description: 'Personalized strength training sessions tailored to your goals and fitness level.',
-    coachId: '3',
-    coachName: 'Alexandra Chen',
-    serviceType: 'one_on_one',
+    providerId: '3',
+    providerName: 'Alexandra Chen',
     price: 75,
-    isFree: false,
     duration: '60 min',
-    isActive: true,
-    isOnline: false,
-    location: 'Fitness Studio, Downtown',
-    createdAt: new Date('2023-03-15'),
-    updatedAt: new Date('2023-03-15')
+    available: true,
+    createdAt: new Date('2023-03-15')
   },
   {
     id: 's2',
     title: 'Nutrition Consultation',
     description: 'Comprehensive assessment of your current diet with personalized recommendations for your fitness goals.',
-    coachId: '3',
-    coachName: 'Alexandra Chen',
-    serviceType: 'one_on_one',
+    providerId: '3',
+    providerName: 'Alexandra Chen',
     price: 100,
-    isFree: false,
     duration: '90 min',
-    isActive: true,
-    isOnline: true,
-    meetingUrl: 'https://zoom.us/j/example',
-    createdAt: new Date('2023-05-20'),
-    updatedAt: new Date('2023-05-20')
+    available: true,
+    createdAt: new Date('2023-05-20')
   },
   {
     id: 's3',
     title: 'Online Coaching (Monthly)',
     description: 'Full month of programming, check-ins, and support to help you reach your fitness goals.',
-    coachId: '2',
-    coachName: 'Sophia Williams',
-    serviceType: 'group',
-    capacity: 10,
+    providerId: '2',
+    providerName: 'Sophia Williams',
     price: 250,
-    isFree: false,
     duration: '30 days',
-    isActive: true,
-    isOnline: true,
-    meetingUrl: 'https://zoom.us/j/example2',
-    createdAt: new Date('2023-01-10'),
-    updatedAt: new Date('2023-01-10')
+    available: true,
+    createdAt: new Date('2023-01-10')
   }
 ];
 
@@ -1085,10 +1070,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setGroups(prev => 
         prev.map(g => 
           g.id === groupId 
-            ? { 
-                ...g, 
-                pendingRequests: (g.pendingRequests || 0) + 1
-              }
+            ? { ...g, pendingRequests: (g.pendingRequests || 0) + 1 }
             : g
         )
       );
