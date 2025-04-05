@@ -69,8 +69,21 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
         },
         (payload) => {
           console.log("New message received via real-time:", payload);
-          const newMessage = payload.new as Message;
-          setMessages((prevMessages) => [...prevMessages, newMessage]);
+          const newMessage = payload.new as any;
+          
+          // Construct a proper Message object with the required userRole
+          const messageWithRole: Message = {
+            id: newMessage.id,
+            serviceId: newMessage.service_id,
+            userId: newMessage.user_id,
+            userName: newMessage.user_name,
+            userProfileImage: newMessage.user_profile_image,
+            content: newMessage.content,
+            createdAt: new Date(newMessage.created_at),
+            userRole: 'user' // Set a default role since it's not in the payload
+          };
+          
+          setMessages((prevMessages) => [...prevMessages, messageWithRole]);
         }
       )
       .subscribe();

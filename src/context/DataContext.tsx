@@ -437,6 +437,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         userId: msg.user_id,
         userName: msg.user_name,
         userProfileImage: msg.user_profile_image,
+        userRole: msg.user_role,
         createdAt: new Date(msg.created_at),
         serviceId: msg.service_id
       }));

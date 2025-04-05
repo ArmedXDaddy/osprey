@@ -7,6 +7,7 @@ RETURNS TABLE(
   user_id uuid,
   user_name text,
   user_profile_image text,
+  user_role text,
   content text,
   created_at timestamp with time zone
 )
@@ -21,6 +22,7 @@ BEGIN
     sm.user_id,
     sm.user_name,
     sm.user_profile_image,
+    'user'::text as user_role, -- Default role since service_messages table doesn't store roles
     sm.content,
     sm.created_at
   FROM 
