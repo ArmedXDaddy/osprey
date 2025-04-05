@@ -12,6 +12,7 @@ import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import GroupChatSection from '@/components/group/GroupChatSection';
 import GroupRequestsSection from '@/components/group/GroupRequestsSection';
+import GroupMembersSection from '@/components/group/GroupMembersSection';
 import EditGroupForm from '@/components/group/EditGroupForm';
 import {
   ChevronLeft,

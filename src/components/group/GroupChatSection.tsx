@@ -9,6 +9,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Send, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Message, UserRole } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface GroupChatSectionProps {
   groupId: string;
@@ -17,10 +18,12 @@ interface GroupChatSectionProps {
 const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
   const { currentUser } = useAuth();
   const { sendMessage } = useData();
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(true);
+  const [subscribed, setSubscribed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch messages from Supabase on component mount
@@ -64,39 +67,55 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
 
     fetchMessages();
     
-    // Set up real-time subscription
-    const channel = supabase
-      .channel('public:messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `group_id=eq.${groupId}`
-        },
-        (payload) => {
-          const newMsg = payload.new as any;
-          
-          // Transform the data to match the Message type
-          const formattedMessage: Message = {
-            id: newMsg.id,
-            groupId: newMsg.group_id,
-            userId: newMsg.user_id,
-            userName: newMsg.user_name,
-            userRole: newMsg.user_role as UserRole, // Cast to UserRole
-            userProfileImage: newMsg.user_profile_image,
-            content: newMsg.content,
-            createdAt: new Date(newMsg.created_at)
-          };
-          
-          setMessages(prev => [...prev, formattedMessage]);
-        }
-      )
-      .subscribe();
+    // Set up real-time subscription only while actively viewing the chat
+    const setupSubscription = () => {
+      if (subscribed) return;
+      
+      const channel = supabase
+        .channel('public:messages')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `group_id=eq.${groupId}`
+          },
+          (payload) => {
+            const newMsg = payload.new as any;
+            
+            // Transform the data to match the Message type
+            const formattedMessage: Message = {
+              id: newMsg.id,
+              groupId: newMsg.group_id,
+              userId: newMsg.user_id,
+              userName: newMsg.user_name,
+              userRole: newMsg.user_role as UserRole, // Cast to UserRole
+              userProfileImage: newMsg.user_profile_image,
+              content: newMsg.content,
+              createdAt: new Date(newMsg.created_at)
+            };
+            
+            setMessages(prev => [...prev, formattedMessage]);
+          }
+        )
+        .subscribe(() => {
+          setSubscribed(true);
+          console.log("Subscribed to chat updates");
+        });
 
+      return channel;
+    };
+
+    const channel = setupSubscription();
+
+    // Clean up subscription when component unmounts or groupId changes
     return () => {
-      supabase.removeChannel(channel);
+      if (channel) {
+        console.log("Unsubscribing from chat updates");
+        supabase.removeChannel(channel);
+        setSubscribed(false);
+      }
     };
   }, [groupId]);
 
@@ -106,7 +125,15 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!currentUser) return;
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to send messages",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     if (!newMessage.trim()) return;
     
     setLoading(true);
@@ -124,6 +151,11 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
+      toast({
+        title: "Error sending message",
+        description: "Failed to send your message. Please try again.",
+        variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }

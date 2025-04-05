@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000000;
 
-type ToastActionElement = React.ReactElement<{
+export type ToastActionElement = React.ReactElement<{
   altText: string;
 }>;
 
