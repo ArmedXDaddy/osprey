@@ -1,3 +1,4 @@
+
 import { supabase } from './client';
 import { Booking, BookingStatus, PaymentStatus, Message } from '@/types';
 
@@ -37,7 +38,7 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
 };
 
 /**
- * Book a service with direct SQL query to work around TypeScript issues
+ * Book a service with direct database insert instead of stored procedure
  * @param serviceId Service ID to book
  * @param userId User ID making the booking
  * @param notes Optional notes for the booking
@@ -53,24 +54,25 @@ export const createServiceBooking = async (
   status: string = 'pending'
 ): Promise<string> => {
   try {
-    // Using direct SQL query with custom PostgreSQL function
-    const { data, error } = await supabase.rpc(
-      'create_service_booking' as any, // Type cast to avoid TypeScript errors
-      {
-        p_service_id: serviceId,
-        p_user_id: userId,
-        p_notes: notes || null,
-        p_payment_status: paymentStatus,
-        p_status: status
-      }
-    );
+    // Insert directly into the service_bookings table
+    const { data, error } = await supabase
+      .from('service_bookings')
+      .insert({
+        service_id: serviceId,
+        user_id: userId,
+        notes: notes || null,
+        payment_status: paymentStatus,
+        status: status
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error booking service:', error);
       throw new Error(error.message || 'Failed to book service');
     }
 
-    return data as string;
+    return data.id;
   } catch (error: any) {
     console.error('Error in createServiceBooking:', error);
     throw new Error(error.message || 'Failed to book service');
@@ -211,13 +213,11 @@ export const getUserBookingForService = async (serviceId: string, userId: string
  */
 export const cancelBooking = async (bookingId: string): Promise<void> => {
   try {
-    // Using stored procedure to cancel a booking
-    const { error } = await supabase.rpc(
-      'cancel_booking' as any, // Type cast to avoid TypeScript errors
-      {
-        p_booking_id: bookingId
-      }
-    );
+    // Update the status directly in the database
+    const { error } = await supabase
+      .from('service_bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', bookingId);
 
     if (error) {
       console.error('Error cancelling booking:', error);
@@ -236,13 +236,11 @@ export const cancelBooking = async (bookingId: string): Promise<void> => {
  */
 export const approveBooking = async (bookingId: string): Promise<void> => {
   try {
-    // Using stored procedure to approve a booking
-    const { error } = await supabase.rpc(
-      'approve_booking' as any, // Type cast to avoid TypeScript errors
-      {
-        p_booking_id: bookingId
-      }
-    );
+    // Update the status directly in the database
+    const { error } = await supabase
+      .from('service_bookings')
+      .update({ status: 'approved' })
+      .eq('id', bookingId);
 
     if (error) {
       console.error('Error approving booking:', error);
