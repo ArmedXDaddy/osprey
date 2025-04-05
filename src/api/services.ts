@@ -26,9 +26,9 @@ export const fetchServices = async (): Promise<Service[]> => {
     duration: item.duration || '1 hour',
     available: item.is_active,
     createdAt: new Date(item.created_at),
-    sessionType: item.service_type,
+    sessionType: item.service_type as 'one_on_one' | 'group',
     capacity: item.capacity,
-    startTime: item.start_time ? new Date(item.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
@@ -61,9 +61,9 @@ export const fetchServiceById = async (id: string): Promise<Service> => {
     duration: data.duration || '1 hour',
     available: data.is_active,
     createdAt: new Date(data.created_at),
-    sessionType: data.service_type,
+    sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: data.start_time ? new Date(data.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
@@ -96,9 +96,9 @@ export const fetchServicesByProviderId = async (providerId: string): Promise<Ser
     duration: item.duration || '1 hour',
     available: item.is_active,
     createdAt: new Date(item.created_at),
-    sessionType: item.service_type,
+    sessionType: item.service_type as 'one_on_one' | 'group',
     capacity: item.capacity,
-    startTime: item.start_time ? new Date(item.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
@@ -149,9 +149,9 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     duration: data.duration || '1 hour',
     available: data.is_active,
     createdAt: new Date(data.created_at),
-    sessionType: data.service_type,
+    sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: data.start_time ? new Date(data.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
@@ -172,7 +172,6 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.available !== undefined) supabaseData.is_active = serviceData.available;
   if (serviceData.sessionType !== undefined) supabaseData.service_type = serviceData.sessionType;
   if (serviceData.capacity !== undefined) supabaseData.capacity = serviceData.capacity;
-  if (serviceData.startTime !== undefined) supabaseData.start_time = serviceData.startTime;
   if (serviceData.location !== undefined) supabaseData.location = serviceData.location;
   if (serviceData.isOnline !== undefined) supabaseData.is_online = serviceData.isOnline;
   if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;
@@ -202,15 +201,28 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
     duration: data.duration || '1 hour',
     available: data.is_active,
     createdAt: new Date(data.created_at),
-    sessionType: data.service_type,
+    sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: data.start_time ? new Date(data.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
     image: data.image,
     isFree: data.is_free,
   };
+};
+
+// Delete a service
+export const deleteService = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('services')
+    .update({ is_active: false })
+    .eq('id', id);
+    
+  if (error) {
+    console.error('Error deleting service:', error);
+    throw new Error(error.message);
+  }
 };
 
 // Book a service
