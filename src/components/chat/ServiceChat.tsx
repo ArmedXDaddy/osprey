@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -31,7 +32,9 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
     if (service?.id) {
       try {
         setIsLoading(true);
+        console.log("Fetching messages for service:", service.id);
         const serviceMessages = await getServiceMessages(service.id);
+        console.log("Messages fetched:", serviceMessages);
         setMessages(serviceMessages);
       } catch (error) {
         console.error("Failed to fetch messages:", error);
@@ -65,11 +68,14 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
           filter: `service_id=eq.${service.id}`
         },
         (payload) => {
+          console.log("New message received via real-time:", payload);
           const newMessage = payload.new as Message;
           setMessages((prevMessages) => [...prevMessages, newMessage]);
         }
       )
       .subscribe();
+
+    console.log("Real-time subscription established for service:", service.id);
 
     // Cleanup subscription on unmount
     return () => {
@@ -92,6 +98,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
     
     try {
       setIsSubmitting(true);
+      console.log("Sending message to service:", service.id);
       await sendServiceMessage({
         serviceId: service.id,
         content: newMessage,
