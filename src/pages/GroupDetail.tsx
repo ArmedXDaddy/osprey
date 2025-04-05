@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -66,6 +66,16 @@ const GroupDetail = () => {
   // Find the group
   const group = groups.find(g => g.id === id);
 
+  // Check if user has joined the group
+  useEffect(() => {
+    if (group && currentUser) {
+      // In a real app, you would check if the user is in the members list
+      // For this mock app, we'll just set a dummy state
+      const hasJoined = group.creatorId === currentUser.id || Math.random() > 0.5;
+      setJoined(hasJoined);
+    }
+  }, [group, currentUser]);
+
   // Group events
   const groupEvents = events.filter(event => event.creatorId === group?.creatorId);
 
@@ -125,6 +135,9 @@ const GroupDetail = () => {
         return 'Join Group';
     }
   };
+
+  // Check if user can access restricted content
+  const canAccessRestrictedContent = isCreator || joined;
 
   if (loading) {
     return (
@@ -310,10 +323,14 @@ const GroupDetail = () => {
           <Tabs defaultValue="about" className="w-full">
             <TabsList className="grid grid-cols-5 w-full">
               <TabsTrigger value="about">About</TabsTrigger>
-              <TabsTrigger value="members">Members</TabsTrigger>
+              <TabsTrigger value="members" disabled={!canAccessRestrictedContent}>
+                Members {!canAccessRestrictedContent && <Lock className="h-3 w-3 ml-1" />}
+              </TabsTrigger>
               <TabsTrigger value="events">Events</TabsTrigger>
               <TabsTrigger value="posts">Posts</TabsTrigger>
-              <TabsTrigger value="chat">Chat</TabsTrigger>
+              <TabsTrigger value="chat" disabled={!canAccessRestrictedContent}>
+                Chat {!canAccessRestrictedContent && <Lock className="h-3 w-3 ml-1" />}
+              </TabsTrigger>
             </TabsList>
             
             <TabsContent value="about" className="p-6">
@@ -356,63 +373,76 @@ const GroupDetail = () => {
             </TabsContent>
             
             <TabsContent value="members" className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Members ({group.members})</h3>
-                <div className="relative md:w-64">
-                  <input 
-                    type="search" 
-                    placeholder="Search members..." 
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-4">
-                {/* Group creator */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar>
-                      <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(group.creatorName)}&background=random`} />
-                      <AvatarFallback>{group.creatorName.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{group.creatorName}</p>
-                      <p className="text-xs text-gray-500">Creator</p>
+              {canAccessRestrictedContent ? (
+                <>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">Members ({group.members})</h3>
+                    <div className="relative md:w-64">
+                      <input 
+                        type="search" 
+                        placeholder="Search members..." 
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      />
                     </div>
                   </div>
-                  <Badge variant="outline">Admin</Badge>
-                </div>
-                
-                {/* Mock members (in a real app, these would be real members) */}
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={`https://ui-avatars.com/api/?name=Member${i}&background=random`} />
-                        <AvatarFallback>M</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">Member {i + 1}</p>
-                        <p className="text-xs text-gray-500">Joined {i + 1} months ago</p>
+                  
+                  <div className="space-y-4">
+                    {/* Group creator */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={`https://ui-avatars.com/api/?name=${encodeURIComponent(group.creatorName)}&background=random`} />
+                          <AvatarFallback>{group.creatorName.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{group.creatorName}</p>
+                          <p className="text-xs text-gray-500">Creator</p>
+                        </div>
                       </div>
+                      <Badge variant="outline">Admin</Badge>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="sm">View Profile</Button>
-                      {isCreator && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleRemoveMember(`member-${i}`)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <UserX className="h-4 w-4 mr-1" />
-                          Remove
-                        </Button>
-                      )}
-                    </div>
+                    
+                    {/* Mock members (in a real app, these would be real members) */}
+                    {Array.from({ length: 2 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarImage src={`https://ui-avatars.com/api/?name=Member${i}&background=random`} />
+                            <AvatarFallback>M</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium">Member {i + 1}</p>
+                            <p className="text-xs text-gray-500">Joined {i + 1} months ago</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm">View Profile</Button>
+                          {isCreator && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleRemoveMember(`member-${i}`)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <UserX className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              ) : (
+                <div className="text-center py-12">
+                  <Lock className="h-12 w-12 mx-auto text-gray-300" />
+                  <h3 className="mt-4 text-lg font-medium">Members list is only visible to group members</h3>
+                  <p className="text-gray-500 mb-4">Join this group to see all members and interact with them</p>
+                  <Button onClick={handleJoinGroup}>
+                    {group.privacy === 'private' ? 'Request to Join' : group.privacy === 'paid' ? `Join ($${group.price}/month)` : 'Join Group'}
+                  </Button>
+                </div>
+              )}
             </TabsContent>
             
             <TabsContent value="events" className="p-6">
@@ -462,7 +492,7 @@ const GroupDetail = () => {
             </TabsContent>
             
             <TabsContent value="chat" className="p-6">
-              {((group.privacy === 'public') || isCreator || joined) ? (
+              {canAccessRestrictedContent ? (
                 <GroupChatSection groupId={group.id} />
               ) : (
                 <div className="text-center py-12">
@@ -471,10 +501,12 @@ const GroupDetail = () => {
                   <p className="text-gray-500 mb-4">
                     {group.privacy === 'private' 
                       ? 'Request to join this group to participate in the chat' 
-                      : `Subscribe for $${group.price}/month to join the conversation`}
+                      : group.privacy === 'paid' 
+                        ? `Subscribe for $${group.price}/month to join the conversation`
+                        : 'Join this group to participate in the chat'}
                   </p>
                   <Button onClick={handleJoinGroup}>
-                    {group.privacy === 'private' ? 'Request to Join' : `Join ($${group.price}/month)`}
+                    {group.privacy === 'private' ? 'Request to Join' : group.privacy === 'paid' ? `Join ($${group.price}/month)` : 'Join Group'}
                   </Button>
                 </div>
               )}
