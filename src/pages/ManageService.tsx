@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -32,7 +31,6 @@ const ManageService = () => {
   const [loadingBookings, setLoadingBookings] = useState<boolean>(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   
-  // Fetch service data
   useEffect(() => {
     const fetchService = async () => {
       if (!id) return;
@@ -67,7 +65,6 @@ const ManageService = () => {
     fetchService();
   }, [id, getServiceById, navigate]);
   
-  // Update the problematic section to handle the Promise correctly:
   useEffect(() => {
     const fetchServiceBookings = async () => {
       try {
@@ -86,7 +83,6 @@ const ManageService = () => {
     fetchServiceBookings();
   }, [id, getServiceBookings]);
   
-  // Check if the user is authorized to manage this service
   useEffect(() => {
     if (service && currentUser && service.providerId !== currentUser.id) {
       toast({
@@ -218,17 +214,7 @@ const ManageService = () => {
         </TabsContent>
         
         <TabsContent value="chat" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Service Chat</CardTitle>
-              <CardDescription>
-                Chat with users who have booked your service
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ServiceChatAccess service={service} booking={null} />
-            </CardContent>
-          </Card>
+          <ServiceChatAccess service={service} booking={null} />
         </TabsContent>
       </Tabs>
       

@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Service, Booking } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Clock, X, MessageSquare } from 'lucide-react';
@@ -14,6 +15,8 @@ interface ServiceChatAccessProps {
 
 const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking }) => {
   const { currentUser } = useAuth();
+  const { getUserBookingForService } = useData();
+  const [userBooking, setUserBooking] = useState<Booking | null>(booking);
   
   // Check if current user is the service provider/coach
   const isProvider = currentUser?.id === service.providerId;
@@ -24,7 +27,7 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
   }
   
   // For regular users, show appropriate content based on booking status
-  if (!booking) {
+  if (!userBooking) {
     return (
       <Card>
         <CardHeader>
@@ -44,15 +47,15 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
   }
 
   // Handle paid services - all types
-  if (booking.paymentStatus === 'paid') {
-    return <ServiceChat service={service} booking={booking} isProvider={false} />;
+  if (userBooking.paymentStatus === 'paid') {
+    return <ServiceChat service={service} booking={userBooking} isProvider={false} />;
   }
 
   // Handle free services that need approval
   if (service.price === 0) {
-    if (booking.status === 'approved') {
-      return <ServiceChat service={service} booking={booking} isProvider={false} />;
-    } else if (booking.status === 'pending') {
+    if (userBooking.status === 'approved') {
+      return <ServiceChat service={service} booking={userBooking} isProvider={false} />;
+    } else if (userBooking.status === 'pending') {
       return (
         <Card>
           <CardHeader>
@@ -69,7 +72,7 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
           </CardContent>
         </Card>
       );
-    } else if (booking.status === 'rejected') {
+    } else if (userBooking.status === 'rejected') {
       return (
         <Card>
           <CardHeader>

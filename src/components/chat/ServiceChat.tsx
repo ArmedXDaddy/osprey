@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
-import { Send, MessageSquare } from 'lucide-react';
+import { Send, MessageSquare, RefreshCw } from 'lucide-react';
 import { Service, Booking, Message } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
@@ -23,33 +23,37 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
   const [newMessage, setNewMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Fetch service messages
-  useEffect(() => {
-    const fetchMessages = async () => {
-      if (service?.id) {
-        try {
-          const serviceMessages = await getServiceMessages(service.id);
-          setMessages(serviceMessages);
-        } catch (error) {
-          console.error("Failed to fetch messages:", error);
-          toast({
-            variant: "destructive",
-            title: "Failed to load messages",
-            description: "There was an error loading the chat messages"
-          });
-        }
+  const fetchMessages = async () => {
+    if (service?.id) {
+      try {
+        setIsLoading(true);
+        const serviceMessages = await getServiceMessages(service.id);
+        setMessages(serviceMessages);
+      } catch (error) {
+        console.error("Failed to fetch messages:", error);
+        toast({
+          variant: "destructive",
+          title: "Failed to load messages",
+          description: "There was an error loading the chat messages"
+        });
+      } finally {
+        setIsLoading(false);
       }
-    };
-    
+    }
+  };
+
+  useEffect(() => {
     fetchMessages();
     
-    // Set up polling to check for new messages every 10 seconds
-    const interval = setInterval(fetchMessages, 10000);
+    // Set up polling to check for new messages every 15 seconds
+    const interval = setInterval(fetchMessages, 15000);
     
     return () => clearInterval(interval);
-  }, [service?.id, getServiceMessages]);
+  }, [service?.id]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -73,8 +77,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
       setNewMessage('');
       
       // Refetch messages after sending
-      const updatedMessages = await getServiceMessages(service.id);
-      setMessages(updatedMessages);
+      await fetchMessages();
     } catch (error: any) {
       console.error("Failed to send message:", error);
       toast({
@@ -87,9 +90,13 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
     }
   };
 
+  const handleRefresh = () => {
+    fetchMessages();
+  };
+
   if (!service || !currentUser) return null;
 
-  // For providers who don't have a specific booking
+  // Dynamic chat title and description
   const chatTitle = isProvider 
     ? "Service Chat" 
     : `${service.title} Chat`;
@@ -100,9 +107,20 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
 
   return (
     <div className="flex flex-col h-[500px] border rounded-lg">
-      <div className="bg-muted px-4 py-3 border-b">
-        <h3 className="font-medium">{chatTitle}</h3>
-        <p className="text-sm text-muted-foreground">{chatDescription}</p>
+      <div className="bg-muted px-4 py-3 border-b flex justify-between items-center">
+        <div>
+          <h3 className="font-medium">{chatTitle}</h3>
+          <p className="text-sm text-muted-foreground">{chatDescription}</p>
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={isLoading}
+        >
+          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+          <span className="sr-only">Refresh</span>
+        </Button>
       </div>
       
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
