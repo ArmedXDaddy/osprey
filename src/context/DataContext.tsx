@@ -41,6 +41,8 @@ interface DataContextType {
   requestToJoinEvent: (eventId: string) => Promise<void>;
   approveEventRequest: (requestId: string) => Promise<void>;
   rejectEventRequest: (requestId: string) => Promise<void>;
+  getEventRequests: (eventId: string) => JoinRequest[];
+  handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
   
   // Groups
   createGroup: (groupData: Omit<Group, 'id' | 'creatorId' | 'creatorName' | 'creatorRole' | 'members' | 'createdAt'>) => Promise<Group>;
@@ -49,6 +51,10 @@ interface DataContextType {
   requestToJoinGroup: (groupId: string) => Promise<void>;
   approveGroupRequest: (requestId: string) => Promise<void>;
   rejectGroupRequest: (requestId: string) => Promise<void>;
+  getGroupRequests: (groupId: string) => JoinRequest[];
+  handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  removeGroupMember: (groupId: string, memberId: string) => Promise<void>;
+  updateGroupDetails: (groupId: string, details: Partial<Group>) => Promise<Group>;
   
   // Sessions
   createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
@@ -59,6 +65,8 @@ interface DataContextType {
   getUserSessions: (userId: string) => Session[];
   getCoachSessions: (coachId: string) => Session[];
   getUserEnrollments: (userId: string) => SessionEnrollment[];
+  updateSession: (sessionId: string, data: Partial<Session>) => Promise<Session>;
+  updateEnrollmentStatus: (enrollmentId: string, status: string) => Promise<void>;
   
   // Messages
   sendMessage: (groupId: string, content: string, mediaUrl?: string, mediaType?: 'image' | 'video' | 'file') => Promise<Message>;
@@ -282,6 +290,22 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
+  // Get event requests
+  const getEventRequests = (eventId: string) => {
+    return joinRequests.filter(
+      request => request.eventId === eventId && request.status === 'pending'
+    );
+  };
+
+  // Handle event join request (approve or reject)
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    if (status === 'approved') {
+      await approveEventRequest(requestId);
+    } else {
+      await rejectEventRequest(requestId);
+    }
+  };
+
   // Groups
   const createGroup = async (groupData: Omit<Group, 'id' | 'creatorId' | 'creatorName' | 'creatorRole' | 'members' | 'createdAt'>): Promise<Group> => {
     if (!currentUser) throw new Error('You must be logged in to create a group');
@@ -432,6 +456,68 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
+  // Handle group join request (approve or reject)
+  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    if (status === 'approved') {
+      await approveGroupRequest(requestId);
+    } else {
+      await rejectGroupRequest(requestId);
+    }
+  };
+
+  // Remove group member
+  const removeGroupMember = async (groupId: string, memberId: string) => {
+    if (!currentUser) throw new Error('You must be logged in to remove a group member');
+
+    const group = groups.find(g => g.id === groupId);
+    if (!group) throw new Error('Group not found');
+
+    // Check if user is the group creator
+    if (group.creatorId !== currentUser.id) {
+      throw new Error('Only the group creator can remove members');
+    }
+
+    setGroups(prevGroups =>
+      prevGroups.map(group => {
+        if (group.id === groupId) {
+          const memberIds = group.memberIds || [];
+          if (memberIds.includes(memberId)) {
+            return {
+              ...group,
+              members: Math.max(0, group.members - 1),
+              memberIds: memberIds.filter(id => id !== memberId),
+            };
+          }
+        }
+        return group;
+      })
+    );
+  };
+
+  // Update group details
+  const updateGroupDetails = async (groupId: string, details: Partial<Group>): Promise<Group> => {
+    if (!currentUser) throw new Error('You must be logged in to update a group');
+
+    const groupIndex = groups.findIndex(g => g.id === groupId);
+    if (groupIndex === -1) throw new Error('Group not found');
+
+    const group = groups[groupIndex];
+    
+    // Check if user is the group creator
+    if (group.creatorId !== currentUser.id) {
+      throw new Error('Only the group creator can update the group details');
+    }
+
+    const updatedGroup = { ...group, ...details };
+    setGroups(prevGroups => {
+      const newGroups = [...prevGroups];
+      newGroups[groupIndex] = updatedGroup;
+      return newGroups;
+    });
+
+    return updatedGroup;
+  };
+
   // Sessions
   const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>): Promise<Session> => {
     if (!currentUser) throw new Error('You must be logged in to create a session');
@@ -569,6 +655,55 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const getUserEnrollments = (userId: string): SessionEnrollment[] => {
     // Get all enrollments for the user
     return sessionEnrollments.filter(enrollment => enrollment.userId === userId);
+  };
+
+  // Update session
+  const updateSession = async (sessionId: string, data: Partial<Session>): Promise<Session> => {
+    if (!currentUser) throw new Error('You must be logged in to update a session');
+
+    const sessionIndex = sessions.findIndex(s => s.id === sessionId);
+    if (sessionIndex === -1) throw new Error('Session not found');
+
+    const session = sessions[sessionIndex];
+    
+    // Check if user is the session coach
+    if (session.coachId !== currentUser.id) {
+      throw new Error('Only the session coach can update the session');
+    }
+
+    const updatedSession = { ...session, ...data, updatedAt: new Date() };
+    setSessions(prevSessions => {
+      const newSessions = [...prevSessions];
+      newSessions[sessionIndex] = updatedSession;
+      return newSessions;
+    });
+
+    return updatedSession;
+  };
+
+  // Update enrollment status
+  const updateEnrollmentStatus = async (enrollmentId: string, status: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update an enrollment');
+
+    const enrollmentIndex = sessionEnrollments.findIndex(e => e.id === enrollmentId);
+    if (enrollmentIndex === -1) throw new Error('Enrollment not found');
+
+    const enrollment = sessionEnrollments[enrollmentIndex];
+
+    // Get the session to check permissions
+    const session = sessions.find(s => s.id === enrollment.sessionId);
+    if (!session) throw new Error('Session not found');
+
+    // Check if user is the session coach
+    if (session.coachId !== currentUser.id) {
+      throw new Error('Only the session coach can update enrollment status');
+    }
+
+    setSessionEnrollments(prevEnrollments => {
+      const newEnrollments = [...prevEnrollments];
+      newEnrollments[enrollmentIndex] = { ...enrollment, status };
+      return newEnrollments;
+    });
   };
 
   // Messages
@@ -977,6 +1112,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         requestToJoinEvent,
         approveEventRequest,
         rejectEventRequest,
+        getEventRequests,
+        handleEventJoinRequest,
         
         // Groups
         createGroup,
@@ -985,6 +1122,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         requestToJoinGroup,
         approveGroupRequest,
         rejectGroupRequest,
+        getGroupRequests,
+        handleJoinRequest,
+        removeGroupMember,
+        updateGroupDetails,
         
         // Sessions
         createSession,
@@ -995,6 +1136,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         getUserSessions,
         getCoachSessions,
         getUserEnrollments,
+        updateSession,
+        updateEnrollmentStatus,
         
         // Messages
         sendMessage,
@@ -1004,7 +1147,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         bookService,
         cancelBooking,
         getUserBookings,
-        getServiceBookings,
+        getServiceBookings
       }}
     >
       {children}

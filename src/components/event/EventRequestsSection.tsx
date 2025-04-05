@@ -12,8 +12,10 @@ interface EventRequestsSectionProps {
 }
 
 const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) => {
-  const { getEventRequests, handleEventJoinRequest } = useData();
-  const requests = getEventRequests(eventId);
+  const { joinRequests, approveEventRequest, rejectEventRequest } = useData();
+  const requests = joinRequests.filter(
+    request => request.eventId === eventId && request.status === 'pending'
+  );
 
   if (requests.length === 0) {
     return (
@@ -22,6 +24,14 @@ const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) 
       </div>
     );
   }
+
+  const handleEventJoinRequest = (requestId: string, status: 'approved' | 'rejected') => {
+    if (status === 'approved') {
+      approveEventRequest(requestId);
+    } else {
+      rejectEventRequest(requestId);
+    }
+  };
 
   return (
     <div className="space-y-3">
