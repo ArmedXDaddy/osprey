@@ -213,9 +213,12 @@ export interface SessionEnrollment {
 export interface ServiceBooking {
   id: string;
   serviceName: string;
+  serviceId: string;
   userName: string;
   userEmail: string;
+  userProfileImage?: string;
   status: 'pending' | 'approved' | 'rejected';
   paymentStatus: 'paid' | 'unpaid' | 'refunded';
   amount: number;
+  createdAt: Date;
 }

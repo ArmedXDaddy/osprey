@@ -1,4 +1,3 @@
-
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -268,8 +267,8 @@ export const bookService = async (bookingData: {
       user_name: bookingData.userName,
       user_email: bookingData.userEmail,
       user_profile_image: bookingData.userProfileImage,
-      status: service.isFree ? 'pending' : 'approved',
-      payment_status: service.isFree ? 'unpaid' : 'paid',
+      status: service.isFree ? 'approved' : 'pending', // Auto-approve free services
+      payment_status: service.isFree ? 'unpaid' : 'paid', // Mark paid services as paid
       payment_required: !service.isFree,
       amount: service.price
     });
