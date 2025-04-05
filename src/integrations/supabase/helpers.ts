@@ -42,8 +42,7 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
  * @param serviceId Service ID to book
  * @param userId User ID making the booking
  * @param notes Optional notes for the booking
- * @param paymentStatus Payment status (paid/unpaid)
- * @param status Booking status (pending/approved)
+ * @param preferredTime Optional preferred time for the booking
  * @returns ID of the created booking
  */
 export const createServiceBooking = async (
@@ -67,7 +66,46 @@ export const createServiceBooking = async (
       isPaid
     });
 
-    // Insert directly into the service_bookings table
+    // First, check if the booking already exists
+    const { data: existingBooking, error: checkError } = await supabase
+      .from('service_bookings')
+      .select('id, payment_status, status')
+      .eq('service_id', serviceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error checking existing booking:', checkError);
+      throw new Error(checkError.message || 'Failed to check for existing booking');
+    }
+
+    // If booking exists, handle accordingly
+    if (existingBooking) {
+      console.log('Booking already exists:', existingBooking);
+      
+      // If existing booking needs to be updated (e.g., unpaid -> paid)
+      if (isPaid && existingBooking.payment_status !== 'paid') {
+        const { error: updateError } = await supabase
+          .from('service_bookings')
+          .update({ 
+            payment_status: 'paid',
+            status: 'approved',
+            notes: notes || existingBooking.notes
+          })
+          .eq('id', existingBooking.id);
+          
+        if (updateError) {
+          console.error('Error updating existing booking:', updateError);
+          throw new Error(updateError.message || 'Failed to update booking status');
+        }
+        
+        console.log('Successfully updated booking to paid status');
+      }
+      
+      return existingBooking.id;
+    }
+
+    // Insert directly into the service_bookings table if no existing booking
     const { data, error } = await supabase
       .from('service_bookings')
       .insert({
@@ -85,7 +123,6 @@ export const createServiceBooking = async (
       throw new Error(error.message || 'Failed to book service');
     }
 
-    // Add a console log to verify we're getting the correct booking ID back
     console.log('Successfully created booking with ID:', data.id);
     console.log('Booking data:', data);
     return data.id;

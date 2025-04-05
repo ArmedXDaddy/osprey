@@ -29,6 +29,7 @@ const ServiceDetail = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [hasBooked, setHasBooked] = useState(false);
   const [userBooking, setUserBooking] = useState<Booking | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchServiceAndBookingDetails = async () => {
     if (!id) return;
@@ -56,6 +57,7 @@ const ServiceDetail = () => {
         try {
           const booking = await getUserBookingForService(serviceData.id, currentUser.id);
           console.log("User booking data:", booking);
+          
           if (booking) {
             setUserBooking(booking);
             setHasBooked(true);
@@ -84,7 +86,7 @@ const ServiceDetail = () => {
 
   useEffect(() => {
     fetchServiceAndBookingDetails();
-  }, [id, currentUser]);
+  }, [id, currentUser, refreshKey]);
 
   const handleBook = () => {
     if (!currentUser) {
@@ -101,7 +103,12 @@ const ServiceDetail = () => {
   };
 
   const handleBookingSuccess = () => {
-    fetchServiceAndBookingDetails();
+    setRefreshKey(prev => prev + 1);
+    
+    toast({
+      title: "Booking successful",
+      description: "Your service has been booked successfully."
+    });
   };
 
   const isProvider = currentUser && service && currentUser.id === service.providerId;
