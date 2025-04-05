@@ -8,12 +8,20 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Plus, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Session, SessionEnrollment } from '@/types';
 
 const Sessions = () => {
   const { currentUser } = useAuth();
   const { sessions, sessionEnrollments, loading } = useData();
   const navigate = useNavigate();
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [filteredSessions, setFilteredSessions] = useState<Session[]>([]);
   const [filter, setFilter] = useState<'all' | 'group' | 'one_on_one'>('all');
   
@@ -33,6 +41,11 @@ const Sessions = () => {
       }));
     }
   }, [sessions, filter]);
+  
+  const handleCreateSession = () => {
+    navigate('/sessions/create');
+    setIsCreateDialogOpen(false);
+  };
   
   const isCoach = currentUser?.role === 'coach';
   

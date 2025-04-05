@@ -1,5 +1,8 @@
 
 import React from 'react';
+import { useData } from '@/context/DataContext';
+import { useAuth } from '@/context/AuthContext';
+import { Session, SessionEnrollment } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Clock, DollarSign, Calendar, User } from 'lucide-react';
@@ -12,39 +15,33 @@ interface SessionsTabProps {
   isOwnProfile: boolean;
 }
 
-// Simplified basic session interfaces for display purposes
-interface BasicSession {
-  id: string;
-  title: string;
-  price: number;
-  coach: {
-    name: string;
-  };
-  startTime?: Date;
-  status: string;
-  type: string;
-}
-
 const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
-  // In a real implementation, these would be fetched from an API
-  const userSessions: BasicSession[] = [];
-  const coachSessions: BasicSession[] = [];
-  const enrollments: any[] = [];
+  const { currentUser } = useAuth();
+  const { 
+    sessions, 
+    sessionEnrollments, 
+    getUserSessions, 
+    getCoachSessions,
+    getUserEnrollments,
+    loading 
+  } = useData();
   
-  // Simplified session state for display
-  const pendingEnrollments: any[] = [];
-  const approvedEnrollments: any[] = [];
-  const rejectedEnrollments: any[] = [];
+  const isCoach = isOwnProfile ? currentUser?.role === 'coach' : false;
   
-  const loading = false;
+  // Get sessions data
+  const userEnrollments = getUserEnrollments(userId);
+  const coachSessions = isCoach ? getCoachSessions(userId) : [];
+  
+  // Process enrollments to group by status
+  const pendingEnrollments = userEnrollments.filter(e => e.status === 'pending');
+  const approvedEnrollments = userEnrollments.filter(e => e.status === 'approved');
+  const rejectedEnrollments = userEnrollments.filter(e => e.status === 'rejected');
   
   if (loading) {
     return <div className="text-center py-6">Loading...</div>;
   }
   
-  const isCoach = isOwnProfile; // This would be determined by user role in a real implementation
-  
-  if (!isCoach && enrollments.length === 0) {
+  if (!isCoach && userEnrollments.length === 0) {
     return (
       <div className="text-center py-12">
         <User className="h-12 w-12 mx-auto text-gray-300" />
@@ -63,7 +60,7 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
     );
   }
   
-  if (isCoach && coachSessions.length === 0 && enrollments.length === 0) {
+  if (isCoach && coachSessions.length === 0 && userEnrollments.length === 0) {
     return (
       <div className="text-center py-12">
         <User className="h-12 w-12 mx-auto text-gray-300" />
@@ -100,11 +97,12 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
               <CoachSessionCard
                 key={session.id}
                 session={session}
+                sessionEnrollments={sessionEnrollments.filter(e => e.sessionId === session.id)}
               />
             ))}
           </div>
           
-          {enrollments.length > 0 && (
+          {userEnrollments.length > 0 && (
             <div className="mt-8 pt-6 border-t">
               <h3 className="text-lg font-medium mb-4">
                 {isOwnProfile ? "Sessions I'm Enrolled In" : "Sessions Enrolled In"}
@@ -118,13 +116,18 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
         <>
           <h4 className="text-md font-medium">Pending Enrollment Requests</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingEnrollments.map((enrollment: any) => (
-              <EnrollmentCard
-                key={enrollment.id}
-                session={enrollment.session}
-                status={enrollment.status}
-              />
-            ))}
+            {pendingEnrollments.map(enrollment => {
+              const session = sessions.find(s => s.id === enrollment.sessionId);
+              if (!session) return null;
+              
+              return (
+                <EnrollmentCard
+                  key={enrollment.id}
+                  session={session}
+                  status={enrollment.status}
+                />
+              );
+            })}
           </div>
         </>
       )}
@@ -133,13 +136,18 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
         <>
           <h4 className="text-md font-medium">Upcoming Sessions</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {approvedEnrollments.map((enrollment: any) => (
-              <EnrollmentCard
-                key={enrollment.id}
-                session={enrollment.session}
-                status={enrollment.status}
-              />
-            ))}
+            {approvedEnrollments.map(enrollment => {
+              const session = sessions.find(s => s.id === enrollment.sessionId);
+              if (!session) return null;
+              
+              return (
+                <EnrollmentCard
+                  key={enrollment.id}
+                  session={session}
+                  status={enrollment.status}
+                />
+              );
+            })}
           </div>
         </>
       )}
@@ -148,13 +156,18 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
         <>
           <h4 className="text-md font-medium">Declined Requests</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rejectedEnrollments.map((enrollment: any) => (
-              <EnrollmentCard
-                key={enrollment.id}
-                session={enrollment.session}
-                status={enrollment.status}
-              />
-            ))}
+            {rejectedEnrollments.map(enrollment => {
+              const session = sessions.find(s => s.id === enrollment.sessionId);
+              if (!session) return null;
+              
+              return (
+                <EnrollmentCard
+                  key={enrollment.id}
+                  session={session}
+                  status={enrollment.status}
+                />
+              );
+            })}
           </div>
         </>
       )}
@@ -163,7 +176,7 @@ const SessionsTab: React.FC<SessionsTabProps> = ({ userId, isOwnProfile }) => {
 };
 
 interface EnrollmentCardProps {
-  session: BasicSession;
+  session: Session;
   status: string;
 }
 
@@ -174,12 +187,12 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ session, status }) => {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-base">{session.title}</CardTitle>
-            <div className="text-sm text-gray-500">by {session.coach.name}</div>
+            <div className="text-sm text-gray-500">by {session.coachName}</div>
           </div>
           <Badge 
             variant={
               status === 'approved' 
-                ? 'default' 
+                ? 'success' 
                 : status === 'rejected' 
                 ? 'destructive' 
                 : 'outline'
@@ -195,7 +208,7 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ session, status }) => {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">1 hour</span>
+              <span className="text-sm text-gray-700">{session.duration}</span>
             </div>
             
             <div className="flex items-center gap-1">
@@ -227,20 +240,21 @@ const EnrollmentCard: React.FC<EnrollmentCardProps> = ({ session, status }) => {
 };
 
 interface CoachSessionCardProps {
-  session: BasicSession;
+  session: Session;
+  sessionEnrollments: SessionEnrollment[];
 }
 
-const CoachSessionCard: React.FC<CoachSessionCardProps> = ({ session }) => {
-  const pendingCount = 0;
-  const approvedCount = 0;
+const CoachSessionCard: React.FC<CoachSessionCardProps> = ({ session, sessionEnrollments }) => {
+  const pendingCount = sessionEnrollments.filter(e => e.status === 'pending').length;
+  const approvedCount = sessionEnrollments.filter(e => e.status === 'approved').length;
   
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <CardTitle className="text-base">{session.title}</CardTitle>
-          <Badge variant={session.status === 'active' ? 'default' : 'destructive'}>
-            {session.status === 'active' ? 'Active' : 'Inactive'}
+          <Badge variant={session.isActive ? 'success' : 'destructive'}>
+            {session.isActive ? 'Active' : 'Inactive'}
           </Badge>
         </div>
       </CardHeader>
@@ -249,8 +263,8 @@ const CoachSessionCard: React.FC<CoachSessionCardProps> = ({ session }) => {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Session Type:</span>
-            <Badge variant={session.type === 'one_on_one' ? 'outline' : 'secondary'}>
-              {session.type === 'one_on_one' ? '1:1 Session' : 'Group Class'}
+            <Badge variant={session.sessionType === 'one_on_one' ? 'outline' : 'secondary'}>
+              {session.sessionType === 'one_on_one' ? '1:1 Session' : 'Group Class'}
             </Badge>
           </div>
           

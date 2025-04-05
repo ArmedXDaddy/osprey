@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
-import { UserRole, Service } from '@/types';
+import { UserRole } from '@/types';
 import { Calendar, Users, DollarSign, Award, Star, TrendingUp } from 'lucide-react';
 
 const HomePage = () => {
@@ -25,6 +26,7 @@ const HomePage = () => {
     );
   }
 
+  // Role-based welcome message and stats
   const getRoleBasedIntro = () => {
     switch (currentUser.role) {
       case 'user':
@@ -91,6 +93,7 @@ const HomePage = () => {
 
   const roleIntro = getRoleBasedIntro();
   
+  // Role-specific colors
   const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'influencer': return 'from-red-500 to-orange-400';
@@ -103,6 +106,7 @@ const HomePage = () => {
 
   return (
     <div className="space-y-8">
+      {/* Welcome Header */}
       <div className={`bg-gradient-to-r ${getRoleColor(currentUser.role)} rounded-lg p-6 text-white`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -126,7 +130,9 @@ const HomePage = () => {
         </div>
       </div>
       
+      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Feed */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="for-you" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -170,7 +176,9 @@ const HomePage = () => {
           </Tabs>
         </div>
         
+        {/* Right Column - Events, Groups, Services */}
         <div className="space-y-6">
+          {/* Upcoming Events */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -199,6 +207,7 @@ const HomePage = () => {
             </CardContent>
           </Card>
           
+          {/* Popular Groups */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -227,6 +236,7 @@ const HomePage = () => {
             </CardContent>
           </Card>
           
+          {/* Coach Services - Only show for non-coaches */}
           {currentUser.role !== 'coach' && (
             <Card>
               <CardHeader className="pb-2">
@@ -241,14 +251,7 @@ const HomePage = () => {
                 ) : (
                   <div>
                     {services.slice(0, 1).map(service => (
-                      <ServiceCard 
-                        key={service.id} 
-                        service={{
-                          ...service,
-                          providerId: (service as any).providerId || service.coachId,
-                          providerName: (service as any).providerName || service.coachName,
-                        } as Service} 
-                      />
+                      <ServiceCard key={service.id} service={service} />
                     ))}
                     <Link to="/explore?tab=services" className="text-primary hover:underline text-sm block text-center mt-4">
                       Explore all services

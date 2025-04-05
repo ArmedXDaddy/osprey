@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               bio: session.user.user_metadata.bio,
               location: session.user.user_metadata.location,
               socialLinks: session.user.user_metadata.socialLinks,
+              createdAt: new Date(session.user.created_at)
             };
             
             setCurrentUser(userData);
@@ -66,6 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           bio: session.user.user_metadata.bio,
           location: session.user.user_metadata.location,
           socialLinks: session.user.user_metadata.socialLinks,
+          createdAt: new Date(session.user.created_at)
         };
         
         setCurrentUser(userData);

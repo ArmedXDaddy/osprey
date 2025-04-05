@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -6,11 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link, ImageIcon, Check } from 'lucide-react';
-import { fetchServiceById, bookService, deleteService, updateService, checkBookingStatus } from '@/api/services';
+import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
+import { fetchServiceById, bookService, deleteService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,36 +21,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
 
-  const { data: service, isLoading, error, refetch } = useQuery({
+  const { data: service, isLoading, error } = useQuery({
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
-  });
-  
-  const { data: bookingStatus, isLoading: isLoadingBookingStatus } = useQuery({
-    queryKey: ['booking-status', id, currentUser?.id],
-    queryFn: () => checkBookingStatus(id as string, currentUser?.id as string),
-    enabled: !!id && !!currentUser?.id,
   });
   
   const bookServiceMutation = useMutation({
@@ -61,8 +41,6 @@ const ServiceDetail = () => {
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
-      refetch();
-      setIsPaymentModalOpen(false);
     },
     onError: (error) => {
       toast({
@@ -82,8 +60,7 @@ const ServiceDetail = () => {
       });
       navigate('/services');
     },
-    onError: (error: any) => {
-      console.error("Service deletion error:", error);
+    onError: (error) => {
       toast({
         title: "Deletion Failed",
         description: `Error: ${error.message}`,
@@ -91,57 +68,8 @@ const ServiceDetail = () => {
       });
     },
   });
-
-  const uploadCoverImageMutation = useMutation({
-    mutationFn: async (file: File) => {
-      if (!service) throw new Error('No service found');
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${service.id}_cover.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('service_images')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true,
-        });
-
-      if (uploadError) throw uploadError;
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('service_images')
-        .getPublicUrl(filePath);
-
-      await updateService(service.id, { coverImage: publicUrl });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Cover Image Updated",
-        description: "Your service cover image has been updated successfully",
-      });
-      refetch();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Image Upload Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
   
   const handleBookService = () => {
-    if (!currentUser || !service) return;
-    
-    if (service.price > 0) {
-      setIsPaymentModalOpen(true);
-    } else {
-      processBooking();
-    }
-  };
-  
-  const processBooking = () => {
     if (!currentUser || !service) return;
     
     bookServiceMutation.mutate({
@@ -153,39 +81,16 @@ const ServiceDetail = () => {
     });
   };
   
-  const handleProcessPayment = () => {
-    if (cardNumber.length < 16 || cardExpiry.length < 5 || cardCvc.length < 3) {
-      toast({
-        title: "Invalid Card Details",
-        description: "Please enter valid card information",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    processBooking();
-  };
-  
   const handleEditService = () => {
     navigate(`/services/${id}/edit`);
   };
   
   const handleDeleteService = () => {
     if (!id) return;
-    console.log("Deleting service with ID:", id);
     deleteServiceMutation.mutate(id);
-  };
-
-  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setCoverImageFile(file);
-      uploadCoverImageMutation.mutate(file);
-    }
   };
   
   const isOwner = currentUser?.id === service?.providerId;
-  const isAlreadyBooked = bookingStatus?.isBooked;
   
   if (isLoading) {
     return (
@@ -220,23 +125,6 @@ const ServiceDetail = () => {
   
   return (
     <div className="space-y-6">
-      {isOwner && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">Cover Image</h2>
-          <div className="flex items-center space-x-4">
-            <Input 
-              type="file" 
-              accept="image/*" 
-              onChange={handleCoverImageChange}
-              className="w-64"
-            />
-            {uploadCoverImageMutation.isPending && (
-              <span>Uploading...</span>
-            )}
-          </div>
-        </div>
-      )}
-      
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold">{service.title}</h1>
@@ -358,102 +246,24 @@ const ServiceDetail = () => {
                 
                 <Button 
                   className="w-full mt-6" 
-                  disabled={!service?.available || isOwner || bookServiceMutation.isPending || isAlreadyBooked}
+                  disabled={!service.available || isOwner || bookServiceMutation.isPending}
                   onClick={handleBookService}
                 >
                   {isOwner 
                     ? 'You own this service' 
-                    : !service?.available 
+                    : !service.available 
                       ? 'Currently Unavailable'
-                      : isAlreadyBooked
-                        ? 'Already Booked'
-                        : bookServiceMutation.isPending 
-                          ? 'Processing...' 
-                          : bookServiceMutation.isSuccess
-                            ? 'Booked Successfully'
-                            : 'Book Now'}
+                      : bookServiceMutation.isPending 
+                        ? 'Processing...' 
+                        : bookServiceMutation.isSuccess
+                          ? 'Booked Successfully'
+                          : 'Book Now'}
                 </Button>
-                
-                {isAlreadyBooked && (
-                  <div className="flex items-center justify-center gap-2 text-green-600">
-                    <Check className="h-4 w-4" />
-                    <span>You've already booked this service</span>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-      
-      <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Complete Payment</DialogTitle>
-            <DialogDescription>
-              Enter your payment details to book this service.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="cardNumber" className="text-sm font-medium">Card Number</label>
-              <Input 
-                id="cardNumber" 
-                placeholder="1234 5678 9012 3456" 
-                value={cardNumber}
-                onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label htmlFor="expiry" className="text-sm font-medium">Expiry Date</label>
-                <Input 
-                  id="expiry" 
-                  placeholder="MM/YY" 
-                  value={cardExpiry}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    if (val.length <= 2) {
-                      setCardExpiry(val);
-                    } else if (val.length <= 4) {
-                      setCardExpiry(`${val.slice(0, 2)}/${val.slice(2)}`);
-                    }
-                  }}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label htmlFor="cvc" className="text-sm font-medium">CVC</label>
-                <Input 
-                  id="cvc" 
-                  placeholder="123" 
-                  value={cardCvc}
-                  onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                />
-              </div>
-            </div>
-            
-            <div className="pt-4 font-semibold text-lg flex justify-between">
-              <span>Total:</span>
-              <span>${service?.price || 0}</span>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleProcessPayment}
-              disabled={bookServiceMutation.isPending}
-            >
-              {bookServiceMutation.isPending ? "Processing..." : "Pay Now"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
