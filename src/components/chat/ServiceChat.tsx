@@ -80,7 +80,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
             userProfileImage: newMessage.user_profile_image,
             content: newMessage.content,
             createdAt: new Date(newMessage.created_at),
-            userRole: 'user' // Set a default role since it's not in the payload
+            userRole: newMessage.user_role || 'user' // Use provided role or default to 'user'
           };
           
           setMessages((prevMessages) => [...prevMessages, messageWithRole]);
@@ -112,11 +112,31 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
     try {
       setIsSubmitting(true);
       console.log("Sending message to service:", service.id);
+      
+      // Store message locally to avoid the screen going white
+      const tempMessage: Message = {
+        id: 'temp-' + Date.now(),
+        serviceId: service.id,
+        userId: currentUser.id,
+        userName: currentUser.name || 'You',
+        userProfileImage: currentUser.profileImage,
+        content: newMessage,
+        createdAt: new Date(),
+        userRole: currentUser.role || 'user'
+      };
+      
+      // Optimistically update UI
+      setMessages(prev => [...prev, tempMessage]);
+      
+      // Clear input field immediately
+      setNewMessage('');
+      
+      // Send message to server
       await sendServiceMessage({
         serviceId: service.id,
         content: newMessage,
       });
-      setNewMessage('');
+      
     } catch (error: any) {
       console.error("Failed to send message:", error);
       toast({
@@ -124,6 +144,9 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
         title: "Failed to send message",
         description: error.message || "There was an error sending your message"
       });
+      
+      // Remove optimistic message if it failed
+      setMessages(prev => prev.filter(msg => msg.id !== 'temp-' + Date.now()));
     } finally {
       setIsSubmitting(false);
     }
