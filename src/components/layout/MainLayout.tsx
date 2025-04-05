@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,7 +13,8 @@ import {
   Settings,
   User,
   Menu,
-  X
+  X,
+  NetworkIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -33,7 +33,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   
-  // If no auth, redirect to auth pages
   React.useEffect(() => {
     if (!isLoading && !currentUser && !location.pathname.startsWith('/auth')) {
       navigate('/auth/login');
@@ -49,12 +48,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  // Check if we're on auth pages
   if (location.pathname.startsWith('/auth')) {
     return <>{children}</>;
   }
 
-  // Loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -112,6 +109,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <nav className="space-y-1">
               <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
               <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+              <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
               <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
               <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
               <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
@@ -142,7 +140,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Desktop Sidebar */}
       <div className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 h-screen sticky top-0 shrink-0">
         <div className="p-4 flex flex-col h-full">
           <h1 className="text-xl font-semibold mb-8 gradient-text">Osprey</h1>
@@ -150,6 +147,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <nav className="space-y-1 flex-1">
             <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
             <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+            <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
             <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
             <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
@@ -190,9 +188,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </div>
       </div>
       
-      {/* Mobile Header & Content */}
       <div className="flex flex-col flex-1">
-        {/* Mobile Header */}
         <header className="md:hidden bg-white border-b border-gray-100 p-3 sticky top-0 z-10 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)}>
@@ -215,7 +211,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </div>
         </header>
         
-        {/* Main Content */}
         <main className="flex-1">
           <div className="max-w-5xl mx-auto py-4 px-3 sm:px-4 md:py-5">
             {children}
@@ -223,10 +218,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </main>
       </div>
       
-      {/* Mobile Menu */}
       {isMobile && <MobileMenu />}
       
-      {/* Mobile Action Button - Floating */}
       <div className="md:hidden fixed bottom-5 right-5 rounded-full shadow-lg z-10">
         <Button variant="default" size="icon" className="h-12 w-12 rounded-full bg-primary shadow-md">
           <PlusCircle size={20} />
