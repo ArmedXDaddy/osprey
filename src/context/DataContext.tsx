@@ -912,4 +912,322 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const deleteService = async (
+  const deleteService = async (serviceId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a service');
+    
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', serviceId)
+        .eq('coach_id', currentUser.id);
+
+      if (error) throw error;
+
+      // Update local state by removing the deleted service
+      setServices(prevServices => 
+        prevServices.filter(service => service.id !== serviceId)
+      );
+      
+      console.log("Service deleted successfully:", serviceId);
+    } catch (err: any) {
+      console.error("Error deleting service:", err);
+      throw err;
+    }
+  };
+
+  const approveBooking = async (bookingId: string): Promise<Booking> => {
+    const bookingIndex = bookings.findIndex(b => b.id === bookingId);
+    if (bookingIndex === -1) {
+      throw new Error("Booking not found");
+    }
+
+    const booking = bookings[bookingIndex];
+    const service = await getServiceById(booking.serviceId);
+
+    if (!service) {
+      throw new Error("Service not found");
+    }
+
+    if (currentUser?.id !== service.providerId) {
+      throw new Error("Only the service provider can approve bookings");
+    }
+
+    const updatedBooking = {
+      ...booking,
+      status: 'approved' as BookingStatus
+    };
+
+    setBookings(prev => 
+      prev.map(b => b.id === bookingId ? updatedBooking : b)
+    );
+
+    return updatedBooking;
+  };
+
+  const sendServiceMessage = async (
+    serviceId: string,
+    content: string,
+    mediaUrl?: string,
+    mediaType?: 'image' | 'video' | 'file'
+  ): Promise<Message> => {
+    if (!currentUser) throw new Error('You must be logged in to send a message');
+
+    // Check if user is allowed to send messages for this service
+    const service = await getServiceById(serviceId);
+    if (!service) throw new Error('Service not found');
+
+    // Allow provider or users who booked the service to send messages
+    const userBooking = getUserBookingForService(currentUser.id, serviceId);
+    const isProvider = service.providerId === currentUser.id;
+    
+    if (!isProvider && !userBooking) {
+      throw new Error('You must be the provider or have booked this service to send messages');
+    }
+
+    const newMessage: Message = {
+      id: generateId(),
+      serviceId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userRole: currentUser.role,
+      userProfileImage: currentUser.profileImage,
+      content,
+      mediaUrl,
+      mediaType,
+      createdAt: new Date(),
+    };
+
+    setMessages(prevMessages => [...prevMessages, newMessage]);
+    return newMessage;
+  };
+
+  const getServiceMessages = (serviceId: string): Message[] => {
+    return messages.filter(message => message.serviceId === serviceId);
+  };
+
+  const getUserBookingForService = (userId: string, serviceId: string): Booking | null => {
+    const userBookings = bookings.filter(
+      booking => booking.userId === userId && booking.serviceId === serviceId
+    );
+    
+    // Return the most recent booking if there are multiple
+    return userBookings.length > 0 
+      ? userBookings.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] 
+      : null;
+  };
+
+  const fetchUserServices = useCallback(async () => {
+    if (currentUser) {
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .eq('coach_id', currentUser.id);
+  
+        if (error) {
+          console.error('Error fetching user services:', error);
+          return;
+        }
+  
+        if (data) {
+          const mappedServices: Service[] = data.map(item => ({
+            id: item.id,
+            title: item.title,
+            description: item.description || '',
+            providerId: item.coach_id,
+            providerName: item.coach_name,
+            price: item.price,
+            duration: item.duration || '',
+            available: item.is_active,
+            createdAt: new Date(item.created_at),
+            isOnline: item.is_online,
+            location: item.location,
+            capacity: item.capacity,
+            serviceType: item.service_type,
+            coverImage: item.cover_image,
+            meetingUrl: item.meeting_url,
+          }));
+  
+          setServices(mappedServices);
+        }
+      } catch (err) {
+        console.error('Error in fetchUserServices:', err);
+      }
+    }
+  }, [currentUser]);
+
+  // Fetch services on initial load
+  useEffect(() => {
+    fetchUserServices();
+  }, [fetchUserServices]);
+
+  return (
+    <DataContext.Provider
+      value={{
+        posts,
+        events,
+        groups,
+        services: allServices,
+        sessions,
+        sessionEnrollments,
+        messages,
+        joinRequests,
+        loading,
+        error,
+        createPost,
+        likePost,
+        unlikePost,
+        createEvent,
+        joinEvent,
+        leaveEvent,
+        requestToJoinEvent,
+        approveEventRequest,
+        rejectEventRequest,
+        getEventRequests,
+        handleEventJoinRequest,
+        createGroup,
+        joinGroup,
+        leaveGroup,
+        requestToJoinGroup,
+        approveGroupRequest,
+        rejectGroupRequest,
+        getGroupRequests,
+        handleJoinRequest,
+        removeGroupMember,
+        updateGroupDetails,
+        createSession,
+        enrollInSession,
+        cancelEnrollment,
+        approveEnrollment,
+        rejectEnrollment,
+        getUserSessions,
+        getCoachSessions,
+        getUserEnrollments,
+        updateSession,
+        updateEnrollmentStatus,
+        sendMessage,
+        getServiceById,
+        bookService,
+        cancelBooking,
+        getUserBookings,
+        getServiceBookings,
+        createService,
+        updateService,
+        deleteService,
+        approveBooking,
+        sendServiceMessage,
+        getServiceMessages,
+        getUserBookingForService,
+      }}
+    >
+      {children}
+    </DataContext.Provider>
+  );
+};
+
+export const useData = () => {
+  const context = useContext(DataContext);
+  if (context === undefined) {
+    throw new Error('useData must be used within a DataProvider');
+  }
+  return context;
+};
+
+// Mock data functions would be here
+// You can generate mock services function since it's referenced above
+const generateMockServices = (): Service[] => {
+  const mockServices: Service[] = [
+    {
+      id: "s1",
+      title: "Personal Training Session",
+      description: "One-on-one personal training session tailored to your fitness goals.",
+      providerId: "u2",
+      providerName: "Emily Johnson",
+      price: 75,
+      duration: "60 minutes",
+      available: true,
+      createdAt: new Date(),
+      isOnline: false,
+      location: "Downtown Fitness Center",
+      capacity: 1,
+      serviceType: "one_on_one",
+      coverImage: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1170&auto=format&fit=crop",
+    },
+    {
+      id: "s2",
+      title: "Group Meditation Class",
+      description: "Guided meditation session for stress relief and mindfulness practice.",
+      providerId: "u3",
+      providerName: "David Wilson",
+      price: 25,
+      duration: "45 minutes",
+      available: true,
+      createdAt: new Date(),
+      isOnline: true,
+      capacity: 15,
+      serviceType: "group",
+      meetingUrl: "https://zoom.us/j/123456789",
+      coverImage: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1122&auto=format&fit=crop",
+    },
+    {
+      id: "s3",
+      title: "Nutrition Consultation",
+      description: "Personalized nutrition advice and meal planning based on your health goals.",
+      providerId: "u2",
+      providerName: "Emily Johnson",
+      price: 90,
+      duration: "60 minutes",
+      available: true,
+      createdAt: new Date(),
+      isOnline: true,
+      capacity: 1,
+      serviceType: "one_on_one",
+      meetingUrl: "https://meet.google.com/abc-defg-hij",
+      coverImage: "https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1153&auto=format&fit=crop",
+    },
+    {
+      id: "s4",
+      title: "Webinar: Effective Public Speaking",
+      description: "Learn techniques to overcome fear and speak confidently in public settings.",
+      providerId: "u4",
+      providerName: "Michael Brown",
+      price: 35,
+      duration: "90 minutes",
+      available: true,
+      createdAt: new Date(),
+      isOnline: true,
+      capacity: 50,
+      serviceType: "webinar",
+      meetingUrl: "https://webinar-platform.com/effective-speaking",
+      coverImage: "https://images.unsplash.com/photo-1475721027785-f74eccf877e2?q=80&w=1170&auto=format&fit=crop",
+    },
+    {
+      id: "s5",
+      title: "Yoga for Beginners",
+      description: "Introduction to yoga fundamentals suitable for complete beginners.",
+      providerId: "u5",
+      providerName: "Sarah Lee",
+      price: 30,
+      duration: "60 minutes",
+      available: true,
+      createdAt: new Date(),
+      isOnline: false,
+      location: "Serenity Yoga Studio",
+      capacity: 10,
+      serviceType: "group",
+      coverImage: "https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?q=80&w=1170&auto=format&fit=crop",
+    },
+  ];
+
+  return mockServices;
+};
+
+// Include other mock data objects for the initial loading
+const mockPosts: Post[] = [];
+const mockEvents: Event[] = [];
+const mockGroups: Group[] = [];
+const mockSessions: Session[] = [];
+const mockSessionEnrollments: SessionEnrollment[] = [];
+const mockMessages: Message[] = [];
+const mockJoinRequests: JoinRequest[] = [];
