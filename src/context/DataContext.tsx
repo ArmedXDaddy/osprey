@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus } from '@/types';
 import { useAuth } from './AuthContext';
@@ -48,38 +47,53 @@ interface DataContextType {
 const MOCK_POSTS: Post[] = [
   {
     id: 'p1',
-    userId: '2',
-    userName: 'Sophia Williams',
-    userRole: 'influencer',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
     content: 'Just finished my morning HIIT session! Who else loves to start their day with a high-intensity workout? 💪 #morningworkout #fitnessmotivation',
+    authorId: '2',
+    authorName: 'Sophia Williams',
+    authorRole: 'influencer',
+    authorImage: 'https://randomuser.me/api/portraits/women/68.jpg',
     image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
     likes: 342,
     comments: 45,
-    createdAt: new Date('2023-09-18T08:30:00')
+    createdAt: new Date('2023-09-18T08:30:00'),
+    // For backward compatibility
+    userId: '2',
+    userName: 'Sophia Williams',
+    userRole: 'influencer',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg'
   },
   {
     id: 'p2',
+    content: "New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting",
+    authorId: '3',
+    authorName: 'Alexandra Chen',
+    authorRole: 'coach',
+    authorImage: 'https://randomuser.me/api/portraits/women/33.jpg',
+    likes: 128,
+    comments: 23,
+    createdAt: new Date('2023-09-17T14:45:00'),
+    // For backward compatibility
     userId: '3',
     userName: 'Alexandra Chen',
     userRole: 'coach',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    content: "New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting",
-    likes: 128,
-    comments: 23,
-    createdAt: new Date('2023-09-17T14:45:00')
+    userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg'
   },
   {
     id: 'p3',
-    userId: '4',
-    userName: 'FitTech Apparel',
-    userRole: 'company',
-    userProfileImage: 'https://via.placeholder.com/150?text=FT',
     content: 'Our new performance leggings are finally here! Designed with sweat-wicking technology and a high-rise waistband for maximum comfort during your toughest workouts.',
+    authorId: '4',
+    authorName: 'FitTech Apparel',
+    authorRole: 'company',
+    authorImage: 'https://via.placeholder.com/150?text=FT',
     image: 'https://images.unsplash.com/photo-1506292926-9e0b21854fd1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=826&q=80',
     likes: 215,
     comments: 31,
-    createdAt: new Date('2023-09-16T11:20:00')
+    createdAt: new Date('2023-09-16T11:20:00'),
+    // For backward compatibility
+    userId: '4',
+    userName: 'FitTech Apparel',
+    userRole: 'company',
+    userProfileImage: 'https://via.placeholder.com/150?text=FT'
   }
 ];
 
@@ -92,10 +106,14 @@ const MOCK_EVENTS: Event[] = [
     creatorName: 'Alexandra Chen',
     creatorRole: 'coach',
     location: 'Millennium Park, Chicago',
+    isOnline: false,
+    startDate: new Date('2023-10-02T09:00:00'),
     date: new Date('2023-10-02T09:00:00'),
     image: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=775&q=80',
-    attendees: ['3', '4', '5'], // Changed from number to string array
+    attendees: ['3', '4', '5'],
+    currentAttendees: 3,
     privacy: 'public',
+    price: 0,
     createdAt: new Date('2023-08-15')
   },
   {
@@ -106,10 +124,14 @@ const MOCK_EVENTS: Event[] = [
     creatorName: 'Sophia Williams',
     creatorRole: 'influencer',
     location: 'Serenity Retreat Center, Malibu',
+    isOnline: false,
+    startDate: new Date('2023-11-10T16:00:00'),
     date: new Date('2023-11-10T16:00:00'),
     image: 'https://images.unsplash.com/photo-1588286840104-8957b019727f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
-    attendees: ['1', '2', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28'], // Changed
+    attendees: ['1', '2', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28'],
+    currentAttendees: 28,
     privacy: 'private',
+    price: 0,
     pendingRequests: 3,
     createdAt: new Date('2023-09-01')
   },
@@ -121,9 +143,12 @@ const MOCK_EVENTS: Event[] = [
     creatorName: 'FitTech Apparel',
     creatorRole: 'company',
     location: 'FitTech Flagship Store, NYC',
+    isOnline: false,
+    startDate: new Date('2023-10-15T18:00:00'),
     date: new Date('2023-10-15T18:00:00'),
     image: 'https://images.unsplash.com/photo-1543165796-35a3418c27df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-    attendees: Array.from({ length: 120 }, (_, i) => `attendee-${i + 1}`), // Convert to string array
+    attendees: Array.from({ length: 120 }, (_, i) => `attendee-${i + 1}`),
+    currentAttendees: 120,
     privacy: 'paid',
     price: 49.99,
     createdAt: new Date('2023-09-10')
@@ -140,6 +165,9 @@ const MOCK_SERVICES: Service[] = [
     price: 75,
     duration: '60 min',
     available: true,
+    sessionType: 'one_on_one',
+    isOnline: true,
+    isFree: false,
     createdAt: new Date('2023-03-15')
   },
   {
@@ -151,6 +179,9 @@ const MOCK_SERVICES: Service[] = [
     price: 100,
     duration: '90 min',
     available: true,
+    sessionType: 'one_on_one',
+    isOnline: true,
+    isFree: false,
     createdAt: new Date('2023-05-20')
   },
   {
@@ -162,6 +193,9 @@ const MOCK_SERVICES: Service[] = [
     price: 250,
     duration: '30 days',
     available: true,
+    sessionType: 'one_on_one',
+    isOnline: true,
+    isFree: false,
     createdAt: new Date('2023-01-10')
   }
 ];
@@ -397,7 +431,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newPost: Post = {
         ...postData,
         id: `p${Date.now()}`,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Ensure authorId, authorName, authorRole are set
+        authorId: postData.userId || postData.authorId,
+        authorName: postData.userName || postData.authorName,
+        authorRole: postData.userRole || postData.authorRole,
+        authorImage: postData.userProfileImage || postData.authorImage
       };
       
       setPosts(prev => [newPost, ...prev]);
@@ -417,8 +456,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...eventData,
         id: `e${Date.now()}`,
         attendees: [], // Initialize as empty array
+        currentAttendees: 0,
         pendingRequests: 0,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Ensure date is set if not already
+        date: eventData.date || eventData.startDate
       };
       
       setEvents(prev => [newEvent, ...prev]);
@@ -513,7 +555,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newService: Service = {
         ...serviceData,
         id: `s${Date.now()}`,
-        createdAt: new Date()
+        createdAt: new Date(),
+        // Ensure these properties are set if not provided
+        sessionType: serviceData.sessionType || 'one_on_one',
+        isOnline: serviceData.isOnline !== undefined ? serviceData.isOnline : true,
+        isFree: serviceData.price === 0
       };
       
       setServices(prev => [newService, ...prev]);
@@ -1260,14 +1306,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Check if user is already attending
-      if (event.attendees.includes(currentUser.id)) {
+      if (Array.isArray(event.attendees) && event.attendees.includes(currentUser.id)) {
         throw new Error('You are already attending this event');
       }
       
       // Add attendee
       const updatedEvent = {
         ...event,
-        attendees: [...event.attendees, currentUser.id]
+        attendees: Array.isArray(event.attendees) 
+          ? [...event.attendees, currentUser.id] 
+          : [currentUser.id],
+        currentAttendees: event.currentAttendees + 1
       };
       
       setEvents(prev => 
@@ -1308,14 +1357,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       // Check if user is attending
-      if (!event.attendees.includes(currentUser.id)) {
+      if (!Array.isArray(event.attendees) || !event.attendees.includes(currentUser.id)) {
         throw new Error('You are not attending this event');
       }
       
       // Remove attendee
       const updatedEvent = {
         ...event,
-        attendees: event.attendees.filter(id => id !== currentUser.id)
+        attendees: Array.isArray(event.attendees)
+          ? event.attendees.filter(id => id !== currentUser.id)
+          : [],
+        currentAttendees: Math.max(0, event.currentAttendees - 1)
       };
       
       setEvents(prev => 
@@ -1452,7 +1504,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Add attendee
         updatedEvent = {
           ...updatedEvent,
-          attendees: [...event.attendees, request.userId]
+          attendees: [...(Array.isArray(event.attendees) ? event.attendees : []), request.userId],
+          currentAttendees: event.currentAttendees + 1
         };
       }
       

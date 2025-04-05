@@ -1,128 +1,123 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { format } from 'date-fns';
-import { CalendarIcon, ArrowLeft, Globe, Lock, DollarSign } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { useData } from '@/context/DataContext';
 import { toast } from '@/hooks/use-toast';
 import { EventPrivacy } from '@/types';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-const eventFormSchema = z.object({
+const formSchema = z.object({
   title: z.string().min(3, {
-    message: "Event title must be at least 3 characters.",
-  }).max(100),
+    message: "Title must be at least 3 characters.",
+  }),
   description: z.string().min(10, {
     message: "Description must be at least 10 characters.",
-  }).max(500),
+  }),
   location: z.string().min(3, {
     message: "Location must be at least 3 characters.",
   }),
-  date: z.date({
-    required_error: "A date and time is required.",
+  date: z.date(),
+  image: z.string().url({
+    message: "Please enter a valid URL.",
   }),
-  image: z.string().optional(),
-  privacy: z.enum(['public', 'private', 'paid'] as const),
-  price: z.number().optional(),
+  isOnline: z.boolean().default(false),
+  meetingUrl: z.string().url({
+    message: "Please enter a valid URL.",
+  }).optional(),
+  isPrivate: z.boolean().default(false),
+  isPaid: z.boolean().default(false),
+  price: z.number().min(0).optional(),
+  capacity: z.number().min(0).optional(),
 });
 
-type EventFormValues = z.infer<typeof eventFormSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
 const CreateEvent = () => {
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { createEvent } = useData();
+  const { toast } = useToast();
   
-  if (!currentUser) {
-    navigate('/auth/login');
-    return null;
-  }
-
-  const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventFormSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
       description: "",
       location: "",
       date: new Date(),
       image: "",
-      privacy: "public",
-      price: undefined,
+      isOnline: false,
+      meetingUrl: "",
+      isPrivate: false,
+      isPaid: false,
+      price: 0,
+      capacity: 0,
     },
   });
-
-  // Watch the privacy value to conditionally show price field
-  const privacyValue = form.watch("privacy");
-
-  const onSubmit = async (values: EventFormValues) => {
+  
+  const onSubmit = async (values: FormValues) => {
+    setSubmitting(true);
+    
     try {
-      await createEvent({
+      // Privacy can be public, private, or paid
+      const privacy = values.isPaid ? 'paid' : values.isPrivate ? 'private' : 'public';
+      
+      const eventData = {
         title: values.title,
         description: values.description,
         location: values.location,
-        date: values.date,
+        isOnline: values.isOnline,
+        meetingUrl: values.isOnline ? values.meetingUrl : undefined,
+        startDate: values.date, // Use startDate as expected by type
+        date: values.date, // Keep date for backward compatibility
         image: values.image,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role,
-        privacy: values.privacy,
-        price: values.privacy === 'paid' ? values.price : undefined,
-      });
+        creatorId: currentUser?.id || '',
+        creatorName: currentUser?.name || '',
+        creatorRole: currentUser?.role || 'user',
+        privacy: privacy as EventPrivacy,
+        price: values.isPaid ? values.price : 0,
+        capacity: values.capacity,
+        currentAttendees: 0 // Initialize with 0 attendees
+      };
+      
+      const newEvent = await createEvent(eventData);
       
       toast({
-        title: "Event created!",
-        description: "Your event has been successfully created.",
+        title: "Event Created",
+        description: "Your event has been successfully created",
       });
       
-      navigate('/events');
-    } catch (error) {
-      console.error("Failed to create event:", error);
+      navigate(`/events/${newEvent.id}`);
+    } catch (error: any) {
+      console.error("Error creating event:", error);
       toast({
-        title: "Failed to create event",
-        description: "There was an error creating your event. Please try again.",
+        title: "Error",
+        description: error.message || "Failed to create event",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
-
+  
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <Button variant="ghost" onClick={() => navigate('/events')} className="pl-0">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Events
-        </Button>
-      </div>
-
-      <div>
-        <h1 className="text-2xl font-bold">Create an Event</h1>
-        <p className="text-muted-foreground">Fill in the details below to create your event</p>
-      </div>
-
+    <div className="container max-w-2xl mx-auto mt-8">
+      <h1 className="text-2xl font-bold mb-4">Create Event</h1>
+      
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
@@ -130,13 +125,10 @@ const CreateEvent = () => {
             name="title"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Event Title</FormLabel>
+                <FormLabel>Title</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter event title" {...field} />
+                  <Input placeholder="Event title" {...field} />
                 </FormControl>
-                <FormDescription>
-                  A catchy title will attract more attendees.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -149,15 +141,12 @@ const CreateEvent = () => {
               <FormItem>
                 <FormLabel>Description</FormLabel>
                 <FormControl>
-                  <Textarea 
-                    placeholder="Describe your event" 
-                    className="min-h-32" 
-                    {...field} 
+                  <Textarea
+                    placeholder="Event description"
+                    className="resize-none"
+                    {...field}
                   />
                 </FormControl>
-                <FormDescription>
-                  Provide details about what attendees can expect.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -170,11 +159,8 @@ const CreateEvent = () => {
               <FormItem>
                 <FormLabel>Location</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter event location" {...field} />
+                  <Input placeholder="Event location" {...field} />
                 </FormControl>
-                <FormDescription>
-                  Physical address or online platform.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -185,18 +171,21 @@ const CreateEvent = () => {
             name="date"
             render={({ field }) => (
               <FormItem className="flex flex-col">
-                <FormLabel>Date and Time</FormLabel>
+                <FormLabel>Date</FormLabel>
                 <Popover>
                   <PopoverTrigger asChild>
                     <FormControl>
                       <Button
-                        variant="outline"
-                        className="w-full pl-3 text-left font-normal"
+                        variant={"outline"}
+                        className={cn(
+                          "w-[240px] pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
                       >
                         {field.value ? (
-                          format(field.value, "PPP p")
+                          format(field.value, "PPP")
                         ) : (
-                          <span>Pick a date and time</span>
+                          <span>Pick a date</span>
                         )}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
@@ -207,26 +196,13 @@ const CreateEvent = () => {
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
+                      disabled={(date) =>
+                        date < new Date()
+                      }
                       initialFocus
                     />
-                    <div className="p-3 border-t">
-                      <Input
-                        type="time"
-                        onChange={(e) => {
-                          const [hours, minutes] = e.target.value.split(':').map(Number);
-                          const newDate = new Date(field.value);
-                          newDate.setHours(hours);
-                          newDate.setMinutes(minutes);
-                          field.onChange(newDate);
-                        }}
-                        defaultValue={format(field.value, "HH:mm")}
-                      />
-                    </div>
                   </PopoverContent>
                 </Popover>
-                <FormDescription>
-                  Select when your event will take place.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -234,63 +210,46 @@ const CreateEvent = () => {
           
           <FormField
             control={form.control}
-            name="privacy"
+            name="image"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Privacy</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select event privacy" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="public" className="flex items-center">
-                      <div className="flex items-center">
-                        <Globe className="mr-2 h-4 w-4 text-blue-500" />
-                        <span>Public - Anyone can join</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="private">
-                      <div className="flex items-center">
-                        <Lock className="mr-2 h-4 w-4 text-amber-500" />
-                        <span>Private - Invite only</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="paid">
-                      <div className="flex items-center">
-                        <DollarSign className="mr-2 h-4 w-4 text-green-500" />
-                        <span>Paid - Requires payment</span>
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormDescription>
-                  Control who can attend your event.
-                </FormDescription>
+                <FormLabel>Image URL</FormLabel>
+                <FormControl>
+                  <Input placeholder="Event image URL" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {privacyValue === "paid" && (
+          
+          <FormField
+            control={form.control}
+            name="isOnline"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Online Event</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
+          {form.getValues().isOnline && (
             <FormField
               control={form.control}
-              name="price"
+              name="meetingUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Event Price ($)</FormLabel>
+                  <FormLabel>Meeting URL</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="Enter price" 
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
-                    />
+                    <Input placeholder="Meeting URL" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Set a price for your event.
-                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -299,27 +258,81 @@ const CreateEvent = () => {
           
           <FormField
             control={form.control}
-            name="image"
+            name="isPrivate"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Private Event</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="isPaid"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Paid Event</FormLabel>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
+          {form.getValues().isPaid && (
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="Event price"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+
+          <FormField
+            control={form.control}
+            name="capacity"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Event Image URL (Optional)</FormLabel>
+                <FormLabel>Capacity</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter image URL" {...field} />
+                  <Input
+                    type="number"
+                    placeholder="Event capacity"
+                    {...field}
+                  />
                 </FormControl>
-                <FormDescription>
-                  Add an image to make your event stand out.
-                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
           
-          <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => navigate('/events')}>
-              Cancel
-            </Button>
-            <Button type="submit">Create Event</Button>
-          </div>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "Creating..." : "Create Event"}
+          </Button>
         </form>
       </Form>
     </div>

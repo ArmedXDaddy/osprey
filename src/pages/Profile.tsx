@@ -97,6 +97,23 @@ const Profile = () => {
     currentUser?.id
   );
   
+  const isCurrentUserProfile = isOwnProfile || (profileUser && profileUser.id === currentUser?.id);
+  
+  const isPostOwner = (post: Post) => 
+    isCurrentUserProfile && (post.authorId === user?.id || post.userId === user?.id);
+    
+  const isEventAttending = (event: Event) => 
+    Array.isArray(event.attendees) && user && event.attendees.includes(user.id);
+    
+  const isEventOwner = (event: Event) => 
+    isCurrentUserProfile && event.creatorId === user?.id;
+    
+  const isGroupMember = (group: Group) => 
+    Array.isArray(group.memberIds) && user && group.memberIds.includes(user.id);
+    
+  const isGroupOwner = (group: Group) => 
+    isCurrentUserProfile && group.creatorId === user?.id;
+
   useEffect(() => {
     if (currentUser && isOwnProfile) {
       setProfileForm({

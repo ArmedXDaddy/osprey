@@ -25,17 +25,17 @@ export interface User {
   email: string;
   role: UserRole;
   profileImage?: string;
-  coverImage?: string; // Added coverImage property
+  coverImage?: string;
   bio?: string;
   location?: string;
   followers?: number;
   verified?: boolean;
   interests?: string[];
   socialLinks?: Record<string, string>;
-  createdAt?: Date; // Added createdAt property
+  createdAt?: Date;
 }
 
-export type UserRole = 'user' | 'coach' | 'admin' | 'influencer' | 'company'; // Added influencer and company roles
+export type UserRole = 'user' | 'coach' | 'admin' | 'influencer' | 'company';
 
 export interface Session {
   id: string;
@@ -53,7 +53,7 @@ export interface Session {
   meetingUrl?: string;
   sessionType: 'one_on_one' | 'group';
   createdAt: Date;
-  updatedAt?: Date; // Added updatedAt property
+  updatedAt?: Date;
 }
 
 export interface SessionEnrollment {
@@ -84,7 +84,7 @@ export interface Post {
   createdAt: Date;
   mediaUrl?: string;
   mediaType?: string;
-  // Add properties needed by components
+  // Backward compatibility properties
   userId?: string;
   userName?: string;
   userProfileImage?: string;
@@ -111,9 +111,9 @@ export interface Event {
   privacy: EventPrivacy;
   image?: string;
   createdAt: Date;
-  // Add properties needed by components
+  // For backward compatibility
   date?: Date;
-  attendees?: number;
+  attendees: string[]; // Changed from number to string[] for consistency
   pendingRequests?: number;
 }
 
@@ -134,7 +134,7 @@ export interface Group {
   rules?: string[];
   price?: number;
   createdAt: Date;
-  // For backwards compatibility
+  // For backward compatibility
   memberIds?: string[];
 }
 
