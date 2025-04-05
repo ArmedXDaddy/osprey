@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, X, Upload, Check } from 'lucide-react';
+import { Plus, X, Upload } from 'lucide-react';
 import GroupImageGallery from './GroupImageGallery';
 
 interface EditGroupFormProps {
@@ -17,15 +17,6 @@ interface EditGroupFormProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const placeholderImages = [
-  '/images/groups/photo-1605810230434-7631ac76ec81.jpg',
-  '/images/groups/photo-1519389950473-47ba0277781c.jpg',
-  '/images/groups/photo-1466442929976-97f336a657be.jpg',
-  '/images/groups/photo-1517022812141-23620dba5c23.jpg',
-  '/images/groups/photo-1493962853295-0fd70327578a.jpg',
-  '/images/groups/photo-1452378174528-3090a4bba7b2.jpg',
-];
 
 const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose }) => {
   const { updateGroupDetails } = useData();
@@ -173,7 +164,7 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
                 className="flex items-center space-x-2"
               >
                 <Upload className="h-4 w-4" />
-                <span>{showImageGallery ? 'Hide gallery' : 'Choose image'}</span>
+                <span>{showImageGallery ? 'Hide upload' : 'Upload image'}</span>
               </Button>
               {formData.image && (
                 <div className="relative w-16 h-16 overflow-hidden rounded border">

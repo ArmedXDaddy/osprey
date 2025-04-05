@@ -198,7 +198,7 @@ const CreateGroup = () => {
                   className="flex items-center space-x-2"
                 >
                   <Upload className="h-4 w-4" />
-                  <span>{showImageGallery ? 'Hide gallery' : 'Choose image'}</span>
+                  <span>{showImageGallery ? 'Hide upload' : 'Upload image'}</span>
                 </Button>
                 {formData.image && (
                   <div className="relative w-16 h-16 overflow-hidden rounded border">
