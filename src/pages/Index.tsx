@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -246,9 +245,7 @@ const HomePage = () => {
                       <ServiceCard 
                         key={service.id} 
                         service={service} 
-                        onClick={() => currentUser?.role === 'coach' && service.coachId === currentUser.id 
-                          ? navigate(`/services/${service.id}/manage`)
-                          : navigate(`/services/${service.id}`)} 
+                        onClick={() => navigate(`/services/${service.id}`)} 
                       />
                     ))}
                     <Link to="/services" className="text-primary hover:underline text-sm block text-center mt-4">

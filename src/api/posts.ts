@@ -2,67 +2,51 @@
 import { supabase } from '@/integrations/supabase/client';
 import { Post } from '@/types';
 
-// Fetch posts by user ID
+// Fetch posts by user ID - using mock data for now
 export const fetchPostsByUserId = async (userId: string): Promise<Post[]> => {
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) {
+  try {
+    // For now, we'll return mock data since the posts table doesn't exist in Supabase yet
+    return [
+      {
+        id: '1',
+        userId: userId,
+        userName: 'User Name',
+        userRole: 'user',
+        content: 'This is a sample post content',
+        likes: 0,
+        comments: 0,
+        createdAt: new Date()
+      }
+    ];
+  } catch (error) {
     console.error('Error fetching posts:', error);
     return [];
   }
-
-  return data ? data.map(post => ({
-    id: post.id,
-    userId: post.user_id,
-    userName: post.user_name,
-    userRole: post.user_role,
-    userProfileImage: post.user_profile_image,
-    content: post.content,
-    image: post.image,
-    likes: post.likes,
-    comments: post.comments,
-    createdAt: new Date(post.created_at)
-  })) : [];
 };
 
-// Create a new post
+// Create a new post - using mock implementation for now
 export const createPost = async (post: Omit<Post, 'id' | 'createdAt' | 'likes' | 'comments'>): Promise<Post | null> => {
-  const { data, error } = await supabase
-    .from('posts')
-    .insert({
-      user_id: post.userId,
-      user_name: post.userName,
-      user_role: post.userRole,
-      user_profile_image: post.userProfileImage,
+  try {
+    // For now, returning a mock response
+    return {
+      id: Math.random().toString(36).substring(2, 9),
+      userId: post.userId,
+      userName: post.userName,
+      userRole: post.userRole,
+      userProfileImage: post.userProfileImage,
       content: post.content,
       image: post.image,
       likes: 0,
-      comments: 0
-    })
-    .select()
-    .single();
-
-  if (error) {
+      comments: 0,
+      createdAt: new Date()
+    };
+  } catch (error) {
     console.error('Error creating post:', error);
     return null;
   }
+};
 
-  if (!data) return null;
-
-  return {
-    id: data.id,
-    userId: data.user_id,
-    userName: data.user_name,
-    userRole: data.user_role,
-    userProfileImage: data.user_profile_image,
-    content: data.content,
-    image: data.image,
-    likes: data.likes,
-    comments: data.comments,
-    createdAt: new Date(data.created_at)
-  };
+// Function to fetch posts for a user profile
+export const fetchUserPosts = async (userId: string): Promise<Post[]> => {
+  return fetchPostsByUserId(userId);
 };

@@ -1,61 +1,67 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, UserRole } from '@/types';
+import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { User, UserRole } from '@/types';
+import { Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   currentUser: User | null;
+  session: Session | null;
   isLoading: boolean;
-  error: Error | null;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
-  signOut: () => Promise<void>;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<{ error: any }>;
+  register: (email: string, password: string, userData: Partial<User>) => Promise<{ error: any }>;
+  logout: () => Promise<void>;
+  signOut: () => Promise<void>; // alias for logout for backward compatibility
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
+  session: null,
   isLoading: true,
-  error: null,
-  signIn: async () => {},
-  signUp: async () => {},
+  isAuthenticated: false,
+  login: async () => ({ error: null }),
+  register: async () => ({ error: null }),
+  logout: async () => {},
   signOut: async () => {}
 });
 
 export const useAuth = () => useContext(AuthContext);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    // Check for existing session
-    const checkSession = async () => {
+    // Get initial session
+    const initializeAuth = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        setIsLoading(true);
         
-        if (sessionError) {
-          throw sessionError;
-        }
+        // Get current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        if (session?.user) {
-          // Fetch user profile
-          const { data: profile, error: profileError } = await supabase
+        if (currentSession) {
+          setSession(currentSession);
+          
+          // Fetch user profile data
+          const { data: profile } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', currentSession.user.id)
             .single();
-          
-          if (profileError) {
-            throw profileError;
-          }
-          
+            
           if (profile) {
-            setCurrentUser({
+            const user: User = {
               id: profile.id,
               name: profile.name,
               email: profile.email,
-              role: profile.role,
+              role: profile.role as UserRole,
               profileImage: profile.profile_image,
               bio: profile.bio,
               location: profile.location,
@@ -63,142 +69,131 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               following: profile.following,
               followers: profile.followers,
               verified: profile.verified,
-              socialLinks: profile.social_links,
+              socialLinks: profile.social_links ? {
+                instagram: profile.social_links.instagram,
+                twitter: profile.social_links.twitter,
+                website: profile.social_links.website
+              } : undefined,
               createdAt: new Date(profile.created_at)
-            });
+            };
+            setCurrentUser(user);
           }
         }
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-        console.error('Auth error:', err);
+      } catch (error) {
+        console.error('Error initializing auth:', error);
       } finally {
         setIsLoading(false);
       }
     };
     
-    checkSession();
+    initializeAuth();
     
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        // Fetch user profile
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        setSession(newSession);
         
-        if (profileError) {
-          setError(profileError);
-          return;
+        if (newSession) {
+          try {
+            // Fetch user profile data
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', newSession.user.id)
+              .single();
+              
+            if (profile) {
+              const user: User = {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role as UserRole,
+                profileImage: profile.profile_image,
+                bio: profile.bio,
+                location: profile.location,
+                interests: profile.interests,
+                following: profile.following,
+                followers: profile.followers,
+                verified: profile.verified,
+                socialLinks: profile.social_links ? {
+                  instagram: profile.social_links.instagram,
+                  twitter: profile.social_links.twitter,
+                  website: profile.social_links.website
+                } : undefined,
+                createdAt: new Date(profile.created_at)
+              };
+              setCurrentUser(user);
+            }
+          } catch (error) {
+            console.error('Error fetching user profile:', error);
+          }
+        } else {
+          setCurrentUser(null);
         }
-        
-        if (profile) {
-          setCurrentUser({
-            id: profile.id,
-            name: profile.name,
-            email: profile.email,
-            role: profile.role,
-            profileImage: profile.profile_image,
-            bio: profile.bio,
-            location: profile.location,
-            interests: profile.interests,
-            following: profile.following,
-            followers: profile.followers,
-            verified: profile.verified,
-            socialLinks: profile.social_links,
-            createdAt: new Date(profile.created_at)
-          });
-        }
-      } else if (event === 'SIGNED_OUT') {
-        setCurrentUser(null);
       }
-    });
+    );
     
     return () => {
       subscription.unsubscribe();
     };
   }, []);
   
-  const signIn = async (email: string, password: string) => {
+  const login = async (email: string, password: string) => {
     try {
-      setIsLoading(true);
-      setError(null);
-      
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      if (error) {
-        throw error;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-      throw err;
-    } finally {
-      setIsLoading(false);
+      return { error };
+    } catch (error) {
+      console.error('Error during login:', error);
+      return { error };
     }
   };
   
-  const signUp = async (email: string, password: string, name: string, role: UserRole) => {
+  const register = async (email: string, password: string, userData: Partial<User>) => {
     try {
-      setIsLoading(true);
-      setError(null);
-      
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name,
-            role
+            name: userData.name,
+            role: userData.role || 'user'
           }
         }
       });
       
-      if (error) {
-        throw error;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const { error } = await supabase.auth.signOut();
-      
-      if (error) {
-        throw error;
-      }
-      
-      setCurrentUser(null);
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-      throw err;
-    } finally {
-      setIsLoading(false);
+      return { error };
+    } catch (error) {
+      console.error('Error during registration:', error);
+      return { error };
     }
   };
   
-  const value = {
-    currentUser,
-    isLoading,
-    error,
-    signIn,
-    signUp,
-    signOut
+  const logout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setSession(null);
   };
+  
+  // Alias for logout for backward compatibility
+  const signOut = logout;
   
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{
+        currentUser,
+        session,
+        isLoading,
+        isAuthenticated: !!currentUser,
+        login,
+        register,
+        logout,
+        signOut
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
