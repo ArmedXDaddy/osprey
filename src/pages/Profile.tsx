@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -41,13 +40,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import ImageGallery from '@/components/profile/ImageGallery';
+import { cn } from '@/lib/utils';
 
 const Profile = () => {
   const { currentUser, updateProfile } = useAuth();
   const { posts, events, groups, services, loading } = useData();
   const { toast } = useToast();
 
-  // Filter data for the current user
   const userPosts = currentUser ? posts.filter(post => post.userId === currentUser.id) : [];
   
   const userEvents = currentUser ? events.filter(event => 
@@ -320,8 +319,6 @@ const Profile = () => {
       ...prev,
       profileImage: url
     }));
-    setIsImageDialogOpen(false);
-    
     toast({
       title: "Profile image selected",
       description: "Click Save Changes to update your profile"
@@ -333,8 +330,6 @@ const Profile = () => {
       ...prev,
       coverImage: url
     }));
-    setIsCoverImageDialogOpen(false);
-    
     toast({
       title: "Cover image selected",
       description: "Click Save Changes to update your profile"
@@ -463,13 +458,13 @@ const Profile = () => {
       <Card className="overflow-hidden">
         <div className="relative">
           <div 
-            className="h-48 bg-gradient-to-r from-primary to-accent"
+            className="h-48 bg-gradient-to-r from-primary to-accent transition-all duration-500"
             style={currentUser?.coverImage ? { backgroundImage: `url(${currentUser.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
           ></div>
           <Button 
             size="sm" 
             variant="secondary"
-            className="absolute right-4 bottom-4 gap-1"
+            className="absolute right-4 bottom-4 gap-1 shadow-md"
             onClick={() => setIsCoverImageDialogOpen(true)}
           >
             <ImageIcon className="h-4 w-4" />
@@ -480,15 +475,17 @@ const Profile = () => {
         <div className="px-6 pb-6">
           <div className="flex flex-col md:flex-row gap-6">
             <div className="-mt-12 shrink-0 relative">
-              <img 
-                src={currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'User')}&background=random&size=150`} 
-                alt={currentUser?.name}
-                className="h-32 w-32 rounded-full border-4 border-white object-cover"
-              />
+              <div className="h-32 w-32 rounded-full border-4 border-white overflow-hidden shadow-md bg-white">
+                <img 
+                  src={currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'User')}&background=random&size=150`} 
+                  alt={currentUser?.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
               <Button 
                 size="sm" 
                 variant="secondary" 
-                className="absolute bottom-0 right-0 h-8 w-8 p-0 rounded-full"
+                className="absolute bottom-0 right-0 h-8 w-8 p-0 rounded-full shadow-md"
                 onClick={() => setIsImageDialogOpen(true)}
               >
                 <Camera className="h-4 w-4" />
@@ -827,12 +824,15 @@ const Profile = () => {
                 </Button>
               </label>
               {profileForm.profileImage && (
-                <div className="mt-2">
+                <div className="mt-2 flex items-center">
                   <img 
                     src={profileForm.profileImage} 
                     alt="Profile preview" 
-                    className="h-16 w-16 rounded-full object-cover"
+                    className="h-16 w-16 rounded-full object-cover border"
                   />
+                  <div className="ml-4 text-sm text-gray-500">
+                    <p>Current selection</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -855,7 +855,7 @@ const Profile = () => {
                   <img 
                     src={profileForm.coverImage} 
                     alt="Cover preview" 
-                    className="h-20 w-full object-cover rounded-md"
+                    className="h-24 w-full object-cover rounded-md border"
                   />
                 </div>
               )}
@@ -962,9 +962,12 @@ const Profile = () => {
       <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Select Profile Picture</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-primary" />
+              Choose Your Profile Picture
+            </DialogTitle>
             <DialogDescription>
-              Choose from your uploaded images or upload a new one
+              Select from your uploaded images or upload a new one
             </DialogDescription>
           </DialogHeader>
           
@@ -973,13 +976,22 @@ const Profile = () => {
             onSelectImage={selectProfileImage}
             onUploadImage={uploadProfileImage}
             uploading={uploading}
-            emptyMessage="No profile images uploaded yet"
+            emptyMessage="You haven't uploaded any profile pictures yet"
+            selectedImage={profileForm.profileImage}
           />
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
-              Cancel
-            </Button>
+          <DialogFooter className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              {profileImages.length} images available
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setIsImageDialogOpen(false)}>
+                Done
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -987,9 +999,12 @@ const Profile = () => {
       <Dialog open={isCoverImageDialogOpen} onOpenChange={setIsCoverImageDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Select Cover Photo</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Choose Your Cover Photo
+            </DialogTitle>
             <DialogDescription>
-              Choose from your uploaded cover photos or upload a new one
+              Select from your uploaded cover photos or upload a new one
             </DialogDescription>
           </DialogHeader>
           
@@ -998,14 +1013,23 @@ const Profile = () => {
             onSelectImage={selectCoverImage}
             onUploadImage={uploadCoverImage}
             uploading={uploading}
-            emptyMessage="No cover photos uploaded yet"
+            emptyMessage="You haven't uploaded any cover photos yet"
             aspectRatio="landscape"
+            selectedImage={profileForm.coverImage}
           />
           
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCoverImageDialogOpen(false)}>
-              Cancel
-            </Button>
+          <DialogFooter className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              {coverImages.length} images available
+            </p>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsCoverImageDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => setIsCoverImageDialogOpen(false)}>
+                Done
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

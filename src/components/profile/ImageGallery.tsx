@@ -1,9 +1,10 @@
 
 import React from 'react';
-import { Upload, ImageIcon } from 'lucide-react';
+import { Upload, ImageIcon, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
 
 interface ImageGalleryProps {
   images: { name: string; url: string }[];
@@ -12,6 +13,7 @@ interface ImageGalleryProps {
   uploading: boolean;
   emptyMessage: string;
   aspectRatio?: 'square' | 'landscape';
+  selectedImage?: string;
 }
 
 const ImageGallery: React.FC<ImageGalleryProps> = ({
@@ -20,12 +22,13 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
   onUploadImage,
   uploading,
   emptyMessage,
-  aspectRatio = 'square'
+  aspectRatio = 'square',
+  selectedImage
 }) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Your Images</h4>
+        <h4 className="text-sm font-medium">Your Gallery</h4>
         <label className="cursor-pointer">
           <Input 
             type="file" 
@@ -47,26 +50,55 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
             {images.map((image, index) => (
               <div 
                 key={index} 
-                className="relative cursor-pointer group overflow-hidden rounded-md"
+                className={cn(
+                  "relative cursor-pointer group overflow-hidden rounded-md border-2",
+                  selectedImage === image.url ? "border-primary ring-2 ring-primary ring-opacity-50" : "border-transparent hover:border-gray-300"
+                )}
                 onClick={() => onSelectImage(image.url)}
               >
-                <img 
-                  src={image.url} 
-                  alt={`Image ${index + 1}`} 
-                  className={`${aspectRatio === 'landscape' ? 'h-32' : 'h-24'} w-full object-cover`}
-                />
-                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-white">
-                    Select
-                  </Button>
+                <div className="aspect-square w-full overflow-hidden">
+                  <img 
+                    src={image.url} 
+                    alt={`Image ${index + 1}`} 
+                    className={cn(
+                      "w-full h-full object-cover transition-all duration-300 group-hover:scale-105",
+                      aspectRatio === 'landscape' ? 'aspect-video' : 'aspect-square'
+                    )}
+                  />
+                </div>
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                  {selectedImage === image.url ? (
+                    <CheckCircle2 className="h-8 w-8 text-primary" />
+                  ) : (
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-white">
+                      Select
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-12 text-gray-500">
-            <ImageIcon className="mx-auto h-12 w-12 opacity-20 mb-2" />
-            <p>{emptyMessage}</p>
+          <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-md">
+            <div className="flex flex-col items-center p-6">
+              <div className="bg-gray-100 rounded-full p-4 mb-4">
+                <ImageIcon className="h-8 w-8 text-gray-400" />
+              </div>
+              <p className="mb-4">{emptyMessage}</p>
+              <label className="cursor-pointer">
+                <Input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={onUploadImage}
+                  disabled={uploading}
+                />
+                <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
+                  <Upload className="h-4 w-4" />
+                  <span>Upload Your First Image</span>
+                </Button>
+              </label>
+            </div>
           </div>
         )}
       </ScrollArea>
