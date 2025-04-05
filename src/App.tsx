@@ -45,6 +45,7 @@ const App = () => (
                 <Route path="/groups/:id" element={<GroupDetail />} />
                 <Route path="/create-group" element={<CreateGroup />} />
                 <Route path="/profile" element={<Profile />} />
+                <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/register" element={<Register />} />
                 <Route path="*" element={<NotFound />} />

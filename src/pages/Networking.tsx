@@ -95,9 +95,11 @@ const Networking = () => {
         
         let url = `${baseUrl}?select=*`;
         
-        if (activeTab !== 'all') {
+        // Only filter by role in tab view, not in search
+        if (activeTab !== 'all' && !searchTerm) {
           url += `&role=eq.${activeTab}`;
-        } else {
+        } else if (activeTab === 'all' && !searchTerm) {
+          // Don't filter by role for search, but for tab 'all' still show only professionals
           url += `&role=in.(influencer,coach,company)`;
         }
         
@@ -156,15 +158,26 @@ const Networking = () => {
     };
 
     fetchUsers();
-  }, [activeTab, toast]);
+  }, [activeTab, toast, searchTerm]);
   
   const filteredUsers = users.filter(user => {
-    const matchesSearchTerm = 
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.bio && user.bio.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()));
+    // First filter out the current user
+    if (currentUser && user.id === currentUser.id) {
+      return false;
+    }
     
-    return matchesSearchTerm;
+    // Then apply search criteria if search term exists
+    if (searchTerm) {
+      const matchesSearchTerm = 
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.bio && user.bio.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      return matchesSearchTerm;
+    }
+    
+    // If no search term, return true (already filtered by tab in the fetch)
+    return true;
   });
   
   return (
