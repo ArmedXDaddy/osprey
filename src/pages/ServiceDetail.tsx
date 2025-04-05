@@ -108,7 +108,8 @@ const ServiceDetail = () => {
       setShowPaymentModal(true);
     } else {
       // For free services, just send a request
-      bookServiceMutation.mutate();
+      // Fixed: Pass false to indicate this is not a paid booking
+      bookServiceMutation.mutate(false);
     }
   };
   
