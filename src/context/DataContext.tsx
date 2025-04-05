@@ -1,5 +1,6 @@
+
 import React, { createContext, useState, useContext } from 'react';
-import { Service, SessionEnrollment, Session, User, Post, Event, Group, JoinRequest, Message, ServiceBooking } from '@/types';
+import { Service, SessionEnrollment, Session, User, Post, Event, Group, JoinRequest, Message, ServiceBooking, BookingStatus, PaymentStatus } from '@/types';
 import { generateId } from '@/utils';
 
 interface DataContextProps {
@@ -369,10 +370,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (existingBooking) {
         if (isPaid && (existingBooking.status !== 'approved' || existingBooking.paymentStatus !== 'paid')) {
-          const updatedBooking = {
+          const updatedBooking: ServiceBooking = {
             ...existingBooking,
-            status: 'approved',
-            paymentStatus: 'paid'
+            status: 'approved' as BookingStatus,
+            paymentStatus: 'paid' as PaymentStatus
           };
 
           setServiceBookings(prev => 
@@ -387,7 +388,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         return existingBooking;
       }
 
-      const status = isPaid ? 'approved' : 'pending';
+      const status = isPaid ? 'approved' as BookingStatus : 'pending' as BookingStatus;
       
       const newEnrollment: ServiceBooking = {
         id: generateId(),
@@ -397,7 +398,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         userEmail: currentUser.email,
         userProfileImage: currentUser.profileImage,
         status: status,
-        paymentStatus: isPaid ? 'paid' : 'unpaid',
+        paymentStatus: isPaid ? 'paid' as PaymentStatus : 'unpaid' as PaymentStatus,
         amount: service.price,
         createdAt: new Date(),
       };
