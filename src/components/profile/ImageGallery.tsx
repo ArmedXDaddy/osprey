@@ -46,7 +46,10 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
       
       <ScrollArea className="h-[300px]">
         {images.length > 0 ? (
-          <div className={`grid grid-cols-${aspectRatio === 'landscape' ? '2' : '3'} gap-4 p-1`}>
+          <div className={cn(
+            "grid gap-4 p-1",
+            aspectRatio === 'landscape' ? 'grid-cols-2' : 'grid-cols-3'
+          )}>
             {images.map((image, index) => (
               <div 
                 key={index} 

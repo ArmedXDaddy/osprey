@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 interface GroupImageGalleryProps {
   selectedImage: string;
   onSelect: (image: string) => void;
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File) => Promise<void>;
 }
 
 const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({ 
@@ -21,6 +21,7 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -48,14 +49,26 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (selectedFile) {
-      onFileUpload(selectedFile);
-      // Reset after upload
-      setPreviewImage(null);
-      setSelectedFile(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      try {
+        setUploading(true);
+        await onFileUpload(selectedFile);
+        // Reset after upload
+        setPreviewImage(null);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast({
+          title: "Upload failed",
+          description: "There was an error uploading your image.",
+          variant: "destructive"
+        });
+      } finally {
+        setUploading(false);
       }
     }
   };
@@ -141,6 +154,7 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
             variant="outline"
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2"
+            disabled={uploading}
           >
             <Upload className="h-4 w-4" />
             <span>Select image</span>
@@ -151,6 +165,7 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
             className="hidden"
             accept="image/*"
             onChange={handleFileChange}
+            disabled={uploading}
           />
         </div>
       ) : (
@@ -164,6 +179,7 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
             <button
               onClick={handleCancel}
               className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1 w-6 h-6 flex items-center justify-center shadow-md hover:bg-destructive/90 transition-colors"
+              disabled={uploading}
             >
               <X className="h-4 w-4" />
             </button>
@@ -175,9 +191,10 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
               size="sm"
               onClick={handleUpload}
               className="flex-1"
+              disabled={uploading}
             >
               <Upload className="h-4 w-4 mr-2" />
-              Upload Image
+              {uploading ? "Uploading..." : "Upload Image"}
             </Button>
             <Button 
               type="button" 
@@ -185,6 +202,7 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
               size="sm"
               onClick={handleCancel}
               className="flex-1"
+              disabled={uploading}
             >
               Cancel
             </Button>
