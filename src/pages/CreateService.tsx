@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMutation } from '@tanstack/react-query';
@@ -10,10 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { format } from 'date-fns';
-import { CalendarIcon } from "@radix-ui/react-icons"
+import { Calendar as CalendarIcon } from "lucide-react"; // Changed from @radix-ui/react-icons to lucide-react
 import { Service } from '@/types';
 
 const CreateService = () => {
@@ -62,6 +63,7 @@ const CreateService = () => {
       price: Number(price),
       isFree: isFree,
       duration: duration || "60 minutes",
+      startTime: startTime,
       location: location || "",
       isOnline: isOnline,
       meetingUrl: meetingUrl || "",
