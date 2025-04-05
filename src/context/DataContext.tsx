@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole } from '@/types';
+import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus } from '@/types';
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,11 +12,22 @@ interface DataContextType {
   services: Service[];
   messages: Message[];
   joinRequests: JoinRequest[];
+  sessions: Session[];
+  sessionEnrollments: SessionEnrollment[];
   loading: boolean;
   createPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<Post>;
   createEvent: (event: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
   createGroup: (group: Omit<Group, 'id' | 'createdAt' | 'members' | 'pendingRequests'>) => Promise<Group>;
   createService: (service: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
+  createSession: (session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
+  updateSession: (sessionId: string, sessionData: Partial<Session>) => Promise<Session>;
+  enrollInSession: (sessionId: string) => Promise<SessionEnrollment>;
+  cancelEnrollment: (enrollmentId: string) => Promise<void>;
+  updateEnrollmentStatus: (enrollmentId: string, status: SessionStatus) => Promise<void>;
+  getUserSessions: (userId: string) => Session[];
+  getCoachSessions: (coachId: string) => Session[];
+  getSessionEnrollments: (sessionId: string) => SessionEnrollment[];
+  getUserEnrollments: (userId: string) => SessionEnrollment[];
   likePost: (postId: string) => Promise<void>;
   sendMessage: (message: Omit<Message, 'id' | 'createdAt'>) => Promise<Message>;
   getGroupMessages: (groupId: string) => Message[];
@@ -237,6 +248,81 @@ const MOCK_JOIN_REQUESTS: JoinRequest[] = [
   }
 ];
 
+const MOCK_SESSIONS: Session[] = [
+  {
+    id: 'sess1',
+    title: 'Strength Training Fundamentals',
+    description: 'Learn proper form and techniques for key strength exercises.',
+    coachId: '3',
+    coachName: 'Alexandra Chen',
+    sessionType: 'group',
+    capacity: 10,
+    price: 30,
+    duration: '60 min',
+    location: 'Fitness Studio, Downtown',
+    isOnline: false,
+    isActive: true,
+    createdAt: new Date('2023-06-10'),
+    updatedAt: new Date('2023-06-10')
+  },
+  {
+    id: 'sess2',
+    title: 'Personal Training Session',
+    description: 'One-on-one training tailored to your specific fitness goals.',
+    coachId: '3',
+    coachName: 'Alexandra Chen',
+    sessionType: 'one_on_one',
+    price: 75,
+    duration: '45 min',
+    isOnline: false,
+    location: 'Fitness Studio, Downtown',
+    isActive: true,
+    createdAt: new Date('2023-07-15'),
+    updatedAt: new Date('2023-07-15')
+  },
+  {
+    id: 'sess3',
+    title: 'Virtual HIIT Workout',
+    description: 'High-intensity interval training session conducted via Zoom.',
+    coachId: '2',
+    coachName: 'Sophia Williams',
+    sessionType: 'group',
+    capacity: 20,
+    price: 15,
+    duration: '30 min',
+    isOnline: true,
+    meetingUrl: 'https://zoom.us/j/example',
+    isActive: true,
+    createdAt: new Date('2023-05-22'),
+    updatedAt: new Date('2023-05-22')
+  }
+];
+
+const MOCK_SESSION_ENROLLMENTS: SessionEnrollment[] = [
+  {
+    id: 'enroll1',
+    sessionId: 'sess1',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userEmail: 'emma@example.com',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'approved',
+    paymentStatus: 'paid',
+    createdAt: new Date('2023-08-20')
+  },
+  {
+    id: 'enroll2',
+    sessionId: 'sess2',
+    userId: '1',
+    userName: 'Emma Johnson',
+    userEmail: 'emma@example.com',
+    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
+    status: 'pending',
+    paymentStatus: 'unpaid',
+    createdAt: new Date('2023-09-01')
+  }
+];
+
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -246,6 +332,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
   const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(MOCK_JOIN_REQUESTS);
+  const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
+  const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(MOCK_SESSION_ENROLLMENTS);
   const [loading, setLoading] = useState(true);
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -434,6 +522,402 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setLoading(false);
     }
+  };
+
+  const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to create a session');
+      }
+      
+      if (currentUser.role !== 'coach') {
+        throw new Error('Only coaches can create sessions');
+      }
+      
+      const { data, error } = await supabase
+        .from('sessions')
+        .insert({
+          title: sessionData.title,
+          description: sessionData.description,
+          coach_id: currentUser.id,
+          coach_name: currentUser.name,
+          session_type: sessionData.sessionType,
+          capacity: sessionData.capacity,
+          price: sessionData.price,
+          duration: sessionData.duration,
+          start_time: sessionData.startTime?.toISOString(),
+          location: sessionData.location,
+          is_online: sessionData.isOnline,
+          meeting_url: sessionData.meetingUrl,
+          is_active: sessionData.isActive
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error creating session:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to create session');
+      }
+      
+      const newSession: Session = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        coachId: data.coach_id,
+        coachName: data.coach_name,
+        sessionType: data.session_type as SessionType,
+        capacity: data.capacity,
+        price: data.price,
+        duration: data.duration,
+        startTime: data.start_time ? new Date(data.start_time) : undefined,
+        location: data.location,
+        isOnline: data.is_online,
+        meetingUrl: data.meeting_url,
+        isActive: data.is_active,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at)
+      };
+      
+      setSessions(prev => [newSession, ...prev]);
+      
+      return newSession;
+    } catch (error: any) {
+      console.error('Error in createSession:', error);
+      toast({
+        title: "Error creating session",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateSession = async (sessionId: string, sessionData: Partial<Session>) => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to update a session');
+      }
+      
+      const existingSession = sessions.find(s => s.id === sessionId);
+      if (!existingSession) {
+        throw new Error('Session not found');
+      }
+      
+      if (existingSession.coachId !== currentUser.id) {
+        throw new Error('You can only update your own sessions');
+      }
+      
+      const supabaseSessionData: any = {};
+      
+      if (sessionData.title !== undefined) supabaseSessionData.title = sessionData.title;
+      if (sessionData.description !== undefined) supabaseSessionData.description = sessionData.description;
+      if (sessionData.sessionType !== undefined) supabaseSessionData.session_type = sessionData.sessionType;
+      if (sessionData.capacity !== undefined) supabaseSessionData.capacity = sessionData.capacity;
+      if (sessionData.price !== undefined) supabaseSessionData.price = sessionData.price;
+      if (sessionData.duration !== undefined) supabaseSessionData.duration = sessionData.duration;
+      if (sessionData.startTime !== undefined) supabaseSessionData.start_time = sessionData.startTime?.toISOString();
+      if (sessionData.location !== undefined) supabaseSessionData.location = sessionData.location;
+      if (sessionData.isOnline !== undefined) supabaseSessionData.is_online = sessionData.isOnline;
+      if (sessionData.meetingUrl !== undefined) supabaseSessionData.meeting_url = sessionData.meetingUrl;
+      if (sessionData.isActive !== undefined) supabaseSessionData.is_active = sessionData.isActive;
+      
+      supabaseSessionData.updated_at = new Date().toISOString();
+      
+      const { data, error } = await supabase
+        .from('sessions')
+        .update(supabaseSessionData)
+        .eq('id', sessionId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error updating session:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to update session');
+      }
+      
+      const updatedSession: Session = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        coachId: data.coach_id,
+        coachName: data.coach_name,
+        sessionType: data.session_type as SessionType,
+        capacity: data.capacity,
+        price: data.price,
+        duration: data.duration,
+        startTime: data.start_time ? new Date(data.start_time) : undefined,
+        location: data.location,
+        isOnline: data.is_online,
+        meetingUrl: data.meeting_url,
+        isActive: data.is_active,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at)
+      };
+      
+      setSessions(prev => 
+        prev.map(s => s.id === sessionId ? updatedSession : s)
+      );
+      
+      return updatedSession;
+    } catch (error: any) {
+      console.error('Error in updateSession:', error);
+      toast({
+        title: "Error updating session",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const enrollInSession = async (sessionId: string) => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to enroll in a session');
+      }
+      
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) {
+        throw new Error('Session not found');
+      }
+      
+      if (!session.isActive) {
+        throw new Error('This session is not currently active');
+      }
+      
+      if (session.sessionType === 'group' && session.capacity !== undefined) {
+        const currentEnrollments = sessionEnrollments.filter(e => 
+          e.sessionId === sessionId && e.status !== 'rejected'
+        ).length;
+        
+        if (currentEnrollments >= session.capacity) {
+          throw new Error('This session is at full capacity');
+        }
+      }
+      
+      // Check if user is already enrolled
+      const existingEnrollment = sessionEnrollments.find(e => 
+        e.sessionId === sessionId && e.userId === currentUser.id
+      );
+      
+      if (existingEnrollment) {
+        throw new Error('You are already enrolled in this session');
+      }
+      
+      const enrollmentData = {
+        session_id: sessionId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_email: currentUser.email,
+        user_profile_image: currentUser.profileImage,
+        status: 'pending',
+        payment_status: 'unpaid'
+      };
+      
+      const { data, error } = await supabase
+        .from('session_enrollments')
+        .insert(enrollmentData)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error enrolling in session:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to enroll in session');
+      }
+      
+      const newEnrollment: SessionEnrollment = {
+        id: data.id,
+        sessionId: data.session_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userEmail: data.user_email,
+        userProfileImage: data.user_profile_image,
+        status: data.status as SessionStatus,
+        paymentStatus: data.payment_status as PaymentStatus,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setSessionEnrollments(prev => [...prev, newEnrollment]);
+      
+      toast({
+        title: session.sessionType === 'one_on_one' ? "Request sent" : "Enrollment successful",
+        description: session.sessionType === 'one_on_one' 
+          ? "Your request for a one-on-one session has been sent to the coach" 
+          : "You have successfully enrolled in the group session",
+      });
+      
+      return newEnrollment;
+    } catch (error: any) {
+      console.error('Error enrolling in session:', error);
+      toast({
+        title: "Enrollment failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelEnrollment = async (enrollmentId: string) => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to cancel an enrollment');
+      }
+      
+      const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
+      if (!enrollment) {
+        throw new Error('Enrollment not found');
+      }
+      
+      if (enrollment.userId !== currentUser.id && !sessions.some(s => 
+        s.id === enrollment.sessionId && s.coachId === currentUser.id
+      )) {
+        throw new Error('You can only cancel your own enrollments or enrollments for your sessions');
+      }
+      
+      const { error } = await supabase
+        .from('session_enrollments')
+        .delete()
+        .eq('id', enrollmentId);
+      
+      if (error) {
+        console.error('Error canceling enrollment:', error);
+        throw new Error(error.message);
+      }
+      
+      setSessionEnrollments(prev => 
+        prev.filter(e => e.id !== enrollmentId)
+      );
+      
+      toast({
+        title: "Enrollment canceled",
+        description: "Your enrollment has been successfully canceled",
+      });
+    } catch (error: any) {
+      console.error('Error canceling enrollment:', error);
+      toast({
+        title: "Cancellation failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateEnrollmentStatus = async (enrollmentId: string, status: SessionStatus) => {
+    setLoading(true);
+    
+    try {
+      if (!currentUser) {
+        throw new Error('You must be logged in to update an enrollment');
+      }
+      
+      const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
+      if (!enrollment) {
+        throw new Error('Enrollment not found');
+      }
+      
+      const session = sessions.find(s => s.id === enrollment.sessionId);
+      if (!session || session.coachId !== currentUser.id) {
+        throw new Error('You can only update enrollments for your own sessions');
+      }
+      
+      const { data, error } = await supabase
+        .from('session_enrollments')
+        .update({ status })
+        .eq('id', enrollmentId)
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error updating enrollment status:', error);
+        throw new Error(error.message);
+      }
+      
+      if (!data) {
+        throw new Error('Failed to update enrollment status');
+      }
+      
+      const updatedEnrollment: SessionEnrollment = {
+        id: data.id,
+        sessionId: data.session_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userEmail: data.user_email,
+        userProfileImage: data.user_profile_image,
+        status: data.status as SessionStatus,
+        paymentStatus: data.payment_status as PaymentStatus,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setSessionEnrollments(prev => 
+        prev.map(e => e.id === enrollmentId ? updatedEnrollment : e)
+      );
+      
+      toast({
+        title: `Enrollment ${status}`,
+        description: `The enrollment has been marked as ${status}`,
+      });
+    } catch (error: any) {
+      console.error('Error updating enrollment status:', error);
+      toast({
+        title: "Update failed",
+        description: error.message,
+        variant: "destructive"
+      });
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getUserSessions = (userId: string) => {
+    return sessions.filter(session => {
+      const userEnrollments = sessionEnrollments.filter(e => 
+        e.userId === userId && e.sessionId === session.id && e.status === 'approved'
+      );
+      return userEnrollments.length > 0;
+    });
+  };
+
+  const getCoachSessions = (coachId: string) => {
+    return sessions.filter(session => session.coachId === coachId);
+  };
+
+  const getSessionEnrollments = (sessionId: string) => {
+    return sessionEnrollments.filter(enrollment => enrollment.sessionId === sessionId);
+  };
+
+  const getUserEnrollments = (userId: string) => {
+    return sessionEnrollments.filter(enrollment => enrollment.userId === userId);
   };
 
   const likePost = async (postId: string) => {
@@ -1160,11 +1644,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     services,
     messages,
     joinRequests,
+    sessions,
+    sessionEnrollments,
     loading,
     createPost,
     createEvent,
     createGroup,
     createService,
+    createSession,
+    updateSession,
+    enrollInSession,
+    cancelEnrollment,
+    updateEnrollmentStatus,
+    getUserSessions,
+    getCoachSessions,
+    getSessionEnrollments,
+    getUserEnrollments,
     likePost,
     sendMessage,
     getGroupMessages,

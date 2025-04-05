@@ -22,6 +22,10 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import NotFound from "./pages/NotFound";
 import Networking from "./pages/Networking";
+import Sessions from "./pages/Sessions";
+import SessionDetail from "./pages/SessionDetail";
+import CreateSession from "./pages/CreateSession";
+import ManageSession from "./pages/ManageSession";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +48,10 @@ const App = () => (
                 <Route path="/groups" element={<Groups />} />
                 <Route path="/groups/:id" element={<GroupDetail />} />
                 <Route path="/create-group" element={<CreateGroup />} />
+                <Route path="/sessions" element={<Sessions />} />
+                <Route path="/sessions/:id" element={<SessionDetail />} />
+                <Route path="/sessions/create" element={<CreateSession />} />
+                <Route path="/sessions/:id/manage" element={<ManageSession />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />

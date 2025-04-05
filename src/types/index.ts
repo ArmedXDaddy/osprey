@@ -1,8 +1,10 @@
-
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
 export type EventPrivacy = 'public' | 'private' | 'paid';
+export type SessionType = 'one_on_one' | 'group';
+export type SessionStatus = 'pending' | 'approved' | 'rejected' | 'completed';
+export type PaymentStatus = 'unpaid' | 'paid';
 
 export interface User {
   id: string;
@@ -10,7 +12,7 @@ export interface User {
   email: string;
   role: UserRole;
   profileImage?: string;
-  coverImage?: string; // Added coverImage property
+  coverImage?: string; 
   bio?: string;
   location?: string;
   interests?: string[];
@@ -82,6 +84,37 @@ export interface Service {
   price: number;
   duration: string;
   available: boolean;
+  createdAt: Date;
+}
+
+export interface Session {
+  id: string;
+  title: string;
+  description: string;
+  coachId: string;
+  coachName: string;
+  sessionType: SessionType;
+  capacity?: number;
+  price: number;
+  duration: string;
+  startTime?: Date;
+  location?: string;
+  isOnline: boolean;
+  meetingUrl?: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface SessionEnrollment {
+  id: string;
+  sessionId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userProfileImage?: string;
+  status: SessionStatus;
+  paymentStatus: PaymentStatus;
   createdAt: Date;
 }
 
