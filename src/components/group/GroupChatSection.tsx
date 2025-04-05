@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
@@ -23,56 +23,56 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(true);
-  const [subscribed, setSubscribed] = useState(false);
+  const [channel, setChannel] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch messages from Supabase on component mount
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        setLoadingMessages(true);
-        
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('group_id', groupId)
-          .order('created_at', { ascending: true });
-          
-        if (error) {
-          console.error('Error fetching messages:', error);
-          return;
-        }
-        
-        if (data) {
-          // Transform the data to match the Message type
-          const formattedMessages: Message[] = data.map(msg => ({
-            id: msg.id,
-            groupId: msg.group_id,
-            userId: msg.user_id,
-            userName: msg.user_name,
-            userRole: msg.user_role as UserRole, // Cast to UserRole
-            userProfileImage: msg.user_profile_image,
-            content: msg.content,
-            createdAt: new Date(msg.created_at)
-          }));
-          
-          setMessages(formattedMessages);
-        }
-      } catch (error) {
-        console.error('Error fetching messages:', error);
-      } finally {
-        setLoadingMessages(false);
-      }
-    };
-
-    fetchMessages();
-    
-    // Set up real-time subscription only while actively viewing the chat
-    const setupSubscription = () => {
-      if (subscribed) return;
+  const fetchMessages = useCallback(async () => {
+    try {
+      setLoadingMessages(true);
       
-      const channel = supabase
-        .channel('public:messages')
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('created_at', { ascending: true });
+        
+      if (error) {
+        console.error('Error fetching messages:', error);
+        return;
+      }
+      
+      if (data) {
+        // Transform the data to match the Message type
+        const formattedMessages: Message[] = data.map(msg => ({
+          id: msg.id,
+          groupId: msg.group_id,
+          userId: msg.user_id,
+          userName: msg.user_name,
+          userRole: msg.user_role as UserRole,
+          userProfileImage: msg.user_profile_image,
+          content: msg.content,
+          createdAt: new Date(msg.created_at)
+        }));
+        
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  }, [groupId]);
+
+  // Set up real-time subscription
+  useEffect(() => {
+    // First, fetch initial messages
+    fetchMessages();
+
+    // Then set up the real-time channel
+    const setupSubscription = () => {
+      const newChannel = supabase
+        .channel(`group:${groupId}`)
         .on(
           'postgres_changes',
           {
@@ -90,34 +90,34 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
               groupId: newMsg.group_id,
               userId: newMsg.user_id,
               userName: newMsg.user_name,
-              userRole: newMsg.user_role as UserRole, // Cast to UserRole
+              userRole: newMsg.user_role as UserRole,
               userProfileImage: newMsg.user_profile_image,
               content: newMsg.content,
               createdAt: new Date(newMsg.created_at)
             };
             
-            setMessages(prev => [...prev, formattedMessage]);
+            // Only add the message if it's not already in the list
+            setMessages(prev => {
+              const exists = prev.some(msg => msg.id === formattedMessage.id);
+              return exists ? prev : [...prev, formattedMessage];
+            });
           }
         )
-        .subscribe(() => {
-          setSubscribed(true);
-          console.log("Subscribed to chat updates");
-        });
+        .subscribe();
 
-      return channel;
+      setChannel(newChannel);
+      return newChannel;
     };
 
-    const channel = setupSubscription();
+    const chatChannel = setupSubscription();
 
-    // Clean up subscription when component unmounts or groupId changes
+    // Clean up subscription when component unmounts
     return () => {
-      if (channel) {
-        console.log("Unsubscribing from chat updates");
-        supabase.removeChannel(channel);
-        setSubscribed(false);
+      if (chatChannel) {
+        supabase.removeChannel(chatChannel);
       }
     };
-  }, [groupId]);
+  }, [groupId, fetchMessages]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
