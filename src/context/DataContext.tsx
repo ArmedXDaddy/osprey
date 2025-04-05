@@ -67,7 +67,7 @@ interface DataContextType {
   getCoachSessions: (coachId: string) => Session[];
   getUserEnrollments: (userId: string) => SessionEnrollment[];
   updateSession: (sessionId: string, data: Partial<Session>) => Promise<Session>;
-  updateEnrollmentStatus: (enrollmentId: string, status: string) => Promise<void>;
+  updateEnrollmentStatus: (enrollmentId: string, status: SessionStatus) => Promise<void>;
   
   // Messages
   sendMessage: (groupId: string, content: string, mediaUrl?: string, mediaType?: 'image' | 'video' | 'file') => Promise<Message>;
@@ -645,7 +645,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return updatedSession;
   };
 
-  const updateEnrollmentStatus = async (enrollmentId: string, status: string): Promise<void> => {
+  const updateEnrollmentStatus = async (enrollmentId: string, status: SessionStatus): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update an enrollment');
 
     const enrollmentIndex = sessionEnrollments.findIndex(e => e.id === enrollmentId);
