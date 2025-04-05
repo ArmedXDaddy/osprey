@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -78,10 +77,8 @@ const Networking = () => {
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
-  // Get the active tab from URL or default to 'all'
   const activeTab = searchParams.get('tab') || 'all';
   
-  // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
   };
@@ -90,52 +87,53 @@ const Networking = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        // We need to use the REST API directly instead of the typed client
-        // since the types are not updated with our new profiles table
-        const url = `https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles`;
+        const apiUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
         
-        let queryParams = new URLSearchParams();
-        queryParams.append('select', '*');
+        const params = new URLSearchParams();
+        params.append('select', '*');
         
-        // Only fetch users who are influencers, coaches, or companies
         if (activeTab !== 'all') {
-          queryParams.append('role', 'eq.' + activeTab);
+          params.append('role', 'eq.' + activeTab);
         } else {
-          queryParams.append('role', 'in.(influencer,coach,company)');
+          params.append('role', 'in.(influencer,coach,company)');
         }
         
-        const response = await fetch(`${url}?${queryParams.toString()}`, {
+        console.log(`Fetching profiles from: ${apiUrl}?${params.toString()}`);
+        
+        const response = await fetch(`${apiUrl}?${params.toString()}`, {
           method: 'GET',
           headers: {
-            'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ',
+            'apikey': apiKey,
             'Content-Type': 'application/json'
           }
         });
         
         if (!response.ok) {
-          throw new Error(`Error fetching profiles: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error('API Response error:', errorText);
+          throw new Error(`Error fetching profiles: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
+        console.log('Profiles data:', data);
         
-        if (data) {
-          const formattedUsers: User[] = data.map((user: any) => ({
-            id: user.id,
-            name: user.name || 'Unknown User',
-            email: user.email || '',
-            role: user.role as UserRole,
-            profileImage: user.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
-            bio: user.bio || '',
-            location: user.location || '',
-            interests: user.interests || [],
-            followers: user.followers || 0,
-            verified: user.verified || false,
-            socialLinks: user.social_links || {},
-            createdAt: new Date(user.created_at)
-          }));
-          
-          setUsers(formattedUsers);
-        }
+        const formattedUsers: User[] = data.map((user: any) => ({
+          id: user.id,
+          name: user.name || 'Unknown User',
+          email: user.email || '',
+          role: user.role as UserRole,
+          profileImage: user.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+          bio: user.bio || '',
+          location: user.location || '',
+          interests: user.interests || [],
+          followers: user.followers || 0,
+          verified: user.verified || false,
+          socialLinks: user.social_links || {},
+          createdAt: new Date(user.created_at)
+        }));
+        
+        setUsers(formattedUsers);
       } catch (error: any) {
         console.error('Error fetching users:', error);
         toast({
@@ -151,7 +149,6 @@ const Networking = () => {
     fetchUsers();
   }, [activeTab, toast]);
   
-  // Filter users based on search term
   const filteredUsers = users.filter(user => {
     const matchesSearchTerm = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -205,7 +202,6 @@ const Networking = () => {
   );
 };
 
-// Helper function to render the user grid
 const renderUserGrid = (users: User[], loading: boolean) => {
   if (loading) {
     return (
