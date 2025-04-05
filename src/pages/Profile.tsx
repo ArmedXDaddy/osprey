@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -883,3 +884,9 @@ const Profile = () => {
             )}
           </TabsContent>
         )}
+      </Tabs>
+    </div>
+  );
+};
+
+export default Profile;
