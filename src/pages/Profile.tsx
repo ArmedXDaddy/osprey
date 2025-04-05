@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -44,6 +43,9 @@ import ImageGallery from '@/components/profile/ImageGallery';
 import ImageCropper from '@/components/shared/ImageCropper';
 import { cn } from '@/lib/utils';
 import { User, UserRole } from '@/types';
+import FollowButton from '@/components/profile/FollowButton';
+import FollowersList from '@/components/profile/FollowersList';
+import { useFollowers } from '@/hooks/useFollowers';
 
 const Profile = () => {
   const { id } = useParams();
@@ -85,6 +87,19 @@ const Profile = () => {
   
   // Determine if viewing own profile or another user's profile
   const isOwnProfile = !id || (currentUser && id === currentUser.id);
+  
+  // Get follower data using our custom hook
+  const { 
+    followers, 
+    following, 
+    followerCount, 
+    followingCount, 
+    loading: loadingFollowers,
+    refresh: refreshFollowers
+  } = useFollowers(
+    isOwnProfile ? currentUser?.id : id,
+    currentUser?.id
+  );
   
   // Update profile form when currentUser changes and we're viewing own profile
   useEffect(() => {
@@ -457,55 +472,16 @@ const Profile = () => {
     }
   };
 
-  // Mock followers/following data for UI display
-  const mockFollowers = [
-    { id: '1', name: 'John Doe', profileImage: '', role: 'user', isFollowing: true },
-    { id: '2', name: 'Jane Smith', profileImage: '', role: 'influencer', isFollowing: false },
-    { id: '3', name: 'Fitness Pro', profileImage: '', role: 'coach', isFollowing: true }
-  ];
-  
-  const mockFollowing = [
-    { id: '4', name: 'Gym Bros', profileImage: '', role: 'company', isFollowing: true },
-    { id: '5', name: 'Workout Daily', profileImage: '', role: 'influencer', isFollowing: true },
-    { id: '6', name: 'Health Plus', profileImage: '', role: 'company', isFollowing: true }
-  ];
-
+  // Simplified render for follower items using our new component
   const renderFollowerItems = (items: any[], onClose: () => void) => {
-    if (items.length === 0) {
-      return (
-        <div className="text-center py-8 text-gray-500">
-          No followers yet
-        </div>
-      );
-    }
-    
-    return items.map((item, index) => (
-      <div key={index} className="flex items-center justify-between py-3">
-        <div className="flex items-center gap-3">
-          <Avatar>
-            <AvatarImage src={item.profileImage} />
-            <AvatarFallback>
-              {item.name.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium">{item.name}</p>
-            <p className="text-sm text-gray-500 capitalize">{item.role}</p>
-          </div>
-        </div>
-        <Button variant="outline" size="sm">
-          {item.isFollowing ? "Unfollow" : "Follow"}
-        </Button>
-      </div>
-    ));
-  };
-  
-  // Action handlers
-  const handleFollowUser = () => {
-    toast({
-      title: "Feature coming soon",
-      description: "Following users will be available in a future update",
-    });
+    return (
+      <FollowersList 
+        users={items} 
+        isOwnProfile={isOwnProfile}
+        onClose={onClose}
+        emptyMessage={items === followers ? "No followers yet" : "Not following anyone yet"}
+      />
+    );
   };
   
   // Loading state
@@ -645,15 +621,7 @@ const Profile = () => {
                       <span>Edit Profile</span>
                     </Button>
                   ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1"
-                      onClick={handleFollowUser}
-                    >
-                      <UserPlus className="h-4 w-4" />
-                      <span>Follow</span>
-                    </Button>
+                    <FollowButton targetUserId={id || ''} />
                   )}
                 </div>
               </div>
@@ -704,17 +672,17 @@ const Profile = () => {
           <div className="grid grid-cols-3 gap-4 mt-6 text-center">
             <div 
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              onClick={isOwnProfile ? () => setIsFollowersDialogOpen(true) : undefined}
+              onClick={() => setIsFollowersDialogOpen(true)}
             >
-              <div className="text-2xl font-bold">{userToShow?.followers || 0}</div>
+              <div className="text-2xl font-bold">{loadingFollowers ? '...' : followerCount}</div>
               <div className="text-gray-500 text-sm">Followers</div>
             </div>
             
             <div 
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              onClick={isOwnProfile ? () => setIsFollowingDialogOpen(true) : undefined}
+              onClick={() => setIsFollowingDialogOpen(true)}
             >
-              <div className="text-2xl font-bold">{(userToShow?.following?.length || 0)}</div>
+              <div className="text-2xl font-bold">{loadingFollowers ? '...' : followingCount}</div>
               <div className="text-gray-500 text-sm">Following</div>
             </div>
             
@@ -915,274 +883,3 @@ const Profile = () => {
             )}
           </TabsContent>
         )}
-      </Tabs>
-      
-      {/* Dialogs for editing profile (only show when viewing own profile) */}
-      {isOwnProfile && (
-        <>
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>Edit Profile</DialogTitle>
-                <DialogDescription>
-                  Update your profile information below.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <label htmlFor="name" className="text-sm font-medium">Name</label>
-                  <Input
-                    id="name"
-                    name="name"
-                    value={profileForm.name}
-                    onChange={handleProfileFormChange}
-                    placeholder="Your name"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="bio" className="text-sm font-medium">Bio</label>
-                  <Textarea
-                    id="bio"
-                    name="bio"
-                    value={profileForm.bio}
-                    onChange={handleProfileFormChange}
-                    placeholder="Tell us about yourself"
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="location" className="text-sm font-medium">Location</label>
-                  <Input
-                    id="location"
-                    name="location"
-                    value={profileForm.location}
-                    onChange={handleProfileFormChange}
-                    placeholder="Your location"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="profileImage" className="text-sm font-medium flex justify-between">
-                    <span>Profile Image</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 gap-1"
-                      onClick={() => profileImageInputRef.current?.click()}
-                    >
-                      <Camera className="h-4 w-4" />
-                      <span>Choose Image</span>
-                    </Button>
-                  </label>
-                  {profileForm.profileImage && (
-                    <div className="mt-2 flex items-center">
-                      <img 
-                        src={profileForm.profileImage} 
-                        alt="Profile preview" 
-                        className="h-16 w-16 rounded-full object-cover border"
-                      />
-                      <div className="ml-4 text-sm text-gray-500">
-                        <p>Current selection</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="coverImage" className="text-sm font-medium flex justify-between">
-                    <span>Cover Image</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 gap-1"
-                      onClick={() => coverImageInputRef.current?.click()}
-                    >
-                      <ImageIcon className="h-4 w-4" />
-                      <span>Change Cover</span>
-                    </Button>
-                  </label>
-                  {profileForm.coverImage && (
-                    <div className="mt-2">
-                      <img 
-                        src={profileForm.coverImage} 
-                        alt="Cover preview" 
-                        className="h-24 w-full object-cover rounded-md border"
-                      />
-                    </div>
-                  )}
-                </div>
-                
-                <Separator className="my-4" />
-                
-                <h4 className="text-sm font-medium mb-2">Social Links</h4>
-                
-                <div className="space-y-2">
-                  <label htmlFor="instagram" className="text-sm font-medium flex items-center gap-2">
-                    <Instagram className="h-4 w-4" />
-                    <span>Instagram</span>
-                  </label>
-                  <Input
-                    id="instagram"
-                    name="instagram"
-                    value={profileForm.instagram}
-                    onChange={handleProfileFormChange}
-                    placeholder="@username"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="twitter" className="text-sm font-medium flex items-center gap-2">
-                    <Twitter className="h-4 w-4" />
-                    <span>Twitter</span>
-                  </label>
-                  <Input
-                    id="twitter"
-                    name="twitter"
-                    value={profileForm.twitter}
-                    onChange={handleProfileFormChange}
-                    placeholder="@username"
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <label htmlFor="website" className="text-sm font-medium flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    <span>Website</span>
-                  </label>
-                  <Input
-                    id="website"
-                    name="website"
-                    value={profileForm.website}
-                    onChange={handleProfileFormChange}
-                    placeholder="yourwebsite.com"
-                  />
-                </div>
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="button" onClick={handleProfileUpdate}>
-                  Save Changes
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Followers</DialogTitle>
-                <DialogDescription>
-                  People who follow you
-                </DialogDescription>
-              </DialogHeader>
-              
-              <ScrollArea className="max-h-[60vh]">
-                <div className="space-y-1 py-2">
-                  {renderFollowerItems(mockFollowers, () => setIsFollowersDialogOpen(false))}
-                </div>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Following</DialogTitle>
-                <DialogDescription>
-                  People you follow
-                </DialogDescription>
-              </DialogHeader>
-              
-              <ScrollArea className="max-h-[60vh]">
-                <div className="space-y-1 py-2">
-                  {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
-                </div>
-              </ScrollArea>
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isCropDialogOpen} onOpenChange={(open) => {
-            if (!open && cropImageSrc) {
-              URL.revokeObjectURL(cropImageSrc);
-            }
-            setIsCropDialogOpen(open);
-          }}>
-            <DialogContent className="sm:max-w-[550px]">
-              <DialogHeader>
-                <DialogTitle>Crop {cropImageType === 'profile' ? 'Profile' : 'Cover'} Image</DialogTitle>
-                <DialogDescription>
-                  Drag, zoom, and position your image for the perfect fit.
-                </DialogDescription>
-              </DialogHeader>
-              
-              {cropImageSrc && (
-                <ImageCropper
-                  imageSrc={cropImageSrc}
-                  aspectRatio={cropAspectRatio}
-                  onCropComplete={handleCropComplete}
-                  onCancel={() => {
-                    if (cropImageSrc) {
-                      URL.revokeObjectURL(cropImageSrc);
-                    }
-                    setIsCropDialogOpen(false);
-                    setCropImageSrc(null);
-                  }}
-                />
-              )}
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
-            <DialogContent className="sm:max-w-[680px]">
-              <DialogHeader>
-                <DialogTitle>Select from Your Gallery</DialogTitle>
-                <DialogDescription>
-                  Choose an existing image or upload a new one.
-                </DialogDescription>
-              </DialogHeader>
-              
-              <div className="py-4">
-                {galleryType === 'profile' ? (
-                  <ImageGallery
-                    images={profileImages}
-                    onSelectImage={selectProfileImage}
-                    onUploadImage={uploadProfileImage}
-                    uploading={uploading}
-                    emptyMessage="You haven't uploaded any profile images yet."
-                    aspectRatio="square"
-                    selectedImage={profileForm.profileImage}
-                  />
-                ) : (
-                  <ImageGallery
-                    images={coverImages}
-                    onSelectImage={selectCoverImage}
-                    onUploadImage={uploadCoverImage}
-                    uploading={uploading}
-                    emptyMessage="You haven't uploaded any cover images yet."
-                    aspectRatio="landscape"
-                    selectedImage={profileForm.coverImage}
-                  />
-                )}
-              </div>
-              
-              <DialogFooter>
-                <Button type="button" onClick={() => setIsGalleryDialogOpen(false)}>
-                  Close
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
-    </div>
-  );
-};
-
-export default Profile;
-

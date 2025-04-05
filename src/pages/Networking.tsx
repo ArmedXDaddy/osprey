@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -13,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import FollowButton from '@/components/profile/FollowButton';
 
 type UserCardProps = {
   user: User;
@@ -61,10 +61,11 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           <span className="font-semibold">{user.followers?.toLocaleString() || 0}</span> followers
         </div>
       </CardContent>
-      <CardFooter className="flex justify-center pb-4">
+      <CardFooter className="flex justify-between items-center pb-4">
         <Link to={`/profile/${user.id}`}>
           <Button variant="outline" size="sm">View Profile</Button>
         </Link>
+        <FollowButton targetUserId={user.id} />
       </CardFooter>
     </Card>
   );
@@ -88,18 +89,14 @@ const Networking = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        // Fetch data directly using API calls instead of typed client
-        // This avoids the TypeScript error while we wait for types to update
         const baseUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
         const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
         
         let url = `${baseUrl}?select=*`;
         
-        // Only filter by role in tab view, not in search
         if (activeTab !== 'all' && !searchTerm) {
           url += `&role=eq.${activeTab}`;
         } else if (activeTab === 'all' && !searchTerm) {
-          // Don't filter by role for search, but for tab 'all' still show only professionals
           url += `&role=in.(influencer,coach,company)`;
         }
         
@@ -161,12 +158,10 @@ const Networking = () => {
   }, [activeTab, toast, searchTerm]);
   
   const filteredUsers = users.filter(user => {
-    // First filter out the current user
     if (currentUser && user.id === currentUser.id) {
       return false;
     }
     
-    // Then apply search criteria if search term exists
     if (searchTerm) {
       const matchesSearchTerm = 
         user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -176,7 +171,6 @@ const Networking = () => {
       return matchesSearchTerm;
     }
     
-    // If no search term, return true (already filtered by tab in the fetch)
     return true;
   });
   
