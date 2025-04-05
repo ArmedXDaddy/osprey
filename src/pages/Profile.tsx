@@ -124,8 +124,6 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      await ensureStorageBucketExists('profiles');
-      
       const { data, error } = await supabase.storage
         .from('profiles')
         .list(currentUser.id, {
@@ -133,7 +131,8 @@ const Profile = () => {
         });
       
       if (error) {
-        throw error;
+        console.error('Error listing profile images:', error);
+        return;
       }
       
       if (data) {
@@ -165,8 +164,6 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      await ensureStorageBucketExists('covers');
-      
       const { data, error } = await supabase.storage
         .from('covers')
         .list(currentUser.id, {
@@ -174,7 +171,8 @@ const Profile = () => {
         });
       
       if (error) {
-        throw error;
+        console.error('Error listing cover images:', error);
+        return;
       }
       
       if (data) {
@@ -202,25 +200,6 @@ const Profile = () => {
     }
   };
   
-  const ensureStorageBucketExists = async (bucketName: string) => {
-    try {
-      const { data: buckets, error } = await supabase.storage.listBuckets();
-      
-      if (error) {
-        console.error(`Error checking buckets:`, error);
-        return;
-      }
-      
-      const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
-      
-      if (!bucketExists) {
-        console.log(`Bucket ${bucketName} doesn't exist`);
-      }
-    } catch (error) {
-      console.error(`Error ensuring bucket exists:`, error);
-    }
-  };
-  
   const uploadProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !currentUser) {
       return;
@@ -233,24 +212,35 @@ const Profile = () => {
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `${currentUser.id}/${fileName}`;
       
-      const { error } = await supabase.storage
+      // First check if we have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('You must be logged in to upload images');
+      }
+      
+      // Then upload the file
+      const { error: uploadError } = await supabase.storage
         .from('profiles')
         .upload(filePath, file);
       
-      if (error) {
-        throw error;
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw uploadError;
       }
       
-      await fetchProfileImages();
-      
+      // Get the public URL
       const { data: urlData } = await supabase.storage
         .from('profiles')
         .getPublicUrl(filePath);
       
+      // Update the profile form
       setProfileForm(prev => ({
         ...prev,
         profileImage: urlData.publicUrl
       }));
+      
+      // Refresh the image gallery
+      await fetchProfileImages();
       
       toast({
         title: "Upload successful",
@@ -280,24 +270,35 @@ const Profile = () => {
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `${currentUser.id}/${fileName}`;
       
-      const { error } = await supabase.storage
+      // First check if we have a valid session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('You must be logged in to upload images');
+      }
+      
+      // Then upload the file
+      const { error: uploadError } = await supabase.storage
         .from('covers')
         .upload(filePath, file);
       
-      if (error) {
-        throw error;
+      if (uploadError) {
+        console.error('Upload error details:', uploadError);
+        throw uploadError;
       }
       
-      await fetchCoverImages();
-      
+      // Get the public URL
       const { data: urlData } = await supabase.storage
         .from('covers')
         .getPublicUrl(filePath);
       
+      // Update the profile form
       setProfileForm(prev => ({
         ...prev,
         coverImage: urlData.publicUrl
       }));
+      
+      // Refresh the image gallery
+      await fetchCoverImages();
       
       toast({
         title: "Upload successful",
@@ -428,7 +429,8 @@ const Profile = () => {
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={item.profileImage} />
-            <AvatarFallback>{item.name.substring(0, 2).toUpperCase()}</AvatarFallback>
+            <AvatarFallback>{item.name.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <div>
             <p className="font-medium">{item.name}</p>
@@ -919,64 +921,4 @@ const Profile = () => {
                 id="website"
                 name="website"
                 value={profileForm.website}
-                onChange={handleProfileFormChange}
-                placeholder="example.com"
-              />
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleProfileUpdate}>Save Changes</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle>Followers</DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsFollowersDialogOpen(false)}
-                className="h-6 w-6"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </DialogHeader>
-          
-          <ScrollArea className="h-[400px] pr-4">
-            {renderFollowerItems(mockFollowers, () => setIsFollowersDialogOpen(false))}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle>Following</DialogTitle>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setIsFollowingDialogOpen(false)}
-                className="h-6 w-6"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </DialogHeader>
-          
-          <ScrollArea className="h-[400px] pr-4">
-            {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-};
-
-export default Profile;
+                onChange={handleProfile
