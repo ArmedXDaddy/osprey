@@ -126,12 +126,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           }));
           
           for (const post of transformedPosts) {
-            const { data: likesData } = await supabase
+            const { data: likesData, error: likesError } = await supabase
               .from('post_likes')
               .select('user_id')
               .eq('post_id', post.id);
               
-            if (likesData) {
+            if (!likesError && likesData) {
               post.userLikes = likesData.map((like: any) => like.user_id);
             }
           }
@@ -760,7 +760,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         imageUrl = await uploadImage(imageFile, 'posts');
       }
       
-      const { data, error } = await supabase.from('posts').insert({
+      const { error } = await supabase.from('posts').insert({
         user_id: currentUser.id,
         user_name: currentUser.name,
         user_role: currentUser.role,
@@ -769,11 +769,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         image: imageUrl,
         likes_count: 0,
         comments_count: 0
-      }).select();
+      });
         
       if (error) throw error;
       
-      console.log("Post created successfully:", data);
+      console.log("Post created successfully");
     } catch (err: any) {
       console.error("Error creating post:", err);
       toast({
@@ -802,10 +802,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         throw error;
       }
       
-      const { error: rpcError } = await supabase.rpc('increment_post_likes', { post_id: postId });
+      const { error: functionError } = await supabase.rpc('increment_post_likes', { post_id: postId });
       
-      if (rpcError) {
-        console.error("Error incrementing post likes:", rpcError);
+      if (functionError) {
+        console.error("Error incrementing post likes:", functionError);
       }
     } catch (err: any) {
       console.error("Error liking post:", err);
@@ -824,10 +824,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (error) throw error;
       
-      const { error: rpcError } = await supabase.rpc('decrement_post_likes', { post_id: postId });
+      const { error: functionError } = await supabase.rpc('decrement_post_likes', { post_id: postId });
       
-      if (rpcError) {
-        console.error("Error decrementing post likes:", rpcError);
+      if (functionError) {
+        console.error("Error decrementing post likes:", functionError);
       }
     } catch (err: any) {
       console.error("Error unliking post:", err);
@@ -839,21 +839,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to comment on a post');
     
     try {
-      const { data, error } = await supabase.from('comments').insert({
+      const { error } = await supabase.from('comments').insert({
         post_id: postId,
         user_id: currentUser.id,
         user_name: currentUser.name,
         user_role: currentUser.role,
         user_profile_image: currentUser.profileImage,
         content
-      }).select();
+      });
         
       if (error) throw error;
       
-      const { error: rpcError } = await supabase.rpc('increment_post_comments', { post_id: postId });
+      const { error: functionError } = await supabase.rpc('increment_post_comments', { post_id: postId });
       
-      if (rpcError) {
-        console.error("Error incrementing post comments:", rpcError);
+      if (functionError) {
+        console.error("Error incrementing post comments:", functionError);
       }
     } catch (err: any) {
       console.error("Error adding comment:", err);

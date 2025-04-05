@@ -24,3 +24,10 @@ export const supabase = createClient<Database>(
 );
 
 // Note: Storage buckets 'profiles' and 'covers' are already created
+
+// Export a helper to run raw SQL queries for tables not in TypeScript definitions
+export const runQuery = async (query: string, params?: any[]) => {
+  const { data, error } = await supabase.rpc('run_query', { query, params });
+  if (error) throw error;
+  return { data, error: null };
+};
