@@ -5,16 +5,18 @@ import { useSearchParams } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Search } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
 import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 const Explore = () => {
   const { events, groups, services, loading } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
   
   // Get the active tab from URL or default to 'events'
   const activeTab = searchParams.get('tab') || 'events';
@@ -44,16 +46,26 @@ const Explore = () => {
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Explore</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Explore</h1>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/networking')}
+            className="flex items-center gap-2"
+          >
+            <Users className="h-4 w-4" />
+            <span>Networking</span>
+          </Button>
+        </div>
         
-        <div className="relative w-full max-w-sm">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Search..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 w-full"
           />
         </div>
       </div>

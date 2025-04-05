@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import NotFound from "./pages/NotFound";
+import Networking from "./pages/Networking";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/explore" element={<Explore />} />
+                <Route path="/networking" element={<Networking />} />
                 <Route path="/events" element={<Events />} />
                 <Route path="/events/:id" element={<EventDetail />} />
                 <Route path="/create-event" element={<CreateEvent />} />
