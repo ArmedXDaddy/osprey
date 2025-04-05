@@ -1,9 +1,8 @@
-
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
-import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session } from '@/types';
+import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType } from '@/types';
 
 // Create the context with undefined as default
 interface DataContextType {
@@ -153,10 +152,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             isOnline: item.is_online,
             location: item.location,
             capacity: item.capacity,
-            serviceType: item.service_type,
+            serviceType: item.service_type as ServiceType,
             coverImage: item.cover_image,
             meetingUrl: item.meeting_url
-          }));
+          })) as Service[];
           
           setServices(servicesData);
         }
@@ -284,7 +283,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         isOnline: data.is_online,
         location: data.location,
         capacity: data.capacity,
-        serviceType: data.service_type,
+        serviceType: data.service_type as ServiceType,
         coverImage: data.cover_image,
         meetingUrl: data.meeting_url
       };
@@ -350,7 +349,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         isOnline: data.is_online,
         location: data.location,
         capacity: data.capacity,
-        serviceType: data.service_type,
+        serviceType: data.service_type as ServiceType,
         coverImage: data.cover_image,
         meetingUrl: data.meeting_url
       };
@@ -412,10 +411,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         isOnline: item.is_online,
         location: item.location,
         capacity: item.capacity,
-        serviceType: item.service_type,
+        serviceType: item.service_type as ServiceType,
         coverImage: item.cover_image,
         meetingUrl: item.meeting_url
-      }));
+      })) as Service[];
     } catch (err) {
       console.error("Error fetching user services:", err);
       return [];

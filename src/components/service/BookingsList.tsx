@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Booking } from '@/types';
+import { Booking, BookingStatus } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -55,11 +55,11 @@ const BookingsList = ({ bookings, isLoading, serviceId }: BookingsListProps) => 
                     <span className="font-medium">{booking.userName}</span>
                   </div>
                   
-                  {booking.scheduledDate && (
+                  {booking.preferredTime && (
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {format(new Date(booking.scheduledDate), 'PPP')}
+                        {format(new Date(booking.preferredTime), 'PPP')}
                       </span>
                     </div>
                   )}
@@ -67,14 +67,16 @@ const BookingsList = ({ bookings, isLoading, serviceId }: BookingsListProps) => 
                   {booking.scheduledTime && (
                     <div className="flex items-center gap-2">
                       <Clock className="h-4 w-4 text-muted-foreground" />
-                      <span>{booking.scheduledTime}</span>
+                      <span>
+                        {format(new Date(booking.scheduledTime), 'p')}
+                      </span>
                     </div>
                   )}
                 </div>
                 
                 <div className="flex items-center gap-4">
                   <Badge variant={
-                    booking.status === 'confirmed' ? 'default' :
+                    booking.status === 'approved' ? 'default' :
                     booking.status === 'completed' ? 'success' :
                     booking.status === 'cancelled' ? 'destructive' : 
                     'outline'

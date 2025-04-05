@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -216,7 +215,7 @@ const ManageService = () => {
       {isEditModalOpen && (
         <EditServiceForm 
           service={service}
-          onClose={() => setIsEditModalOpen(false)}
+          onSave={() => setIsEditModalOpen(false)}
         />
       )}
     </div>

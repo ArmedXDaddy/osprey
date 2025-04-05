@@ -151,6 +151,9 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           available: data.available,
           coverImage: uploadedCoverImageUrl || coverImageUrl,
         };
+        
+        // Call onSave with the updated service data
+        if (onSave) onSave(serviceData);
       } else {
         // Create new service
         serviceData = await createService({
@@ -166,6 +169,10 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           available: data.available,
           coverImage: uploadedCoverImageUrl || coverImageUrl,
         });
+        
+        // Call onSave with the new service data
+        if (onSave) onSave(serviceData);
+        navigate('/services');
       }
 
       toast({
@@ -174,10 +181,6 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           ? "Your service has been updated successfully." 
           : "Your new service has been created successfully."
       });
-
-      // Pass the service data to the onSave callback
-      if (onSave) onSave(serviceData);
-      navigate('/services');
     } catch (error: any) {
       console.error("Error saving service:", error);
       toast({
