@@ -13,6 +13,7 @@ interface DataContextProps {
   messages: Message[];
   serviceBookings: ServiceBooking[];
   sessionEnrollments: SessionEnrollment[];
+  loading: boolean;
   bookService: (serviceId: string, isPaid?: boolean) => Promise<ServiceBooking | undefined>;
   cancelServiceBooking: (enrollmentId: string) => Promise<void>;
   enrollSession: (sessionId: string) => Promise<SessionEnrollment | undefined>;
@@ -23,15 +24,29 @@ interface DataContextProps {
   createEvent: (eventData: Omit<Event, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'creatorImage' | 'attendees' | 'currentAttendees'>) => Promise<Event | undefined>;
   joinEvent: (eventId: string) => Promise<JoinRequest | undefined>;
   leaveEvent: (eventId: string) => Promise<void>;
-  createGroup: (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole'>) => Promise<Group | undefined>;
+  createGroup: (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'members'>) => Promise<Group | undefined>;
   joinGroup: (groupId: string) => Promise<JoinRequest | undefined>;
   leaveGroup: (groupId: string) => Promise<void>;
   sendMessage: (groupId: string, content: string, mediaUrl?: string, mediaType?: string) => Promise<Message | undefined>;
+  enrollInSession: (sessionId: string, isPaid?: boolean) => Promise<SessionEnrollment | undefined>;
+  cancelEnrollment: (enrollmentId: string) => Promise<void>;
+  getEventRequests: (eventId: string) => JoinRequest[];
+  handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  getGroupRequests: (groupId: string) => JoinRequest[];
+  handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  removeGroupMember: (groupId: string, userId: string) => Promise<void>;
+  updateGroupDetails: (groupId: string, data: any) => Promise<Group | undefined>;
+  getUserSessions: (userId: string) => Session[];
+  getCoachSessions: (coachId: string) => Session[];
+  getUserEnrollments: (userId: string) => SessionEnrollment[];
+  requestToJoinGroup: (groupId: string) => Promise<JoinRequest | undefined>;
+  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
+  updateSession: (sessionId: string, data: Partial<Session>) => Promise<Session | undefined>;
+  updateEnrollmentStatus: (enrollmentId: string, status: 'approved' | 'rejected') => Promise<SessionEnrollment | undefined>;
 }
 
 const DataContext = createContext<DataContextProps | undefined>(undefined);
 
-// Add missing properties to mockServices
 const mockServices: Service[] = [
   {
     id: '1',
@@ -45,8 +60,8 @@ const mockServices: Service[] = [
     sessionType: 'one_on_one',
     isOnline: true,
     isFree: false,
-    location: 'Online',  // Add missing location property
-    meetingUrl: 'https://zoom.us/j/123456789',  // Add missing meetingUrl property
+    location: 'Online',
+    meetingUrl: 'https://zoom.us/j/123456789',
     createdAt: new Date(),
   },
   {
@@ -61,8 +76,8 @@ const mockServices: Service[] = [
     sessionType: 'group',
     isOnline: false,
     isFree: false,
-    location: 'Local Gym',  // Add missing location property
-    meetingUrl: 'https://zoom.us/j/987654321',  // Add missing meetingUrl property
+    location: 'Local Gym',
+    meetingUrl: 'https://zoom.us/j/987654321',
     createdAt: new Date(),
   },
   {
@@ -77,8 +92,8 @@ const mockServices: Service[] = [
     sessionType: 'one_on_one',
     isOnline: true,
     isFree: true,
-    location: 'Online',  // Add missing location property
-    meetingUrl: 'https://zoom.us/j/555555555',  // Add missing meetingUrl property
+    location: 'Online',
+    meetingUrl: 'https://zoom.us/j/555555555',
     createdAt: new Date(),
   },
 ];
@@ -333,23 +348,23 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>(mockServiceBookings);
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(mockSessionEnrollments);
+  const [loading, setLoading] = useState<boolean>(false);
 
   const bookService = async (serviceId: string, isPaid: boolean = false) => {
     try {
       const service = services.find(s => s.id === serviceId);
-      const currentUser = users.find(u => u.id === '4'); // Assuming '4' is the current user
-      
+      const currentUser = users.find(u => u.id === '4');
+
       if (!service) {
         throw new Error('Service not found');
       }
-      
+
       if (!currentUser) {
         throw new Error('User not found');
       }
-      
-      // For paid services, set status to 'approved' automatically
+
       const status = isPaid ? 'approved' : 'pending';
-      
+
       const newEnrollment: ServiceBooking = {
         id: generateId(),
         serviceId,
@@ -362,9 +377,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         amount: service.price,
         createdAt: new Date(),
       };
-      
+
       setServiceBookings(prev => [...prev, newEnrollment]);
-      
+
       return newEnrollment;
     } catch (error) {
       console.error('Error booking service:', error);
@@ -535,7 +550,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setJoinRequests(prev => prev.filter(req => req.eventId !== eventId && req.userId !== '4'));
   };
 
-  const createGroup = async (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole'>) => {
+  const createGroup = async (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'members'>) => {
     try {
       const currentUser = users.find(u => u.id === '4');
 
@@ -553,6 +568,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         creatorRole: currentUser.role,
         privacy: groupData.privacy,
         createdAt: new Date(),
+        ...groupData
       };
 
       setGroups(prev => [...prev, newGroup]);
@@ -630,6 +646,176 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const enrollInSession = async (sessionId: string, isPaid: boolean = false) => {
+    try {
+      const session = sessions.find(s => s.id === sessionId);
+      const currentUser = users.find(u => u.id === '4');
+
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const status = isPaid ? 'approved' : 'pending';
+      
+      const newEnrollment: SessionEnrollment = {
+        id: generateId(),
+        sessionId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        status: status,
+        paymentStatus: isPaid ? 'paid' : 'unpaid',
+        createdAt: new Date(),
+      };
+
+      setSessionEnrollments(prev => [...prev, newEnrollment]);
+      return newEnrollment;
+    } catch (error) {
+      console.error('Error enrolling in session:', error);
+      throw error;
+    }
+  };
+
+  const cancelEnrollment = async (enrollmentId: string) => {
+    setSessionEnrollments(prev => prev.filter(enrollment => enrollment.id !== enrollmentId));
+  };
+
+  const getEventRequests = (eventId: string) => {
+    return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
+  };
+
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    setJoinRequests(prev => 
+      prev.map(request => 
+        request.id === requestId ? { ...request, status } : request
+      )
+    );
+  };
+
+  const getGroupRequests = (groupId: string) => {
+    return joinRequests.filter(request => request.groupId === groupId && request.status === 'pending');
+  };
+
+  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+    setJoinRequests(prev => 
+      prev.map(request => 
+        request.id === requestId ? { ...request, status } : request
+      )
+    );
+    
+    if (status === 'approved') {
+      const request = joinRequests.find(r => r.id === requestId);
+      if (request && request.groupId) {
+        setGroups(prev => 
+          prev.map(group => 
+            group.id === request.groupId ? { ...group, members: group.members + 1 } : group
+          )
+        );
+      }
+    }
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string) => {
+    setJoinRequests(prev => 
+      prev.filter(request => !(request.groupId === groupId && request.userId === userId))
+    );
+    
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === groupId ? { ...group, members: Math.max(1, group.members - 1) } : group
+      )
+    );
+  };
+
+  const updateGroupDetails = async (groupId: string, data: any) => {
+    const updatedGroups = groups.map(group => 
+      group.id === groupId ? { ...group, ...data } : group
+    );
+    setGroups(updatedGroups);
+    return updatedGroups.find(group => group.id === groupId);
+  };
+
+  const getUserSessions = (userId: string) => {
+    const userEnrollments = sessionEnrollments.filter(enrollment => enrollment.userId === userId);
+    return sessions.filter(session => 
+      userEnrollments.some(enrollment => enrollment.sessionId === session.id)
+    );
+  };
+
+  const getCoachSessions = (coachId: string) => {
+    return sessions.filter(session => session.coachId === coachId);
+  };
+
+  const getUserEnrollments = (userId: string) => {
+    return sessionEnrollments.filter(enrollment => enrollment.userId === userId);
+  };
+
+  const requestToJoinGroup = async (groupId: string) => {
+    try {
+      const group = groups.find(g => g.id === groupId);
+      const currentUser = users.find(u => u.id === '4');
+
+      if (!group) {
+        throw new Error('Group not found');
+      }
+
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const newJoinRequest: JoinRequest = {
+        id: generateId(),
+        groupId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        status: 'pending',
+        createdAt: new Date(),
+      };
+
+      setJoinRequests(prev => [...prev, newJoinRequest]);
+      return newJoinRequest;
+    } catch (error) {
+      console.error('Error requesting to join group:', error);
+      throw error;
+    }
+  };
+
+  const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      const newSession: Session = {
+        id: generateId(),
+        ...sessionData,
+        createdAt: new Date(),
+      };
+      
+      setSessions(prev => [...prev, newSession]);
+      return newSession;
+    } catch (error) {
+      console.error('Error creating session:', error);
+      throw error;
+    }
+  };
+
+  const updateSession = async (sessionId: string, data: Partial<Session>) => {
+    const updatedSessions = sessions.map(session => 
+      session.id === sessionId ? { ...session, ...data } : session
+    );
+    setSessions(updatedSessions);
+    return updatedSessions.find(session => session.id === sessionId);
+  };
+
+  const updateEnrollmentStatus = async (enrollmentId: string, status: 'approved' | 'rejected') => {
+    const updatedEnrollments = sessionEnrollments.map(enrollment => 
+      enrollment.id === enrollmentId ? { ...enrollment, status } : enrollment
+    );
+    setSessionEnrollments(updatedEnrollments);
+    return updatedEnrollments.find(enrollment => enrollment.id === enrollmentId);
+  };
+
   const value: DataContextProps = {
     services,
     sessions,
@@ -641,6 +827,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     messages,
     serviceBookings,
     sessionEnrollments,
+    loading,
     bookService,
     cancelServiceBooking,
     enrollSession,
@@ -655,6 +842,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     joinGroup,
     leaveGroup,
     sendMessage,
+    enrollInSession,
+    cancelEnrollment,
+    getEventRequests,
+    handleEventJoinRequest,
+    getGroupRequests,
+    handleJoinRequest,
+    removeGroupMember,
+    updateGroupDetails,
+    getUserSessions,
+    getCoachSessions,
+    getUserEnrollments,
+    requestToJoinGroup,
+    createSession,
+    updateSession,
+    updateEnrollmentStatus,
   };
 
   return (
