@@ -23,7 +23,7 @@ const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, getUserBookings, getUserBookingForService } = useData();
+  const { getServiceById, getUserBookingForService } = useData();
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -55,15 +55,18 @@ const ServiceDetail = () => {
       if (currentUser) {
         try {
           const booking = await getUserBookingForService(serviceData.id, currentUser.id);
+          console.log("User booking data:", booking);
           if (booking) {
-            console.log("User has an existing booking:", booking);
             setUserBooking(booking);
             setHasBooked(true);
           } else {
+            setUserBooking(null);
             setHasBooked(false);
           }
         } catch (error) {
           console.error("Error checking user booking:", error);
+          setUserBooking(null);
+          setHasBooked(false);
         }
       }
     } catch (error: any) {
@@ -98,7 +101,6 @@ const ServiceDetail = () => {
   };
 
   const handleBookingSuccess = () => {
-    setHasBooked(true);
     fetchServiceAndBookingDetails();
   };
 

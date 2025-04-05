@@ -72,6 +72,8 @@ export const createServiceBooking = async (
       throw new Error(error.message || 'Failed to book service');
     }
 
+    // Add a console log to verify we're getting the correct booking ID back
+    console.log('Successfully created booking with ID:', data.id);
     return data.id;
   } catch (error: any) {
     console.error('Error in createServiceBooking:', error);

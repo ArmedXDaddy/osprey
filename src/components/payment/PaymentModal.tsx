@@ -66,8 +66,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      // For paid services, mark as 'paid' in the database
-      await bookService(service.id, isFreeService ? undefined : 'paid');
+      // For paid services, mark as 'paid' in the database and set status to 'approved'
+      // This ensures the booking is automatically approved upon payment
+      await bookService(
+        service.id, 
+        isFreeService ? undefined : 'paid',
+        isFreeService ? undefined : 'approved' // Automatically approve paid bookings
+      );
 
       toast({
         title: "Booking successful!",
@@ -76,6 +81,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
           : "Your payment was successful and your booking has been confirmed."
       });
 
+      // Make sure we call onSuccess to refresh the parent component
       onSuccess();
     } catch (error: any) {
       toast({
@@ -111,6 +117,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
         description: "Your request has been submitted and is pending approval."
       });
 
+      // Make sure we call onSuccess to refresh the parent component
       onSuccess();
     } catch (error: any) {
       toast({
