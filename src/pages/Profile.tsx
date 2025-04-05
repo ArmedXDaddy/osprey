@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -47,17 +46,6 @@ const Profile = () => {
   const { posts, events, groups, services, loading } = useData();
   const { toast } = useToast();
 
-  // Filter data based on current user
-  const userPosts = posts.filter(post => post.userId === currentUser?.id);
-  const userEvents = events.filter(event => event.attendees?.includes(currentUser?.id || '') || event.creatorId === currentUser?.id);
-  const userCreatedEvents = events.filter(event => event.creatorId === currentUser?.id);
-  const joinedEvents = events.filter(event => event.attendees?.includes(currentUser?.id || '') && event.creatorId !== currentUser?.id);
-  const userGroups = groups.filter(group => (group.memberIds?.includes(currentUser?.id || '')) || group.creatorId === currentUser?.id);
-  const userCreatedGroups = groups.filter(group => group.creatorId === currentUser?.id);
-  const joinedGroups = groups.filter(group => group.memberIds?.includes(currentUser?.id || '') && group.creatorId !== currentUser?.id);
-  const userServices = services.filter(service => service.providerId === currentUser?.id);
-
-  // State for profile editing
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
@@ -70,11 +58,9 @@ const Profile = () => {
     website: currentUser?.socialLinks?.website || ''
   });
 
-  // State for followers/following dialogs
   const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
   const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
   
-  // State for profile image selection
   const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
   const [isCoverImageDialogOpen, setIsCoverImageDialogOpen] = useState(false);
   const [profileImages, setProfileImages] = useState<{ name: string, url: string }[]>([]);
@@ -82,7 +68,6 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   
   useEffect(() => {
-    // Update form data when currentUser changes
     if (currentUser) {
       setProfileForm({
         name: currentUser.name || '',
@@ -97,7 +82,6 @@ const Profile = () => {
     }
   }, [currentUser]);
   
-  // Fetch images when component mounts or when user changes
   useEffect(() => {
     if (currentUser) {
       fetchProfileImages();
@@ -109,7 +93,6 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      // Create profiles bucket if it doesn't exist
       await ensureStorageBucketExists('profiles');
       
       const { data, error } = await supabase.storage
@@ -151,7 +134,6 @@ const Profile = () => {
     if (!currentUser) return;
     
     try {
-      // Create covers bucket if it doesn't exist
       await ensureStorageBucketExists('covers');
       
       const { data, error } = await supabase.storage
@@ -191,7 +173,6 @@ const Profile = () => {
   
   const ensureStorageBucketExists = async (bucketName: string) => {
     try {
-      // Check if bucket exists
       const { data: buckets, error } = await supabase.storage.listBuckets();
       
       if (error) {
@@ -201,8 +182,6 @@ const Profile = () => {
       
       const bucketExists = buckets?.find(bucket => bucket.name === bucketName);
       
-      // If bucket doesn't exist, we can't create it from the client
-      // This should be handled via SQL migrations
       if (!bucketExists) {
         console.log(`Bucket ${bucketName} doesn't exist`);
       }
@@ -233,12 +212,10 @@ const Profile = () => {
       
       await fetchProfileImages();
       
-      // Get the URL of the uploaded image
       const { data: urlData } = await supabase.storage
         .from('profiles')
         .getPublicUrl(filePath);
       
-      // Automatically select the newly uploaded image
       setProfileForm(prev => ({
         ...prev,
         profileImage: urlData.publicUrl
@@ -282,12 +259,10 @@ const Profile = () => {
       
       await fetchCoverImages();
       
-      // Get the URL of the uploaded image
       const { data: urlData } = await supabase.storage
         .from('covers')
         .getPublicUrl(filePath);
       
-      // Automatically select the newly uploaded image
       setProfileForm(prev => ({
         ...prev,
         coverImage: urlData.publicUrl
@@ -335,7 +310,6 @@ const Profile = () => {
     });
   };
   
-  // Handle profile form changes
   const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileForm(prev => ({
@@ -344,7 +318,6 @@ const Profile = () => {
     }));
   };
   
-  // Handle profile update
   const handleProfileUpdate = async () => {
     if (!currentUser) return;
     
@@ -381,7 +354,6 @@ const Profile = () => {
     }
   };
   
-  // Role-specific info
   const renderRoleContent = () => {
     if (!currentUser) return null;
     
@@ -415,7 +387,6 @@ const Profile = () => {
     }
   };
 
-  // Render follower items
   const renderFollowerItems = (items: any[], onClose: () => void) => {
     if (items.length === 0) {
       return (
@@ -444,7 +415,6 @@ const Profile = () => {
     ));
   };
 
-  // Mock data for followers and following
   const mockFollowers = [
     { id: '1', name: 'John Doe', profileImage: '', role: 'user', isFollowing: true },
     { id: '2', name: 'Jane Smith', profileImage: '', role: 'influencer', isFollowing: false },
@@ -459,9 +429,7 @@ const Profile = () => {
 
   return (
     <div className="space-y-8">
-      {/* Profile Header */}
       <Card className="overflow-hidden">
-        {/* Cover image with edit button */}
         <div className="relative">
           <div 
             className="h-48 bg-gradient-to-r from-primary to-accent"
@@ -479,7 +447,6 @@ const Profile = () => {
         </div>
         
         <div className="px-6 pb-6">
-          {/* Profile picture and basic info */}
           <div className="flex flex-col md:flex-row gap-6">
             <div className="-mt-12 shrink-0 relative">
               <img 
@@ -532,12 +499,10 @@ const Profile = () => {
                 </div>
               </div>
               
-              {/* Bio */}
               {currentUser?.bio && (
                 <p className="mt-4 text-gray-700">{currentUser.bio}</p>
               )}
               
-              {/* Social links */}
               {currentUser?.socialLinks && (
                 <div className="flex gap-3 mt-4">
                   {currentUser.socialLinks.instagram && (
@@ -577,7 +542,6 @@ const Profile = () => {
             </div>
           </div>
           
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-4 mt-6 text-center">
             <div 
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
@@ -603,7 +567,6 @@ const Profile = () => {
         </div>
       </Card>
       
-      {/* Profile Content */}
       <Tabs defaultValue="posts" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="posts">Posts</TabsTrigger>
@@ -775,7 +738,6 @@ const Profile = () => {
         )}
       </Tabs>
       
-      {/* Edit Profile Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -922,7 +884,6 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Followers Dialog */}
       <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -945,7 +906,6 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Following Dialog */}
       <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
@@ -968,7 +928,6 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Profile Image Selection Dialog */}
       <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -994,7 +953,6 @@ const Profile = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Cover Image Selection Dialog */}
       <Dialog open={isCoverImageDialogOpen} onOpenChange={setIsCoverImageDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
