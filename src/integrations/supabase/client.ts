@@ -22,3 +22,26 @@ export const supabase = createClient<Database>(
     }
   }
 );
+
+// Initialize the group-chat-media storage bucket if needed
+async function initializeStorage() {
+  try {
+    // Check if the bucket exists first
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const bucketExists = buckets?.some(bucket => bucket.name === 'group-chat-media');
+    
+    if (!bucketExists) {
+      console.log('Creating group-chat-media bucket');
+      // Create the bucket if it doesn't exist
+      await supabase.storage.createBucket('group-chat-media', {
+        public: true,
+        fileSizeLimit: 5242880, // 5MB
+      });
+    }
+  } catch (error) {
+    console.error('Error initializing storage:', error);
+  }
+}
+
+// Call the function to ensure the bucket exists
+initializeStorage();

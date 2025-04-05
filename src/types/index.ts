@@ -1,3 +1,4 @@
+
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -90,6 +91,8 @@ export interface Message {
   userRole: UserRole;
   userProfileImage?: string;
   content: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video' | 'file';
   createdAt: Date;
 }
 
