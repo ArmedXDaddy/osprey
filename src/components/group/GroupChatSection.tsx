@@ -171,14 +171,14 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = async (file: File): Promise<void> => {
     if (!currentUser) {
       toast({
         title: "Authentication required",
         description: "You must be logged in to upload files",
         variant: "destructive"
       });
-      return;
+      return Promise.reject(new Error("Authentication required"));
     }
     
     setUploadingFile(true);
@@ -201,7 +201,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           description: error.message,
           variant: "destructive"
         });
-        return null;
+        setUploadingFile(false);
+        return Promise.reject(error);
       }
       
       const { data: { publicUrl } } = supabase.storage
@@ -233,7 +234,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
         description: "Your file has been uploaded and shared"
       });
       
-      return publicUrl;
+      setUploadingFile(false);
+      return Promise.resolve();
     } catch (error: any) {
       console.error('Error in file upload process:', error);
       toast({
@@ -241,9 +243,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
         description: error.message || "An unexpected error occurred",
         variant: "destructive"
       });
-      return null;
-    } finally {
       setUploadingFile(false);
+      return Promise.reject(error);
     }
   };
 
@@ -587,10 +588,13 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
             selectedImage=""
             onSelect={() => {}}
             onFileUpload={(file) => {
-              setSelectedFile(file);
-              const url = URL.createObjectURL(file);
-              setMediaPreviewUrl(url);
-              setImageDialogOpen(false);
+              handleFileUpload(file)
+                .then(() => {
+                  setImageDialogOpen(false);
+                })
+                .catch((err) => {
+                  console.error("Failed to upload file:", err);
+                });
             }}
           />
         </DialogContent>

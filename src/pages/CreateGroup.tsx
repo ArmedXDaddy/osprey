@@ -81,19 +81,27 @@ const CreateGroup = () => {
     setShowImageGallery(false);
   };
 
-  const handleFileUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageDataUrl = e.target?.result as string;
-      setUploadedImage(imageDataUrl);
-      setFormData(prev => ({ ...prev, image: imageDataUrl }));
-      setShowImageGallery(false);
-    };
-    reader.readAsDataURL(file);
-    
-    toast({
-      title: "Image uploaded",
-      description: "Your image has been uploaded successfully"
+  const handleFileUpload = async (file: File): Promise<void> => {
+    return new Promise<void>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const imageDataUrl = e.target?.result as string;
+          setUploadedImage(imageDataUrl);
+          setFormData(prev => ({ ...prev, image: imageDataUrl }));
+          setShowImageGallery(false);
+          
+          toast({
+            title: "Image uploaded",
+            description: "Your image has been uploaded successfully"
+          });
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
     });
   };
 

@@ -71,19 +71,27 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
     setShowImageGallery(false);
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = async (file: File): Promise<void> => {
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const imageDataUrl = e.target?.result as string;
-      setUploadedImage(imageDataUrl);
-      setFormData(prev => ({ ...prev, image: imageDataUrl }));
-      setShowImageGallery(false);
-    };
-    reader.readAsDataURL(file);
-    
-    toast({
-      title: "Image uploaded",
-      description: "Your image has been uploaded successfully"
+    return new Promise<void>((resolve, reject) => {
+      reader.onload = (e) => {
+        try {
+          const imageDataUrl = e.target?.result as string;
+          setUploadedImage(imageDataUrl);
+          setFormData(prev => ({ ...prev, image: imageDataUrl }));
+          setShowImageGallery(false);
+          
+          toast({
+            title: "Image uploaded",
+            description: "Your image has been uploaded successfully"
+          });
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
     });
   };
 
