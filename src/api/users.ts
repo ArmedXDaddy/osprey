@@ -1,6 +1,15 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types';
+import { Json } from '@/integrations/supabase/types';
+
+// Helper function to safely convert Json to a Record object
+const jsonToRecord = (json: Json | null): Record<string, string> | undefined => {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) {
+    return undefined;
+  }
+  return json as Record<string, string>;
+};
 
 // Fetch a user by ID
 export const fetchUserById = async (id: string): Promise<User | null> => {
@@ -19,7 +28,7 @@ export const fetchUserById = async (id: string): Promise<User | null> => {
     if (!data) return null;
 
     // Handle the social links object properly
-    const socialLinksObj = data.social_links as Record<string, string> | null;
+    const socialLinksObj = jsonToRecord(data.social_links);
     
     return {
       id: data.id,
@@ -73,7 +82,7 @@ export const updateUserProfile = async (id: string, userData: Partial<User>): Pr
     if (!data) return null;
     
     // Handle the social links object properly
-    const socialLinksObj = data.social_links as Record<string, string> | null;
+    const socialLinksObj = jsonToRecord(data.social_links);
     
     return {
       id: data.id,

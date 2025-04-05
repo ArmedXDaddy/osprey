@@ -3,6 +3,15 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { supabase } from '@/integrations/supabase/client';
 import { User, UserRole } from '@/types';
 import { Session } from '@supabase/supabase-js';
+import { Json } from '@/integrations/supabase/types';
+
+// Helper function to safely convert Json to a Record object
+const jsonToRecord = (json: Json | null): Record<string, string> | undefined => {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) {
+    return undefined;
+  }
+  return json as Record<string, string>;
+};
 
 interface AuthContextType {
   currentUser: User | null;
@@ -58,7 +67,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
           if (profile) {
             // Properly handle social_links as a potential JSON object
-            const socialLinksObj = profile.social_links as Record<string, string> | null;
+            const socialLinksObj = jsonToRecord(profile.social_links);
             
             const user: User = {
               id: profile.id,
@@ -107,7 +116,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               
             if (profile) {
               // Properly handle social_links as a potential JSON object
-              const socialLinksObj = profile.social_links as Record<string, string> | null;
+              const socialLinksObj = jsonToRecord(profile.social_links);
               
               const user: User = {
                 id: profile.id,
