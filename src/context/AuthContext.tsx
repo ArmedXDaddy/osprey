@@ -36,6 +36,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               email: session.user.email!,
               name: session.user.user_metadata.name || 'User',
               role: session.user.user_metadata.role || 'user',
+              profileImage: session.user.user_metadata.profileImage,
+              coverImage: session.user.user_metadata.coverImage,
+              bio: session.user.user_metadata.bio,
+              location: session.user.user_metadata.location,
+              socialLinks: session.user.user_metadata.socialLinks,
               createdAt: new Date(session.user.created_at)
             };
             
@@ -58,6 +63,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           email: session.user.email!,
           name: session.user.user_metadata.name || 'User',
           role: session.user.user_metadata.role || 'user',
+          profileImage: session.user.user_metadata.profileImage,
+          coverImage: session.user.user_metadata.coverImage,
+          bio: session.user.user_metadata.bio,
+          location: session.user.user_metadata.location,
+          socialLinks: session.user.user_metadata.socialLinks,
           createdAt: new Date(session.user.created_at)
         };
         
@@ -159,8 +169,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Update local state
-      const updatedUser = { ...currentUser, ...userData };
+      // Update local state immediately to reflect changes
+      const updatedUser = { 
+        ...currentUser, 
+        ...userData,
+        // Ensure these fields are properly transferred
+        profileImage: userData.profileImage || currentUser.profileImage,
+        coverImage: userData.coverImage || currentUser.coverImage,
+      };
+      
+      console.log("Profile updated with:", updatedUser);
       setCurrentUser(updatedUser);
     } catch (error) {
       console.error('Update profile error:', error);
