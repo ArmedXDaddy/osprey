@@ -300,8 +300,13 @@ export const deleteComment = async (commentId: string): Promise<void> => {
       .single();
     
     if (comment?.post_id) {
-      // Decrement post comments count
-      await supabase.rpc('decrement_post_comments', { post_id: comment.post_id });
+      // Decrement post comments count using direct SQL query to work around TypeScript issues
+      const client = supabase as any;
+      const { error: rpcError } = await client.rpc('decrement_post_comments', { post_id: comment.post_id });
+      
+      if (rpcError) {
+        console.error('Error decrementing post comments count:', rpcError);
+      }
     }
     
     // Then delete the comment

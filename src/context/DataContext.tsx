@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
 import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment } from '@/types';
-import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking, uploadImage } from '@/integrations/supabase/helpers';
+import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking, uploadImage, updateComment, deleteComment } from '@/integrations/supabase/helpers';
 import { useToast } from '@/components/ui/use-toast';
 
 interface DataContextType {
@@ -22,6 +22,8 @@ interface DataContextType {
   likePost: (postId: string) => Promise<void>;
   unlikePost: (postId: string) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<void>;
+  updateComment: (commentId: string, content: string) => Promise<void>;
+  deleteComment: (commentId: string) => Promise<void>;
   createEvent: (eventData: any) => Promise<Event>;
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
@@ -933,6 +935,92 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     throw new Error('Not implemented');
   };
   
+  const updateCommentImpl = async (commentId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a comment');
+    
+    try {
+      await updateComment(commentId, content);
+      
+      // Update the comment in the local state
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        
+        // Find which post contains this comment
+        for (const postId in updatedComments) {
+          const commentIndex = updatedComments[postId].findIndex(c => c.id === commentId);
+          if (commentIndex !== -1) {
+            // Update the comment
+            updatedComments[postId] = [
+              ...updatedComments[postId].slice(0, commentIndex),
+              { ...updatedComments[postId][commentIndex], content },
+              ...updatedComments[postId].slice(commentIndex + 1)
+            ];
+            break;
+          }
+        }
+        
+        return updatedComments;
+      });
+    } catch (err: any) {
+      console.error("Error updating comment:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to update comment",
+        variant: "destructive"
+      });
+      throw err;
+    }
+  };
+  
+  const deleteCommentImpl = async (commentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a comment');
+    
+    try {
+      await deleteComment(commentId);
+      
+      // Remove the comment from the local state
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        let postId: string | null = null;
+        
+        // Find which post contains this comment
+        for (const pid in updatedComments) {
+          const commentIndex = updatedComments[pid].findIndex(c => c.id === commentId);
+          if (commentIndex !== -1) {
+            // Remove the comment
+            updatedComments[pid] = [
+              ...updatedComments[pid].slice(0, commentIndex),
+              ...updatedComments[pid].slice(commentIndex + 1)
+            ];
+            postId = pid;
+            break;
+          }
+        }
+        
+        // Update the post's comment count in the posts state if we found the post
+        if (postId) {
+          setPosts(prevPosts => 
+            prevPosts.map(post => 
+              post.id === postId 
+                ? { ...post, comments: Math.max(0, post.comments - 1) } 
+                : post
+            )
+          );
+        }
+        
+        return updatedComments;
+      });
+    } catch (err: any) {
+      console.error("Error deleting comment:", err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to delete comment",
+        variant: "destructive"
+      });
+      throw err;
+    }
+  };
+  
   const contextValue: DataContextType = {
     posts,
     events,
@@ -949,6 +1037,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     likePost,
     unlikePost,
     addComment,
+    updateComment: updateCommentImpl,
+    deleteComment: deleteCommentImpl,
     createEvent,
     joinEvent,
     leaveEvent,

@@ -558,6 +558,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      decrement_post_comments: {
+        Args: {
+          post_id: string
+        }
+        Returns: undefined
+      }
       decrement_post_likes: {
         Args: {
           post_id: string
