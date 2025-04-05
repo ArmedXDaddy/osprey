@@ -2,8 +2,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/types';
-import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
+import { useData } from '@/context/DataContext';
 import { toast } from '@/hooks/use-toast';
 import {
   Dialog,
@@ -12,8 +12,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import { Check, CreditCard, DollarSign } from 'lucide-react';
+} from "@/components/ui/dialog";
+import { CreditCard, DollarSign, Clock } from 'lucide-react';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -22,148 +32,198 @@ interface PaymentModalProps {
   onSuccess: () => void;
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ 
-  isOpen, 
-  service, 
-  onClose,
-  onSuccess
-}) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, onSuccess }) => {
   const { currentUser } = useAuth();
   const { bookService } = useData();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isComplete, setIsComplete] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
+  const [cvv, setCvv] = useState('');
+  const [cardName, setCardName] = useState('');
 
-  const isPaid = service.price > 0;
+  const isFreeService = service.price === 0;
 
-  const handlePaymentOrRequest = async () => {
+  const handlePayment = async () => {
     if (!currentUser) {
       toast({
         variant: "destructive",
         title: "Authentication required",
         description: "Please log in to book this service."
       });
+      onClose();
       return;
     }
-    
-    try {
-      setIsLoading(true);
-      
-      // For paid services, pass 'paid' as notes to trigger automatic approval
-      if (isPaid) {
-        await bookService(service.id, 'paid', new Date());
-      } else {
-        await bookService(service.id);
-      }
-      
-      setIsComplete(true);
+
+    if (!isFreeService && (!cardNumber || !expiryDate || !cvv || !cardName)) {
       toast({
-        title: "Success!",
-        description: isPaid ? 
-          "Payment successful. You now have access to this service." : 
-          "Request submitted. Waiting for provider approval."
+        variant: "destructive",
+        title: "Missing payment information",
+        description: "Please fill in all payment details."
       });
-      
-      setTimeout(() => {
-        onClose();
-        onSuccess();
-      }, 2000);
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+
+      // For paid services, mark as 'paid' in the database
+      await bookService(service.id, isFreeService ? undefined : 'paid');
+
+      toast({
+        title: "Booking successful!",
+        description: isFreeService 
+          ? "Your booking request has been submitted and is pending approval." 
+          : "Your payment was successful and your booking has been confirmed."
+      });
+
+      onSuccess();
     } catch (error: any) {
-      console.error("Error during booking:", error);
-      
-      // Check if the error is a duplicate booking
-      if (error.message && error.message.includes("duplicate key")) {
-        toast({
-          title: "Already booked",
-          description: "You have already booked this service."
-        });
-        onClose();
-        onSuccess(); // Still trigger success to refresh the UI
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: error.message || "There was a problem processing your request."
-        });
-      }
+      toast({
+        variant: "destructive",
+        title: "Booking failed",
+        description: error.message || "There was an error processing your booking. Please try again."
+      });
     } finally {
-      setIsLoading(false);
+      setIsProcessing(false);
+      onClose();
+    }
+  };
+
+  const handleRequestFree = async () => {
+    if (!currentUser) {
+      toast({
+        variant: "destructive",
+        title: "Authentication required",
+        description: "Please log in to request this service."
+      });
+      onClose();
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+
+      // For free services, we pass undefined to use the default payment status
+      await bookService(service.id);
+
+      toast({
+        title: "Request submitted!",
+        description: "Your request has been submitted and is pending approval."
+      });
+
+      onSuccess();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Request failed",
+        description: error.message || "There was an error submitting your request. Please try again."
+      });
+    } finally {
+      setIsProcessing(false);
+      onClose();
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isPaid ? "Complete Payment" : "Request Service"}
+            {isFreeService ? 'Request Free Service' : 'Complete Your Booking'}
           </DialogTitle>
           <DialogDescription>
-            {isPaid 
-              ? `Complete your payment of $${service.price} to book this service.`
-              : "Submit your request to access this free service."}
+            {isFreeService 
+              ? 'Submit your request for this free service.'
+              : 'Enter your payment details to book this service.'}
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="space-y-4 py-4">
-          <div className="border rounded p-4">
-            <h3 className="font-medium">{service.title}</h3>
-            <p className="text-sm text-muted-foreground">{service.duration}</p>
-            <div className="flex justify-between items-center mt-2">
-              <span className="text-sm">Price:</span>
-              <span className="font-medium">{isPaid ? `$${service.price}` : "Free"}</span>
-            </div>
-          </div>
-          
-          {isComplete ? (
-            <div className="flex flex-col items-center justify-center py-4">
-              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-3">
-                <Check className="h-6 w-6 text-green-600" />
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">{service.title}</CardTitle>
+              <CardDescription>Provider: {service.providerName}</CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <DollarSign className="h-4 w-4 text-gray-500 mr-1" />
+                  <span className="text-sm">
+                    {service.price > 0 ? `$${service.price}` : 'Free'}
+                  </span>
+                </div>
+                <div className="flex items-center">
+                  <Clock className="h-4 w-4 text-gray-500 mr-1" />
+                  <span className="text-sm">{service.duration}</span>
+                </div>
               </div>
-              <h3 className="font-medium text-center">
-                {isPaid ? "Payment Successful!" : "Request Submitted!"}
-              </h3>
-              <p className="text-sm text-center text-muted-foreground mt-1">
-                {isPaid 
-                  ? "You now have access to this service."
-                  : "Waiting for provider approval."}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-lg border p-4 flex items-center">
-              {isPaid ? (
-                <CreditCard className="mr-3 h-5 w-5 text-muted-foreground" />
-              ) : (
-                <DollarSign className="mr-3 h-5 w-5 text-muted-foreground" />
-              )}
-              <div>
-                <h4 className="text-sm font-medium">
-                  {isPaid ? "Credit Card" : "Free Service"}
-                </h4>
-                <p className="text-xs text-muted-foreground">
-                  {isPaid 
-                    ? "Your card will be charged immediately." 
-                    : "Provider approval required."}
-                </p>
+            </CardContent>
+          </Card>
+
+          {!isFreeService && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cardName">Name on Card</Label>
+                <Input 
+                  id="cardName" 
+                  placeholder="John Doe" 
+                  value={cardName}
+                  onChange={(e) => setCardName(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="cardNumber">Card Number</Label>
+                <Input 
+                  id="cardNumber" 
+                  placeholder="1234 5678 9012 3456" 
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="expiryDate">Expiry Date</Label>
+                  <Input 
+                    id="expiryDate" 
+                    placeholder="MM/YY" 
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cvv">CVV</Label>
+                  <Input 
+                    id="cvv" 
+                    placeholder="123" 
+                    value={cvv}
+                    onChange={(e) => setCvv(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           )}
         </div>
-        
-        <DialogFooter>
-          {!isComplete && (
-            <>
-              <Button variant="outline" onClick={onClose} disabled={isLoading}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handlePaymentOrRequest} 
-                disabled={isLoading || isComplete}
-              >
-                {isLoading 
-                  ? (isPaid ? "Processing..." : "Submitting...") 
-                  : (isPaid ? "Pay Now" : "Submit Request")}
-              </Button>
-            </>
+
+        <DialogFooter className="sm:justify-between">
+          <Button type="button" variant="outline" onClick={onClose} disabled={isProcessing}>
+            Cancel
+          </Button>
+          
+          {isFreeService ? (
+            <Button onClick={handleRequestFree} disabled={isProcessing}>
+              {isProcessing ? "Processing..." : "Request Service"}
+            </Button>
+          ) : (
+            <Button onClick={handlePayment} disabled={isProcessing} className="gap-2">
+              {isProcessing ? "Processing..." : (
+                <>
+                  <CreditCard className="h-4 w-4" />
+                  Pay ${service.price}
+                </>
+              )}
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>

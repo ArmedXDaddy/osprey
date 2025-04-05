@@ -1,6 +1,6 @@
 
 import { supabase } from './client';
-import { Booking, BookingStatus, PaymentStatus, Message } from '@/types';
+import { Booking, BookingStatus, PaymentStatus } from '@/types';
 
 /**
  * Uploads an image to Supabase storage
@@ -38,94 +38,40 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
 };
 
 /**
- * Book a service with direct database insert instead of stored procedure
+ * Book a service with direct SQL query to work around TypeScript issues
  * @param serviceId Service ID to book
  * @param userId User ID making the booking
  * @param notes Optional notes for the booking
- * @param preferredTime Optional preferred time for the booking
+ * @param paymentStatus Payment status (paid/unpaid)
+ * @param status Booking status (pending/approved)
  * @returns ID of the created booking
  */
 export const createServiceBooking = async (
   serviceId: string,
   userId: string,
   notes?: string,
-  preferredTime?: Date
+  paymentStatus: string = 'unpaid',
+  status: string = 'pending'
 ): Promise<string> => {
   try {
-    // Automatically set status to 'approved' if the notes indicate it's paid
-    const isPaid = notes === 'paid';
-    const paymentStatus = isPaid ? 'paid' : 'unpaid';
-    const status = isPaid ? 'approved' : 'pending';
-    
-    console.log("Creating service booking with:", {
-      serviceId,
-      userId,
-      notes,
-      paymentStatus,
-      status,
-      isPaid
-    });
-
-    // First, check if the booking already exists
-    const { data: existingBooking, error: checkError } = await supabase
-      .from('service_bookings')
-      .select('id, payment_status, status')
-      .eq('service_id', serviceId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (checkError) {
-      console.error('Error checking existing booking:', checkError);
-      throw new Error(checkError.message || 'Failed to check for existing booking');
-    }
-
-    // If booking exists, handle accordingly
-    if (existingBooking) {
-      console.log('Booking already exists:', existingBooking);
-      
-      // If existing booking needs to be updated (e.g., unpaid -> paid)
-      if (isPaid && existingBooking.payment_status !== 'paid') {
-        const { error: updateError } = await supabase
-          .from('service_bookings')
-          .update({ 
-            payment_status: 'paid',
-            status: 'approved',
-            notes: notes || existingBooking.notes
-          })
-          .eq('id', existingBooking.id);
-          
-        if (updateError) {
-          console.error('Error updating existing booking:', updateError);
-          throw new Error(updateError.message || 'Failed to update booking status');
-        }
-        
-        console.log('Successfully updated booking to paid status');
+    // Using direct SQL query with custom PostgreSQL function
+    const { data, error } = await supabase.rpc(
+      'create_service_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId,
+        p_notes: notes || null,
+        p_payment_status: paymentStatus,
+        p_status: status
       }
-      
-      return existingBooking.id;
-    }
-
-    // Insert directly into the service_bookings table if no existing booking
-    const { data, error } = await supabase
-      .from('service_bookings')
-      .insert({
-        service_id: serviceId,
-        user_id: userId,
-        notes: notes || null,
-        payment_status: paymentStatus,
-        status: status
-      })
-      .select()
-      .single();
+    );
 
     if (error) {
       console.error('Error booking service:', error);
       throw new Error(error.message || 'Failed to book service');
     }
 
-    console.log('Successfully created booking with ID:', data.id);
-    console.log('Booking data:', data);
-    return data.id;
+    return data as string;
   } catch (error: any) {
     console.error('Error in createServiceBooking:', error);
     throw new Error(error.message || 'Failed to book service');
@@ -222,65 +168,37 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
  */
 export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
-    console.log(`Getting booking for service ${serviceId} and user ${userId}`);
-    
-    // Query the booking directly from the database table instead of using the stored procedure
-    const { data, error } = await supabase
-      .from('service_bookings')
-      .select(`
-        id,
-        service_id,
-        user_id,
-        status,
-        payment_status,
-        notes,
-        created_at
-      `)
-      .eq('service_id', serviceId)
-      .eq('user_id', userId)
-      .maybeSingle();
+    // Using stored procedure to get a specific booking
+    const { data, error } = await supabase.rpc(
+      'get_user_booking_for_service' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId
+      }
+    );
 
     if (error) {
       console.error('Error fetching user booking for service:', error);
       throw new Error(error.message || 'Failed to fetch booking');
     }
 
-    console.log("Booking data from database:", data);
+    if (!data || data.length === 0) return null;
     
-    if (!data) {
-      console.log("No booking found");
-      return null;
-    }
-    
-    // Get user profile data separately to avoid the relation error
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('name, email')
-      .eq('id', userId)
-      .maybeSingle();
-      
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError);
-    }
-    
-    const booking = {
-      id: data.id,
-      serviceId: data.service_id,
-      userId: data.user_id,
-      userName: profileData?.name || '',
-      userEmail: profileData?.email || '',
-      status: data.status as BookingStatus,
-      paymentStatus: data.payment_status as PaymentStatus,
-      notes: data.notes || undefined,
-      preferredTime: undefined,
+    const item = data[0];
+    return {
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name || '',
+      userEmail: item.user_email || '',
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
+      notes: item.notes || undefined,
+      preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
-      isPaid: data.payment_status === 'paid',
-      createdAt: new Date(data.created_at)
+      isPaid: item.payment_status === 'paid',
+      createdAt: new Date(item.created_at)
     };
-    
-    console.log("Processed booking object:", booking);
-    
-    return booking;
   } catch (error: any) {
     console.error('Error in getUserBookingForService:', error);
     return null;
@@ -294,11 +212,13 @@ export const getUserBookingForService = async (serviceId: string, userId: string
  */
 export const cancelBooking = async (bookingId: string): Promise<void> => {
   try {
-    // Update the status directly in the database
-    const { error } = await supabase
-      .from('service_bookings')
-      .update({ status: 'cancelled' })
-      .eq('id', bookingId);
+    // Using stored procedure to cancel a booking
+    const { error } = await supabase.rpc(
+      'cancel_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_booking_id: bookingId
+      }
+    );
 
     if (error) {
       console.error('Error cancelling booking:', error);
@@ -317,11 +237,13 @@ export const cancelBooking = async (bookingId: string): Promise<void> => {
  */
 export const approveBooking = async (bookingId: string): Promise<void> => {
   try {
-    // Update the status directly in the database
-    const { error } = await supabase
-      .from('service_bookings')
-      .update({ status: 'approved' })
-      .eq('id', bookingId);
+    // Using stored procedure to approve a booking
+    const { error } = await supabase.rpc(
+      'approve_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_booking_id: bookingId
+      }
+    );
 
     if (error) {
       console.error('Error approving booking:', error);
@@ -330,75 +252,5 @@ export const approveBooking = async (bookingId: string): Promise<void> => {
   } catch (error: any) {
     console.error('Error in approveBooking:', error);
     throw new Error(error.message || 'Failed to approve booking');
-  }
-};
-
-/**
- * Send a message to a service chat
- * @param serviceId Service ID to send message to
- * @param userId User ID sending the message
- * @param content Message content
- * @returns ID of the created message
- */
-export const sendServiceChatMessage = async (
-  serviceId: string,
-  userId: string,
-  content: string
-): Promise<string> => {
-  try {
-    // Using stored procedure to send a message
-    const { data, error } = await supabase.rpc(
-      'send_service_chat_message' as any, // Type cast to avoid TypeScript errors
-      {
-        p_service_id: serviceId,
-        p_user_id: userId,
-        p_content: content
-      }
-    );
-
-    if (error) {
-      console.error('Error sending message:', error);
-      throw new Error(error.message || 'Failed to send message');
-    }
-
-    return data as string;
-  } catch (error: any) {
-    console.error('Error in sendServiceChatMessage:', error);
-    throw new Error(error.message || 'Failed to send message');
-  }
-};
-
-/**
- * Get messages for a service chat
- * @param serviceId Service ID to get messages for
- * @returns Array of messages
- */
-export const getServiceChatMessages = async (serviceId: string): Promise<Message[]> => {
-  try {
-    // Using stored procedure to get messages
-    const { data, error } = await supabase.rpc(
-      'get_service_chat_messages' as any, // Type cast to avoid TypeScript errors
-      {
-        p_service_id: serviceId
-      }
-    );
-
-    if (error) {
-      console.error('Error fetching service messages:', error);
-      throw new Error(error.message || 'Failed to fetch messages');
-    }
-
-    return (data || []).map((item: any) => ({
-      id: item.id,
-      serviceId: item.service_id,
-      userId: item.user_id,
-      userName: item.user_name,
-      userProfileImage: item.user_profile_image,
-      content: item.content,
-      createdAt: new Date(item.created_at)
-    })) as Message[];
-  } catch (error: any) {
-    console.error('Error in getServiceChatMessages:', error);
-    return [];
   }
 };

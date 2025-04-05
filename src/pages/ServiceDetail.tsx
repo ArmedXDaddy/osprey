@@ -23,13 +23,12 @@ const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, getUserBookingForService } = useData();
+  const { getServiceById, getUserBookings, getUserBookingForService } = useData();
   const [service, setService] = useState<Service | null>(null);
   const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [hasBooked, setHasBooked] = useState(false);
   const [userBooking, setUserBooking] = useState<Booking | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchServiceAndBookingDetails = async () => {
     if (!id) return;
@@ -56,19 +55,15 @@ const ServiceDetail = () => {
       if (currentUser) {
         try {
           const booking = await getUserBookingForService(serviceData.id, currentUser.id);
-          console.log("User booking data:", booking);
-          
           if (booking) {
+            console.log("User has an existing booking:", booking);
             setUserBooking(booking);
             setHasBooked(true);
           } else {
-            setUserBooking(null);
             setHasBooked(false);
           }
         } catch (error) {
           console.error("Error checking user booking:", error);
-          setUserBooking(null);
-          setHasBooked(false);
         }
       }
     } catch (error: any) {
@@ -86,7 +81,7 @@ const ServiceDetail = () => {
 
   useEffect(() => {
     fetchServiceAndBookingDetails();
-  }, [id, currentUser, refreshKey]);
+  }, [id, currentUser]);
 
   const handleBook = () => {
     if (!currentUser) {
@@ -103,12 +98,8 @@ const ServiceDetail = () => {
   };
 
   const handleBookingSuccess = () => {
-    setRefreshKey(prev => prev + 1);
-    
-    toast({
-      title: "Booking successful",
-      description: "Your service has been booked successfully."
-    });
+    setHasBooked(true);
+    fetchServiceAndBookingDetails();
   };
 
   const isProvider = currentUser && service && currentUser.id === service.providerId;

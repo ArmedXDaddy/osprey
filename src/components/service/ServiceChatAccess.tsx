@@ -12,9 +12,6 @@ interface ServiceChatAccessProps {
 }
 
 const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking }) => {
-  console.log("ServiceChatAccess - booking:", booking);
-  console.log("ServiceChatAccess - service:", service);
-  
   if (!booking) {
     return (
       <Card>
@@ -34,21 +31,14 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
     );
   }
 
-  // Add debug logs to understand the booking state
-  console.log("Booking payment status:", booking.paymentStatus);
-  console.log("Booking status:", booking.status);
-  console.log("Is paid:", booking.isPaid);
-
-  // Handle paid services - all paid bookings should have access regardless of status
-  if (booking.paymentStatus === 'paid' || booking.isPaid) {
-    console.log("Paid service - providing chat access");
+  // Handle paid services - all types
+  if (booking.paymentStatus === 'paid') {
     return <ServiceChat service={service} booking={booking} />;
   }
 
   // Handle free services that need approval
   if (service.price === 0) {
     if (booking.status === 'approved') {
-      console.log("Free approved service - providing chat access");
       return <ServiceChat service={service} booking={booking} />;
     } else if (booking.status === 'pending') {
       return (
