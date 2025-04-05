@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -20,6 +21,20 @@ import { cn } from '@/lib/utils';
 
 interface GroupChatSectionProps {
   groupId: string;
+}
+
+// Type definition for the database response
+interface MessageRow {
+  id: string;
+  group_id: string;
+  user_id: string;
+  user_name: string;
+  user_role: string;
+  user_profile_image: string | null;
+  content: string;
+  media_url?: string | null;  // Added this field
+  media_type?: string | null;  // Added this field
+  created_at: string;
 }
 
 const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
@@ -55,13 +70,13 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       
       if (data) {
         // Transform the data to match the Message type
-        const formattedMessages: Message[] = data.map(msg => ({
+        const formattedMessages: Message[] = data.map((msg: MessageRow) => ({
           id: msg.id,
           groupId: msg.group_id,
           userId: msg.user_id,
           userName: msg.user_name,
           userRole: msg.user_role as UserRole,
-          userProfileImage: msg.user_profile_image,
+          userProfileImage: msg.user_profile_image || undefined,
           content: msg.content,
           mediaUrl: msg.media_url || undefined,
           mediaType: msg.media_type as 'image' | 'video' | 'file' | undefined,
@@ -96,7 +111,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           },
           (payload) => {
             console.log('New message received:', payload);
-            const newMsg = payload.new as any;
+            const newMsg = payload.new as MessageRow;
             
             // Transform the data to match the Message type
             const formattedMessage: Message = {
@@ -105,7 +120,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
               userId: newMsg.user_id,
               userName: newMsg.user_name,
               userRole: newMsg.user_role as UserRole,
-              userProfileImage: newMsg.user_profile_image,
+              userProfileImage: newMsg.user_profile_image || undefined,
               content: newMsg.content,
               mediaUrl: newMsg.media_url || undefined,
               mediaType: newMsg.media_type as 'image' | 'video' | 'file' | undefined,
