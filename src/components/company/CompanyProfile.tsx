@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Building, Users, DollarSign, Briefcase, GraduationCap, Edit, MapPin, Globe, Mail, Phone } from 'lucide-react';
+import { Building, Users, DollarSign, Briefcase, GraduationCap, Edit, MapPin, Globe, Mail, Phone, PlusCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
