@@ -12,116 +12,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-
-// Mock data for users of different roles (replace with real API call in production)
-const MOCK_USERS: User[] = [
-  {
-    id: '2',
-    name: 'Sophia Williams',
-    email: 'sophia@example.com',
-    role: 'influencer',
-    profileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
-    bio: 'Fitness influencer specializing in HIIT workouts and nutrition',
-    location: 'Los Angeles, CA',
-    interests: ['fitness', 'nutrition', 'wellness'],
-    followers: 15200,
-    verified: true,
-    socialLinks: {
-      instagram: 'sophia_fit',
-      twitter: 'sophiawilliams',
-      website: 'sophiafitness.com'
-    },
-    createdAt: new Date('2022-05-10')
-  },
-  {
-    id: '3',
-    name: 'Alexandra Chen',
-    email: 'alex@example.com',
-    role: 'coach',
-    profileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    bio: 'Certified strength coach with 10+ years of experience',
-    location: 'Chicago, IL',
-    interests: ['strength training', 'mobility', 'recovery'],
-    followers: 8500,
-    verified: true,
-    socialLinks: {
-      instagram: 'coach_alex',
-      website: 'alexstrength.com'
-    },
-    createdAt: new Date('2022-02-15')
-  },
-  {
-    id: '4',
-    name: 'FitTech Apparel',
-    email: 'contact@fittech.com',
-    role: 'company',
-    profileImage: 'https://via.placeholder.com/150?text=FT',
-    bio: 'Performance athletic wear designed by athletes for athletes',
-    location: 'New York, NY',
-    interests: ['apparel', 'technology', 'sustainability'],
-    followers: 45000,
-    verified: true,
-    socialLinks: {
-      instagram: 'fittech_apparel',
-      twitter: 'fittech',
-      website: 'fittechapparel.com'
-    },
-    createdAt: new Date('2021-09-22')
-  },
-  {
-    id: '5',
-    name: 'Michael Jordan',
-    email: 'michael@example.com',
-    role: 'coach',
-    profileImage: 'https://randomuser.me/api/portraits/men/45.jpg',
-    bio: 'Performance coach specializing in sports-specific training',
-    location: 'Miami, FL',
-    interests: ['sports', 'performance', 'recovery'],
-    followers: 12000,
-    verified: true,
-    socialLinks: {
-      instagram: 'coach_michael',
-      website: 'michaelperformance.com'
-    },
-    createdAt: new Date('2022-03-10')
-  },
-  {
-    id: '6',
-    name: 'Emma Fitness',
-    email: 'emma@example.com',
-    role: 'influencer',
-    profileImage: 'https://randomuser.me/api/portraits/women/22.jpg',
-    bio: 'Sharing my fitness journey and body positivity',
-    location: 'Portland, OR',
-    interests: ['body positivity', 'yoga', 'hiking'],
-    followers: 65000,
-    verified: true,
-    socialLinks: {
-      instagram: 'emma_fitness',
-      twitter: 'emmafit',
-      website: 'emmafitness.com'
-    },
-    createdAt: new Date('2022-01-05')
-  },
-  {
-    id: '7',
-    name: 'NutriBoost',
-    email: 'info@nutriboost.com',
-    role: 'company',
-    profileImage: 'https://via.placeholder.com/150?text=NB',
-    bio: 'Plant-based supplements for optimal performance',
-    location: 'Denver, CO',
-    interests: ['nutrition', 'supplements', 'plant-based'],
-    followers: 22000,
-    verified: true,
-    socialLinks: {
-      instagram: 'nutriboost',
-      twitter: 'nutriboostco',
-      website: 'nutriboost.com'
-    },
-    createdAt: new Date('2021-11-15')
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
 
 type UserCardProps = {
   user: User;
@@ -182,9 +73,10 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
 const Networking = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   
   // Get the active tab from URL or default to 'all'
   const activeTab = searchParams.get('tab') || 'all';
@@ -195,23 +87,70 @@ const Networking = () => {
   };
 
   useEffect(() => {
-    // Simulate API loading
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1200);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchUsers = async () => {
+      setLoading(true);
+      try {
+        let query = supabase
+          .from('profiles')
+          .select('*');
+        
+        // Only fetch users who are influencers, coaches, or companies
+        if (activeTab !== 'all') {
+          query = query.eq('role', activeTab);
+        } else {
+          query = query.in('role', ['influencer', 'coach', 'company']);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) {
+          console.error('Error fetching users:', error);
+          toast({
+            title: "Error fetching users",
+            description: error.message,
+            variant: "destructive"
+          });
+        } else if (data) {
+          const formattedUsers: User[] = data.map(user => ({
+            id: user.id,
+            name: user.name || 'Unknown User',
+            email: user.email || '',
+            role: user.role as UserRole,
+            profileImage: user.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+            bio: user.bio || '',
+            location: user.location || '',
+            interests: user.interests || [],
+            followers: user.followers || 0,
+            verified: user.verified || false,
+            socialLinks: user.social_links || {},
+            createdAt: new Date(user.created_at)
+          }));
+          
+          setUsers(formattedUsers);
+        }
+      } catch (error: any) {
+        console.error('Error fetching users:', error);
+        toast({
+          title: "Error fetching users",
+          description: error.message,
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [activeTab, toast]);
   
-  // Filter users based on role and search term
+  // Filter users based on search term
   const filteredUsers = users.filter(user => {
     const matchesSearchTerm = 
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (user.bio && user.bio.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (user.location && user.location.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    if (activeTab === 'all') return matchesSearchTerm;
-    return user.role === activeTab && matchesSearchTerm;
+    return matchesSearchTerm;
   });
   
   return (
