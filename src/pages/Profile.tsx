@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -900,7 +899,10 @@ const Profile = () => {
               imageSrc={cropImageSrc}
               aspectRatio={cropAspectRatio}
               onCropComplete={handleCropComplete}
-              loading={uploading}
+              onCancel={() => {
+                setIsCropDialogOpen(false);
+                setCropImageSrc(null);
+              }}
             />
           )}
         </DialogContent>
