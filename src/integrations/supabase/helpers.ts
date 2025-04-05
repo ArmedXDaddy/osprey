@@ -179,11 +179,7 @@ export const getUserBookingForService = async (serviceId: string, userId: string
         status,
         payment_status,
         notes,
-        created_at,
-        profiles:user_id (
-          name,
-          email
-        )
+        created_at
       `)
       .eq('service_id', serviceId)
       .eq('user_id', userId)
@@ -196,12 +192,23 @@ export const getUserBookingForService = async (serviceId: string, userId: string
 
     if (!data) return null;
     
+    // Get user profile data separately to avoid the relation error
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('name, email')
+      .eq('id', userId)
+      .maybeSingle();
+      
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+    }
+    
     return {
       id: data.id,
       serviceId: data.service_id,
       userId: data.user_id,
-      userName: data.profiles?.name || '',
-      userEmail: data.profiles?.email || '',
+      userName: profileData?.name || '',
+      userEmail: profileData?.email || '',
       status: data.status as BookingStatus,
       paymentStatus: data.payment_status as PaymentStatus,
       notes: data.notes || undefined,
