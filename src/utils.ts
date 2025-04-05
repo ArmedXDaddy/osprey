@@ -15,3 +15,16 @@ export function generateId(): string {
 export function isDefined<T>(value: T | null | undefined): value is T {
   return value !== null && value !== undefined;
 }
+
+/**
+ * Safely logs errors to console with additional context
+ * @param context The context where the error occurred
+ * @param error The error that occurred
+ */
+export function logError(context: string, error: unknown): void {
+  if (error instanceof Error) {
+    console.error(`Error in ${context}:`, error.message, error.stack);
+  } else {
+    console.error(`Error in ${context}:`, error);
+  }
+}

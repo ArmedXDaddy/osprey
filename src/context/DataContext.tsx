@@ -1,7 +1,6 @@
-
 import React, { createContext, useState, useContext } from 'react';
 import { Service, SessionEnrollment, Session, User, Post, Event, Group, JoinRequest, Message, ServiceBooking, BookingStatus, PaymentStatus } from '@/types';
-import { generateId } from '@/utils';
+import { generateId, logError } from '@/utils';
 
 interface DataContextProps {
   services: Service[];
@@ -353,10 +352,14 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const bookService = async (serviceId: string, isPaid: boolean = false) => {
     try {
+      console.log("bookService called with serviceId:", serviceId, "isPaid:", isPaid);
+      
       const service = services.find(s => s.id === serviceId);
-      const currentUser = users.find(u => u.id === '4');
-
+      const currentUser = users.find(u => u.id === '4'); // Assuming user ID 4 for testing
+      
       if (!service) {
+        console.error("Service not found with ID:", serviceId);
+        console.log("Available services:", services.map(s => s.id));
         throw new Error('Service not found');
       }
 
@@ -369,6 +372,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       );
 
       if (existingBooking) {
+        console.log("Found existing booking:", existingBooking);
+        
         if (isPaid && (existingBooking.status !== 'approved' || existingBooking.paymentStatus !== 'paid')) {
           const updatedBooking: ServiceBooking = {
             ...existingBooking,
@@ -403,10 +408,12 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         createdAt: new Date(),
       };
 
+      console.log("Creating new enrollment:", newEnrollment);
+      
       setServiceBookings(prev => [...prev, newEnrollment]);
       return newEnrollment;
     } catch (error) {
-      console.error('Error booking service:', error);
+      logError('bookService', error);
       throw error;
     }
   };

@@ -81,7 +81,13 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
   
   const handlePaymentSuccess = async () => {
     try {
-      const newBooking = await bookService(service.id, true);
+      const serviceId = service?.id;
+      
+      if (!serviceId) {
+        throw new Error("Service ID is missing");
+      }
+      
+      const newBooking = await bookService(serviceId, true);
       
       if (newBooking) {
         setLocalIsEnrolled(true);

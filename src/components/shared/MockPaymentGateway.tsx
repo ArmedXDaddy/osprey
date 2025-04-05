@@ -78,17 +78,22 @@ const MockPaymentGateway: React.FC<MockPaymentGatewayProps> = ({
       // Simulate successful payment after a short delay
       setTimeout(() => {
         try {
-          // Call the onPaymentSuccess callback
-          onPaymentSuccess();
-          
+          // Show success toast first
           toast({
             title: "Payment successful",
             description: `Your payment of $${amount.toFixed(2)} for ${serviceName} has been processed.`,
           });
           
-          // Reset form and close dialog
+          // Reset form
           resetForm();
-          onOpenChange(false);
+          
+          // Call the onPaymentSuccess callback - this needs to happen while the dialog is still open
+          onPaymentSuccess();
+          
+          // Close dialog after a short delay to allow the success callback to complete
+          setTimeout(() => {
+            onOpenChange(false);
+          }, 500);
         } catch (error) {
           console.error('Error during payment success handling:', error);
           toast({
