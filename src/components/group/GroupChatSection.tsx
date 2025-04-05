@@ -6,10 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { formatDistanceToNow } from 'date-fns';
-import { Send, AlertCircle } from 'lucide-react';
+import { Send, AlertCircle, ImageIcon, Paperclip } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Message, UserRole } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { cn } from '@/lib/utils';
 
 interface GroupChatSectionProps {
   groupId: string;
@@ -25,6 +33,10 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
   const [loadingMessages, setLoadingMessages] = useState(true);
   const [channel, setChannel] = useState<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [mediaPreviewUrl, setMediaPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch messages from Supabase on component mount
   const fetchMessages = useCallback(async () => {
@@ -52,6 +64,8 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
           userRole: msg.user_role as UserRole,
           userProfileImage: msg.user_profile_image,
           content: msg.content,
+          mediaUrl: msg.media_url || null,
+          mediaType: msg.media_type || null,
           createdAt: new Date(msg.created_at)
         }));
         
@@ -82,6 +96,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
             filter: `group_id=eq.${groupId}`
           },
           (payload) => {
+            console.log('New message received:', payload);
             const newMsg = payload.new as any;
             
             // Transform the data to match the Message type
@@ -93,17 +108,21 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
               userRole: newMsg.user_role as UserRole,
               userProfileImage: newMsg.user_profile_image,
               content: newMsg.content,
+              mediaUrl: newMsg.media_url || null,
+              mediaType: newMsg.media_type || null,
               createdAt: new Date(newMsg.created_at)
             };
             
-            // Only add the message if it's not already in the list
+            // Add the message only if it's not already in the list
             setMessages(prev => {
               const exists = prev.some(msg => msg.id === formattedMessage.id);
               return exists ? prev : [...prev, formattedMessage];
             });
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+        });
 
       setChannel(newChannel);
       return newChannel;
@@ -114,6 +133,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
     // Clean up subscription when component unmounts
     return () => {
       if (chatChannel) {
+        console.log('Removing channel subscription');
         supabase.removeChannel(chatChannel);
       }
     };
@@ -123,6 +143,32 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+    
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setMediaPreviewUrl(url);
+    } else {
+      setMediaPreviewUrl(null);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setMediaPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const determineFileType = (file: File): 'image' | 'video' | 'file' => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    return 'file';
+  };
 
   const handleSendMessage = async () => {
     if (!currentUser) {
@@ -134,21 +180,57 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       return;
     }
     
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && !selectedFile) return;
     
     setLoading(true);
     
     try {
+      let mediaUrl = null;
+      let mediaType = null;
+      
+      // Upload file if selected
+      if (selectedFile) {
+        setUploadingFile(true);
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${groupId}/${fileName}`;
+        
+        mediaType = determineFileType(selectedFile);
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('group-chat-media')
+          .upload(filePath, selectedFile);
+        
+        if (uploadError) {
+          throw uploadError;
+        }
+        
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('group-chat-media')
+          .getPublicUrl(filePath);
+        
+        mediaUrl = publicUrl;
+        setUploadingFile(false);
+      }
+      
       await sendMessage({
         groupId,
         userId: currentUser.id,
         userName: currentUser.name,
         userRole: currentUser.role,
         userProfileImage: currentUser.profileImage,
-        content: newMessage.trim()
+        content: newMessage.trim(),
+        mediaUrl,
+        mediaType
       });
       
       setNewMessage('');
+      setSelectedFile(null);
+      setMediaPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -158,6 +240,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       });
     } finally {
       setLoading(false);
+      setUploadingFile(false);
     }
   };
 
@@ -166,6 +249,67 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const renderMedia = (message: Message) => {
+    if (!message.mediaUrl) return null;
+    
+    if (message.mediaType === 'image') {
+      return (
+        <div className="mt-2 rounded-md overflow-hidden">
+          <Dialog>
+            <DialogTrigger asChild>
+              <img 
+                src={message.mediaUrl} 
+                alt="Shared image" 
+                className="max-h-60 max-w-full object-contain cursor-pointer rounded-md" 
+              />
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-4xl">
+              <DialogHeader>
+                <DialogTitle>Shared by {message.userName}</DialogTitle>
+              </DialogHeader>
+              <div className="flex justify-center items-center">
+                <img 
+                  src={message.mediaUrl} 
+                  alt="Shared image" 
+                  className="max-h-[80vh] max-w-full object-contain" 
+                />
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      );
+    }
+    
+    if (message.mediaType === 'video') {
+      return (
+        <div className="mt-2 rounded-md overflow-hidden">
+          <video 
+            controls 
+            className="max-h-60 max-w-full rounded-md"
+          >
+            <source src={message.mediaUrl} />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      );
+    }
+    
+    // Default file link for other types
+    return (
+      <div className="mt-2">
+        <a 
+          href={message.mediaUrl} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          className="flex items-center text-blue-600 hover:underline"
+        >
+          <Paperclip className="h-4 w-4 mr-1" />
+          Attachment
+        </a>
+      </div>
+    );
   };
 
   return (
@@ -224,7 +368,10 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
                         </span>
                       </p>
                     )}
-                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    {message.content && (
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                    )}
+                    {renderMedia(message)}
                   </div>
                   <p className={`text-xs text-gray-500 mt-1 ${message.userId === currentUser?.id ? 'text-right' : ''}`}>
                     {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
@@ -237,6 +384,36 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
         <div ref={messagesEndRef} />
       </div>
       
+      {selectedFile && mediaPreviewUrl && (
+        <div className="border-t p-2 bg-gray-50">
+          <div className="relative inline-block">
+            {selectedFile.type.startsWith('image/') ? (
+              <img 
+                src={mediaPreviewUrl} 
+                alt="Selected media" 
+                className="h-20 object-contain rounded-md"
+              />
+            ) : selectedFile.type.startsWith('video/') ? (
+              <video 
+                src={mediaPreviewUrl} 
+                className="h-20 object-contain rounded-md"
+              />
+            ) : (
+              <div className="h-20 p-2 flex items-center justify-center bg-gray-100 rounded-md">
+                <Paperclip className="h-6 w-6 mr-2" />
+                <span className="text-sm truncate max-w-[200px]">{selectedFile.name}</span>
+              </div>
+            )}
+            <button 
+              onClick={handleRemoveFile}
+              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-5 h-5 flex items-center justify-center text-xs"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="border-t p-4">
         <div className="flex items-end space-x-2">
           <Textarea
@@ -246,13 +423,32 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ groupId }) => {
             placeholder="Type your message..."
             className="min-h-[60px] resize-none flex-1"
           />
-          <Button 
-            onClick={handleSendMessage} 
-            disabled={!newMessage.trim() || loading}
-            size="icon"
-          >
-            <Send className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach file"
+              disabled={loading || uploadingFile}
+            >
+              <ImageIcon className="h-4 w-4" />
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                hidden
+                accept="image/*,video/*"
+              />
+            </Button>
+            <Button 
+              onClick={handleSendMessage} 
+              disabled={((!newMessage.trim() && !selectedFile) || loading || uploadingFile)}
+              size="icon"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
