@@ -307,6 +307,57 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          category: string
+          company_id: string
+          company_logo: string | null
+          company_name: string
+          created_at: string
+          demo_url: string | null
+          description: string
+          id: string
+          image: string | null
+          price: string
+          release_date: string
+          tags: string[] | null
+          title: string
+          website_url: string | null
+        }
+        Insert: {
+          category: string
+          company_id: string
+          company_logo?: string | null
+          company_name: string
+          created_at?: string
+          demo_url?: string | null
+          description: string
+          id?: string
+          image?: string | null
+          price: string
+          release_date: string
+          tags?: string[] | null
+          title: string
+          website_url?: string | null
+        }
+        Update: {
+          category?: string
+          company_id?: string
+          company_logo?: string | null
+          company_name?: string
+          created_at?: string
+          demo_url?: string | null
+          description?: string
+          id?: string
+          image?: string | null
+          price?: string
+          release_date?: string
+          tags?: string[] | null
+          title?: string
+          website_url?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           bio: string | null
@@ -550,6 +601,63 @@ export type Database = {
           start_time?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      workshops: {
+        Row: {
+          capacity: number | null
+          category: string
+          company_id: string
+          company_logo: string | null
+          company_name: string
+          created_at: string
+          date: string
+          description: string
+          duration: string
+          id: string
+          image: string | null
+          is_online: boolean
+          location: string | null
+          meeting_url: string | null
+          price: number
+          title: string
+        }
+        Insert: {
+          capacity?: number | null
+          category: string
+          company_id: string
+          company_logo?: string | null
+          company_name: string
+          created_at?: string
+          date: string
+          description: string
+          duration: string
+          id?: string
+          image?: string | null
+          is_online?: boolean
+          location?: string | null
+          meeting_url?: string | null
+          price?: number
+          title: string
+        }
+        Update: {
+          capacity?: number | null
+          category?: string
+          company_id?: string
+          company_logo?: string | null
+          company_name?: string
+          created_at?: string
+          date?: string
+          description?: string
+          duration?: string
+          id?: string
+          image?: string | null
+          is_online?: boolean
+          location?: string | null
+          meeting_url?: string | null
+          price?: number
+          title?: string
         }
         Relationships: []
       }

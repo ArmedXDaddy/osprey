@@ -1,5 +1,6 @@
+
 import { supabase } from './client';
-import { Booking, BookingStatus, PaymentStatus } from '@/types';
+import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
 /**
  * Uploads an image to Supabase storage
@@ -41,20 +42,40 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
  * @param productData Product data to create
  * @returns Created product data
  */
-export const createProduct = async (productData: any): Promise<any> => {
+export const createProduct = async (productData: any): Promise<Product> => {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .insert(productData)
-      .select('*')
-      .single();
+    // Use the runQuery helper to work around TypeScript limitations
+    const { data, error } = await supabase.rpc('run_query', {
+      query: `
+        INSERT INTO products (
+          title, description, company_id, company_name, company_logo, 
+          price, category, tags, image, website_url, demo_url, release_date
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+        ) RETURNING *
+      `,
+      params: [
+        productData.title,
+        productData.description,
+        productData.company_id,
+        productData.company_name,
+        productData.company_logo,
+        productData.price,
+        productData.category,
+        productData.tags,
+        productData.image,
+        productData.website_url,
+        productData.demo_url,
+        productData.release_date
+      ]
+    });
       
     if (error) {
       console.error('Error creating product:', error);
       throw new Error(error.message || 'Failed to create product');
     }
     
-    return data;
+    return data[0] as unknown as Product;
   } catch (error: any) {
     console.error('Error in createProduct:', error);
     throw new Error(error.message || 'Failed to create product');
@@ -66,20 +87,43 @@ export const createProduct = async (productData: any): Promise<any> => {
  * @param workshopData Workshop data to create
  * @returns Created workshop data
  */
-export const createWorkshop = async (workshopData: any): Promise<any> => {
+export const createWorkshop = async (workshopData: any): Promise<Workshop> => {
   try {
-    const { data, error } = await supabase
-      .from('workshops')
-      .insert(workshopData)
-      .select('*')
-      .single();
+    // Use the runQuery helper to work around TypeScript limitations
+    const { data, error } = await supabase.rpc('run_query', {
+      query: `
+        INSERT INTO workshops (
+          title, description, company_id, company_name, company_logo, 
+          price, date, duration, capacity, location, is_online, 
+          meeting_url, category, image
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+        ) RETURNING *
+      `,
+      params: [
+        workshopData.title,
+        workshopData.description,
+        workshopData.company_id,
+        workshopData.company_name,
+        workshopData.company_logo,
+        workshopData.price,
+        workshopData.date,
+        workshopData.duration,
+        workshopData.capacity,
+        workshopData.location,
+        workshopData.is_online,
+        workshopData.meeting_url,
+        workshopData.category,
+        workshopData.image
+      ]
+    });
       
     if (error) {
       console.error('Error creating workshop:', error);
       throw new Error(error.message || 'Failed to create workshop');
     }
     
-    return data;
+    return data[0] as unknown as Workshop;
   } catch (error: any) {
     console.error('Error in createWorkshop:', error);
     throw new Error(error.message || 'Failed to create workshop');
@@ -91,25 +135,29 @@ export const createWorkshop = async (workshopData: any): Promise<any> => {
  * @param companyId Optional company ID to filter by
  * @returns Array of products
  */
-export const getProducts = async (companyId?: string): Promise<any[]> => {
+export const getProducts = async (companyId?: string): Promise<Product[]> => {
   try {
-    let query = supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: false });
+    let query = `SELECT * FROM products`;
+    const params = [];
       
     if (companyId) {
-      query = query.eq('company_id', companyId);
+      query += ` WHERE company_id = $1`;
+      params.push(companyId);
     }
     
-    const { data, error } = await query;
+    query += ` ORDER BY created_at DESC`;
+    
+    const { data, error } = await supabase.rpc('run_query', {
+      query,
+      params
+    });
     
     if (error) {
       console.error('Error fetching products:', error);
       throw new Error(error.message || 'Failed to fetch products');
     }
     
-    return data || [];
+    return (data || []) as unknown as Product[];
   } catch (error: any) {
     console.error('Error in getProducts:', error);
     return [];
@@ -121,25 +169,29 @@ export const getProducts = async (companyId?: string): Promise<any[]> => {
  * @param companyId Optional company ID to filter by
  * @returns Array of workshops
  */
-export const getWorkshops = async (companyId?: string): Promise<any[]> => {
+export const getWorkshops = async (companyId?: string): Promise<Workshop[]> => {
   try {
-    let query = supabase
-      .from('workshops')
-      .select('*')
-      .order('date', { ascending: true });
+    let query = `SELECT * FROM workshops`;
+    const params = [];
       
     if (companyId) {
-      query = query.eq('company_id', companyId);
+      query += ` WHERE company_id = $1`;
+      params.push(companyId);
     }
     
-    const { data, error } = await query;
+    query += ` ORDER BY date ASC`;
+    
+    const { data, error } = await supabase.rpc('run_query', {
+      query,
+      params
+    });
     
     if (error) {
       console.error('Error fetching workshops:', error);
       throw new Error(error.message || 'Failed to fetch workshops');
     }
     
-    return data || [];
+    return (data || []) as unknown as Workshop[];
   } catch (error: any) {
     console.error('Error in getWorkshops:', error);
     return [];

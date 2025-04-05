@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadImage } from '@/integrations/supabase/helpers';
+import { uploadImage, createWorkshop } from '@/integrations/supabase/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -128,30 +127,26 @@ const CreateWorkshop = () => {
     setIsLoading(true);
     
     try {
-      // Create workshop in database
-      const { data, error } = await supabase
-        .from('workshops')
-        .insert({
-          title,
-          description,
-          company_id: currentUser.id,
-          company_name: currentUser.name,
-          company_logo: currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`,
-          price: price ? parseFloat(price) : 0,
-          category,
-          date: date.toISOString(),
-          duration: `${duration} minutes`,
-          capacity: capacity ? parseInt(capacity) : null,
-          location: isOnline ? null : location,
-          is_online: isOnline,
-          meeting_url: isOnline ? meetingUrl : null,
-          image: coverImage,
-          created_at: new Date().toISOString()
-        })
-        .select('id')
-        .single();
+      // Create workshop data object
+      const workshopData = {
+        title,
+        description,
+        company_id: currentUser.id,
+        company_name: currentUser.name,
+        company_logo: currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`,
+        price: price ? parseFloat(price) : 0,
+        date: date.toISOString(),
+        duration: `${duration} minutes`,
+        capacity: capacity ? parseInt(capacity) : null,
+        location: isOnline ? null : location,
+        is_online: isOnline,
+        meeting_url: isOnline ? meetingUrl : null,
+        category,
+        image: coverImage
+      };
       
-      if (error) throw error;
+      // Create workshop in database using our helper function
+      const data = await createWorkshop(workshopData);
       
       toast({
         title: "Workshop created",

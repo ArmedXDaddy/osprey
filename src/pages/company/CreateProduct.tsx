@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadImage } from '@/integrations/supabase/helpers';
+import { uploadImage, createProduct } from '@/integrations/supabase/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,7 +17,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
 import ImageGallery from '@/components/profile/ImageGallery';
 import { DialogContent, Dialog, DialogTitle } from '@/components/ui/dialog';
 import { Package2, Image as ImageIcon } from 'lucide-react';
@@ -126,27 +124,24 @@ const CreateProduct = () => {
       // Format the tags as an array
       const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
       
-      // Create product in database
-      const { data, error } = await supabase
-        .from('products')
-        .insert({
-          title,
-          description,
-          company_id: currentUser.id,
-          company_name: currentUser.name,
-          company_logo: currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`,
-          price: `${priceModel === 'one-time' ? '' : '$' + price + '/' + priceModel}${priceModel === 'one-time' ? '$' + price : ''}`,
-          category,
-          tags: tagsArray,
-          image: coverImage,
-          website_url: websiteUrl,
-          demo_url: demoUrl,
-          release_date: new Date().toISOString()
-        })
-        .select('id')
-        .single();
+      // Create product data object
+      const productData = {
+        title,
+        description,
+        company_id: currentUser.id,
+        company_name: currentUser.name,
+        company_logo: currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`,
+        price: `${priceModel === 'one-time' ? '' : '$' + price + '/' + priceModel}${priceModel === 'one-time' ? '$' + price : ''}`,
+        category,
+        tags: tagsArray,
+        image: coverImage,
+        website_url: websiteUrl,
+        demo_url: demoUrl,
+        release_date: new Date().toISOString()
+      };
       
-      if (error) throw error;
+      // Create product in database using our helper function
+      const data = await createProduct(productData);
       
       toast({
         title: "Product created",
