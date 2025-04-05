@@ -19,22 +19,23 @@ export interface Service {
   isFree: boolean;
 }
 
-// These types are needed by other components but were missing
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
   profileImage?: string;
+  coverImage?: string; // Added coverImage property
   bio?: string;
   location?: string;
   followers?: number;
   verified?: boolean;
   interests?: string[];
   socialLinks?: Record<string, string>;
+  createdAt?: Date; // Added createdAt property
 }
 
-export type UserRole = 'user' | 'coach' | 'admin';
+export type UserRole = 'user' | 'coach' | 'admin' | 'influencer' | 'company'; // Added influencer and company roles
 
 export interface Session {
   id: string;
@@ -52,6 +53,7 @@ export interface Session {
   meetingUrl?: string;
   sessionType: 'one_on_one' | 'group';
   createdAt: Date;
+  updatedAt?: Date; // Added updatedAt property
 }
 
 export interface SessionEnrollment {
@@ -82,6 +84,12 @@ export interface Post {
   createdAt: Date;
   mediaUrl?: string;
   mediaType?: string;
+  // Add properties needed by components
+  userId?: string;
+  userName?: string;
+  userProfileImage?: string;
+  userRole?: UserRole;
+  image?: string;
 }
 
 export interface Event {
@@ -103,9 +111,13 @@ export interface Event {
   privacy: EventPrivacy;
   image?: string;
   createdAt: Date;
+  // Add properties needed by components
+  date?: Date;
+  attendees?: number;
+  pendingRequests?: number;
 }
 
-export type EventPrivacy = 'public' | 'private';
+export type EventPrivacy = 'public' | 'private' | 'paid';
 
 export interface Group {
   id: string;
@@ -122,9 +134,11 @@ export interface Group {
   rules?: string[];
   price?: number;
   createdAt: Date;
+  // For backwards compatibility
+  memberIds?: string[];
 }
 
-export type GroupPrivacy = 'public' | 'private';
+export type GroupPrivacy = 'public' | 'private' | 'paid';
 
 export interface JoinRequest {
   id: string;
