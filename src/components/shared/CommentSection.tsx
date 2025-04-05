@@ -7,6 +7,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
 import { Comment } from '@/types';
+import { MoreHorizontal, Pencil, Trash2, X, Check } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CommentSectionProps {
   postId: string;
@@ -15,10 +22,12 @@ interface CommentSectionProps {
 
 const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => {
   const { currentUser } = useAuth();
-  const { addComment } = useData();
+  const { addComment, deleteComment, updateComment } = useData();
   const [commentText, setCommentText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editedCommentText, setEditedCommentText] = useState('');
 
   if (!currentUser) return null;
 
@@ -33,6 +42,35 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
       console.error('Error adding comment:', error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleStartEdit = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditedCommentText(comment.content);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditedCommentText('');
+  };
+
+  const handleSaveEdit = async (commentId: string) => {
+    if (!editedCommentText.trim()) return;
+    
+    try {
+      await updateComment(commentId, editedCommentText);
+      setEditingCommentId(null);
+    } catch (error) {
+      console.error('Error updating comment:', error);
+    }
+  };
+
+  const handleDelete = async (commentId: string) => {
+    try {
+      await deleteComment(commentId);
+    } catch (error) {
+      console.error('Error deleting comment:', error);
     }
   };
 
@@ -91,11 +129,68 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
                 <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
                   <div className="flex items-center justify-between">
                     <p className="font-medium text-sm">{comment.userName}</p>
-                    <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">
+                        {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                      </span>
+                      
+                      {(currentUser.id === comment.userId) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleStartEdit(comment)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              <span>Edit</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(comment.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>Delete</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm mt-1 whitespace-pre-line">{comment.content}</p>
+                  
+                  {editingCommentId === comment.id ? (
+                    <div className="mt-2 space-y-2">
+                      <Textarea
+                        value={editedCommentText}
+                        onChange={(e) => setEditedCommentText(e.target.value)}
+                        className="min-h-[60px] resize-none text-sm"
+                        autoFocus
+                      />
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          className="h-7 px-2"
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Cancel
+                        </Button>
+                        <Button 
+                          size="sm"
+                          onClick={() => handleSaveEdit(comment.id)}
+                          className="h-7 px-2"
+                          disabled={!editedCommentText.trim() || editedCommentText === comment.content}
+                        >
+                          <Check className="h-4 w-4 mr-1" />
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm mt-1 whitespace-pre-line">{comment.content}</p>
+                  )}
                 </div>
               </div>
             </div>

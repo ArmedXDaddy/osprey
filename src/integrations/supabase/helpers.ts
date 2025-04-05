@@ -1,4 +1,3 @@
-
 import { supabase } from './client';
 import { Booking, BookingStatus, PaymentStatus } from '@/types';
 
@@ -260,5 +259,63 @@ export const approveBooking = async (bookingId: string): Promise<void> => {
   } catch (error: any) {
     console.error('Error in approveBooking:', error);
     throw new Error(error.message || 'Failed to approve booking');
+  }
+};
+
+/**
+ * Update a comment
+ * @param commentId Comment ID to update
+ * @param content New content for the comment
+ * @returns void
+ */
+export const updateComment = async (commentId: string, content: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('comments')
+      .update({ content })
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Error updating comment:', error);
+      throw new Error(error.message || 'Failed to update comment');
+    }
+  } catch (error: any) {
+    console.error('Error in updateComment:', error);
+    throw new Error(error.message || 'Failed to update comment');
+  }
+};
+
+/**
+ * Delete a comment
+ * @param commentId Comment ID to delete
+ * @returns void
+ */
+export const deleteComment = async (commentId: string): Promise<void> => {
+  try {
+    // First, decrement the comments count on the parent post
+    const { data: comment } = await supabase
+      .from('comments')
+      .select('post_id')
+      .eq('id', commentId)
+      .single();
+    
+    if (comment?.post_id) {
+      // Decrement post comments count
+      await supabase.rpc('decrement_post_comments', { post_id: comment.post_id });
+    }
+    
+    // Then delete the comment
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Error deleting comment:', error);
+      throw new Error(error.message || 'Failed to delete comment');
+    }
+  } catch (error: any) {
+    console.error('Error in deleteComment:', error);
+    throw new Error(error.message || 'Failed to delete comment');
   }
 };
