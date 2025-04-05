@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -87,36 +88,29 @@ const Networking = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        const apiUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
-        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
-        
-        const params = new URLSearchParams();
-        params.append('select', '*');
+        let query = supabase
+          .from('profiles')
+          .select('*');
         
         if (activeTab !== 'all') {
-          params.append('role', 'eq.' + activeTab);
+          query = query.eq('role', activeTab);
         } else {
-          params.append('role', 'in.(influencer,coach,company)');
+          query = query.in('role', ['influencer', 'coach', 'company']);
         }
         
-        console.log(`Fetching profiles from: ${apiUrl}?${params.toString()}`);
+        const { data, error } = await query;
         
-        const response = await fetch(`${apiUrl}?${params.toString()}`, {
-          method: 'GET',
-          headers: {
-            'apikey': apiKey,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('API Response error:', errorText);
-          throw new Error(`Error fetching profiles: ${response.status} ${response.statusText}`);
+        if (error) {
+          console.error('Supabase error:', error);
+          throw new Error(`Error fetching profiles: ${error.message}`);
         }
         
-        const data = await response.json();
         console.log('Profiles data:', data);
+        
+        if (!data || data.length === 0) {
+          setUsers([]);
+          return;
+        }
         
         const formattedUsers: User[] = data.map((user: any) => ({
           id: user.id,
@@ -141,6 +135,7 @@ const Networking = () => {
           description: error.message,
           variant: "destructive"
         });
+        setUsers([]);
       } finally {
         setLoading(false);
       }
