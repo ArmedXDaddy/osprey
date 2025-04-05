@@ -764,7 +764,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         isOnline: data.is_online,
         location: data.location,
         capacity: data.capacity,
-        serviceType: data.service_type,
+        serviceType: data.service_type as ServiceType,
         coverImage: data.cover_image,
         meetingUrl: data.meeting_url,
       };
@@ -828,7 +828,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       const { data, error } = await supabase
         .from('services')
         .insert({
-          ...serviceData,
+          title: serviceData.title,
+          description: serviceData.description,
+          service_type: serviceData.serviceType,
+          price: serviceData.price,
+          duration: serviceData.duration,
+          is_online: serviceData.isOnline,
+          location: serviceData.location,
+          meeting_url: serviceData.meetingUrl,
+          capacity: serviceData.capacity,
+          is_active: serviceData.available,
+          cover_image: serviceData.coverImage,
           coach_id: currentUser.id,
           coach_name: currentUser.name,
         })
@@ -842,8 +852,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       // Update local state
       const newService: Service = {
         id: data.id,
-        ...serviceData,
+        title: data.title,
+        description: data.description,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
         createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url,
       };
 
       setServices(prevServices => [...prevServices, newService]);
@@ -894,7 +916,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         isOnline: updatedData.is_online,
         location: updatedData.location,
         capacity: updatedData.capacity,
-        serviceType: updatedData.service_type,
+        serviceType: updatedData.service_type as ServiceType,
         coverImage: updatedData.cover_image,
         meetingUrl: updatedData.meeting_url,
       };
@@ -1044,7 +1066,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             isOnline: item.is_online,
             location: item.location,
             capacity: item.capacity,
-            serviceType: item.service_type,
+            serviceType: item.service_type as ServiceType,
             coverImage: item.cover_image,
             meetingUrl: item.meeting_url,
           }));
@@ -1134,8 +1156,6 @@ export const useData = () => {
   return context;
 };
 
-// Mock data functions would be here
-// You can generate mock services function since it's referenced above
 const generateMockServices = (): Service[] => {
   const mockServices: Service[] = [
     {
@@ -1223,7 +1243,6 @@ const generateMockServices = (): Service[] => {
   return mockServices;
 };
 
-// Include other mock data objects for the initial loading
 const mockPosts: Post[] = [];
 const mockEvents: Event[] = [];
 const mockGroups: Group[] = [];
