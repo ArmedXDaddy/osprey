@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -52,10 +53,64 @@ const Profile = () => {
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   
+  // All the state variables for profile editing features
+  // These should be defined whether viewing own profile or not
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
+  const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    bio: '',
+    location: '',
+    profileImage: '',
+    coverImage: '',
+    instagram: '',
+    twitter: '',
+    website: ''
+  });
+  
+  const profileImageInputRef = useRef<HTMLInputElement>(null);
+  const coverImageInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  
+  const [profileImages, setProfileImages] = useState<{ name: string; url: string }[]>([]);
+  const [coverImages, setCoverImages] = useState<{ name: string; url: string }[]>([]);
+
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [cropImageType, setCropImageType] = useState<'profile' | 'cover'>('profile');
+  const [cropAspectRatio, setCropAspectRatio] = useState(1);
+  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+  const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
+  
   // Determine if viewing own profile or another user's profile
   const isOwnProfile = !id || (currentUser && id === currentUser.id);
-  const userToShow = isOwnProfile ? currentUser : profileUser;
-
+  
+  // Update profile form when currentUser changes and we're viewing own profile
+  useEffect(() => {
+    if (currentUser && isOwnProfile) {
+      setProfileForm({
+        name: currentUser.name || '',
+        bio: currentUser.bio || '',
+        location: currentUser.location || '',
+        profileImage: currentUser.profileImage || '',
+        coverImage: currentUser.coverImage || '',
+        instagram: currentUser.socialLinks?.instagram || '',
+        twitter: currentUser.socialLinks?.twitter || '',
+        website: currentUser.socialLinks?.website || ''
+      });
+    }
+  }, [currentUser, isOwnProfile]);
+  
+  // Fetch profile images when viewing own profile
+  useEffect(() => {
+    if (currentUser && isOwnProfile) {
+      fetchProfileImages();
+      fetchCoverImages();
+    }
+  }, [currentUser, isOwnProfile]);
+  
+  // Fetch user profile when viewing another user's profile
   useEffect(() => {
     // If viewing another user's profile, fetch that user's data
     const fetchUserProfile = async () => {
@@ -128,114 +183,10 @@ const Profile = () => {
     fetchUserProfile();
   }, [id, currentUser, toast]);
 
-  // Don't proceed until we have user data
-  if ((isOwnProfile && !currentUser) || (!isOwnProfile && !profileUser)) {
-    if (loading || isLoadingProfile) {
-      return (
-        <div className="space-y-4">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      );
-    }
-    
-    if (!isLoadingProfile) {
-      return (
-        <div className="text-center py-16">
-          <h2 className="text-2xl font-bold mb-4">Profile not found</h2>
-          <p className="text-gray-500 mb-6">The user profile you're looking for doesn't exist or you don't have permission to view it.</p>
-          <Link to="/networking">
-            <Button>Discover Users</Button>
-          </Link>
-        </div>
-      );
-    }
-  }
+  // Determine which user to display
+  const userToShow = isOwnProfile ? currentUser : profileUser;
 
-  // Filter content based on the user we're viewing
-  const userPosts = userToShow ? posts.filter(post => post.userId === userToShow.id) : [];
-  
-  const userEvents = userToShow ? events.filter(event => 
-    event.creatorId === userToShow.id || event.attendees.includes(userToShow.id)
-  ) : [];
-  
-  const userCreatedEvents = userToShow ? events.filter(event => 
-    event.creatorId === userToShow.id
-  ) : [];
-  
-  const joinedEvents = userToShow ? events.filter(event => 
-    event.creatorId !== userToShow.id && event.attendees.includes(userToShow.id)
-  ) : [];
-
-  const userGroups = userToShow ? groups.filter(group => 
-    group.creatorId === userToShow.id || (group.memberIds && group.memberIds.includes(userToShow.id))
-  ) : [];
-  
-  const userCreatedGroups = userToShow ? groups.filter(group => 
-    group.creatorId === userToShow.id
-  ) : [];
-  
-  const joinedGroups = userToShow ? groups.filter(group => 
-    group.creatorId !== userToShow.id && group.memberIds && group.memberIds.includes(userToShow.id)
-  ) : [];
-
-  const userServices = userToShow && userToShow.role === 'coach' ? 
-    services.filter(service => service.providerId === userToShow.id) : [];
-
-  // Rest of the state variables for the own profile only
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({
-    name: currentUser?.name || '',
-    bio: currentUser?.bio || '',
-    location: currentUser?.location || '',
-    profileImage: currentUser?.profileImage || '',
-    coverImage: currentUser?.coverImage || '',
-    instagram: currentUser?.socialLinks?.instagram || '',
-    twitter: currentUser?.socialLinks?.twitter || '',
-    website: currentUser?.socialLinks?.website || ''
-  });
-
-  const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
-  const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
-  
-  const profileImageInputRef = useRef<HTMLInputElement>(null);
-  const coverImageInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-  
-  const [profileImages, setProfileImages] = useState<{ name: string; url: string }[]>([]);
-  const [coverImages, setCoverImages] = useState<{ name: string; url: string }[]>([]);
-
-  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
-  const [cropImageType, setCropImageType] = useState<'profile' | 'cover'>('profile');
-  const [cropAspectRatio, setCropAspectRatio] = useState(1);
-  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
-  const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
-  
-  // Keep all the other functions for own profile functionality
-  useEffect(() => {
-    if (currentUser && isOwnProfile) {
-      setProfileForm({
-        name: currentUser.name || '',
-        bio: currentUser.bio || '',
-        location: currentUser.location || '',
-        profileImage: currentUser.profileImage || '',
-        coverImage: currentUser.coverImage || '',
-        instagram: currentUser.socialLinks?.instagram || '',
-        twitter: currentUser.socialLinks?.twitter || '',
-        website: currentUser.socialLinks?.website || ''
-      });
-    }
-  }, [currentUser, isOwnProfile]);
-  
-  useEffect(() => {
-    if (currentUser && isOwnProfile) {
-      fetchProfileImages();
-      fetchCoverImages();
-    }
-  }, [currentUser, isOwnProfile]);
-  
+  // Helper functions for image handling
   const fetchProfileImages = async () => {
     if (!currentUser) return;
     
@@ -268,11 +219,6 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Error fetching profile images:', error);
-      toast({
-        title: "Failed to load images",
-        description: "There was an error loading your profile images.",
-        variant: "destructive"
-      });
     }
   };
   
@@ -308,14 +254,10 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Error fetching cover images:', error);
-      toast({
-        title: "Failed to load images",
-        description: "There was an error loading your cover images.",
-        variant: "destructive"
-      });
     }
   };
   
+  // Image cropping and upload functions
   const handleCrop = (imageUrl: string, type: 'profile' | 'cover') => {
     setCropImageSrc(imageUrl);
     setCropImageType(type);
@@ -436,6 +378,7 @@ const Profile = () => {
     handleCrop(url, 'cover');
   };
   
+  // Form handling for profile updates
   const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setProfileForm(prev => ({
@@ -480,6 +423,7 @@ const Profile = () => {
     }
   };
   
+  // Helper rendering functions
   const renderRoleContent = () => {
     if (!userToShow) return null;
     
@@ -513,6 +457,19 @@ const Profile = () => {
     }
   };
 
+  // Mock followers/following data for UI display
+  const mockFollowers = [
+    { id: '1', name: 'John Doe', profileImage: '', role: 'user', isFollowing: true },
+    { id: '2', name: 'Jane Smith', profileImage: '', role: 'influencer', isFollowing: false },
+    { id: '3', name: 'Fitness Pro', profileImage: '', role: 'coach', isFollowing: true }
+  ];
+  
+  const mockFollowing = [
+    { id: '4', name: 'Gym Bros', profileImage: '', role: 'company', isFollowing: true },
+    { id: '5', name: 'Workout Daily', profileImage: '', role: 'influencer', isFollowing: true },
+    { id: '6', name: 'Health Plus', profileImage: '', role: 'company', isFollowing: true }
+  ];
+
   const renderFollowerItems = (items: any[], onClose: () => void) => {
     if (items.length === 0) {
       return (
@@ -542,26 +499,71 @@ const Profile = () => {
       </div>
     ));
   };
-
-  const mockFollowers = [
-    { id: '1', name: 'John Doe', profileImage: '', role: 'user', isFollowing: true },
-    { id: '2', name: 'Jane Smith', profileImage: '', role: 'influencer', isFollowing: false },
-    { id: '3', name: 'Fitness Pro', profileImage: '', role: 'coach', isFollowing: true }
-  ];
   
-  const mockFollowing = [
-    { id: '4', name: 'Gym Bros', profileImage: '', role: 'company', isFollowing: true },
-    { id: '5', name: 'Workout Daily', profileImage: '', role: 'influencer', isFollowing: true },
-    { id: '6', name: 'Health Plus', profileImage: '', role: 'company', isFollowing: true }
-  ];
-
+  // Action handlers
   const handleFollowUser = () => {
     toast({
       title: "Feature coming soon",
       description: "Following users will be available in a future update",
     });
   };
+  
+  // Loading state
+  if ((isOwnProfile && !currentUser) || (!isOwnProfile && !profileUser)) {
+    if (loading || isLoadingProfile) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      );
+    }
+    
+    if (!isLoadingProfile) {
+      return (
+        <div className="text-center py-16">
+          <h2 className="text-2xl font-bold mb-4">Profile not found</h2>
+          <p className="text-gray-500 mb-6">The user profile you're looking for doesn't exist or you don't have permission to view it.</p>
+          <Link to="/networking">
+            <Button>Discover Users</Button>
+          </Link>
+        </div>
+      );
+    }
+  }
 
+  // Filter content based on the user we're viewing
+  const userPosts = userToShow ? posts.filter(post => post.userId === userToShow.id) : [];
+  
+  const userEvents = userToShow ? events.filter(event => 
+    event.creatorId === userToShow.id || event.attendees.includes(userToShow.id)
+  ) : [];
+  
+  const userCreatedEvents = userToShow ? events.filter(event => 
+    event.creatorId === userToShow.id
+  ) : [];
+  
+  const joinedEvents = userToShow ? events.filter(event => 
+    event.creatorId !== userToShow.id && event.attendees.includes(userToShow.id)
+  ) : [];
+
+  const userGroups = userToShow ? groups.filter(group => 
+    group.creatorId === userToShow.id || (group.memberIds && group.memberIds.includes(userToShow.id))
+  ) : [];
+  
+  const userCreatedGroups = userToShow ? groups.filter(group => 
+    group.creatorId === userToShow.id
+  ) : [];
+  
+  const joinedGroups = userToShow ? groups.filter(group => 
+    group.creatorId !== userToShow.id && group.memberIds && group.memberIds.includes(userToShow.id)
+  ) : [];
+
+  const userServices = userToShow && userToShow.role === 'coach' ? 
+    services.filter(service => service.providerId === userToShow.id) : [];
+
+  // Main render
   return (
     <div className="space-y-8">
       <Card className="overflow-hidden">
@@ -915,7 +917,7 @@ const Profile = () => {
         )}
       </Tabs>
       
-      {/* Keep all the dialogs, but only show them when isOwnProfile is true */}
+      {/* Dialogs for editing profile (only show when viewing own profile) */}
       {isOwnProfile && (
         <>
           <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -1183,3 +1185,4 @@ const Profile = () => {
 };
 
 export default Profile;
+
