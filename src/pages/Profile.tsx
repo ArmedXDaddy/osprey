@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -45,6 +44,16 @@ const Profile = () => {
   const { currentUser, updateProfile } = useAuth();
   const { posts, events, groups, services, loading } = useData();
   const { toast } = useToast();
+
+  // Filter data based on current user
+  const userPosts = posts.filter(post => post.userId === currentUser?.id);
+  const userEvents = events.filter(event => event.attendees.includes(currentUser?.id) || event.creatorId === currentUser?.id);
+  const userCreatedEvents = events.filter(event => event.creatorId === currentUser?.id);
+  const joinedEvents = events.filter(event => event.attendees.includes(currentUser?.id) && event.creatorId !== currentUser?.id);
+  const userGroups = groups.filter(group => (group.memberIds?.includes(currentUser?.id)) || group.creatorId === currentUser?.id);
+  const userCreatedGroups = groups.filter(group => group.creatorId === currentUser?.id);
+  const joinedGroups = groups.filter(group => group.memberIds?.includes(currentUser?.id) && group.creatorId !== currentUser?.id);
+  const userServices = services.filter(service => service.providerId === currentUser?.id);
 
   // State for profile editing
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -446,7 +455,7 @@ const Profile = () => {
         <div className="relative">
           <div 
             className="h-48 bg-gradient-to-r from-primary to-accent"
-            style={currentUser.coverImage ? { backgroundImage: `url(${currentUser.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+            style={currentUser?.coverImage ? { backgroundImage: `url(${currentUser.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
           ></div>
           <Button 
             size="sm" 
@@ -464,8 +473,8 @@ const Profile = () => {
           <div className="flex flex-col md:flex-row gap-6">
             <div className="-mt-12 shrink-0 relative">
               <img 
-                src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random&size=150`} 
-                alt={currentUser.name}
+                src={currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'User')}&background=random&size=150`} 
+                alt={currentUser?.name}
                 className="h-32 w-32 rounded-full border-4 border-white object-cover"
               />
               <Button 
@@ -482,22 +491,22 @@ const Profile = () => {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold">{currentUser.name}</h1>
-                    {currentUser.verified && (
+                    <h1 className="text-2xl font-bold">{currentUser?.name}</h1>
+                    {currentUser?.verified && (
                       <UserCheck className="h-5 w-5 text-success" />
                     )}
                   </div>
                   
-                  <p className="text-gray-500 capitalize">{currentUser.role}</p>
+                  <p className="text-gray-500 capitalize">{currentUser?.role}</p>
                   
-                  {currentUser.location && (
+                  {currentUser?.location && (
                     <div className="flex items-center gap-1 text-gray-500 mt-1">
                       <MapPin className="h-4 w-4" />
                       <span>{currentUser.location}</span>
                     </div>
                   )}
                   
-                  {renderRoleContent()}
+                  {currentUser && renderRoleContent()}
                 </div>
                 
                 <div className="flex gap-2">
@@ -514,12 +523,12 @@ const Profile = () => {
               </div>
               
               {/* Bio */}
-              {currentUser.bio && (
+              {currentUser?.bio && (
                 <p className="mt-4 text-gray-700">{currentUser.bio}</p>
               )}
               
               {/* Social links */}
-              {currentUser.socialLinks && (
+              {currentUser?.socialLinks && (
                 <div className="flex gap-3 mt-4">
                   {currentUser.socialLinks.instagram && (
                     <a 
@@ -564,7 +573,7 @@ const Profile = () => {
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
               onClick={() => setIsFollowersDialogOpen(true)}
             >
-              <div className="text-2xl font-bold">{currentUser.followers || 0}</div>
+              <div className="text-2xl font-bold">{currentUser?.followers || 0}</div>
               <div className="text-gray-500 text-sm">Followers</div>
             </div>
             
@@ -572,7 +581,7 @@ const Profile = () => {
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
               onClick={() => setIsFollowingDialogOpen(true)}
             >
-              <div className="text-2xl font-bold">{(currentUser.following || []).length}</div>
+              <div className="text-2xl font-bold">{(currentUser?.following || []).length}</div>
               <div className="text-gray-500 text-sm">Following</div>
             </div>
             
@@ -590,7 +599,7 @@ const Profile = () => {
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="groups">Groups</TabsTrigger>
-          {currentUser.role === 'coach' && (
+          {currentUser?.role === 'coach' && (
             <TabsTrigger value="services">Services</TabsTrigger>
           )}
         </TabsList>
@@ -607,7 +616,7 @@ const Profile = () => {
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">You haven't created any posts yet.</p>
-              {currentUser.role !== 'user' && (
+              {currentUser?.role !== 'user' && (
                 <Link to="/create/post">
                   <Button>Create Your First Post</Button>
                 </Link>
@@ -663,7 +672,7 @@ const Profile = () => {
                 <Link to="/events">
                   <Button variant="outline">Explore Events</Button>
                 </Link>
-                {['influencer', 'coach', 'company'].includes(currentUser.role) && (
+                {currentUser && ['influencer', 'coach', 'company'].includes(currentUser.role) && (
                   <Link to="/create-event">
                     <Button>Create Your First Event</Button>
                   </Link>
@@ -720,7 +729,7 @@ const Profile = () => {
                 <Link to="/groups">
                   <Button variant="outline">Explore Groups</Button>
                 </Link>
-                {['influencer', 'company'].includes(currentUser.role) && (
+                {currentUser && ['influencer', 'company'].includes(currentUser.role) && (
                   <Link to="/create-group">
                     <Button>Create Your First Group</Button>
                   </Link>
@@ -730,7 +739,7 @@ const Profile = () => {
           )}
         </TabsContent>
         
-        {currentUser.role === 'coach' && (
+        {currentUser?.role === 'coach' && (
           <TabsContent value="services" className="mt-6">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
