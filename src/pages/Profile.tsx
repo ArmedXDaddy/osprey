@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -429,7 +430,8 @@ const Profile = () => {
         <div className="flex items-center gap-3">
           <Avatar>
             <AvatarImage src={item.profileImage} />
-            <AvatarFallback>{item.name.substring(0, 2).toUpperCase()}
+            <AvatarFallback>
+              {item.name.substring(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div>
@@ -921,4 +923,58 @@ const Profile = () => {
                 id="website"
                 name="website"
                 value={profileForm.website}
-                onChange={handleProfile
+                onChange={handleProfileFormChange}
+                placeholder="yourwebsite.com"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleProfileUpdate}>
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Followers</DialogTitle>
+            <DialogDescription>
+              People who follow you
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-1 py-2">
+              {renderFollowerItems(mockFollowers, () => setIsFollowersDialogOpen(false))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Following</DialogTitle>
+            <DialogDescription>
+              People you follow
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-1 py-2">
+              {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Profile;
