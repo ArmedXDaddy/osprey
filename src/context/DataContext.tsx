@@ -3,6 +3,7 @@ import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventP
 import { useAuth } from './AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Tables } from '@/integrations/supabase/types';
 
 interface DataContextType {
   posts: Post[];
@@ -453,7 +454,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('You must be logged in to send a message');
       }
 
-      const supabaseMessageData: Tables<'messages'> = {
+      const supabaseMessageData = {
         content: messageData.content,
         group_id: messageData.groupId,
         user_id: currentUser.id,
