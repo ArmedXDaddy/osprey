@@ -1,7 +1,6 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface FollowerUser {
@@ -31,34 +30,18 @@ export const useFollowers = (userId: string | undefined, currentUserId: string |
     
     setLoading(true);
     try {
-      // Fetch followers (people who follow the userId)
+      // Get followers (people who follow userId)
       const { data: followerData, error: followerError } = await supabase
         .from('followers')
-        .select(`
-          follower_id,
-          profiles:follower_id(
-            id,
-            name,
-            profile_image,
-            role
-          )
-        `)
+        .select('follower_id')
         .eq('following_id', userId);
       
       if (followerError) throw followerError;
       
-      // Fetch following (people userId follows)
+      // Get following (people userId follows)
       const { data: followingData, error: followingError } = await supabase
         .from('followers')
-        .select(`
-          following_id,
-          profiles:following_id(
-            id,
-            name,
-            profile_image,
-            role
-          )
-        `)
+        .select('following_id')
         .eq('follower_id', userId);
       
       if (followingError) throw followingError;
@@ -80,32 +63,62 @@ export const useFollowers = (userId: string | undefined, currentUserId: string |
         }
       }
       
-      // Process followers data
-      const processedFollowers = followerData
-        .filter(item => item.profiles)
-        .map(item => ({
-          id: item.profiles.id,
-          name: item.profiles.name,
-          profileImage: item.profiles.profile_image,
-          role: item.profiles.role,
-          isFollowing: !!currentUserFollowingMap[item.follower_id]
-        }));
+      // Process followers - we'll need to fetch their profile details separately
+      const followerProfiles = await Promise.all(
+        followerData.map(async (item) => {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, name, profile_image, role')
+            .eq('id', item.follower_id)
+            .single();
+          
+          if (profileError || !profileData) {
+            console.error('Error fetching follower profile:', profileError);
+            return null;
+          }
+          
+          return {
+            id: profileData.id,
+            name: profileData.name,
+            profileImage: profileData.profile_image,
+            role: profileData.role,
+            isFollowing: !!currentUserFollowingMap[profileData.id]
+          };
+        })
+      );
       
-      // Process following data
-      const processedFollowing = followingData
-        .filter(item => item.profiles)
-        .map(item => ({
-          id: item.profiles.id,
-          name: item.profiles.name,
-          profileImage: item.profiles.profile_image,
-          role: item.profiles.role,
-          isFollowing: true // The user is already following these people
-        }));
+      // Process following - we'll need to fetch their profile details separately
+      const followingProfiles = await Promise.all(
+        followingData.map(async (item) => {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, name, profile_image, role')
+            .eq('id', item.following_id)
+            .single();
+          
+          if (profileError || !profileData) {
+            console.error('Error fetching following profile:', profileError);
+            return null;
+          }
+          
+          return {
+            id: profileData.id,
+            name: profileData.name,
+            profileImage: profileData.profile_image,
+            role: profileData.role,
+            isFollowing: true // The user is already following these people
+          };
+        })
+      );
       
-      setFollowers(processedFollowers);
-      setFollowing(processedFollowing);
-      setFollowerCount(processedFollowers.length);
-      setFollowingCount(processedFollowing.length);
+      // Filter out any null values from failed profile fetches
+      const validFollowerProfiles = followerProfiles.filter(profile => profile !== null) as FollowerUser[];
+      const validFollowingProfiles = followingProfiles.filter(profile => profile !== null) as FollowerUser[];
+      
+      setFollowers(validFollowerProfiles);
+      setFollowing(validFollowingProfiles);
+      setFollowerCount(validFollowerProfiles.length);
+      setFollowingCount(validFollowingProfiles.length);
     } catch (error: any) {
       console.error('Error fetching follower data:', error);
       toast({
