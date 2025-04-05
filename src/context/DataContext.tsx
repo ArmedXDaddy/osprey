@@ -530,6 +530,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (group.privacy === 'public') {
       try {
+        const { data: existingMember, error: checkError } = await supabase
+          .from('group_members')
+          .select('id')
+          .eq('group_id', groupId)
+          .eq('user_id', currentUser.id)
+          .single();
+        
+        if (checkError && checkError.code !== 'PGRST116') {
+          console.error('Error checking group membership:', checkError);
+          toast({
+            title: "Error joining group",
+            description: checkError.message,
+            variant: "destructive"
+          });
+          return false;
+        }
+        
+        if (existingMember) {
+          toast({
+            title: "Already a member",
+            description: `You are already a member of ${group.name}`,
+          });
+          return true;
+        }
+        
         const memberData = {
           group_id: groupId,
           user_id: currentUser.id
