@@ -88,23 +88,37 @@ const Networking = () => {
     const fetchUsers = async () => {
       setLoading(true);
       try {
-        let query = supabase
-          .from('profiles')
-          .select('*');
+        // Fetch data directly using API calls instead of typed client
+        // This avoids the TypeScript error while we wait for types to update
+        const baseUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
+        
+        let url = `${baseUrl}?select=*`;
         
         if (activeTab !== 'all') {
-          query = query.eq('role', activeTab);
+          url += `&role=eq.${activeTab}`;
         } else {
-          query = query.in('role', ['influencer', 'coach', 'company']);
+          url += `&role=in.(influencer,coach,company)`;
         }
         
-        const { data, error } = await query;
+        console.log('Fetching profiles from:', url);
         
-        if (error) {
-          console.error('Supabase error:', error);
-          throw new Error(`Error fetching profiles: ${error.message}`);
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Response error:', errorText);
+          throw new Error(`Error fetching profiles: ${response.status} ${response.statusText}`);
         }
         
+        const data = await response.json();
         console.log('Profiles data:', data);
         
         if (!data || data.length === 0) {
