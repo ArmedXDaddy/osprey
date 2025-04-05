@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -142,6 +143,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           name: userData.name || currentUser.name,
           // Only update role if provided and user is allowed to change it
           ...(userData.role && { role: userData.role }),
+          // Add support for profile image and cover image
+          ...(userData.profileImage && { profileImage: userData.profileImage }),
+          ...(userData.coverImage && { coverImage: userData.coverImage }),
+          ...(userData.bio && { bio: userData.bio }),
+          ...(userData.location && { location: userData.location }),
+          ...(userData.socialLinks && { 
+            socialLinks: {
+              ...(currentUser.socialLinks || {}),
+              ...userData.socialLinks
+            }
+          }),
         }
       });
       

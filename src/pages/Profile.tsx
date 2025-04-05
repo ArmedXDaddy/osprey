@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -70,15 +71,39 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   
   useEffect(() => {
-    fetchProfileImages();
-    fetchCoverImages();
-  }, []);
+    // Update form data when currentUser changes
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || '',
+        bio: currentUser.bio || '',
+        location: currentUser.location || '',
+        profileImage: currentUser.profileImage || '',
+        coverImage: currentUser.coverImage || '',
+        instagram: currentUser.socialLinks?.instagram || '',
+        twitter: currentUser.socialLinks?.twitter || '',
+        website: currentUser.socialLinks?.website || ''
+      });
+    }
+  }, [currentUser]);
+  
+  // Fetch images when component mounts or when user changes
+  useEffect(() => {
+    if (currentUser) {
+      fetchProfileImages();
+      fetchCoverImages();
+    }
+  }, [currentUser]);
   
   const fetchProfileImages = async () => {
+    if (!currentUser) return;
+    
     try {
+      // Create profiles bucket if it doesn't exist
+      await createBucketIfNotExists('profiles');
+      
       const { data, error } = await supabase.storage
         .from('profiles')
-        .list(currentUser?.id || 'public', {
+        .list(currentUser.id, {
           sortBy: { column: 'created_at', order: 'desc' },
         });
       
@@ -91,7 +116,7 @@ const Profile = () => {
           data.map(async (file) => {
             const { data: urlData } = await supabase.storage
               .from('profiles')
-              .getPublicUrl(`${currentUser?.id || 'public'}/${file.name}`);
+              .getPublicUrl(`${currentUser.id}/${file.name}`);
             
             return {
               name: file.name,
@@ -103,14 +128,24 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Error fetching profile images:', error);
+      toast({
+        title: "Failed to load images",
+        description: "There was an error loading your profile images.",
+        variant: "destructive"
+      });
     }
   };
   
   const fetchCoverImages = async () => {
+    if (!currentUser) return;
+    
     try {
+      // Create covers bucket if it doesn't exist
+      await createBucketIfNotExists('covers');
+      
       const { data, error } = await supabase.storage
         .from('covers')
-        .list(currentUser?.id || 'public', {
+        .list(currentUser.id, {
           sortBy: { column: 'created_at', order: 'desc' },
         });
       
@@ -123,7 +158,7 @@ const Profile = () => {
           data.map(async (file) => {
             const { data: urlData } = await supabase.storage
               .from('covers')
-              .getPublicUrl(`${currentUser?.id || 'public'}/${file.name}`);
+              .getPublicUrl(`${currentUser.id}/${file.name}`);
             
             return {
               name: file.name,
@@ -135,11 +170,32 @@ const Profile = () => {
       }
     } catch (error) {
       console.error('Error fetching cover images:', error);
+      toast({
+        title: "Failed to load images",
+        description: "There was an error loading your cover images.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const createBucketIfNotExists = async (bucketName: string) => {
+    try {
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+      
+      if (!bucketExists) {
+        await supabase.storage.createBucket(bucketName, {
+          public: true,
+          fileSizeLimit: 5 * 1024 * 1024, // 5MB limit
+        });
+      }
+    } catch (error) {
+      console.error(`Error checking/creating ${bucketName} bucket:`, error);
     }
   };
   
   const uploadProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) {
+    if (!event.target.files || event.target.files.length === 0 || !currentUser) {
       return;
     }
     
@@ -148,7 +204,7 @@ const Profile = () => {
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${currentUser?.id || 'public'}/${fileName}`;
+      const filePath = `${currentUser.id}/${fileName}`;
       
       const { error } = await supabase.storage
         .from('profiles')
@@ -160,9 +216,20 @@ const Profile = () => {
       
       await fetchProfileImages();
       
+      // Get the URL of the uploaded image
+      const { data: urlData } = await supabase.storage
+        .from('profiles')
+        .getPublicUrl(filePath);
+      
+      // Automatically select the newly uploaded image
+      setProfileForm(prev => ({
+        ...prev,
+        profileImage: urlData.publicUrl
+      }));
+      
       toast({
         title: "Upload successful",
-        description: "Your profile image has been uploaded",
+        description: "Your profile image has been uploaded and selected",
       });
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -177,7 +244,7 @@ const Profile = () => {
   };
   
   const uploadCoverImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0) {
+    if (!event.target.files || event.target.files.length === 0 || !currentUser) {
       return;
     }
     
@@ -186,7 +253,7 @@ const Profile = () => {
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `${currentUser?.id || 'public'}/${fileName}`;
+      const filePath = `${currentUser.id}/${fileName}`;
       
       const { error } = await supabase.storage
         .from('covers')
@@ -198,9 +265,20 @@ const Profile = () => {
       
       await fetchCoverImages();
       
+      // Get the URL of the uploaded image
+      const { data: urlData } = await supabase.storage
+        .from('covers')
+        .getPublicUrl(filePath);
+      
+      // Automatically select the newly uploaded image
+      setProfileForm(prev => ({
+        ...prev,
+        coverImage: urlData.publicUrl
+      }));
+      
       toast({
         title: "Upload successful",
-        description: "Your cover image has been uploaded",
+        description: "Your cover image has been uploaded and selected",
       });
     } catch (error) {
       console.error('Error uploading image:', error);
@@ -240,36 +318,6 @@ const Profile = () => {
     });
   };
   
-  if (!currentUser) {
-    return (
-      <div className="flex items-center justify-center h-[70vh]">
-        <Skeleton className="h-40 w-full max-w-md" />
-      </div>
-    );
-  }
-
-  // Filter data by current user
-  const userPosts = posts.filter(post => post.userId === currentUser.id);
-  
-  // Filter only events created by or joined by the user
-  const userCreatedEvents = events.filter(event => event.creatorId === currentUser.id);
-  const joinedEvents = events.filter(event => 
-    event.creatorId !== currentUser.id && 
-    Array.isArray(event.attendees) && event.attendees.includes(currentUser.id)
-  );
-  const userEvents = [...userCreatedEvents, ...joinedEvents];
-  
-  // Filter only groups created by or joined by the user  
-  const userCreatedGroups = groups.filter(group => group.creatorId === currentUser.id);
-  const joinedGroups = groups.filter(group => 
-    group.creatorId !== currentUser.id && 
-    group.memberIds && group.memberIds.includes(currentUser.id)
-  );
-  const userGroups = [...userCreatedGroups, ...joinedGroups];
-  
-  // Filter services provided by the user
-  const userServices = services.filter(service => service.providerId === currentUser.id);
-  
   // Handle profile form changes
   const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -281,6 +329,8 @@ const Profile = () => {
   
   // Handle profile update
   const handleProfileUpdate = async () => {
+    if (!currentUser) return;
+    
     try {
       const updatedProfile = {
         ...currentUser,
@@ -304,11 +354,11 @@ const Profile = () => {
       });
       
       setIsEditDialogOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error updating profile:", error);
       toast({
         title: "Update failed",
-        description: "There was an error updating your profile",
+        description: error.message || "There was an error updating your profile",
         variant: "destructive"
       });
     }
