@@ -33,6 +33,7 @@ export const fetchServices = async (): Promise<Service[]> => {
     meetingUrl: item.meeting_url,
     image: item.image,
     isFree: item.is_free,
+    coverImage: item.cover_image,
   }));
 };
 
@@ -68,6 +69,7 @@ export const fetchServiceById = async (id: string): Promise<Service> => {
     meetingUrl: data.meeting_url,
     image: data.image,
     isFree: data.is_free,
+    coverImage: data.cover_image,
   };
 };
 
@@ -103,6 +105,7 @@ export const fetchServicesByProviderId = async (providerId: string): Promise<Ser
     meetingUrl: item.meeting_url,
     image: item.image,
     isFree: item.is_free,
+    coverImage: item.cover_image,
   }));
 };
 
@@ -217,14 +220,23 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
 
 // Delete a service
 export const deleteService = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('services')
-    .update({ is_active: false })
-    .eq('id', id);
+  console.log('Attempting to delete service with ID:', id);
+  
+  try {
+    const { error } = await supabase
+      .from('services')
+      .delete()
+      .eq('id', id);
+      
+    if (error) {
+      console.error('Error deleting service:', error);
+      throw new Error(error.message);
+    }
     
-  if (error) {
-    console.error('Error deleting service:', error);
-    throw new Error(error.message);
+    console.log('Service deleted successfully');
+  } catch (error) {
+    console.error('Deletion error:', error);
+    throw error;
   }
 };
 

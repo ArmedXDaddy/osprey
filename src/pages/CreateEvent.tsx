@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { EventPrivacy } from '@/types';
 
 const formSchema = z.object({

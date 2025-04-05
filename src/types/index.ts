@@ -16,6 +16,152 @@ export interface Service {
   isOnline: boolean;
   meetingUrl?: string;
   image?: string;
-  coverImage?: string;  // Add this line
+  coverImage?: string;
   isFree: boolean;
+}
+
+// Add other required type exports
+export type UserRole = 'user' | 'admin' | 'coach' | 'company' | 'influencer';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  profileImage?: string;
+  bio?: string;
+  location?: string;
+  interests?: string[];
+  followers?: number;
+  following?: string[];
+  verified?: boolean;
+  socialLinks?: Record<string, string>;
+  createdAt?: Date;
+}
+
+export interface Post {
+  id: string;
+  content: string;
+  image?: string;
+  likes: number;
+  comments: number;
+  createdAt: Date;
+  // Backward compatibility fields
+  userId?: string;
+  userName?: string;
+  userRole?: UserRole;
+  userProfileImage?: string;
+  // New fields
+  authorId: string;
+  authorName: string;
+  authorRole: UserRole;
+  authorProfileImage?: string;
+}
+
+export type GroupPrivacy = 'public' | 'private' | 'paid';
+export type EventPrivacy = 'public' | 'private' | 'paid';
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  location?: string;
+  isOnline: boolean;
+  meetingUrl?: string;
+  startDate: Date;
+  endDate?: Date;
+  price: number;
+  capacity?: number;
+  image?: string;
+  createdAt: Date;
+  attendees: string[];
+  currentAttendees: number;
+  pendingRequests?: number;
+  // Creator information
+  creatorId: string;
+  creatorName: string; 
+  creatorRole: UserRole;
+  privacy: EventPrivacy;
+  isFree?: boolean;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  description: string;
+  image?: string;
+  privacy: GroupPrivacy;
+  price?: number;
+  members: number;
+  memberLimit?: number;
+  createdAt: Date;
+  creatorId: string;
+  creatorName: string;
+  creatorRole: UserRole;
+  rules?: string[];
+  pendingRequests?: number;
+}
+
+export interface Message {
+  id: string;
+  content: string;
+  userId: string;
+  userName: string;
+  userRole: UserRole;
+  userProfileImage?: string;
+  groupId?: string;
+  mediaUrl?: string;
+  mediaType?: string;
+  createdAt: Date;
+}
+
+export interface JoinRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userProfileImage?: string;
+  groupId?: string;
+  eventId?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  createdAt: Date;
+}
+
+export type SessionType = 'one_on_one' | 'group';
+export type SessionStatus = 'upcoming' | 'completed' | 'cancelled';
+export type PaymentStatus = 'paid' | 'unpaid' | 'refunded';
+
+export interface Session {
+  id: string;
+  title: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  coach: {
+    id: string;
+    name: string;
+    profileImage?: string;
+  };
+  isOnline: boolean;
+  meetingUrl?: string;
+  location?: string;
+  maxAttendees?: number;
+  currentAttendees: number;
+  price: number;
+  isFree: boolean;
+  status: SessionStatus;
+  type: SessionType;
+  image?: string;
+  createdAt: Date;
+}
+
+export interface SessionEnrollment {
+  id: string;
+  sessionId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userProfileImage?: string;
+  status: SessionStatus;
+  paymentStatus: PaymentStatus;
+  createdAt: Date;
 }

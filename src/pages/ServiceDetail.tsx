@@ -62,7 +62,8 @@ const ServiceDetail = () => {
       });
       navigate('/services');
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      console.error("Service deletion error:", error);
       toast({
         title: "Deletion Failed",
         description: `Error: ${error.message}`,
@@ -128,6 +129,7 @@ const ServiceDetail = () => {
   
   const handleDeleteService = () => {
     if (!id) return;
+    console.log("Deleting service with ID:", id);
     deleteServiceMutation.mutate(id);
   };
 
