@@ -459,7 +459,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         user_name: currentUser.name,
         user_role: currentUser.role,
         user_profile_image: currentUser.profileImage,
-        content: messageData.content
+        content: messageData.content,
+        media_url: messageData.mediaUrl,
+        media_type: messageData.mediaType
       };
       
       const { data, error } = await supabase
@@ -485,6 +487,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userRole: data.user_role as UserRole, // Cast to UserRole
         userProfileImage: data.user_profile_image,
         content: data.content,
+        mediaUrl: data.media_url,
+        mediaType: data.media_type as 'image' | 'video' | 'file' | undefined,
         createdAt: new Date(data.created_at)
       };
       

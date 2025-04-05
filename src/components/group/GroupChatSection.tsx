@@ -32,8 +32,8 @@ interface MessageRow {
   user_role: string;
   user_profile_image: string | null;
   content: string;
-  media_url?: string | null;  // Added this field
-  media_type?: string | null;  // Added this field
+  media_url?: string | null;
+  media_type?: string | null;
   created_at: string;
 }
 
