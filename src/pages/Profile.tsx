@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -70,7 +69,6 @@ const Profile = () => {
   const [coverImages, setCoverImages] = useState<{ name: string, url: string }[]>([]);
   const [uploading, setUploading] = useState(false);
   
-  // Load profile images from storage
   useEffect(() => {
     fetchProfileImages();
     fetchCoverImages();
@@ -257,7 +255,7 @@ const Profile = () => {
   const userCreatedEvents = events.filter(event => event.creatorId === currentUser.id);
   const joinedEvents = events.filter(event => 
     event.creatorId !== currentUser.id && 
-    event.attendees?.includes?.(currentUser.id)
+    Array.isArray(event.attendees) && event.attendees.includes(currentUser.id)
   );
   const userEvents = [...userCreatedEvents, ...joinedEvents];
   
@@ -265,7 +263,7 @@ const Profile = () => {
   const userCreatedGroups = groups.filter(group => group.creatorId === currentUser.id);
   const joinedGroups = groups.filter(group => 
     group.creatorId !== currentUser.id && 
-    group.memberIds?.includes?.(currentUser.id)
+    group.memberIds && group.memberIds.includes(currentUser.id)
   );
   const userGroups = [...userCreatedGroups, ...joinedGroups];
   

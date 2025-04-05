@@ -10,6 +10,7 @@ export interface User {
   email: string;
   role: UserRole;
   profileImage?: string;
+  coverImage?: string; // Added coverImage property
   bio?: string;
   location?: string;
   interests?: string[];
@@ -47,7 +48,7 @@ export interface Event {
   location: string;
   date: Date;
   image?: string;
-  attendees: number;
+  attendees: string[]; // Changed from number to string[] to support includes()
   privacy: EventPrivacy;
   price?: number;
   pendingRequests?: number;
@@ -62,6 +63,7 @@ export interface Group {
   creatorName: string;
   creatorRole: UserRole;
   members: number;
+  memberIds?: string[]; // Added memberIds property
   image?: string;
   privacy: GroupPrivacy;
   price?: number;
