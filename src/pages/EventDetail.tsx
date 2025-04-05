@@ -57,6 +57,8 @@ const EventDetail = () => {
     });
   };
   
+  const attendeesCount = Array.isArray(event.attendees) ? event.attendees.length : 0;
+  
   return (
     <div className="space-y-6">
       {/* Back navigation */}
@@ -90,7 +92,7 @@ const EventDetail = () => {
             <div className="flex items-center gap-2">
               <p className="text-sm md:text-base">By {event.creatorName}</p>
               <div className="w-1 h-1 rounded-full bg-white/80"></div>
-              <p className="text-sm md:text-base">{event.attendees} attendees</p>
+              <p className="text-sm md:text-base">{attendeesCount} attendees</p>
             </div>
           </div>
         </div>
@@ -125,15 +127,15 @@ const EventDetail = () => {
           <div>
             <h2 className="text-xl font-semibold mb-3">Attendees</h2>
             <div className="flex flex-wrap gap-2">
-              {Array.from({ length: Math.min(8, event.attendees) }).map((_, i) => (
+              {Array.from({ length: Math.min(8, attendeesCount) }).map((_, i) => (
                 <Avatar key={i} className="h-10 w-10">
                   <AvatarImage src={`https://i.pravatar.cc/150?img=${i + 10}`} />
                   <AvatarFallback>U{i}</AvatarFallback>
                 </Avatar>
               ))}
-              {event.attendees > 8 && (
+              {attendeesCount > 8 && (
                 <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm">
-                  +{event.attendees - 8}
+                  +{attendeesCount - 8}
                 </div>
               )}
             </div>
@@ -168,7 +170,7 @@ const EventDetail = () => {
               <Users className="h-5 w-5 text-gray-500 mt-0.5" />
               <div>
                 <p className="font-medium">Attendees</p>
-                <p className="text-gray-600">{event.attendees} people attending</p>
+                <p className="text-gray-600">{attendeesCount} people attending</p>
               </div>
             </div>
             

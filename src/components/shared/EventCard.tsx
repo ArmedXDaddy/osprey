@@ -82,7 +82,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, compact = false }) => {
           <div className="flex items-center gap-2">
             <Users className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} text-gray-500`} />
             <span className={`${compact ? 'text-xs' : 'text-sm'} text-gray-700`}>
-              {event.attendees} {event.attendees === 1 ? 'attendee' : 'attendees'}
+              {Array.isArray(event.attendees) ? event.attendees.length : 0} {event.attendees.length === 1 ? 'attendee' : 'attendees'}
             </span>
           </div>
         </div>
