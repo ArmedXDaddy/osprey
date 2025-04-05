@@ -4,6 +4,8 @@ import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import ImageCropper from '@/components/shared/ImageCropper';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface GroupImageGalleryProps {
   selectedImage: string;
@@ -22,6 +24,8 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -38,10 +42,11 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
         return;
       }
       
-      // Preview the image
+      // Preview the image for cropping
       const reader = new FileReader();
       reader.onload = () => {
-        setPreviewImage(reader.result as string);
+        setCropImageSrc(reader.result as string);
+        setIsCropDialogOpen(true);
       };
       reader.readAsDataURL(file);
       
@@ -119,15 +124,29 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
         return;
       }
       
-      // Preview the image
+      // Preview the image for cropping
       const reader = new FileReader();
       reader.onload = () => {
-        setPreviewImage(reader.result as string);
+        setCropImageSrc(reader.result as string);
+        setIsCropDialogOpen(true);
       };
       reader.readAsDataURL(file);
       
       setSelectedFile(file);
     }
+  };
+
+  const handleCropComplete = async (croppedImageUrl: string) => {
+    setPreviewImage(croppedImageUrl);
+    setIsCropDialogOpen(false);
+    
+    // Convert the cropped image to a File object
+    const response = await fetch(croppedImageUrl);
+    const blob = await response.blob();
+    const fileName = selectedFile ? selectedFile.name : `cropped_image_${Date.now()}.jpg`;
+    const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
+    
+    setSelectedFile(croppedFile);
   };
 
   return (
@@ -209,6 +228,35 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
           </div>
         </div>
       )}
+      
+      {/* Crop Dialog */}
+      <Dialog open={isCropDialogOpen} onOpenChange={(open) => {
+        if (!open && cropImageSrc) {
+          URL.revokeObjectURL(cropImageSrc);
+        }
+        setIsCropDialogOpen(open);
+      }}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Crop Image</DialogTitle>
+          </DialogHeader>
+          
+          {cropImageSrc && (
+            <ImageCropper
+              imageSrc={cropImageSrc}
+              aspectRatio={1}
+              onCropComplete={handleCropComplete}
+              onCancel={() => {
+                if (cropImageSrc) {
+                  URL.revokeObjectURL(cropImageSrc);
+                }
+                setIsCropDialogOpen(false);
+                setCropImageSrc(null);
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
