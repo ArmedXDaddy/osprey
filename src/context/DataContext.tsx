@@ -403,7 +403,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           service_type: updates.serviceType,
           cover_image: updates.coverImage,
           meeting_url: updates.meetingUrl,
-          updated_at: new Date()
+          updated_at: new Date().toISOString() // Convert Date to ISO string format
         })
         .eq('id', serviceId)
         .eq('coach_id', currentUser.id);
