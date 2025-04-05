@@ -7,7 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { 
   Instagram, 
   Twitter, 
@@ -18,7 +18,8 @@ import {
   Users, 
   X,
   Camera,
-  ImageIcon
+  ImageIcon,
+  UserPlus
 } from 'lucide-react';
 import PostCard from '@/components/shared/PostCard';
 import EventCard from '@/components/shared/EventCard';
@@ -41,41 +42,148 @@ import { supabase } from '@/integrations/supabase/client';
 import ImageGallery from '@/components/profile/ImageGallery';
 import ImageCropper from '@/components/shared/ImageCropper';
 import { cn } from '@/lib/utils';
+import { User, UserRole } from '@/types';
 
 const Profile = () => {
+  const { id } = useParams();
   const { currentUser, updateProfile } = useAuth();
   const { posts, events, groups, services, loading } = useData();
   const { toast } = useToast();
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
+  
+  // Determine if viewing own profile or another user's profile
+  const isOwnProfile = !id || (currentUser && id === currentUser.id);
+  const userToShow = isOwnProfile ? currentUser : profileUser;
 
-  const userPosts = currentUser ? posts.filter(post => post.userId === currentUser.id) : [];
+  useEffect(() => {
+    // If viewing another user's profile, fetch that user's data
+    const fetchUserProfile = async () => {
+      if (!id || (currentUser && id === currentUser.id)) {
+        // Viewing own profile, no need to fetch
+        return;
+      }
+      
+      setIsLoadingProfile(true);
+      try {
+        // Fetch user profile data from Supabase
+        const baseUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
+        
+        const url = `${baseUrl}?id=eq.${id}&select=*`;
+        
+        console.log('Fetching profile from:', url);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching profile: ${response.status} ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Profile data:', data);
+        
+        if (!data || data.length === 0) {
+          throw new Error('User profile not found');
+        }
+        
+        const userData = data[0];
+        
+        // Format user data to match User type
+        const formattedUser: User = {
+          id: userData.id,
+          name: userData.name || 'Unknown User',
+          email: userData.email || '',
+          role: userData.role as UserRole,
+          profileImage: userData.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=random`,
+          bio: userData.bio || '',
+          location: userData.location || '',
+          interests: userData.interests || [],
+          followers: userData.followers || 0,
+          verified: userData.verified || false,
+          socialLinks: userData.social_links || {},
+          createdAt: new Date(userData.created_at)
+        };
+        
+        setProfileUser(formattedUser);
+      } catch (error: any) {
+        console.error('Error fetching user profile:', error);
+        toast({
+          title: "Error fetching profile",
+          description: error.message,
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, [id, currentUser, toast]);
+
+  // Don't proceed until we have user data
+  if ((isOwnProfile && !currentUser) || (!isOwnProfile && !profileUser)) {
+    if (loading || isLoadingProfile) {
+      return (
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-32 w-full" />
+        </div>
+      );
+    }
+    
+    if (!isLoadingProfile) {
+      return (
+        <div className="text-center py-16">
+          <h2 className="text-2xl font-bold mb-4">Profile not found</h2>
+          <p className="text-gray-500 mb-6">The user profile you're looking for doesn't exist or you don't have permission to view it.</p>
+          <Link to="/networking">
+            <Button>Discover Users</Button>
+          </Link>
+        </div>
+      );
+    }
+  }
+
+  // Filter content based on the user we're viewing
+  const userPosts = userToShow ? posts.filter(post => post.userId === userToShow.id) : [];
   
-  const userEvents = currentUser ? events.filter(event => 
-    event.creatorId === currentUser.id || event.attendees.includes(currentUser.id)
+  const userEvents = userToShow ? events.filter(event => 
+    event.creatorId === userToShow.id || event.attendees.includes(userToShow.id)
   ) : [];
   
-  const userCreatedEvents = currentUser ? events.filter(event => 
-    event.creatorId === currentUser.id
+  const userCreatedEvents = userToShow ? events.filter(event => 
+    event.creatorId === userToShow.id
   ) : [];
   
-  const joinedEvents = currentUser ? events.filter(event => 
-    event.creatorId !== currentUser.id && event.attendees.includes(currentUser.id)
+  const joinedEvents = userToShow ? events.filter(event => 
+    event.creatorId !== userToShow.id && event.attendees.includes(userToShow.id)
   ) : [];
 
-  const userGroups = currentUser ? groups.filter(group => 
-    group.creatorId === currentUser.id || (group.memberIds && group.memberIds.includes(currentUser.id))
+  const userGroups = userToShow ? groups.filter(group => 
+    group.creatorId === userToShow.id || (group.memberIds && group.memberIds.includes(userToShow.id))
   ) : [];
   
-  const userCreatedGroups = currentUser ? groups.filter(group => 
-    group.creatorId === currentUser.id
+  const userCreatedGroups = userToShow ? groups.filter(group => 
+    group.creatorId === userToShow.id
   ) : [];
   
-  const joinedGroups = currentUser ? groups.filter(group => 
-    group.creatorId !== currentUser.id && group.memberIds && group.memberIds.includes(currentUser.id)
+  const joinedGroups = userToShow ? groups.filter(group => 
+    group.creatorId !== userToShow.id && group.memberIds && group.memberIds.includes(userToShow.id)
   ) : [];
 
-  const userServices = currentUser && currentUser.role === 'coach' ? 
-    services.filter(service => service.providerId === currentUser.id) : [];
+  const userServices = userToShow && userToShow.role === 'coach' ? 
+    services.filter(service => service.providerId === userToShow.id) : [];
 
+  // Rest of the state variables for the own profile only
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || '',
@@ -102,9 +210,12 @@ const Profile = () => {
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [cropImageType, setCropImageType] = useState<'profile' | 'cover'>('profile');
   const [cropAspectRatio, setCropAspectRatio] = useState(1);
+  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
+  const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
   
+  // Keep all the other functions for own profile functionality
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && isOwnProfile) {
       setProfileForm({
         name: currentUser.name || '',
         bio: currentUser.bio || '',
@@ -116,14 +227,14 @@ const Profile = () => {
         website: currentUser.socialLinks?.website || ''
       });
     }
-  }, [currentUser]);
+  }, [currentUser, isOwnProfile]);
   
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && isOwnProfile) {
       fetchProfileImages();
       fetchCoverImages();
     }
-  }, [currentUser]);
+  }, [currentUser, isOwnProfile]);
   
   const fetchProfileImages = async () => {
     if (!currentUser) return;
@@ -370,9 +481,9 @@ const Profile = () => {
   };
   
   const renderRoleContent = () => {
-    if (!currentUser) return null;
+    if (!userToShow) return null;
     
-    switch (currentUser.role) {
+    switch (userToShow.role) {
       case 'influencer':
         return (
           <div className="flex flex-wrap gap-2 mt-2">
@@ -444,8 +555,12 @@ const Profile = () => {
     { id: '6', name: 'Health Plus', profileImage: '', role: 'company', isFollowing: true }
   ];
 
-  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
-  const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
+  const handleFollowUser = () => {
+    toast({
+      title: "Feature coming soon",
+      description: "Following users will be available in a future update",
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -453,16 +568,18 @@ const Profile = () => {
         <div className="relative">
           <div 
             className="h-48 bg-gradient-to-r from-primary to-accent transition-all duration-500"
-            style={currentUser?.coverImage ? { backgroundImage: `url(${currentUser.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+            style={userToShow?.coverImage ? { backgroundImage: `url(${userToShow.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
           ></div>
-          <input
-            ref={coverImageInputRef}
-            type="file"
-            className="hidden"
-            accept="image/*"
-            onChange={uploadCoverImage}
-            disabled={uploading}
-          />
+          {isOwnProfile && (
+            <input
+              ref={coverImageInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*"
+              onChange={uploadCoverImage}
+              disabled={uploading}
+            />
+          )}
         </div>
         
         <div className="px-6 pb-6">
@@ -471,69 +588,83 @@ const Profile = () => {
               <div className="h-32 w-32 rounded-full border-4 border-white overflow-hidden shadow-md bg-white">
                 <Avatar className="h-full w-full">
                   <AvatarImage 
-                    src={currentUser?.profileImage} 
-                    alt={currentUser?.name || 'User'}
+                    src={userToShow?.profileImage} 
+                    alt={userToShow?.name || 'User'}
                     onError={() => console.log("Profile image failed to load")}
                   />
                   <AvatarFallback>
-                    {currentUser?.name?.substring(0, 2).toUpperCase() || 'U'}
+                    {userToShow?.name?.substring(0, 2).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
               </div>
-              <input
-                ref={profileImageInputRef}
-                type="file"
-                className="hidden"
-                accept="image/*"
-                onChange={uploadProfileImage}
-                disabled={uploading}
-              />
+              {isOwnProfile && (
+                <input
+                  ref={profileImageInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={uploadProfileImage}
+                  disabled={uploading}
+                />
+              )}
             </div>
             
             <div className="flex-1 pt-2 md:pt-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold">{currentUser?.name}</h1>
-                    {currentUser?.verified && (
+                    <h1 className="text-2xl font-bold">{userToShow?.name}</h1>
+                    {userToShow?.verified && (
                       <UserCheck className="h-5 w-5 text-success" />
                     )}
                   </div>
                   
-                  <p className="text-gray-500 capitalize">{currentUser?.role}</p>
+                  <p className="text-gray-500 capitalize">{userToShow?.role}</p>
                   
-                  {currentUser?.location && (
+                  {userToShow?.location && (
                     <div className="flex items-center gap-1 text-gray-500 mt-1">
                       <MapPin className="h-4 w-4" />
-                      <span>{currentUser.location}</span>
+                      <span>{userToShow.location}</span>
                     </div>
                   )}
                   
-                  {currentUser && renderRoleContent()}
+                  {userToShow && renderRoleContent()}
                 </div>
                 
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="gap-1"
-                    onClick={() => setIsEditDialogOpen(true)}
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span>Edit Profile</span>
-                  </Button>
+                  {isOwnProfile ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={() => setIsEditDialogOpen(true)}
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span>Edit Profile</span>
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="gap-1"
+                      onClick={handleFollowUser}
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      <span>Follow</span>
+                    </Button>
+                  )}
                 </div>
               </div>
               
-              {currentUser?.bio && (
-                <p className="mt-4 text-gray-700">{currentUser.bio}</p>
+              {userToShow?.bio && (
+                <p className="mt-4 text-gray-700">{userToShow.bio}</p>
               )}
               
-              {currentUser?.socialLinks && (
+              {userToShow?.socialLinks && (
                 <div className="flex gap-3 mt-4">
-                  {currentUser.socialLinks.instagram && (
+                  {userToShow.socialLinks.instagram && (
                     <a 
-                      href={`https://instagram.com/${currentUser.socialLinks.instagram.replace('@', '')}`}
+                      href={`https://instagram.com/${userToShow.socialLinks.instagram.replace('@', '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-600 hover:text-pink-600"
@@ -542,9 +673,9 @@ const Profile = () => {
                     </a>
                   )}
                   
-                  {currentUser.socialLinks.twitter && (
+                  {userToShow.socialLinks.twitter && (
                     <a 
-                      href={`https://twitter.com/${currentUser.socialLinks.twitter.replace('@', '')}`}
+                      href={`https://twitter.com/${userToShow.socialLinks.twitter.replace('@', '')}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-600 hover:text-blue-400"
@@ -553,9 +684,9 @@ const Profile = () => {
                     </a>
                   )}
                   
-                  {currentUser.socialLinks.website && (
+                  {userToShow.socialLinks.website && (
                     <a 
-                      href={`https://${currentUser.socialLinks.website}`}
+                      href={`https://${userToShow.socialLinks.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-600 hover:text-primary"
@@ -571,17 +702,17 @@ const Profile = () => {
           <div className="grid grid-cols-3 gap-4 mt-6 text-center">
             <div 
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              onClick={() => setIsFollowersDialogOpen(true)}
+              onClick={isOwnProfile ? () => setIsFollowersDialogOpen(true) : undefined}
             >
-              <div className="text-2xl font-bold">{currentUser?.followers || 0}</div>
+              <div className="text-2xl font-bold">{userToShow?.followers || 0}</div>
               <div className="text-gray-500 text-sm">Followers</div>
             </div>
             
             <div 
               className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              onClick={() => setIsFollowingDialogOpen(true)}
+              onClick={isOwnProfile ? () => setIsFollowingDialogOpen(true) : undefined}
             >
-              <div className="text-2xl font-bold">{(currentUser?.following?.length || 0)}</div>
+              <div className="text-2xl font-bold">{(userToShow?.following?.length || 0)}</div>
               <div className="text-gray-500 text-sm">Following</div>
             </div>
             
@@ -598,7 +729,7 @@ const Profile = () => {
           <TabsTrigger value="posts">Posts</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="groups">Groups</TabsTrigger>
-          {currentUser?.role === 'coach' && (
+          {userToShow?.role === 'coach' && (
             <TabsTrigger value="services">Services</TabsTrigger>
           )}
         </TabsList>
@@ -614,8 +745,8 @@ const Profile = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">You haven't created any posts yet.</p>
-              {currentUser?.role !== 'user' && (
+              <p className="text-gray-500 mb-4">{isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.</p>
+              {isOwnProfile && currentUser?.role !== 'user' && (
                 <Link to="/create/post">
                   <Button>Create Your First Post</Button>
                 </Link>
@@ -635,7 +766,9 @@ const Profile = () => {
             <div>
               {userCreatedEvents.length > 0 && (
                 <>
-                  <h3 className="text-lg font-medium mb-4">Events You're Hosting</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    {isOwnProfile ? "Events You're Hosting" : `Events ${userToShow?.name} is Hosting`}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {userCreatedEvents.map(event => (
                       <EventCard key={event.id} event={event} />
@@ -646,7 +779,9 @@ const Profile = () => {
               
               {joinedEvents.length > 0 && (
                 <>
-                  <h3 className="text-lg font-medium mb-4">Events You're Attending</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    {isOwnProfile ? "Events You're Attending" : `Events ${userToShow?.name} is Attending`}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {joinedEvents.map(event => (
                       <EventCard key={event.id} event={event} />
@@ -657,7 +792,9 @@ const Profile = () => {
               
               {userCreatedEvents.length === 0 && joinedEvents.length === 0 && (
                 <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">You haven't joined any events yet.</p>
+                  <p className="text-gray-500 mb-4">
+                    {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any events yet.
+                  </p>
                   <Link to="/events">
                     <Button>Explore Events</Button>
                   </Link>
@@ -666,12 +803,14 @@ const Profile = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">You haven't joined any events yet.</p>
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any events yet.
+              </p>
               <div className="flex justify-center gap-4">
                 <Link to="/events">
                   <Button variant="outline">Explore Events</Button>
                 </Link>
-                {currentUser && ['influencer', 'coach', 'company'].includes(currentUser.role) && (
+                {isOwnProfile && currentUser && ['influencer', 'coach', 'company'].includes(currentUser.role) && (
                   <Link to="/create-event">
                     <Button>Create Your First Event</Button>
                   </Link>
@@ -692,7 +831,9 @@ const Profile = () => {
             <div>
               {userCreatedGroups.length > 0 && (
                 <>
-                  <h3 className="text-lg font-medium mb-4">Groups You Manage</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    {isOwnProfile ? "Groups You Manage" : `Groups ${userToShow?.name} Manages`}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
                     {userCreatedGroups.map(group => (
                       <GroupCard key={group.id} group={group} />
@@ -703,7 +844,9 @@ const Profile = () => {
               
               {joinedGroups.length > 0 && (
                 <>
-                  <h3 className="text-lg font-medium mb-4">Groups You've Joined</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    {isOwnProfile ? "Groups You've Joined" : `Groups ${userToShow?.name} Has Joined`}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {joinedGroups.map(group => (
                       <GroupCard key={group.id} group={group} />
@@ -714,7 +857,9 @@ const Profile = () => {
               
               {userCreatedGroups.length === 0 && joinedGroups.length === 0 && (
                 <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">You haven't joined any groups yet.</p>
+                  <p className="text-gray-500 mb-4">
+                    {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
+                  </p>
                   <Link to="/groups">
                     <Button>Explore Groups</Button>
                   </Link>
@@ -723,12 +868,14 @@ const Profile = () => {
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">You haven't joined any groups yet.</p>
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
+              </p>
               <div className="flex justify-center gap-4">
                 <Link to="/groups">
                   <Button variant="outline">Explore Groups</Button>
                 </Link>
-                {currentUser && ['influencer', 'company'].includes(currentUser.role) && (
+                {isOwnProfile && currentUser && ['influencer', 'company'].includes(currentUser.role) && (
                   <Link to="/create-group">
                     <Button>Create Your First Group</Button>
                   </Link>
@@ -738,7 +885,7 @@ const Profile = () => {
           )}
         </TabsContent>
         
-        {currentUser?.role === 'coach' && (
+        {userToShow?.role === 'coach' && (
           <TabsContent value="services" className="mt-6">
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -754,274 +901,283 @@ const Profile = () => {
               </div>
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">You haven't created any services yet.</p>
-                <Link to="/create/service">
-                  <Button>Create Your First Service</Button>
-                </Link>
+                <p className="text-gray-500 mb-4">
+                  {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any services yet.
+                </p>
+                {isOwnProfile && (
+                  <Link to="/create/service">
+                    <Button>Create Your First Service</Button>
+                  </Link>
+                )}
               </div>
             )}
           </TabsContent>
         )}
       </Tabs>
       
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription>
-              Update your profile information below.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label htmlFor="name" className="text-sm font-medium">Name</label>
-              <Input
-                id="name"
-                name="name"
-                value={profileForm.name}
-                onChange={handleProfileFormChange}
-                placeholder="Your name"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="bio" className="text-sm font-medium">Bio</label>
-              <Textarea
-                id="bio"
-                name="bio"
-                value={profileForm.bio}
-                onChange={handleProfileFormChange}
-                placeholder="Tell us about yourself"
-                rows={3}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="location" className="text-sm font-medium">Location</label>
-              <Input
-                id="location"
-                name="location"
-                value={profileForm.location}
-                onChange={handleProfileFormChange}
-                placeholder="Your location"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="profileImage" className="text-sm font-medium flex justify-between">
-                <span>Profile Image</span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 gap-1"
-                  onClick={() => profileImageInputRef.current?.click()}
-                >
-                  <Camera className="h-4 w-4" />
-                  <span>Choose Image</span>
-                </Button>
-              </label>
-              {profileForm.profileImage && (
-                <div className="mt-2 flex items-center">
-                  <img 
-                    src={profileForm.profileImage} 
-                    alt="Profile preview" 
-                    className="h-16 w-16 rounded-full object-cover border"
-                  />
-                  <div className="ml-4 text-sm text-gray-500">
-                    <p>Current selection</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="coverImage" className="text-sm font-medium flex justify-between">
-                <span>Cover Image</span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 gap-1"
-                  onClick={() => coverImageInputRef.current?.click()}
-                >
-                  <ImageIcon className="h-4 w-4" />
-                  <span>Change Cover</span>
-                </Button>
-              </label>
-              {profileForm.coverImage && (
-                <div className="mt-2">
-                  <img 
-                    src={profileForm.coverImage} 
-                    alt="Cover preview" 
-                    className="h-24 w-full object-cover rounded-md border"
+      {/* Keep all the dialogs, but only show them when isOwnProfile is true */}
+      {isOwnProfile && (
+        <>
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Edit Profile</DialogTitle>
+                <DialogDescription>
+                  Update your profile information below.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <label htmlFor="name" className="text-sm font-medium">Name</label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={profileForm.name}
+                    onChange={handleProfileFormChange}
+                    placeholder="Your name"
                   />
                 </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="bio" className="text-sm font-medium">Bio</label>
+                  <Textarea
+                    id="bio"
+                    name="bio"
+                    value={profileForm.bio}
+                    onChange={handleProfileFormChange}
+                    placeholder="Tell us about yourself"
+                    rows={3}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="location" className="text-sm font-medium">Location</label>
+                  <Input
+                    id="location"
+                    name="location"
+                    value={profileForm.location}
+                    onChange={handleProfileFormChange}
+                    placeholder="Your location"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="profileImage" className="text-sm font-medium flex justify-between">
+                    <span>Profile Image</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 gap-1"
+                      onClick={() => profileImageInputRef.current?.click()}
+                    >
+                      <Camera className="h-4 w-4" />
+                      <span>Choose Image</span>
+                    </Button>
+                  </label>
+                  {profileForm.profileImage && (
+                    <div className="mt-2 flex items-center">
+                      <img 
+                        src={profileForm.profileImage} 
+                        alt="Profile preview" 
+                        className="h-16 w-16 rounded-full object-cover border"
+                      />
+                      <div className="ml-4 text-sm text-gray-500">
+                        <p>Current selection</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="coverImage" className="text-sm font-medium flex justify-between">
+                    <span>Cover Image</span>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-8 gap-1"
+                      onClick={() => coverImageInputRef.current?.click()}
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                      <span>Change Cover</span>
+                    </Button>
+                  </label>
+                  {profileForm.coverImage && (
+                    <div className="mt-2">
+                      <img 
+                        src={profileForm.coverImage} 
+                        alt="Cover preview" 
+                        className="h-24 w-full object-cover rounded-md border"
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                <Separator className="my-4" />
+                
+                <h4 className="text-sm font-medium mb-2">Social Links</h4>
+                
+                <div className="space-y-2">
+                  <label htmlFor="instagram" className="text-sm font-medium flex items-center gap-2">
+                    <Instagram className="h-4 w-4" />
+                    <span>Instagram</span>
+                  </label>
+                  <Input
+                    id="instagram"
+                    name="instagram"
+                    value={profileForm.instagram}
+                    onChange={handleProfileFormChange}
+                    placeholder="@username"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="twitter" className="text-sm font-medium flex items-center gap-2">
+                    <Twitter className="h-4 w-4" />
+                    <span>Twitter</span>
+                  </label>
+                  <Input
+                    id="twitter"
+                    name="twitter"
+                    value={profileForm.twitter}
+                    onChange={handleProfileFormChange}
+                    placeholder="@username"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <label htmlFor="website" className="text-sm font-medium flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    <span>Website</span>
+                  </label>
+                  <Input
+                    id="website"
+                    name="website"
+                    value={profileForm.website}
+                    onChange={handleProfileFormChange}
+                    placeholder="yourwebsite.com"
+                  />
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={handleProfileUpdate}>
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Followers</DialogTitle>
+                <DialogDescription>
+                  People who follow you
+                </DialogDescription>
+              </DialogHeader>
+              
+              <ScrollArea className="max-h-[60vh]">
+                <div className="space-y-1 py-2">
+                  {renderFollowerItems(mockFollowers, () => setIsFollowersDialogOpen(false))}
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <DialogHeader>
+                <DialogTitle>Following</DialogTitle>
+                <DialogDescription>
+                  People you follow
+                </DialogDescription>
+              </DialogHeader>
+              
+              <ScrollArea className="max-h-[60vh]">
+                <div className="space-y-1 py-2">
+                  {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isCropDialogOpen} onOpenChange={(open) => {
+            if (!open && cropImageSrc) {
+              URL.revokeObjectURL(cropImageSrc);
+            }
+            setIsCropDialogOpen(open);
+          }}>
+            <DialogContent className="sm:max-w-[550px]">
+              <DialogHeader>
+                <DialogTitle>Crop {cropImageType === 'profile' ? 'Profile' : 'Cover'} Image</DialogTitle>
+                <DialogDescription>
+                  Drag, zoom, and position your image for the perfect fit.
+                </DialogDescription>
+              </DialogHeader>
+              
+              {cropImageSrc && (
+                <ImageCropper
+                  imageSrc={cropImageSrc}
+                  aspectRatio={cropAspectRatio}
+                  onCropComplete={handleCropComplete}
+                  onCancel={() => {
+                    if (cropImageSrc) {
+                      URL.revokeObjectURL(cropImageSrc);
+                    }
+                    setIsCropDialogOpen(false);
+                    setCropImageSrc(null);
+                  }}
+                />
               )}
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <h4 className="text-sm font-medium mb-2">Social Links</h4>
-            
-            <div className="space-y-2">
-              <label htmlFor="instagram" className="text-sm font-medium flex items-center gap-2">
-                <Instagram className="h-4 w-4" />
-                <span>Instagram</span>
-              </label>
-              <Input
-                id="instagram"
-                name="instagram"
-                value={profileForm.instagram}
-                onChange={handleProfileFormChange}
-                placeholder="@username"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="twitter" className="text-sm font-medium flex items-center gap-2">
-                <Twitter className="h-4 w-4" />
-                <span>Twitter</span>
-              </label>
-              <Input
-                id="twitter"
-                name="twitter"
-                value={profileForm.twitter}
-                onChange={handleProfileFormChange}
-                placeholder="@username"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="website" className="text-sm font-medium flex items-center gap-2">
-                <Globe className="h-4 w-4" />
-                <span>Website</span>
-              </label>
-              <Input
-                id="website"
-                name="website"
-                value={profileForm.website}
-                onChange={handleProfileFormChange}
-                placeholder="yourwebsite.com"
-              />
-            </div>
-          </div>
+            </DialogContent>
+          </Dialog>
           
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={handleProfileUpdate}>
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Followers</DialogTitle>
-            <DialogDescription>
-              People who follow you
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ScrollArea className="max-h-[60vh]">
-            <div className="space-y-1 py-2">
-              {renderFollowerItems(mockFollowers, () => setIsFollowersDialogOpen(false))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Following</DialogTitle>
-            <DialogDescription>
-              People you follow
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ScrollArea className="max-h-[60vh]">
-            <div className="space-y-1 py-2">
-              {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
-            </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isCropDialogOpen} onOpenChange={(open) => {
-        if (!open && cropImageSrc) {
-          URL.revokeObjectURL(cropImageSrc);
-        }
-        setIsCropDialogOpen(open);
-      }}>
-        <DialogContent className="sm:max-w-[550px]">
-          <DialogHeader>
-            <DialogTitle>Crop {cropImageType === 'profile' ? 'Profile' : 'Cover'} Image</DialogTitle>
-            <DialogDescription>
-              Drag, zoom, and position your image for the perfect fit.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {cropImageSrc && (
-            <ImageCropper
-              imageSrc={cropImageSrc}
-              aspectRatio={cropAspectRatio}
-              onCropComplete={handleCropComplete}
-              onCancel={() => {
-                if (cropImageSrc) {
-                  URL.revokeObjectURL(cropImageSrc);
-                }
-                setIsCropDialogOpen(false);
-                setCropImageSrc(null);
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
-        <DialogContent className="sm:max-w-[680px]">
-          <DialogHeader>
-            <DialogTitle>Select from Your Gallery</DialogTitle>
-            <DialogDescription>
-              Choose an existing image or upload a new one.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4">
-            {galleryType === 'profile' ? (
-              <ImageGallery
-                images={profileImages}
-                onSelectImage={selectProfileImage}
-                onUploadImage={uploadProfileImage}
-                uploading={uploading}
-                emptyMessage="You haven't uploaded any profile images yet."
-                aspectRatio="square"
-                selectedImage={profileForm.profileImage}
-              />
-            ) : (
-              <ImageGallery
-                images={coverImages}
-                onSelectImage={selectCoverImage}
-                onUploadImage={uploadCoverImage}
-                uploading={uploading}
-                emptyMessage="You haven't uploaded any cover images yet."
-                aspectRatio="landscape"
-                selectedImage={profileForm.coverImage}
-              />
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button type="button" onClick={() => setIsGalleryDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
+            <DialogContent className="sm:max-w-[680px]">
+              <DialogHeader>
+                <DialogTitle>Select from Your Gallery</DialogTitle>
+                <DialogDescription>
+                  Choose an existing image or upload a new one.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="py-4">
+                {galleryType === 'profile' ? (
+                  <ImageGallery
+                    images={profileImages}
+                    onSelectImage={selectProfileImage}
+                    onUploadImage={uploadProfileImage}
+                    uploading={uploading}
+                    emptyMessage="You haven't uploaded any profile images yet."
+                    aspectRatio="square"
+                    selectedImage={profileForm.profileImage}
+                  />
+                ) : (
+                  <ImageGallery
+                    images={coverImages}
+                    onSelectImage={selectCoverImage}
+                    onUploadImage={uploadCoverImage}
+                    uploading={uploading}
+                    emptyMessage="You haven't uploaded any cover images yet."
+                    aspectRatio="landscape"
+                    selectedImage={profileForm.coverImage}
+                  />
+                )}
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" onClick={() => setIsGalleryDialogOpen(false)}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </>
+      )}
     </div>
   );
 };
