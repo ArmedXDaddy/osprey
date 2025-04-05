@@ -30,58 +30,79 @@ const ServiceDetail = () => {
   const [hasBooked, setHasBooked] = useState(false);
   const [userBooking, setUserBooking] = useState<Booking | null>(null);
 
-  useEffect(() => {
-    const fetchServiceDetails = async () => {
-      if (!id) return;
+  const fetchServiceAndBookingDetails = async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      console.log("Fetching service with ID:", id);
+      const serviceData = await getServiceById(id);
       
-      try {
-        setLoading(true);
-        console.log("Fetching service with ID:", id);
-        const serviceData = await getServiceById(id);
-        
-        if (!serviceData) {
-          console.error("Service not found for ID:", id);
-          toast({
-            variant: "destructive",
-            title: "Service not found",
-            description: "The requested service could not be found."
-          });
-          navigate('/services');
-          return;
-        }
-        
-        console.log("Service data retrieved:", serviceData);
-        setService(serviceData);
-        
-        // Check if user has already booked this service
-        if (currentUser) {
-          try {
-            const booking = await getUserBookingForService(serviceData.id, currentUser.id);
-            if (booking) {
-              setUserBooking(booking);
-              setHasBooked(true);
-            } else {
-              setHasBooked(false);
-            }
-          } catch (error) {
-            console.error("Error checking user booking:", error);
-          }
-        }
-      } catch (error: any) {
-        console.error("Error loading service:", error);
+      if (!serviceData) {
+        console.error("Service not found for ID:", id);
         toast({
           variant: "destructive",
-          title: "Error loading service",
-          description: error.message || "There was an error loading this service."
+          title: "Service not found",
+          description: "The requested service could not be found."
         });
         navigate('/services');
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
+      
+      console.log("Service data retrieved:", serviceData);
+      setService(serviceData);
+      
+      if (currentUser) {
+        try {
+          const booking = await getUserBookingForService(serviceData.id, currentUser.id);
+          if (booking) {
+            console.log("User has an existing booking:", booking);
+            setUserBooking(booking);
+            setHasBooked(true);
+            
+            localStorage.setItem(`booking_${serviceData.id}_${currentUser.id}`, JSON.stringify({
+              hasBooked: true,
+              bookingId: booking.id,
+              status: booking.status
+            }));
+          } else {
+            setHasBooked(false);
+            localStorage.removeItem(`booking_${serviceData.id}_${currentUser.id}`);
+          }
+        } catch (error) {
+          console.error("Error checking user booking:", error);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error loading service:", error);
+      toast({
+        variant: "destructive",
+        title: "Error loading service",
+        description: error.message || "There was an error loading this service."
+      });
+      navigate('/services');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchServiceAndBookingDetails();
     
-    fetchServiceDetails();
-  }, [id, currentUser, getServiceById, getUserBookings, getUserBookingForService, navigate, toast]);
+    if (id && currentUser) {
+      const cachedBooking = localStorage.getItem(`booking_${id}_${currentUser.id}`);
+      if (cachedBooking) {
+        try {
+          const bookingData = JSON.parse(cachedBooking);
+          if (bookingData.hasBooked) {
+            setHasBooked(true);
+          }
+        } catch (e) {
+          console.error("Error parsing cached booking data", e);
+        }
+      }
+    }
+  }, [id, currentUser]);
 
   const handleBook = () => {
     if (!currentUser) {
@@ -100,21 +121,7 @@ const ServiceDetail = () => {
   const handleBookingSuccess = () => {
     setHasBooked(true);
     
-    // Refresh booking data
-    const refreshBookingData = async () => {
-      if (currentUser && id && service) {
-        try {
-          const booking = await getUserBookingForService(service.id, currentUser.id);
-          if (booking) {
-            setUserBooking(booking);
-          }
-        } catch (error) {
-          console.error("Error refreshing booking data:", error);
-        }
-      }
-    };
-    
-    refreshBookingData();
+    fetchServiceAndBookingDetails();
   };
 
   const isProvider = currentUser && service && currentUser.id === service.providerId;
