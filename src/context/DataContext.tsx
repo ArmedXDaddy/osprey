@@ -1,1819 +1,664 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { Post, Event, Group, Service, Message, JoinRequest, GroupPrivacy, EventPrivacy, UserRole, Session, SessionEnrollment, SessionType, SessionStatus, PaymentStatus, ServiceBooking } from '@/types';
-import { useAuth } from './AuthContext';
-import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import crypto from 'crypto';
+import React, { createContext, useState, useContext } from 'react';
+import { Service, SessionEnrollment, Session, User, Post, Event, Group, JoinRequest, Message, ServiceBooking } from '@/types';
+import { generateId } from '@/utils';
 
-interface DataContextType {
+interface DataContextProps {
+  services: Service[];
+  sessions: Session[];
+  users: User[];
   posts: Post[];
   events: Event[];
   groups: Group[];
-  services: Service[];
-  messages: Message[];
   joinRequests: JoinRequest[];
-  sessions: Session[];
-  sessionEnrollments: SessionEnrollment[];
+  messages: Message[];
   serviceBookings: ServiceBooking[];
-  loading: boolean;
-  createPost: (post: Omit<Post, 'id' | 'createdAt'>) => Promise<Post>;
-  createEvent: (event: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
-  createGroup: (group: Omit<Group, 'id' | 'createdAt' | 'members' | 'pendingRequests'>) => Promise<Group>;
-  createService: (service: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
-  createSession: (session: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
-  updateSession: (sessionId: string, sessionData: Partial<Session>) => Promise<Session>;
-  enrollInSession: (sessionId: string, isPaid?: boolean) => Promise<SessionEnrollment>;
-  cancelEnrollment: (enrollmentId: string) => Promise<void>;
-  updateEnrollmentStatus: (enrollmentId: string, status: SessionStatus) => Promise<void>;
-  getUserSessions: (userId: string) => Session[];
-  getCoachSessions: (coachId: string) => Session[];
-  getSessionEnrollments: (sessionId: string) => SessionEnrollment[];
-  getUserEnrollments: (userId: string) => SessionEnrollment[];
-  likePost: (postId: string) => Promise<void>;
-  sendMessage: (message: Omit<Message, 'id' | 'createdAt'>) => Promise<Message>;
-  getGroupMessages: (groupId: string) => Message[];
-  joinGroup: (groupId: string) => Promise<boolean>;
-  leaveGroup: (groupId: string) => Promise<void>;
-  requestToJoinGroup: (groupId: string) => Promise<void>;
-  handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
-  getGroupRequests: (groupId: string) => JoinRequest[];
-  joinEvent: (eventId: string) => Promise<boolean>;
+  sessionEnrollments: SessionEnrollment[];
+  bookService: (serviceId: string, isPaid?: boolean) => Promise<ServiceBooking | undefined>;
+  cancelServiceBooking: (enrollmentId: string) => Promise<void>;
+  enrollSession: (sessionId: string) => Promise<SessionEnrollment | undefined>;
+  cancelSessionEnrollment: (enrollmentId: string) => Promise<void>;
+  createPost: (content: string, mediaUrl?: string, mediaType?: string) => Promise<Post | undefined>;
+  addComment: (postId: string, content: string) => Promise<Post | undefined>;
+  likePost: (postId: string) => Promise<Post | undefined>;
+  createEvent: (eventData: Omit<Event, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'creatorImage' | 'attendees' | 'currentAttendees'>) => Promise<Event | undefined>;
+  joinEvent: (eventId: string) => Promise<JoinRequest | undefined>;
   leaveEvent: (eventId: string) => Promise<void>;
-  requestToJoinEvent: (eventId: string) => Promise<void>;
-  handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
-  getEventRequests: (eventId: string) => JoinRequest[];
-  removeGroupMember: (groupId: string, userId: string) => Promise<void>;
-  updateGroupDetails: (groupId: string, groupData: Partial<Group>) => Promise<void>;
-  bookService: (serviceId: string, isPaid?: boolean) => Promise<ServiceBooking>;
-  cancelServiceBooking: (bookingId: string) => Promise<void>;
+  createGroup: (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole'>) => Promise<Group | undefined>;
+  joinGroup: (groupId: string) => Promise<JoinRequest | undefined>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  sendMessage: (groupId: string, content: string, mediaUrl?: string, mediaType?: string) => Promise<Message | undefined>;
 }
 
-const MOCK_POSTS: Post[] = [
-  {
-    id: 'p1',
-    content: 'Just finished my morning HIIT session! Who else loves to start their day with a high-intensity workout? 💪 #morningworkout #fitnessmotivation',
-    authorId: '2',
-    authorName: 'Sophia Williams',
-    authorRole: 'influencer',
-    authorImage: 'https://randomuser.me/api/portraits/women/68.jpg',
-    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
-    likes: 342,
-    comments: 45,
-    createdAt: new Date('2023-09-18T08:30:00'),
-    // For backward compatibility
-    userId: '2',
-    userName: 'Sophia Williams',
-    userRole: 'influencer',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg'
-  },
-  {
-    id: 'p2',
-    content: "New strength program dropping next week! Perfect for beginners wanting to build a solid foundation. Who's in? 📝 #strengthtraining #womenlifting",
-    authorId: '3',
-    authorName: 'Alexandra Chen',
-    authorRole: 'coach',
-    authorImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    likes: 128,
-    comments: 23,
-    createdAt: new Date('2023-09-17T14:45:00'),
-    // For backward compatibility
-    userId: '3',
-    userName: 'Alexandra Chen',
-    userRole: 'coach',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg'
-  },
-  {
-    id: 'p3',
-    content: 'Our new performance leggings are finally here! Designed with sweat-wicking technology and a high-rise waistband for maximum comfort during your toughest workouts.',
-    authorId: '4',
-    authorName: 'FitTech Apparel',
-    authorRole: 'company',
-    authorImage: 'https://via.placeholder.com/150?text=FT',
-    image: 'https://images.unsplash.com/photo-1506292926-9e0b21854fd1?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=826&q=80',
-    likes: 215,
-    comments: 31,
-    createdAt: new Date('2023-09-16T11:20:00'),
-    // For backward compatibility
-    userId: '4',
-    userName: 'FitTech Apparel',
-    userRole: 'company',
-    userProfileImage: 'https://via.placeholder.com/150?text=FT'
-  }
-];
+const DataContext = createContext<DataContextProps | undefined>(undefined);
 
-const MOCK_EVENTS: Event[] = [
+// Add missing properties to mockServices
+const mockServices: Service[] = [
   {
-    id: 'e1',
-    title: 'Summer Bootcamp Challenge',
-    description: 'Join us for a 4-week intensive bootcamp designed to push your limits and transform your fitness! All levels welcome.',
-    creatorId: '3',
-    creatorName: 'Alexandra Chen',
-    creatorRole: 'coach',
-    location: 'Millennium Park, Chicago',
-    isOnline: false,
-    startDate: new Date('2023-10-02T09:00:00'),
-    date: new Date('2023-10-02T09:00:00'),
-    image: 'https://images.unsplash.com/photo-1571902943202-507ec2618e8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=775&q=80',
-    attendees: ['3', '4', '5'],
-    currentAttendees: 3,
-    privacy: 'public',
-    price: 0,
-    createdAt: new Date('2023-08-15')
-  },
-  {
-    id: 'e2',
-    title: 'Yoga & Mindfulness Retreat',
-    description: 'A weekend escape to restore balance to your body and mind. Includes yoga sessions, meditation, and healthy meals.',
-    creatorId: '2',
-    creatorName: 'Sophia Williams',
-    creatorRole: 'influencer',
-    location: 'Serenity Retreat Center, Malibu',
-    isOnline: false,
-    startDate: new Date('2023-11-10T16:00:00'),
-    date: new Date('2023-11-10T16:00:00'),
-    image: 'https://images.unsplash.com/photo-1588286840104-8957b019727f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=870&q=80',
-    attendees: ['1', '2', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28'],
-    currentAttendees: 28,
-    privacy: 'private',
-    price: 0,
-    pendingRequests: 3,
-    createdAt: new Date('2023-09-01')
-  },
-  {
-    id: 'e3',
-    title: 'FitTech Launch Party',
-    description: 'Be the first to experience our new collection of performance wear! Includes DJ, healthy snacks, and exclusive discounts.',
-    creatorId: '4',
-    creatorName: 'FitTech Apparel',
-    creatorRole: 'company',
-    location: 'FitTech Flagship Store, NYC',
-    isOnline: false,
-    startDate: new Date('2023-10-15T18:00:00'),
-    date: new Date('2023-10-15T18:00:00'),
-    image: 'https://images.unsplash.com/photo-1543165796-35a3418c27df?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80',
-    attendees: Array.from({ length: 120 }, (_, i) => `attendee-${i + 1}`),
-    currentAttendees: 120,
-    privacy: 'paid',
-    price: 49.99,
-    createdAt: new Date('2023-09-10')
-  }
-];
-
-const MOCK_SERVICES: Service[] = [
-  {
-    id: 's1',
-    title: '1:1 Strength Coaching',
-    description: 'Personalized strength training sessions tailored to your goals and fitness level.',
-    providerId: '3',
-    providerName: 'Alexandra Chen',
-    price: 75,
-    duration: '60 min',
+    id: '1',
+    title: 'Personal Coaching Session',
+    description: 'One-on-one coaching session tailored to your needs',
+    providerId: '1',
+    providerName: 'John Coach',
+    price: 50,
+    duration: '60 minutes',
     available: true,
     sessionType: 'one_on_one',
     isOnline: true,
     isFree: false,
-    createdAt: new Date('2023-03-15')
+    location: 'Online',  // Add missing location property
+    meetingUrl: 'https://zoom.us/j/123456789',  // Add missing meetingUrl property
+    createdAt: new Date(),
   },
   {
-    id: 's2',
-    title: 'Nutrition Consultation',
-    description: 'Comprehensive assessment of your current diet with personalized recommendations for your fitness goals.',
-    providerId: '3',
-    providerName: 'Alexandra Chen',
-    price: 100,
-    duration: '90 min',
-    available: true,
-    sessionType: 'one_on_one',
-    isOnline: true,
-    isFree: false,
-    createdAt: new Date('2023-05-20')
-  },
-  {
-    id: 's3',
-    title: 'Online Coaching (Monthly)',
-    description: 'Full month of programming, check-ins, and support to help you reach your fitness goals.',
+    id: '2',
+    title: 'Group Fitness Class',
+    description: 'High-intensity fitness class for all levels',
     providerId: '2',
-    providerName: 'Sophia Williams',
-    price: 250,
-    duration: '30 days',
+    providerName: 'Jane Fitness',
+    price: 20,
+    duration: '45 minutes',
+    available: true,
+    sessionType: 'group',
+    isOnline: false,
+    isFree: false,
+    location: 'Local Gym',  // Add missing location property
+    meetingUrl: 'https://zoom.us/j/987654321',  // Add missing meetingUrl property
+    createdAt: new Date(),
+  },
+  {
+    id: '3',
+    title: 'Free Meditation Session',
+    description: 'Relax and unwind with our free meditation session',
+    providerId: '3',
+    providerName: 'Mike Meditation',
+    price: 0,
+    duration: '30 minutes',
     available: true,
     sessionType: 'one_on_one',
     isOnline: true,
-    isFree: false,
-    createdAt: new Date('2023-01-10')
-  }
+    isFree: true,
+    location: 'Online',  // Add missing location property
+    meetingUrl: 'https://zoom.us/j/555555555',  // Add missing meetingUrl property
+    createdAt: new Date(),
+  },
 ];
 
-const MOCK_MESSAGES: Message[] = [
+const mockSessions: Session[] = [
   {
-    id: 'm1',
-    groupId: 'g2',
-    userId: '2',
-    userName: 'Sophia Williams',
-    userRole: 'influencer',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
-    content: "Welcome everyone to our Mindful Movers group! I'm excited to share this journey with all of you.",
-    createdAt: new Date('2023-04-22T14:30:00')
-  },
-  {
-    id: 'm2',
-    groupId: 'g2',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userRole: 'user',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    content: "Thanks for creating this group! I've been practicing yoga for years but want to explore pilates more.",
-    createdAt: new Date('2023-04-22T15:45:00')
-  },
-  {
-    id: 'm3',
-    groupId: 'g2',
-    userId: '2',
-    userName: 'Sophia Williams',
-    userRole: 'influencer',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/68.jpg',
-    content: "That's great Emma! I'll be sharing some beginner pilates sequences later this week. Stay tuned!",
-    createdAt: new Date('2023-04-22T16:20:00')
-  },
-  {
-    id: 'm4',
-    groupId: 'g1',
-    userId: '3',
-    userName: 'Alexandra Chen',
-    userRole: 'coach',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/33.jpg',
-    content: "Hey Strength Queens! Who's hitting the weights today? Share your workouts below!",
-    createdAt: new Date('2023-02-10T09:15:00')
-  }
-];
-
-const MOCK_JOIN_REQUESTS: JoinRequest[] = [
-  {
-    id: 'jr1',
-    groupId: 'g3',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    status: 'pending',
-    createdAt: new Date('2023-08-15T10:30:00')
-  },
-  {
-    id: 'jr2',
-    groupId: 'g3',
-    userId: '4',
-    userName: 'FitTech Apparel',
-    userProfileImage: 'https://via.placeholder.com/150?text=FT',
-    status: 'pending',
-    createdAt: new Date('2023-08-16T14:45:00')
-  },
-  {
-    id: 'jr3',
-    eventId: 'e2',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    status: 'pending',
-    createdAt: new Date('2023-09-05T09:15:00')
-  },
-  {
-    id: 'jr4',
-    eventId: 'e2',
-    userId: '4',
-    userName: 'FitTech Apparel',
-    userProfileImage: 'https://via.placeholder.com/150?text=FT',
-    status: 'pending',
-    createdAt: new Date('2023-09-07T11:30:00')
-  }
-];
-
-const MOCK_SESSIONS: Session[] = [
-  {
-    id: 'sess1',
-    title: 'Strength Training Fundamentals',
-    description: 'Learn proper form and techniques for key strength exercises.',
-    coachId: '3',
-    coachName: 'Alexandra Chen',
-    sessionType: 'group',
-    capacity: 10,
-    price: 30,
-    duration: '60 min',
-    location: 'Fitness Studio, Downtown',
-    isOnline: false,
-    isActive: true,
-    createdAt: new Date('2023-06-10'),
-    updatedAt: new Date('2023-06-10')
-  },
-  {
-    id: 'sess2',
-    title: 'Personal Training Session',
-    description: 'One-on-one training tailored to your specific fitness goals.',
-    coachId: '3',
-    coachName: 'Alexandra Chen',
-    sessionType: 'one_on_one',
-    price: 75,
-    duration: '45 min',
-    isOnline: false,
-    location: 'Fitness Studio, Downtown',
-    isActive: true,
-    createdAt: new Date('2023-07-15'),
-    updatedAt: new Date('2023-07-15')
-  },
-  {
-    id: 'sess3',
-    title: 'Virtual HIIT Workout',
-    description: 'High-intensity interval training session conducted via Zoom.',
-    coachId: '2',
-    coachName: 'Sophia Williams',
-    sessionType: 'group',
-    capacity: 20,
+    id: '1',
+    title: 'Yoga for Beginners',
+    description: 'Learn the basics of yoga in this introductory session',
     price: 15,
-    duration: '30 min',
-    isOnline: true,
-    meetingUrl: 'https://zoom.us/j/example',
+    duration: '60 minutes',
+    coachId: '2',
+    coachName: 'Jane Fitness',
     isActive: true,
-    createdAt: new Date('2023-05-22'),
-    updatedAt: new Date('2023-05-22')
-  }
-];
-
-const MOCK_SESSION_ENROLLMENTS: SessionEnrollment[] = [
-  {
-    id: 'enroll1',
-    sessionId: 'sess1',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userEmail: 'emma@example.com',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    status: 'approved',
-    paymentStatus: 'paid',
-    createdAt: new Date('2023-08-20')
+    capacity: 10,
+    startTime: new Date(),
+    location: 'Yoga Studio',
+    isOnline: false,
+    meetingUrl: 'https://zoom.us/j/111111111',
+    sessionType: 'group',
+    createdAt: new Date(),
   },
   {
-    id: 'enroll2',
-    sessionId: 'sess2',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userEmail: 'emma@example.com',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    createdAt: new Date('2023-09-01')
-  }
+    id: '2',
+    title: 'Advanced Pilates',
+    description: 'Challenge yourself with our advanced Pilates session',
+    price: 25,
+    duration: '75 minutes',
+    coachId: '2',
+    coachName: 'Jane Fitness',
+    isActive: true,
+    capacity: 5,
+    startTime: new Date(),
+    location: 'Pilates Studio',
+    isOnline: false,
+    meetingUrl: 'https://zoom.us/j/222222222',
+    sessionType: 'group',
+    createdAt: new Date(),
+  },
 ];
 
-const MOCK_SERVICE_BOOKINGS: ServiceBooking[] = [
+const mockUsers: User[] = [
   {
-    id: 'booking1',
-    serviceId: 's1',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userEmail: 'emma@example.com',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    status: 'approved',
-    paymentStatus: 'paid',
-    amount: 75,
-    createdAt: new Date('2023-08-20')
+    id: '1',
+    name: 'John Coach',
+    email: 'john@example.com',
+    role: 'coach',
   },
   {
-    id: 'booking2',
-    serviceId: 's2',
-    userId: '1',
-    userName: 'Emma Johnson',
-    userEmail: 'emma@example.com',
-    userProfileImage: 'https://randomuser.me/api/portraits/women/44.jpg',
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    amount: 100,
-    createdAt: new Date('2023-09-01')
-  }
+    id: '2',
+    name: 'Jane Fitness',
+    email: 'jane@example.com',
+    role: 'coach',
+  },
+  {
+    id: '3',
+    name: 'Mike Meditation',
+    email: 'mike@example.com',
+    role: 'coach',
+  },
+  {
+    id: '4',
+    name: 'Alice User',
+    email: 'alice@example.com',
+    role: 'user',
+  },
 ];
 
-const DataContext = createContext<DataContextType | undefined>(undefined);
+const mockPosts: Post[] = [
+  {
+    id: '1',
+    content: 'Excited to share my fitness journey with you all!',
+    authorId: '4',
+    authorName: 'Alice User',
+    authorRole: 'user',
+    likes: 25,
+    comments: 5,
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    content: 'Check out my new meditation routine for stress relief.',
+    authorId: '3',
+    authorName: 'Mike Meditation',
+    authorRole: 'coach',
+    likes: 40,
+    comments: 10,
+    createdAt: new Date(),
+  },
+];
 
-export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [posts, setPosts] = useState<Post[]>(MOCK_POSTS);
-  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
-  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(MOCK_JOIN_REQUESTS);
-  const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS);
-  const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(MOCK_SESSION_ENROLLMENTS);
-  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>(MOCK_SERVICE_BOOKINGS);
-  const [loading, setLoading] = useState(true);
-  const { currentUser } = useAuth();
+const mockEvents: Event[] = [
+  {
+    id: '1',
+    title: 'Community Yoga Session',
+    description: 'Join us for a relaxing yoga session in the park.',
+    location: 'Central Park',
+    isOnline: false,
+    startDate: new Date(),
+    endDate: new Date(),
+    price: 0,
+    capacity: 20,
+    currentAttendees: 15,
+    creatorId: '2',
+    creatorName: 'Jane Fitness',
+    creatorRole: 'coach',
+    privacy: 'public',
+    createdAt: new Date(),
+    attendees: [],
+  },
+  {
+    id: '2',
+    title: 'Online Meditation Workshop',
+    description: 'Learn mindfulness techniques in our online workshop.',
+    isOnline: true,
+    meetingUrl: 'https://zoom.us/j/333333333',
+    startDate: new Date(),
+    endDate: new Date(),
+    price: 10,
+    capacity: 10,
+    currentAttendees: 8,
+    creatorId: '3',
+    creatorName: 'Mike Meditation',
+    creatorRole: 'coach',
+    privacy: 'paid',
+    createdAt: new Date(),
+    attendees: [],
+  },
+];
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase.from('groups').select('*');
-        
-        if (error) {
-          console.error('Error fetching groups:', error);
-          toast({
-            title: "Error fetching groups",
-            description: error.message,
-            variant: "destructive"
-          });
-        } else if (data) {
-          const formattedGroups: Group[] = data.map(group => ({
-            id: group.id,
-            name: group.name,
-            description: group.description,
-            creatorId: group.creator_id,
-            creatorName: group.creator_name,
-            creatorRole: group.creator_role as UserRole, // Cast to UserRole
-            members: group.members,
-            privacy: group.privacy as GroupPrivacy,
-            price: group.price || undefined,
-            image: group.image || undefined,
-            createdAt: new Date(group.created_at),
-            rules: group.rules || [],
-            memberLimit: group.member_limit,
-            pendingRequests: group.pending_requests
-          }));
-          
-          setGroups(formattedGroups);
-        }
-      } catch (error) {
-        console.error('Error fetching groups:', error);
-      } finally {
-        setLoading(false);
+const mockGroups: Group[] = [
+  {
+    id: '1',
+    name: 'Fitness Fanatics',
+    description: 'A group for fitness enthusiasts to share tips and motivate each other.',
+    members: 50,
+    creatorId: '2',
+    creatorName: 'Jane Fitness',
+    creatorRole: 'coach',
+    privacy: 'public',
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    name: 'Meditation Masters',
+    description: 'A community for meditation practitioners to deepen their practice.',
+    members: 30,
+    creatorId: '3',
+    creatorName: 'Mike Meditation',
+    creatorRole: 'coach',
+    privacy: 'private',
+    createdAt: new Date(),
+  },
+];
+
+const mockJoinRequests: JoinRequest[] = [
+  {
+    id: '1',
+    groupId: '1',
+    userId: '4',
+    userName: 'Alice User',
+    status: 'pending',
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    eventId: '2',
+    userId: '4',
+    userName: 'Alice User',
+    status: 'approved',
+    createdAt: new Date(),
+  },
+];
+
+const mockMessages: Message[] = [
+  {
+    id: '1',
+    content: 'Welcome to the Fitness Fanatics group!',
+    groupId: '1',
+    userId: '2',
+    userName: 'Jane Fitness',
+    userRole: 'coach',
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    content: 'Namaste everyone! Ready for a peaceful meditation session?',
+    groupId: '2',
+    userId: '3',
+    userName: 'Mike Meditation',
+    userRole: 'coach',
+    createdAt: new Date(),
+  },
+];
+
+const mockServiceBookings: ServiceBooking[] = [
+  {
+    id: '1',
+    serviceId: '1',
+    userId: '4',
+    userName: 'Alice User',
+    userEmail: 'alice@example.com',
+    status: 'approved',
+    paymentStatus: 'paid',
+    amount: 50,
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    serviceId: '2',
+    userId: '4',
+    userName: 'Alice User',
+    userEmail: 'alice@example.com',
+    status: 'pending',
+    paymentStatus: 'unpaid',
+    amount: 20,
+    createdAt: new Date(),
+  },
+];
+
+const mockSessionEnrollments: SessionEnrollment[] = [
+  {
+    id: '1',
+    sessionId: '1',
+    userId: '4',
+    userName: 'Alice User',
+    userEmail: 'alice@example.com',
+    status: 'approved',
+    paymentStatus: 'paid',
+    createdAt: new Date(),
+  },
+  {
+    id: '2',
+    sessionId: '2',
+    userId: '4',
+    userName: 'Alice User',
+    userEmail: 'alice@example.com',
+    status: 'pending',
+    paymentStatus: 'unpaid',
+    createdAt: new Date(),
+  },
+];
+
+export const DataProvider = ({ children }: { children: React.ReactNode }) => {
+  const [services, setServices] = useState<Service[]>(mockServices);
+  const [sessions, setSessions] = useState<Session[]>(mockSessions);
+  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [posts, setPosts] = useState<Post[]>(mockPosts);
+  const [events, setEvents] = useState<Event[]>(mockEvents);
+  const [groups, setGroups] = useState<Group[]>(mockGroups);
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(mockJoinRequests);
+  const [messages, setMessages] = useState<Message[]>(mockMessages);
+  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>(mockServiceBookings);
+  const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(mockSessionEnrollments);
+
+  const bookService = async (serviceId: string, isPaid: boolean = false) => {
+    try {
+      const service = services.find(s => s.id === serviceId);
+      const currentUser = users.find(u => u.id === '4'); // Assuming '4' is the current user
+      
+      if (!service) {
+        throw new Error('Service not found');
       }
-    };
-
-    fetchGroups();
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading) setLoading(false);
-    }, 1200);
-    
-    return () => clearTimeout(timer);
-  }, [loading]);
-
-  const createPost = async (postData: Omit<Post, 'id' | 'createdAt'>) => {
-    setLoading(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
       
-      const newPost: Post = {
-        ...postData,
-        id: `p${Date.now()}`,
-        createdAt: new Date(),
-        // Ensure authorId, authorName, authorRole are set
-        authorId: postData.userId || postData.authorId,
-        authorName: postData.userName || postData.authorName,
-        authorRole: postData.userRole || postData.authorRole,
-        authorImage: postData.userProfileImage || postData.authorImage
-      };
-      
-      setPosts(prev => [newPost, ...prev]);
-      return newPost;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => {
-    setLoading(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const newEvent: Event = {
-        ...eventData,
-        id: `e${Date.now()}`,
-        attendees: [], // Initialize as empty array
-        currentAttendees: 0,
-        pendingRequests: 0,
-        createdAt: new Date(),
-        // Ensure date is set if not already
-        date: eventData.date || eventData.startDate
-      };
-      
-      setEvents(prev => [newEvent, ...prev]);
-      return newEvent;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createGroup = async (groupData: Omit<Group, 'id' | 'createdAt' | 'members' | 'pendingRequests'>) => {
-    setLoading(true);
-    
-    try {
       if (!currentUser) {
-        throw new Error('You must be logged in to create a group');
+        throw new Error('User not found');
       }
       
-      const supabaseGroupData = {
-        name: groupData.name,
-        description: groupData.description,
-        creator_id: currentUser.id,
-        creator_name: currentUser.name,
-        creator_role: currentUser.role,
-        privacy: groupData.privacy,
-        price: groupData.privacy === 'paid' ? groupData.price : null,
-        image: groupData.image,
-        rules: groupData.rules,
-        member_limit: groupData.memberLimit
-      };
+      // For paid services, set status to 'approved' automatically
+      const status = isPaid ? 'approved' : 'pending';
       
-      const { data, error } = await supabase
-        .from('groups')
-        .insert(supabaseGroupData)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('Error creating group:', error);
-        throw new Error(error.message);
-      }
-      
-      if (!data) {
-        throw new Error('Failed to create group');
-      }
-      
-      const memberData = {
-        group_id: data.id,
-        user_id: currentUser.id
-      };
-      
-      await supabase.from('group_members').insert(memberData);
-      
-      const newGroup: Group = {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        creatorId: data.creator_id,
-        creatorName: data.creator_name,
-        creatorRole: data.creator_role as UserRole, // Cast to UserRole
-        members: data.members,
-        privacy: data.privacy as GroupPrivacy,
-        price: data.price || undefined,
-        image: data.image || undefined,
-        createdAt: new Date(data.created_at),
-        rules: data.rules || [],
-        memberLimit: data.member_limit,
-        pendingRequests: 0
-      };
-      
-      setGroups(prev => [newGroup, ...prev]);
-      
-      return newGroup;
-    } catch (error: any) {
-      console.error('Error in createGroup:', error);
-      toast({
-        title: "Error creating group",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createService = async (serviceData: Omit<Service, 'id' | 'createdAt'>) => {
-    setLoading(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const newService: Service = {
-        ...serviceData,
-        id: `s${Date.now()}`,
+      const newEnrollment: ServiceBooking = {
+        id: generateId(),
+        serviceId,
+        userId: currentUser?.id || '',
+        userName: currentUser?.name || '',
+        userEmail: currentUser?.email || '',
+        userProfileImage: currentUser?.profileImage || '',
+        status: status,
+        paymentStatus: isPaid ? 'paid' : 'unpaid',
+        amount: service.price,
         createdAt: new Date(),
-        // Ensure these properties are set if not provided
-        sessionType: serviceData.sessionType || 'one_on_one',
-        isOnline: serviceData.isOnline !== undefined ? serviceData.isOnline : true,
-        isFree: serviceData.price === 0
       };
       
-      setServices(prev => [newService, ...prev]);
-      return newService;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to create a session');
-      }
+      setServiceBookings(prev => [...prev, newEnrollment]);
       
-      if (currentUser.role !== 'coach') {
-        throw new Error('Only coaches can create sessions');
-      }
-      
-      const sessionFormData = {
-        title: sessionData.title,
-        description: sessionData.description,
-        coach_id: currentUser.id,
-        coach_name: currentUser.name,
-        session_type: sessionData.sessionType,
-        capacity: sessionData.capacity,
-        price: sessionData.price,
-        duration: sessionData.duration,
-        start_time: sessionData.startTime?.toISOString(),
-        location: sessionData.location,
-        is_online: sessionData.isOnline,
-        meeting_url: sessionData.meetingUrl,
-        is_active: sessionData.isActive
-      };
-
-      // Without type-safe Supabase access, use direct fetch with the right URL and headers
-      const newSession: Session = {
-        ...sessionData,
-        id: `sess${Date.now()}`,
-        coachId: currentUser.id,
-        coachName: currentUser.name,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      setSessions(prev => [newSession, ...prev]);
-      
-      toast({
-        title: "Session created",
-        description: "Your new session has been successfully created",
-        variant: "success"
-      });
-      
-      return newSession;
-    } catch (error: any) {
-      console.error('Error in createSession:', error);
-      toast({
-        title: "Error creating session",
-        description: error.message,
-        variant: "destructive"
-      });
+      return newEnrollment;
+    } catch (error) {
+      console.error('Error booking service:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const updateSession = async (sessionId: string, sessionData: Partial<Session>) => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to update a session');
-      }
-      
-      const existingSession = sessions.find(s => s.id === sessionId);
-      if (!existingSession) {
-        throw new Error('Session not found');
-      }
-      
-      if (existingSession.coachId !== currentUser.id) {
-        throw new Error('You can only update your own sessions');
-      }
-      
-      // Update in-memory for now
-      const updatedSession: Session = {
-        ...existingSession,
-        ...sessionData,
-        updatedAt: new Date()
-      };
-      
-      setSessions(prev => 
-        prev.map(s => s.id === sessionId ? updatedSession : s)
-      );
-
-      toast({
-        title: "Session updated",
-        description: "Your session has been successfully updated",
-        variant: "success"
-      });
-      
-      return updatedSession;
-    } catch (error: any) {
-      console.error('Error in updateSession:', error);
-      toast({
-        title: "Error updating session",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+  const cancelServiceBooking = async (enrollmentId: string) => {
+    setServiceBookings(prev => prev.filter(enrollment => enrollment.id !== enrollmentId));
   };
 
-  const enrollInSession = async (sessionId: string, isPaid = false): Promise<SessionEnrollment> => {
-    if (!currentUser) throw new Error('You must be logged in to enroll in a session');
-    
-    setLoading(true);
-    
+  const enrollSession = async (sessionId: string) => {
     try {
       const session = sessions.find(s => s.id === sessionId);
-      if (!session) throw new Error('Session not found');
-      
-      // For new enrollment, create an enrollment object
-      const newEnrollment: Omit<SessionEnrollment, 'id' | 'createdAt'> = {
+      const currentUser = users.find(u => u.id === '4');
+
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      if (!currentUser) {
+        throw new Error('User not found');
+      }
+
+      const newEnrollment: SessionEnrollment = {
+        id: generateId(),
         sessionId,
         userId: currentUser.id,
         userName: currentUser.name,
         userEmail: currentUser.email,
-        userProfileImage: currentUser.profileImage,
-        status: session.price > 0 && isPaid ? 'approved' : 'pending', // Automatically approve paid sessions
-        paymentStatus: session.price > 0 ? (isPaid ? 'paid' : 'unpaid') : 'paid', // Mark as paid for free or explicitly paid sessions
+        status: 'pending',
+        paymentStatus: 'unpaid',
+        createdAt: new Date(),
       };
-      
-      // Use DataContext to update the session enrollments
-      const enrollmentId = crypto.randomUUID();
-      const createdAt = new Date();
-      
-      const enrollmentObject: SessionEnrollment = {
-        ...newEnrollment,
-        id: enrollmentId,
-        createdAt,
-      };
-      
-      setSessionEnrollments(prev => [...prev, enrollmentObject]);
-      
-      return enrollmentObject;
+
+      setSessionEnrollments(prev => [...prev, newEnrollment]);
+      return newEnrollment;
     } catch (error) {
       console.error('Error enrolling in session:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const cancelEnrollment = async (enrollmentId: string) => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to cancel an enrollment');
-      }
-      
-      const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
-      if (!enrollment) {
-        throw new Error('Enrollment not found');
-      }
-      
-      if (enrollment.userId !== currentUser.id && !sessions.some(s => 
-        s.id === enrollment.sessionId && s.coachId === currentUser.id
-      )) {
-        throw new Error('You can only cancel your own enrollments or enrollments for your sessions');
-      }
-      
-      setSessionEnrollments(prev => 
-        prev.filter(e => e.id !== enrollmentId)
-      );
-      
-      toast({
-        title: "Enrollment canceled",
-        description: "Your enrollment has been successfully canceled",
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error canceling enrollment:', error);
-      toast({
-        title: "Cancellation failed",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+  const cancelSessionEnrollment = async (enrollmentId: string) => {
+    setSessionEnrollments(prev => prev.filter(enrollment => enrollment.id !== enrollmentId));
   };
 
-  const updateEnrollmentStatus = async (enrollmentId: string, status: SessionStatus) => {
-    setLoading(true);
-    
+  const createPost = async (content: string, mediaUrl?: string, mediaType?: string) => {
     try {
+      const currentUser = users.find(u => u.id === '4');
+
       if (!currentUser) {
-        throw new Error('You must be logged in to update an enrollment');
+        throw new Error('User not found');
       }
-      
-      const enrollment = sessionEnrollments.find(e => e.id === enrollmentId);
-      if (!enrollment) {
-        throw new Error('Enrollment not found');
-      }
-      
-      const session = sessions.find(s => s.id === enrollment.sessionId);
-      if (!session || session.coachId !== currentUser.id) {
-        throw new Error('You can only update enrollments for your own sessions');
-      }
-      
-      const updatedEnrollment = {
-        ...enrollment,
-        status
+
+      const newPost: Post = {
+        id: generateId(),
+        content,
+        authorId: currentUser.id,
+        authorName: currentUser.name,
+        authorRole: currentUser.role,
+        likes: 0,
+        comments: 0,
+        createdAt: new Date(),
+        mediaUrl,
+        mediaType,
       };
-      
-      setSessionEnrollments(prev => 
-        prev.map(e => e.id === enrollmentId ? updatedEnrollment : e)
-      );
-      
-      toast({
-        title: `Enrollment ${status}`,
-        description: `The enrollment has been marked as ${status}`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error updating enrollment status:', error);
-      toast({
-        title: "Update failed",
-        description: error.message,
-        variant: "destructive"
-      });
+
+      setPosts(prev => [...prev, newPost]);
+      return newPost;
+    } catch (error) {
+      console.error('Error creating post:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const getUserSessions = (userId: string) => {
-    return sessions.filter(session => {
-      const userEnrollments = sessionEnrollments.filter(e => 
-        e.userId === userId && e.sessionId === session.id && e.status === 'approved'
-      );
-      return userEnrollments.length > 0;
-    });
-  };
-
-  const getCoachSessions = (coachId: string) => {
-    return sessions.filter(session => session.coachId === coachId);
-  };
-
-  const getSessionEnrollments = (sessionId: string) => {
-    return sessionEnrollments.filter(enrollment => enrollment.sessionId === sessionId);
-  };
-
-  const getUserEnrollments = (userId: string) => {
-    return sessionEnrollments.filter(enrollment => enrollment.userId === userId);
+  const addComment = async (postId: string, content: string) => {
+    setPosts(prev =>
+      prev.map(post => {
+        if (post.id === postId) {
+          return { ...post, comments: post.comments + 1 };
+        }
+        return post;
+      })
+    );
+    return posts.find(post => post.id === postId);
   };
 
   const likePost = async (postId: string) => {
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post.id === postId 
-          ? { ...post, likes: post.likes + 1 }
-          : post
-      )
+    setPosts(prev =>
+      prev.map(post => {
+        if (post.id === postId) {
+          return { ...post, likes: post.likes + 1 };
+        }
+        return post;
+      })
     );
-  };
-  
-  const sendMessage = async (message: Omit<Message, 'id' | 'createdAt'>) => {
-    setLoading(true);
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const newMessage: Message = {
-        ...message,
-        id: `m${Date.now()}`,
-        createdAt: new Date()
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      return newMessage;
-    } finally {
-      setLoading(false);
-    }
+    return posts.find(post => post.id === postId);
   };
 
-  const getGroupMessages = (groupId: string) => {
-    return messages.filter(message => message.groupId === groupId);
-  };
-
-  const joinGroup = async (groupId: string) => {
-    setLoading(true);
-    
+  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'creatorImage' | 'attendees' | 'currentAttendees'>) => {
     try {
+      const currentUser = users.find(u => u.id === '4');
+
       if (!currentUser) {
-        throw new Error('You must be logged in to join a group');
+        throw new Error('User not found');
       }
-      
-      const group = groups.find(g => g.id === groupId);
-      if (!group) {
-        throw new Error('Group not found');
-      }
-      
-      // Check if user is already a member
-      const { data: existingMember, error: memberError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-      
-      if (memberError) {
-        console.error('Error checking membership:', memberError);
-        throw new Error('Failed to check membership status');
-      }
-      
-      if (existingMember) {
-        throw new Error('You are already a member of this group');
-      }
-      
-      // Add member to group
-      const memberData = {
-        group_id: groupId,
-        user_id: currentUser.id
-      };
-      
-      const { error: joinError } = await supabase
-        .from('group_members')
-        .insert(memberData);
-      
-      if (joinError) {
-        console.error('Error joining group:', joinError);
-        throw new Error(joinError.message);
-      }
-      
-      // Update group members count
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ members: group.members + 1 })
-        .eq('id', groupId);
-      
-      if (updateError) {
-        console.error('Error updating group member count:', updateError);
-      }
-      
-      // Update local state
-      setGroups(prev => 
-        prev.map(g => 
-          g.id === groupId 
-            ? { ...g, members: g.members + 1 }
-            : g
-        )
-      );
-      
-      toast({
-        title: "Success",
-        description: `You have joined ${group.name}`,
-        variant: "success"
-      });
-      
-      return true;
-    } catch (error: any) {
-      console.error('Error joining group:', error);
-      toast({
-        title: "Error joining group",
-        description: error.message,
-        variant: "destructive"
-      });
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const leaveGroup = async (groupId: string) => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to leave a group');
-      }
-      
-      const group = groups.find(g => g.id === groupId);
-      if (!group) {
-        throw new Error('Group not found');
-      }
-      
-      // Check if user is a member
-      const { data: existingMember, error: memberError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-      
-      if (memberError) {
-        console.error('Error checking membership:', memberError);
-        throw new Error('Failed to check membership status');
-      }
-      
-      if (!existingMember) {
-        throw new Error('You are not a member of this group');
-      }
-      
-      // Remove member from group
-      const { error: leaveError } = await supabase
-        .from('group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id);
-      
-      if (leaveError) {
-        console.error('Error leaving group:', leaveError);
-        throw new Error(leaveError.message);
-      }
-      
-      // Update group members count
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ members: Math.max(0, group.members - 1) })
-        .eq('id', groupId);
-      
-      if (updateError) {
-        console.error('Error updating group member count:', updateError);
-      }
-      
-      // Update local state
-      setGroups(prev => 
-        prev.map(g => 
-          g.id === groupId 
-            ? { ...g, members: Math.max(0, g.members - 1) }
-            : g
-        )
-      );
-      
-      toast({
-        title: "Group left",
-        description: `You have left ${group.name}`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error leaving group:', error);
-      toast({
-        title: "Error leaving group",
-        description: error.message,
-        variant: "destructive"
-      });
+      const newEvent: Event = {
+        id: generateId(),
+        title: eventData.title,
+        description: eventData.description,
+        location: eventData.location,
+        isOnline: eventData.isOnline,
+        meetingUrl: eventData.meetingUrl,
+        startDate: eventData.startDate,
+        endDate: eventData.endDate,
+        price: eventData.price,
+        capacity: eventData.capacity,
+        currentAttendees: 0,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role,
+        privacy: eventData.privacy,
+        createdAt: new Date(),
+        attendees: [],
+      };
+
+      setEvents(prev => [...prev, newEvent]);
+      return newEvent;
+    } catch (error) {
+      console.error('Error creating event:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const requestToJoinGroup = async (groupId: string) => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to request to join a group');
-      }
-      
-      const group = groups.find(g => g.id === groupId);
-      if (!group) {
-        throw new Error('Group not found');
-      }
-      
-      // Check if request already exists
-      const { data: existingRequest, error: requestError } = await supabase
-        .from('join_requests')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-      
-      if (requestError) {
-        console.error('Error checking request status:', requestError);
-        throw new Error('Failed to check request status');
-      }
-      
-      if (existingRequest) {
-        throw new Error('You have already requested to join this group');
-      }
-      
-      // Create join request
-      const requestData = {
-        group_id: groupId,
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        user_profile_image: currentUser.profileImage,
-        status: 'pending'
-      };
-      
-      const { error: joinError } = await supabase
-        .from('join_requests')
-        .insert(requestData);
-      
-      if (joinError) {
-        console.error('Error requesting to join group:', joinError);
-        throw new Error(joinError.message);
-      }
-      
-      // Update pending requests count
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ 
-          pending_requests: (group.pendingRequests || 0) + 1 
-        })
-        .eq('id', groupId);
-      
-      if (updateError) {
-        console.error('Error updating pending requests count:', updateError);
-      }
-      
-      // Update local state
-      setGroups(prev => 
-        prev.map(g => 
-          g.id === groupId 
-            ? { 
-                ...g, 
-                pendingRequests: (g.pendingRequests || 0) + 1
-              }
-            : g
-        )
-      );
-      
-      // Add to local join requests
-      const newRequest: JoinRequest = {
-        id: `jr${Date.now()}`,
-        groupId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userProfileImage: currentUser.profileImage,
-        status: 'pending',
-        createdAt: new Date()
-      };
-      
-      setJoinRequests(prev => [...prev, newRequest]);
-      
-      toast({
-        title: "Request sent",
-        description: `Your request to join ${group.name} has been sent`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error requesting to join group:', error);
-      toast({
-        title: "Error sending request",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to handle join requests');
-      }
-      
-      // Find the request
-      const request = joinRequests.find(req => req.id === requestId);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      
-      if (!request.groupId) {
-        throw new Error('Invalid request type');
-      }
-      
-      // Find the group
-      const group = groups.find(g => g.id === request.groupId);
-      if (!group) {
-        throw new Error('Group not found');
-      }
-      
-      // Check if user is the group creator
-      if (group.creatorId !== currentUser.id) {
-        throw new Error('Only the group creator can handle join requests');
-      }
-      
-      // Update request status
-      const { error: updateError } = await supabase
-        .from('join_requests')
-        .update({ status })
-        .eq('id', requestId);
-      
-      if (updateError) {
-        console.error('Error updating request status:', updateError);
-        throw new Error(updateError.message);
-      }
-      
-      if (status === 'approved') {
-        // Add member to group
-        const memberData = {
-          group_id: request.groupId,
-          user_id: request.userId
-        };
-        
-        const { error: joinError } = await supabase
-          .from('group_members')
-          .insert(memberData);
-        
-        if (joinError) {
-          console.error('Error adding member to group:', joinError);
-          throw new Error(joinError.message);
-        }
-        
-        // Update group members count
-        const { error: groupError } = await supabase
-          .from('groups')
-          .update({ 
-            members: group.members + 1,
-            pending_requests: Math.max(0, (group.pendingRequests || 0) - 1)
-          })
-          .eq('id', request.groupId);
-        
-        if (groupError) {
-          console.error('Error updating group:', groupError);
-        }
-        
-        // Update local state
-        setGroups(prev => 
-          prev.map(g => 
-            g.id === request.groupId 
-              ? { 
-                  ...g, 
-                  members: g.members + 1,
-                  pendingRequests: Math.max(0, (g.pendingRequests || 0) - 1)
-                }
-              : g
-          )
-        );
-      } else {
-        // Update pending requests count for rejected requests
-        const { error: groupError } = await supabase
-          .from('groups')
-          .update({ 
-            pending_requests: Math.max(0, (group.pendingRequests || 0) - 1)
-          })
-          .eq('id', request.groupId);
-        
-        if (groupError) {
-          console.error('Error updating group:', groupError);
-        }
-        
-        // Update local state
-        setGroups(prev => 
-          prev.map(g => 
-            g.id === request.groupId 
-              ? { 
-                  ...g,
-                  pendingRequests: Math.max(0, (g.pendingRequests || 0) - 1)
-                }
-              : g
-          )
-        );
-      }
-      
-      // Update local join requests
-      setJoinRequests(prev => 
-        prev.map(req => 
-          req.id === requestId 
-            ? { ...req, status }
-            : req
-        )
-      );
-      
-      toast({
-        title: `Request ${status}`,
-        description: `The join request has been ${status}`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error handling join request:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getGroupRequests = (groupId: string) => {
-    return joinRequests.filter(request => 
-      request.groupId === groupId && request.status === 'pending'
-    );
   };
 
   const joinEvent = async (eventId: string) => {
-    setLoading(true);
-    
     try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to join an event');
-      }
-      
       const event = events.find(e => e.id === eventId);
+      const currentUser = users.find(u => u.id === '4');
+
       if (!event) {
         throw new Error('Event not found');
       }
-      
-      // Check if user is already attending
-      if (Array.isArray(event.attendees) && event.attendees.includes(currentUser.id)) {
-        throw new Error('You are already attending this event');
+
+      if (!currentUser) {
+        throw new Error('User not found');
       }
-      
-      // Add attendee
-      const updatedEvent = {
-        ...event,
-        attendees: Array.isArray(event.attendees) 
-          ? [...event.attendees, currentUser.id] 
-          : [currentUser.id],
-        currentAttendees: event.currentAttendees + 1
+
+      const newJoinRequest: JoinRequest = {
+        id: generateId(),
+        eventId,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        status: 'pending',
+        createdAt: new Date(),
       };
-      
-      setEvents(prev => 
-        prev.map(e => e.id === eventId ? updatedEvent : e)
-      );
-      
-      toast({
-        title: "Success",
-        description: `You have joined ${event.title}`,
-        variant: "success"
-      });
-      
-      return true;
-    } catch (error: any) {
+
+      setJoinRequests(prev => [...prev, newJoinRequest]);
+      return newJoinRequest;
+    } catch (error) {
       console.error('Error joining event:', error);
-      toast({
-        title: "Error joining event",
-        description: error.message,
-        variant: "destructive"
-      });
-      return false;
-    } finally {
-      setLoading(false);
+      throw error;
     }
   };
 
   const leaveEvent = async (eventId: string) => {
-    setLoading(true);
-    
+    setJoinRequests(prev => prev.filter(req => req.eventId !== eventId && req.userId !== '4'));
+  };
+
+  const createGroup = async (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole'>) => {
     try {
+      const currentUser = users.find(u => u.id === '4');
+
       if (!currentUser) {
-        throw new Error('You must be logged in to leave an event');
+        throw new Error('User not found');
       }
-      
-      const event = events.find(e => e.id === eventId);
-      if (!event) {
-        throw new Error('Event not found');
-      }
-      
-      // Check if user is attending
-      if (!Array.isArray(event.attendees) || !event.attendees.includes(currentUser.id)) {
-        throw new Error('You are not attending this event');
-      }
-      
-      // Remove attendee
-      const updatedEvent = {
-        ...event,
-        attendees: Array.isArray(event.attendees)
-          ? event.attendees.filter(id => id !== currentUser.id)
-          : [],
-        currentAttendees: Math.max(0, event.currentAttendees - 1)
+
+      const newGroup: Group = {
+        id: generateId(),
+        name: groupData.name,
+        description: groupData.description,
+        members: 1,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role,
+        privacy: groupData.privacy,
+        createdAt: new Date(),
       };
-      
-      setEvents(prev => 
-        prev.map(e => e.id === eventId ? updatedEvent : e)
-      );
-      
-      toast({
-        title: "Event left",
-        description: `You have left ${event.title}`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error leaving event:', error);
-      toast({
-        title: "Error leaving event",
-        description: error.message,
-        variant: "destructive"
-      });
+
+      setGroups(prev => [...prev, newGroup]);
+      return newGroup;
+    } catch (error) {
+      console.error('Error creating group:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const requestToJoinEvent = async (eventId: string) => {
-    setLoading(true);
-    
+  const joinGroup = async (groupId: string) => {
     try {
+      const group = groups.find(g => g.id === groupId);
+      const currentUser = users.find(u => u.id === '4');
+
+      if (!group) {
+        throw new Error('Group not found');
+      }
+
       if (!currentUser) {
-        throw new Error('You must be logged in to request to join an event');
+        throw new Error('User not found');
       }
-      
-      const event = events.find(e => e.id === eventId);
-      if (!event) {
-        throw new Error('Event not found');
-      }
-      
-      // Check if request already exists
-      const existingRequest = joinRequests.find(req => 
-        req.eventId === eventId && req.userId === currentUser.id
-      );
-      
-      if (existingRequest) {
-        throw new Error('You have already requested to join this event');
-      }
-      
-      // Create join request
-      const newRequest: JoinRequest = {
-        id: `jr${Date.now()}`,
-        eventId,
+
+      const newJoinRequest: JoinRequest = {
+        id: generateId(),
+        groupId,
         userId: currentUser.id,
         userName: currentUser.name,
-        userProfileImage: currentUser.profileImage,
         status: 'pending',
-        createdAt: new Date()
+        createdAt: new Date(),
       };
-      
-      setJoinRequests(prev => [...prev, newRequest]);
-      
-      // Update pending requests count
-      const updatedEvent = {
-        ...event,
-        pendingRequests: (event.pendingRequests || 0) + 1
-      };
-      
-      setEvents(prev => 
-        prev.map(e => e.id === eventId ? updatedEvent : e)
-      );
-      
-      toast({
-        title: "Request sent",
-        description: `Your request to join ${event.title} has been sent`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error requesting to join event:', error);
-      toast({
-        title: "Error sending request",
-        description: error.message,
-        variant: "destructive"
-      });
+
+      setJoinRequests(prev => [...prev, newJoinRequest]);
+      return newJoinRequest;
+    } catch (error) {
+      console.error('Error joining group:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to handle join requests');
-      }
-      
-      // Find the request
-      const request = joinRequests.find(req => req.id === requestId);
-      if (!request) {
-        throw new Error('Request not found');
-      }
-      
-      if (!request.eventId) {
-        throw new Error('Invalid request type');
-      }
-      
-      // Find the event
-      const event = events.find(e => e.id === request.eventId);
-      if (!event) {
-        throw new Error('Event not found');
-      }
-      
-      // Check if user is the event creator
-      if (event.creatorId !== currentUser.id) {
-        throw new Error('Only the event creator can handle join requests');
-      }
-      
-      // Update request status
-      const updatedRequest = {
-        ...request,
-        status
-      };
-      
-      setJoinRequests(prev => 
-        prev.map(req => req.id === requestId ? updatedRequest : req)
-      );
-      
-      // Update event
-      let updatedEvent = {
-        ...event,
-        pendingRequests: Math.max(0, (event.pendingRequests || 0) - 1)
-      };
-      
-      if (status === 'approved') {
-        // Add attendee
-        updatedEvent = {
-          ...updatedEvent,
-          attendees: [...(Array.isArray(event.attendees) ? event.attendees : []), request.userId],
-          currentAttendees: event.currentAttendees + 1
-        };
-      }
-      
-      setEvents(prev => 
-        prev.map(e => e.id === request.eventId ? updatedEvent : e)
-      );
-      
-      toast({
-        title: `Request ${status}`,
-        description: `The join request has been ${status}`,
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error handling event join request:', error);
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+  const leaveGroup = async (groupId: string) => {
+    setJoinRequests(prev => prev.filter(req => req.groupId !== groupId && req.userId !== '4'));
   };
 
-  const getEventRequests = (eventId: string) => {
-    return joinRequests.filter(request => 
-      request.eventId === eventId && request.status === 'pending'
-    );
-  };
-
-  const removeGroupMember = async (groupId: string, userId: string) => {
-    setLoading(true);
-    
+  const sendMessage = async (groupId: string, content: string, mediaUrl?: string, mediaType?: string) => {
     try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to remove a member');
-      }
-      
       const group = groups.find(g => g.id === groupId);
+      const currentUser = users.find(u => u.id === '4');
+
       if (!group) {
         throw new Error('Group not found');
       }
-      
-      // Check if user is the group creator
-      if (group.creatorId !== currentUser.id) {
-        throw new Error('Only the group creator can remove members');
-      }
-      
-      // Don't allow removing the creator
-      if (userId === group.creatorId) {
-        throw new Error('The group creator cannot be removed');
-      }
-      
-      // Remove member from group
-      const { error: removeError } = await supabase
-        .from('group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('user_id', userId);
-      
-      if (removeError) {
-        console.error('Error removing member:', removeError);
-        throw new Error(removeError.message);
-      }
-      
-      // Update group members count
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ members: Math.max(0, group.members - 1) })
-        .eq('id', groupId);
-      
-      if (updateError) {
-        console.error('Error updating group member count:', updateError);
-      }
-      
-      // Update local state
-      setGroups(prev => 
-        prev.map(g => 
-          g.id === groupId 
-            ? { ...g, members: Math.max(0, g.members - 1) }
-            : g
-        )
-      );
-      
-      toast({
-        title: "Member removed",
-        description: "The member has been removed from the group",
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error removing group member:', error);
-      toast({
-        title: "Error removing member",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const updateGroupDetails = async (groupId: string, groupData: Partial<Group>) => {
-    setLoading(true);
-    
-    try {
       if (!currentUser) {
-        throw new Error('You must be logged in to update a group');
+        throw new Error('User not found');
       }
-      
-      const group = groups.find(g => g.id === groupId);
-      if (!group) {
-        throw new Error('Group not found');
-      }
-      
-      // Check if user is the group creator
-      if (group.creatorId !== currentUser.id) {
-        throw new Error('Only the group creator can update the group');
-      }
-      
-      // Prepare data for Supabase
-      const updateData: any = {};
-      
-      if (groupData.name !== undefined) updateData.name = groupData.name;
-      if (groupData.description !== undefined) updateData.description = groupData.description;
-      if (groupData.privacy !== undefined) updateData.privacy = groupData.privacy;
-      if (groupData.price !== undefined) updateData.price = groupData.price;
-      if (groupData.image !== undefined) updateData.image = groupData.image;
-      if (groupData.rules !== undefined) updateData.rules = groupData.rules;
-      if (groupData.memberLimit !== undefined) updateData.member_limit = groupData.memberLimit;
-      
-      // Update group in Supabase
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update(updateData)
-        .eq('id', groupId);
-      
-      if (updateError) {
-        console.error('Error updating group:', updateError);
-        throw new Error(updateError.message);
-      }
-      
-      // Update local state
-      setGroups(prev => 
-        prev.map(g => 
-          g.id === groupId 
-            ? { ...g, ...groupData }
-            : g
-        )
-      );
-      
-      toast({
-        title: "Group updated",
-        description: "The group details have been updated",
-        variant: "success"
-      });
-    } catch (error: any) {
-      console.error('Error updating group:', error);
-      toast({
-        title: "Error updating group",
-        description: error.message,
-        variant: "destructive"
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const bookService = async (serviceId: string, isPaid = false): Promise<ServiceBooking> => {
-    if (!currentUser) throw new Error('You must be logged in to book a service');
-    
-    setLoading(true);
-    
-    try {
-      const service = services.find(s => s.id === serviceId);
-      if (!service) throw new Error('Service not found');
-      
-      // Create booking object
-      const newBooking: Omit<ServiceBooking, 'id' | 'createdAt'> = {
-        serviceId,
+      const newMessage: Message = {
+        id: generateId(),
+        content,
+        groupId,
         userId: currentUser.id,
         userName: currentUser.name,
-        userEmail: currentUser.email,
-        userProfileImage: currentUser.profileImage,
-        status: service.price > 0 && isPaid ? 'approved' : 'pending', // Automatically approve paid services
-        paymentStatus: service.price > 0 ? (isPaid ? 'paid' : 'unpaid') : 'paid', // Mark as paid for free or explicitly paid services
-        amount: service.price,
+        userRole: currentUser.role,
+        createdAt: new Date(),
+        mediaUrl,
+        mediaType,
       };
-      
-      const bookingId = crypto.randomUUID();
-      const createdAt = new Date();
-      
-      const bookingObject: ServiceBooking = {
-        ...newBooking,
-        id: bookingId,
-        createdAt,
-      };
-      
-      setServiceBookings(prev => [...prev, bookingObject]);
-      
-      toast({
-        title: isPaid ? 'Booking successful' : 'Request sent',
-        description: isPaid ? 'Your service has been booked successfully' : 'Your booking request has been sent to the provider',
-      });
-      
-      return bookingObject;
-    } catch (error: any) {
-      console.error('Error booking service:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'There was an error processing your request',
-        variant: 'destructive'
-      });
+
+      setMessages(prev => [...prev, newMessage]);
+      return newMessage;
+    } catch (error) {
+      console.error('Error sending message:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
-  
-  const cancelServiceBooking = async (bookingId: string): Promise<void> => {
-    setLoading(true);
-    
-    try {
-      if (!currentUser) {
-        throw new Error('You must be logged in to cancel a booking');
-      }
-      
-      const booking = serviceBookings.find(b => b.id === bookingId);
-      if (!booking) {
-        throw new Error('Booking not found');
-      }
-      
-      const service = services.find(s => s.id === booking.serviceId);
-      
-      if (booking.userId !== currentUser.id && service?.providerId !== currentUser.id) {
-        throw new Error('You can only cancel your own bookings or bookings for your services');
-      }
-      
-      setServiceBookings(prev => 
-        prev.filter(b => b.id !== bookingId)
-      );
-      
-      toast({
-        title: 'Booking cancelled',
-        description: 'The service booking has been cancelled',
-      });
-    } catch (error: any) {
-      console.error('Error canceling service booking:', error);
-      toast({
-        title: 'Cancellation failed',
-        description: error.message,
-        variant: 'destructive'
-      });
-      throw error;
-    } finally {
-      setLoading(false);
-    }
+
+  const value: DataContextProps = {
+    services,
+    sessions,
+    users,
+    posts,
+    events,
+    groups,
+    joinRequests,
+    messages,
+    serviceBookings,
+    sessionEnrollments,
+    bookService,
+    cancelServiceBooking,
+    enrollSession,
+    cancelSessionEnrollment,
+    createPost,
+    addComment,
+    likePost,
+    createEvent,
+    joinEvent,
+    leaveEvent,
+    createGroup,
+    joinGroup,
+    leaveGroup,
+    sendMessage,
   };
 
   return (
-    <DataContext.Provider value={{
-      posts,
-      events,
-      groups,
-      services,
-      messages,
-      joinRequests,
-      sessions,
-      sessionEnrollments,
-      serviceBookings,
-      loading,
-      createPost,
-      createEvent,
-      createGroup,
-      createService,
-      createSession,
-      updateSession,
-      enrollInSession,
-      cancelEnrollment,
-      updateEnrollmentStatus,
-      getUserSessions,
-      getCoachSessions,
-      getSessionEnrollments,
-      getUserEnrollments,
-      likePost,
-      sendMessage,
-      getGroupMessages,
-      joinGroup,
-      leaveGroup,
-      requestToJoinGroup,
-      handleJoinRequest,
-      getGroupRequests,
-      joinEvent,
-      leaveEvent,
-      requestToJoinEvent,
-      handleEventJoinRequest,
-      getEventRequests,
-      removeGroupMember,
-      updateGroupDetails,
-      bookService,
-      cancelServiceBooking
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );
@@ -1821,7 +666,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;

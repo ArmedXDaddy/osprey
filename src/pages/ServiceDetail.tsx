@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -34,6 +33,29 @@ const ServiceDetail = () => {
     enabled: !!id,
   });
   
+  const [isBooked, setIsBooked] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && service) {
+      const hasBooking = async () => {
+        try {
+          const { data } = await supabase
+            .from('service_enrollments')
+            .select('*')
+            .eq('service_id', id)
+            .eq('user_id', currentUser.id)
+            .maybeSingle();
+            
+          setIsBooked(!!data);
+        } catch (error) {
+          console.error('Error checking booking status:', error);
+        }
+      };
+      
+      hasBooking();
+    }
+  }, [currentUser, service, id]);
+
   const bookServiceMutation = useMutation({
     mutationFn: (isPaid: boolean = false) => {
       if (!id) throw new Error("Service ID is required");
@@ -44,7 +66,7 @@ const ServiceDetail = () => {
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
-      // Refetch the service to update UI
+      setIsBooked(true);
       refetch();
     },
     onError: (error) => {
@@ -256,7 +278,7 @@ const ServiceDetail = () => {
                   </div>
                 )}
                 
-                {!isOwner && service.available && (
+                {!isOwner && service.available && !isBooked && (
                   <div className="space-y-2 mt-6">
                     {service.price > 0 ? (
                       <Button 
@@ -282,6 +304,25 @@ const ServiceDetail = () => {
                   </div>
                 )}
                 
+                {!isOwner && service.available && isBooked && (
+                  <div className="space-y-2 mt-6">
+                    <Badge className="w-full flex justify-center py-2" variant="success">
+                      Booked
+                    </Badge>
+                    {service.isOnline && service.meetingUrl && (
+                      <Button 
+                        className="w-full" 
+                        variant="outline"
+                        asChild
+                      >
+                        <a href={service.meetingUrl} target="_blank" rel="noopener noreferrer">
+                          Join Meeting
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                )}
+                
                 {!isOwner && !service.available && (
                   <Button 
                     className="w-full mt-6" 
@@ -302,7 +343,7 @@ const ServiceDetail = () => {
                 
                 {bookServiceMutation.isSuccess && (
                   <div className="mt-2 text-center p-2 bg-green-50 text-green-700 rounded-md">
-                    Booking confirmed! Check your email for details.
+                    Booking confirmed! {service.isOnline && service.meetingUrl ? "You can now join the meeting." : "Check your email for details."}
                   </div>
                 )}
               </div>

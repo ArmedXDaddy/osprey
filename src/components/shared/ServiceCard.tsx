@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Service } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -192,6 +191,14 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
               <Badge className="w-full justify-center py-1" variant="success">Approved</Badge>
             ) : (
               <Badge className="w-full justify-center py-1" variant="destructive">Rejected</Badge>
+            )}
+            
+            {enrollment?.status === 'approved' && service.isOnline && service.meetingUrl && (
+              <Button variant="outline" className="w-full" asChild>
+                <a href={service.meetingUrl} target="_blank" rel="noopener noreferrer">
+                  Join Meeting
+                </a>
+              </Button>
             )}
             
             <Button variant="outline" className="w-full" onClick={handleCancel}>

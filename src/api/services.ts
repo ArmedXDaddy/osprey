@@ -1,4 +1,3 @@
-
 import { Service } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -323,9 +322,47 @@ export const bookService = async (serviceId: string, isPaid: boolean = false): P
     
     // For a paid service that's been paid, auto-approve booking
     // For free services, set the status to pending (requiring approval)
-    const enrollmentStatus = isPaid ? 'approved' : (service.is_free ? 'pending' : 'pending');
-    const paymentStatus = isPaid ? 'paid' : 'pending';
+    const enrollmentStatus = isPaid ? 'approved' : 'pending';
+    const paymentStatus = isPaid ? 'paid' : 'unpaid';
     
+    // First, check if the user already has a booking for this service
+    const { data: existingBooking, error: existingBookingError } = await supabase
+      .from('service_enrollments')
+      .select('*')
+      .eq('service_id', serviceId)
+      .eq('user_id', user.user.id)
+      .maybeSingle();
+      
+    if (existingBookingError) {
+      console.error('Error checking existing booking:', existingBookingError);
+      throw new Error(existingBookingError.message);
+    }
+    
+    // If there's already a booking, update it if needed
+    if (existingBooking) {
+      // If the existing booking status is lower priority than the new one, update it
+      if (
+        (existingBooking.status === 'pending' && enrollmentStatus === 'approved') ||
+        (existingBooking.payment_status === 'unpaid' && paymentStatus === 'paid')
+      ) {
+        const { error: updateError } = await supabase
+          .from('service_enrollments')
+          .update({
+            status: enrollmentStatus,
+            payment_status: paymentStatus
+          })
+          .eq('id', existingBooking.id);
+          
+        if (updateError) {
+          console.error('Error updating booking:', updateError);
+          throw new Error(updateError.message);
+        }
+      }
+      
+      return; // Exit as the booking already exists
+    }
+    
+    // Otherwise, create a new booking
     const { error } = await supabase
       .from('service_enrollments')
       .insert({
