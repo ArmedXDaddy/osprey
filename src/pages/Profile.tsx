@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +17,10 @@ import {
   Edit, 
   UserCheck, 
   Users, 
-  X 
+  X,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import PostCard from '@/components/shared/PostCard';
 import EventCard from '@/components/shared/EventCard';
@@ -36,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
   const { currentUser, updateProfile } = useAuth();
@@ -49,6 +53,7 @@ const Profile = () => {
     bio: currentUser?.bio || '',
     location: currentUser?.location || '',
     profileImage: currentUser?.profileImage || '',
+    coverImage: currentUser?.coverImage || '',
     instagram: currentUser?.socialLinks?.instagram || '',
     twitter: currentUser?.socialLinks?.twitter || '',
     website: currentUser?.socialLinks?.website || ''
@@ -57,6 +62,185 @@ const Profile = () => {
   // State for followers/following dialogs
   const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
   const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
+  
+  // State for profile image selection
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [isCoverImageDialogOpen, setIsCoverImageDialogOpen] = useState(false);
+  const [profileImages, setProfileImages] = useState<{ name: string, url: string }[]>([]);
+  const [coverImages, setCoverImages] = useState<{ name: string, url: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  
+  // Load profile images from storage
+  useEffect(() => {
+    fetchProfileImages();
+    fetchCoverImages();
+  }, []);
+  
+  const fetchProfileImages = async () => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('profiles')
+        .list(currentUser?.id || 'public', {
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        const imageUrls = await Promise.all(
+          data.map(async (file) => {
+            const { data: urlData } = await supabase.storage
+              .from('profiles')
+              .getPublicUrl(`${currentUser?.id || 'public'}/${file.name}`);
+            
+            return {
+              name: file.name,
+              url: urlData.publicUrl
+            };
+          })
+        );
+        setProfileImages(imageUrls);
+      }
+    } catch (error) {
+      console.error('Error fetching profile images:', error);
+    }
+  };
+  
+  const fetchCoverImages = async () => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('covers')
+        .list(currentUser?.id || 'public', {
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        const imageUrls = await Promise.all(
+          data.map(async (file) => {
+            const { data: urlData } = await supabase.storage
+              .from('covers')
+              .getPublicUrl(`${currentUser?.id || 'public'}/${file.name}`);
+            
+            return {
+              name: file.name,
+              url: urlData.publicUrl
+            };
+          })
+        );
+        setCoverImages(imageUrls);
+      }
+    } catch (error) {
+      console.error('Error fetching cover images:', error);
+    }
+  };
+  
+  const uploadProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    
+    try {
+      setUploading(true);
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `${currentUser?.id || 'public'}/${fileName}`;
+      
+      const { error } = await supabase.storage
+        .from('profiles')
+        .upload(filePath, file);
+      
+      if (error) {
+        throw error;
+      }
+      
+      await fetchProfileImages();
+      
+      toast({
+        title: "Upload successful",
+        description: "Your profile image has been uploaded",
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your profile image",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const uploadCoverImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    
+    try {
+      setUploading(true);
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `${currentUser?.id || 'public'}/${fileName}`;
+      
+      const { error } = await supabase.storage
+        .from('covers')
+        .upload(filePath, file);
+      
+      if (error) {
+        throw error;
+      }
+      
+      await fetchCoverImages();
+      
+      toast({
+        title: "Upload successful",
+        description: "Your cover image has been uploaded",
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Upload failed",
+        description: "There was an error uploading your cover image",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+  
+  const selectProfileImage = (url: string) => {
+    setProfileForm(prev => ({
+      ...prev,
+      profileImage: url
+    }));
+    setIsImageDialogOpen(false);
+    
+    toast({
+      title: "Profile image selected",
+      description: "Click Save Changes to update your profile"
+    });
+  };
+  
+  const selectCoverImage = (url: string) => {
+    setProfileForm(prev => ({
+      ...prev,
+      coverImage: url
+    }));
+    setIsCoverImageDialogOpen(false);
+    
+    toast({
+      title: "Cover image selected",
+      description: "Click Save Changes to update your profile"
+    });
+  };
   
   if (!currentUser) {
     return (
@@ -69,19 +253,19 @@ const Profile = () => {
   // Filter data by current user
   const userPosts = posts.filter(post => post.userId === currentUser.id);
   
-  // Filter joined events (both created and attended)
+  // Filter only events created by or joined by the user
   const userCreatedEvents = events.filter(event => event.creatorId === currentUser.id);
   const joinedEvents = events.filter(event => 
     event.creatorId !== currentUser.id && 
-    event.attendees > 0 // This is a placeholder; in a real app we'd check if user is an attendee
+    event.attendees?.includes?.(currentUser.id)
   );
   const userEvents = [...userCreatedEvents, ...joinedEvents];
   
-  // Filter joined groups (both created and member)
+  // Filter only groups created by or joined by the user  
   const userCreatedGroups = groups.filter(group => group.creatorId === currentUser.id);
   const joinedGroups = groups.filter(group => 
     group.creatorId !== currentUser.id && 
-    group.members > 0 // This is a placeholder; in a real app we'd check if user is a member
+    group.memberIds?.includes?.(currentUser.id)
   );
   const userGroups = [...userCreatedGroups, ...joinedGroups];
   
@@ -106,6 +290,7 @@ const Profile = () => {
         bio: profileForm.bio,
         location: profileForm.location,
         profileImage: profileForm.profileImage,
+        coverImage: profileForm.coverImage,
         socialLinks: {
           instagram: profileForm.instagram,
           twitter: profileForm.twitter,
@@ -209,18 +394,40 @@ const Profile = () => {
     <div className="space-y-8">
       {/* Profile Header */}
       <Card className="overflow-hidden">
-        {/* Cover image */}
-        <div className="h-48 bg-gradient-to-r from-primary to-accent"></div>
+        {/* Cover image with edit button */}
+        <div className="relative">
+          <div 
+            className="h-48 bg-gradient-to-r from-primary to-accent"
+            style={currentUser.coverImage ? { backgroundImage: `url(${currentUser.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+          ></div>
+          <Button 
+            size="sm" 
+            variant="secondary"
+            className="absolute right-4 bottom-4 gap-1"
+            onClick={() => setIsCoverImageDialogOpen(true)}
+          >
+            <ImageIcon className="h-4 w-4" />
+            <span>Change Cover</span>
+          </Button>
+        </div>
         
         <div className="px-6 pb-6">
           {/* Profile picture and basic info */}
           <div className="flex flex-col md:flex-row gap-6">
-            <div className="-mt-12 shrink-0">
+            <div className="-mt-12 shrink-0 relative">
               <img 
                 src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random&size=150`} 
                 alt={currentUser.name}
                 className="h-32 w-32 rounded-full border-4 border-white object-cover"
               />
+              <Button 
+                size="sm" 
+                variant="secondary" 
+                className="absolute bottom-0 right-0 h-8 w-8 p-0 rounded-full"
+                onClick={() => setIsImageDialogOpen(true)}
+              >
+                <Camera className="h-4 w-4" />
+              </Button>
             </div>
             
             <div className="flex-1 pt-2 md:pt-6">
@@ -547,14 +754,51 @@ const Profile = () => {
             </div>
             
             <div className="space-y-2">
-              <label htmlFor="profileImage" className="text-sm font-medium">Profile Image URL</label>
-              <Input
-                id="profileImage"
-                name="profileImage"
-                value={profileForm.profileImage}
-                onChange={handleProfileFormChange}
-                placeholder="https://example.com/image.jpg"
-              />
+              <label htmlFor="profileImage" className="text-sm font-medium flex justify-between">
+                <span>Profile Image</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 gap-1"
+                  onClick={() => setIsImageDialogOpen(true)}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  <span>Choose Image</span>
+                </Button>
+              </label>
+              {profileForm.profileImage && (
+                <div className="mt-2">
+                  <img 
+                    src={profileForm.profileImage} 
+                    alt="Profile preview" 
+                    className="h-16 w-16 rounded-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="coverImage" className="text-sm font-medium flex justify-between">
+                <span>Cover Image</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 gap-1"
+                  onClick={() => setIsCoverImageDialogOpen(true)}
+                >
+                  <ImageIcon className="h-4 w-4" />
+                  <span>Choose Image</span>
+                </Button>
+              </label>
+              {profileForm.coverImage && (
+                <div className="mt-2">
+                  <img 
+                    src={profileForm.coverImage} 
+                    alt="Cover preview" 
+                    className="h-20 w-full object-cover rounded-md"
+                  />
+                </div>
+              )}
             </div>
             
             <Separator className="my-4" />
@@ -654,6 +898,140 @@ const Profile = () => {
           <ScrollArea className="h-[400px] pr-4">
             {renderFollowerItems(mockFollowing, () => setIsFollowingDialogOpen(false))}
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Profile Image Selection Dialog */}
+      <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Select Profile Picture</DialogTitle>
+            <DialogDescription>
+              Choose from your uploaded images or upload a new one
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">Your Images</h4>
+              <label className="cursor-pointer">
+                <Input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={uploadProfileImage}
+                  disabled={uploading}
+                />
+                <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
+                  <Upload className="h-4 w-4" />
+                  <span>{uploading ? 'Uploading...' : 'Upload New'}</span>
+                </Button>
+              </label>
+            </div>
+            
+            <ScrollArea className="h-[300px]">
+              {profileImages.length > 0 ? (
+                <div className="grid grid-cols-3 gap-4 p-1">
+                  {profileImages.map((image, index) => (
+                    <div 
+                      key={index} 
+                      className="relative cursor-pointer group overflow-hidden rounded-md"
+                      onClick={() => selectProfileImage(image.url)}
+                    >
+                      <img 
+                        src={image.url} 
+                        alt={`Profile ${index + 1}`} 
+                        className="h-24 w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-white">
+                          Select
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <ImageIcon className="mx-auto h-12 w-12 opacity-20 mb-2" />
+                  <p>No images uploaded yet</p>
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsImageDialogOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Cover Image Selection Dialog */}
+      <Dialog open={isCoverImageDialogOpen} onOpenChange={setIsCoverImageDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Select Cover Photo</DialogTitle>
+            <DialogDescription>
+              Choose from your uploaded cover photos or upload a new one
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium">Your Cover Photos</h4>
+              <label className="cursor-pointer">
+                <Input 
+                  type="file" 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={uploadCoverImage}
+                  disabled={uploading}
+                />
+                <Button variant="outline" size="sm" className="gap-1" disabled={uploading}>
+                  <Upload className="h-4 w-4" />
+                  <span>{uploading ? 'Uploading...' : 'Upload New'}</span>
+                </Button>
+              </label>
+            </div>
+            
+            <ScrollArea className="h-[300px]">
+              {coverImages.length > 0 ? (
+                <div className="grid grid-cols-2 gap-4 p-1">
+                  {coverImages.map((image, index) => (
+                    <div 
+                      key={index} 
+                      className="relative cursor-pointer group overflow-hidden rounded-md"
+                      onClick={() => selectCoverImage(image.url)}
+                    >
+                      <img 
+                        src={image.url} 
+                        alt={`Cover ${index + 1}`} 
+                        className="h-32 w-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-opacity flex items-center justify-center">
+                        <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 text-white">
+                          Select
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <ImageIcon className="mx-auto h-12 w-12 opacity-20 mb-2" />
+                  <p>No cover photos uploaded yet</p>
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCoverImageDialogOpen(false)}>
+              Cancel
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
