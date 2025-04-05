@@ -32,6 +32,8 @@ export const fetchServices = async (): Promise<Service[]> => {
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
+    image: item.image,
+    isFree: item.is_free,
   }));
 };
 
@@ -65,6 +67,8 @@ export const fetchServiceById = async (id: string): Promise<Service> => {
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
+    image: data.image,
+    isFree: data.is_free,
   };
 };
 
@@ -98,6 +102,8 @@ export const fetchServicesByProviderId = async (providerId: string): Promise<Ser
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
+    image: item.image,
+    isFree: item.is_free,
   }));
 };
 
@@ -117,6 +123,8 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     is_online: serviceData.isOnline,
     location: serviceData.location,
     meeting_url: serviceData.meetingUrl,
+    is_free: serviceData.isFree || false,
+    image: serviceData.image,
   };
   
   const { data, error } = await supabase
@@ -147,6 +155,8 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
+    image: data.image,
+    isFree: data.is_free,
   };
 };
 
@@ -166,6 +176,8 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.location !== undefined) supabaseData.location = serviceData.location;
   if (serviceData.isOnline !== undefined) supabaseData.is_online = serviceData.isOnline;
   if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;
+  if (serviceData.image !== undefined) supabaseData.image = serviceData.image;
+  if (serviceData.isFree !== undefined) supabaseData.is_free = serviceData.isFree;
   
   const { data, error } = await supabase
     .from('services')
@@ -196,20 +208,9 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
+    image: data.image,
+    isFree: data.is_free,
   };
-};
-
-// Delete a service
-export const deleteService = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('services')
-    .delete()
-    .eq('id', id);
-    
-  if (error) {
-    console.error('Error deleting service:', error);
-    throw new Error(error.message);
-  }
 };
 
 // Book a service
