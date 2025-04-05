@@ -16,7 +16,7 @@ import {
   Menu,
   X,
   NetworkIcon,
-  DollarSign
+  LifeBuoy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -29,7 +29,7 @@ interface MainLayoutProps {
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  const { currentUser, isLoading, logout } = useAuth();
+  const { currentUser, isLoading, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -43,7 +43,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const handleLogout = async () => {
     try {
-      await logout();
+      await signOut();
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -114,7 +114,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
               <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
               <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
-              <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+              <NavigationLink to="/services" icon={<LifeBuoy size={18} />} label="Services" />
               <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
               {currentUser?.role === 'admin' && (
                 <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
@@ -153,7 +153,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
             <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
             <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
-            <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+            <NavigationLink to="/services" icon={<LifeBuoy size={18} />} label="Services" />
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
             {currentUser?.role === 'admin' && (
               <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />

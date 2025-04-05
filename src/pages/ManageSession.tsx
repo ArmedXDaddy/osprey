@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -137,6 +138,7 @@ const ManageSession = () => {
     }
   };
   
+  // Check if the current user is the coach for this session
   if (currentUser && session && currentUser.id !== session.coachId) {
     navigate('/sessions');
     return null;

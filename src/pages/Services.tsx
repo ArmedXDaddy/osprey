@@ -1,111 +1,130 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { fetchServices } from '@/api/services';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import ServiceCard from '@/components/shared/ServiceCard';
-import { Plus, Search } from 'lucide-react';
-import { fetchServices } from '@/api/services'; 
+import { Search, Plus } from 'lucide-react';
+import { Service } from '@/types';
+import ServiceDetailCard from '@/components/shared/ServiceDetailCard';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/context/AuthContext';
 
 const Services = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState('');
   
-  const { data: services, isLoading } = useQuery({
-    queryKey: ['services'],
-    queryFn: fetchServices,
-  });
+  // Get the active tab from URL or default to 'all'
+  const activeTab = searchParams.get('tab') || 'all';
   
-  const isCoach = currentUser?.role === 'coach';
-  
-  // Filter services based on search query and active tab
-  const filteredServices = services?.filter(service => {
-    const matchesSearch = searchQuery.trim() === '' || 
-      service.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.providerName.toLowerCase().includes(searchQuery.toLowerCase());
-      
-    if (!matchesSearch) return false;
-    
-    if (activeTab === 'all') return true;
-    if (activeTab === 'one_on_one') return service.sessionType === 'one_on_one';
-    if (activeTab === 'group') return service.sessionType === 'group';
-    if (activeTab === 'free') return service.price === 0;
-    if (activeTab === 'paid') return service.price > 0;
-    
-    return true;
-  });
-  
-  const handleCreateService = () => {
-    navigate('/services/create');
+  // Update URL when tab changes
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
   };
+  
+  const { data: services, isLoading, error } = useQuery({
+    queryKey: ['services'],
+    queryFn: fetchServices
+  });
+  
+  const filteredServices = React.useMemo(() => {
+    if (!services) return [];
+    
+    let filtered = services.filter(service => 
+      service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.coachName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    
+    if (activeTab === 'oneOnOne') {
+      filtered = filtered.filter(service => service.serviceType === 'one_on_one');
+    } else if (activeTab === 'group') {
+      filtered = filtered.filter(service => service.serviceType === 'group');
+    } else if (activeTab === 'free') {
+      filtered = filtered.filter(service => service.isFree);
+    } else if (activeTab === 'paid') {
+      filtered = filtered.filter(service => !service.isFree);
+    }
+    
+    return filtered;
+  }, [services, activeTab, searchTerm]);
+  
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold text-red-600">Error loading services</h2>
+        <p className="text-gray-600 mt-2">
+          Please try again later or contact support.
+        </p>
+      </div>
+    );
+  }
   
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Services</h1>
-        {isCoach && (
-          <Button onClick={handleCreateService}>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Service
-          </Button>
-        )}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-3xl font-bold">Services</h1>
+        
+        <div className="flex gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+            <Input
+              placeholder="Search services..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-full"
+            />
+          </div>
+          
+          {currentUser?.role === 'coach' && (
+            <Button onClick={() => navigate('/services/create')}>
+              <Plus className="h-4 w-4 mr-2" />
+              <span>Create</span>
+            </Button>
+          )}
+        </div>
       </div>
       
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-        <Input
-          placeholder="Search services..."
-          className="pl-10"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
-      </div>
-      
-      <Tabs defaultValue="all" onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5">
+      <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
+        <TabsList className="grid grid-cols-5 w-full">
           <TabsTrigger value="all">All</TabsTrigger>
-          <TabsTrigger value="one_on_one">One-on-One</TabsTrigger>
+          <TabsTrigger value="oneOnOne">One-on-One</TabsTrigger>
           <TabsTrigger value="group">Group</TabsTrigger>
           <TabsTrigger value="free">Free</TabsTrigger>
           <TabsTrigger value="paid">Paid</TabsTrigger>
         </TabsList>
         
-        <TabsContent value={activeTab} className="pt-4">
+        <TabsContent value={activeTab} className="mt-6">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((n) => (
-                <div key={n} className="rounded-lg border overflow-hidden">
-                  <Skeleton className="h-32" />
-                  <div className="p-4 space-y-3">
-                    <Skeleton className="h-5 w-2/3" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-10 w-full" />
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array(6).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-80 rounded-lg" />
               ))}
             </div>
-          ) : filteredServices?.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-gray-500">No services found</p>
-              {isCoach && (
-                <Button variant="outline" className="mt-4" onClick={handleCreateService}>
-                  Create your first service
-                </Button>
-              )}
+          ) : filteredServices.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredServices.map(service => (
+                <Link key={service.id} to={`/services/${service.id}`} className="h-full">
+                  <ServiceDetailCard service={service} showEnrollButton={false} />
+                </Link>
+              ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredServices?.map((service) => (
-                <ServiceCard key={service.id} service={service} />
-              ))}
+            <div className="text-center py-12">
+              <p className="text-lg text-gray-500">No services found matching your search.</p>
+              {currentUser?.role === 'coach' && (
+                <Button 
+                  variant="outline" 
+                  onClick={() => navigate('/services/create')}
+                  className="mt-4"
+                >
+                  Create a Service
+                </Button>
+              )}
             </div>
           )}
         </TabsContent>

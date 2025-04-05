@@ -1,373 +1,306 @@
-import { Service } from '@/types';
+
 import { supabase } from '@/integrations/supabase/client';
+import { Service, ServiceEnrollment, ServiceType } from '@/types';
+
+// Convert Supabase service data to our Service interface
+const mapServiceFromDB = (serviceData: any): Service => ({
+  id: serviceData.id,
+  title: serviceData.title,
+  description: serviceData.description,
+  coachId: serviceData.coach_id,
+  coachName: serviceData.coach_name,
+  serviceType: serviceData.service_type as ServiceType,
+  capacity: serviceData.capacity,
+  price: serviceData.price,
+  isFree: serviceData.is_free,
+  duration: serviceData.duration,
+  image: serviceData.image,
+  location: serviceData.location,
+  isOnline: serviceData.is_online,
+  meetingUrl: serviceData.meeting_url,
+  isActive: serviceData.is_active,
+  createdAt: new Date(serviceData.created_at),
+  updatedAt: new Date(serviceData.updated_at)
+});
+
+// Convert Supabase enrollment data to our ServiceEnrollment interface
+const mapEnrollmentFromDB = (enrollmentData: any): ServiceEnrollment => ({
+  id: enrollmentData.id,
+  serviceId: enrollmentData.service_id,
+  userId: enrollmentData.user_id,
+  userName: enrollmentData.user_name,
+  userEmail: enrollmentData.user_email,
+  userProfileImage: enrollmentData.user_profile_image,
+  status: enrollmentData.status,
+  paymentStatus: enrollmentData.payment_status,
+  createdAt: new Date(enrollmentData.created_at)
+});
 
 // Fetch all services
 export const fetchServices = async (): Promise<Service[]> => {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
-    
-  if (error) {
-    console.error('Error fetching services:', error);
-    throw new Error(error.message);
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching services:', error);
+      throw error;
+    }
+
+    return data ? data.map(mapServiceFromDB) : [];
+  } catch (error) {
+    console.error('Error in fetchServices:', error);
+    return [];
   }
-  
-  // Transform Supabase data to match our Service type
-  return data.map(item => ({
-    id: item.id,
-    title: item.title,
-    description: item.description || '',
-    providerId: item.coach_id,
-    providerName: item.coach_name,
-    price: item.price,
-    duration: item.duration || '1 hour',
-    available: item.is_active,
-    createdAt: new Date(item.created_at),
-    sessionType: item.service_type as 'one_on_one' | 'group',
-    capacity: item.capacity,
-    startTime: undefined, // The database doesn't have start_time field
-    location: item.location,
-    isOnline: item.is_online,
-    meetingUrl: item.meeting_url,
-    image: item.image,
-    isFree: item.is_free,
-  }));
 };
 
-// Fetch a single service by ID
+// Fetch a specific service by ID
 export const fetchServiceById = async (id: string): Promise<Service> => {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('id', id)
-    .single();
-    
-  if (error) {
-    console.error('Error fetching service:', error);
-    throw new Error(error.message);
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching service with id ${id}:`, error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error(`Service with id ${id} not found`);
+    }
+
+    return mapServiceFromDB(data);
+  } catch (error) {
+    console.error(`Error in fetchServiceById:`, error);
+    throw error;
   }
-  
-  // Transform Supabase data to match our Service type
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description || '',
-    providerId: data.coach_id,
-    providerName: data.coach_name,
-    price: data.price,
-    duration: data.duration || '1 hour',
-    available: data.is_active,
-    createdAt: new Date(data.created_at),
-    sessionType: data.service_type as 'one_on_one' | 'group',
-    capacity: data.capacity,
-    startTime: undefined, // The database doesn't have start_time field
-    location: data.location,
-    isOnline: data.is_online,
-    meetingUrl: data.meeting_url,
-    image: data.image,
-    isFree: data.is_free,
-  };
 };
 
-// Fetch services by provider ID
-export const fetchServicesByProviderId = async (providerId: string): Promise<Service[]> => {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .eq('coach_id', providerId)
-    .order('created_at', { ascending: false });
-    
-  if (error) {
-    console.error('Error fetching provider services:', error);
-    throw new Error(error.message);
+// Fetch services by coach ID
+export const fetchServicesByCoachId = async (coachId: string): Promise<Service[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('services')
+      .select('*')
+      .eq('coach_id', coachId);
+
+    if (error) {
+      console.error(`Error fetching services for coach ${coachId}:`, error);
+      throw error;
+    }
+
+    return data ? data.map(mapServiceFromDB) : [];
+  } catch (error) {
+    console.error('Error in fetchServicesByCoachId:', error);
+    return [];
   }
-  
-  // Transform Supabase data to match our Service type
-  return data.map(item => ({
-    id: item.id,
-    title: item.title,
-    description: item.description || '',
-    providerId: item.coach_id,
-    providerName: item.coach_name,
-    price: item.price,
-    duration: item.duration || '1 hour',
-    available: item.is_active,
-    createdAt: new Date(item.created_at),
-    sessionType: item.service_type as 'one_on_one' | 'group',
-    capacity: item.capacity,
-    startTime: undefined, // The database doesn't have start_time field
-    location: item.location,
-    isOnline: item.is_online,
-    meetingUrl: item.meeting_url,
-    image: item.image,
-    isFree: item.is_free,
-  }));
 };
 
 // Create a new service
-export const createService = async (serviceData: Partial<Service>): Promise<Service> => {
-  // Transform our Service type to match Supabase schema
-  const supabaseData = {
-    title: serviceData.title,
-    description: serviceData.description,
-    coach_id: serviceData.providerId,
-    coach_name: serviceData.providerName,
-    price: serviceData.price || 0,
-    duration: serviceData.duration,
-    is_active: true,
-    service_type: serviceData.sessionType,
-    capacity: serviceData.capacity,
-    is_online: serviceData.isOnline,
-    location: serviceData.location,
-    meeting_url: serviceData.meetingUrl,
-    is_free: serviceData.isFree || false,
-    image: serviceData.image,
-  };
-  
-  const { data, error } = await supabase
-    .from('services')
-    .insert(supabaseData)
-    .select()
-    .single();
-    
-  if (error) {
-    console.error('Error creating service:', error);
-    throw new Error(error.message);
+export const createService = async (serviceData: Omit<Service, 'id' | 'createdAt' | 'updatedAt'>): Promise<Service> => {
+  try {
+    const dbData = {
+      title: serviceData.title,
+      description: serviceData.description,
+      coach_id: serviceData.coachId,
+      coach_name: serviceData.coachName,
+      service_type: serviceData.serviceType,
+      capacity: serviceData.serviceType === 'group' ? serviceData.capacity : null,
+      price: serviceData.isFree ? 0 : serviceData.price,
+      is_free: serviceData.isFree,
+      duration: serviceData.duration,
+      image: serviceData.image,
+      location: serviceData.isOnline ? null : serviceData.location,
+      is_online: serviceData.isOnline,
+      meeting_url: serviceData.isOnline ? serviceData.meetingUrl : null,
+      is_active: serviceData.isActive
+    };
+
+    const { data, error } = await supabase
+      .from('services')
+      .insert(dbData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating service:', error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('Failed to create service');
+    }
+
+    return mapServiceFromDB(data);
+  } catch (error) {
+    console.error('Error in createService:', error);
+    throw error;
   }
-  
-  // Return the created service
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description || '',
-    providerId: data.coach_id,
-    providerName: data.coach_name,
-    price: data.price,
-    duration: data.duration || '1 hour',
-    available: data.is_active,
-    createdAt: new Date(data.created_at),
-    sessionType: data.service_type as 'one_on_one' | 'group',
-    capacity: data.capacity,
-    startTime: undefined, // The database doesn't have start_time field
-    location: data.location,
-    isOnline: data.is_online,
-    meetingUrl: data.meeting_url,
-    image: data.image,
-    isFree: data.is_free,
-  };
 };
 
 // Update an existing service
 export const updateService = async (id: string, serviceData: Partial<Service>): Promise<Service> => {
-  // Transform our Service type to match Supabase schema
-  const supabaseData: any = {};
-  
-  if (serviceData.title !== undefined) supabaseData.title = serviceData.title;
-  if (serviceData.description !== undefined) supabaseData.description = serviceData.description;
-  if (serviceData.price !== undefined) supabaseData.price = serviceData.price;
-  if (serviceData.duration !== undefined) supabaseData.duration = serviceData.duration;
-  if (serviceData.available !== undefined) supabaseData.is_active = serviceData.available;
-  if (serviceData.sessionType !== undefined) supabaseData.service_type = serviceData.sessionType;
-  if (serviceData.capacity !== undefined) supabaseData.capacity = serviceData.capacity;
-  if (serviceData.location !== undefined) supabaseData.location = serviceData.location;
-  if (serviceData.isOnline !== undefined) supabaseData.is_online = serviceData.isOnline;
-  if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;
-  if (serviceData.image !== undefined) supabaseData.image = serviceData.image;
-  if (serviceData.isFree !== undefined) supabaseData.is_free = serviceData.isFree;
-  
-  const { data, error } = await supabase
-    .from('services')
-    .update(supabaseData)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    const dbData: any = {};
     
-  if (error) {
-    console.error('Error updating service:', error);
-    throw new Error(error.message);
+    if (serviceData.title !== undefined) dbData.title = serviceData.title;
+    if (serviceData.description !== undefined) dbData.description = serviceData.description;
+    if (serviceData.serviceType !== undefined) dbData.service_type = serviceData.serviceType;
+    if (serviceData.capacity !== undefined) dbData.capacity = serviceData.capacity;
+    if (serviceData.price !== undefined) dbData.price = serviceData.price;
+    if (serviceData.isFree !== undefined) dbData.is_free = serviceData.isFree;
+    if (serviceData.duration !== undefined) dbData.duration = serviceData.duration;
+    if (serviceData.image !== undefined) dbData.image = serviceData.image;
+    if (serviceData.location !== undefined) dbData.location = serviceData.location;
+    if (serviceData.isOnline !== undefined) dbData.is_online = serviceData.isOnline;
+    if (serviceData.meetingUrl !== undefined) dbData.meeting_url = serviceData.meetingUrl;
+    if (serviceData.isActive !== undefined) dbData.is_active = serviceData.isActive;
+
+    const { data, error } = await supabase
+      .from('services')
+      .update(dbData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`Error updating service ${id}:`, error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error(`Failed to update service ${id}`);
+    }
+
+    return mapServiceFromDB(data);
+  } catch (error) {
+    console.error(`Error in updateService:`, error);
+    throw error;
   }
-  
-  // Return the updated service
-  return {
-    id: data.id,
-    title: data.title,
-    description: data.description || '',
-    providerId: data.coach_id,
-    providerName: data.coach_name,
-    price: data.price,
-    duration: data.duration || '1 hour',
-    available: data.is_active,
-    createdAt: new Date(data.created_at),
-    sessionType: data.service_type as 'one_on_one' | 'group',
-    capacity: data.capacity,
-    startTime: undefined, // The database doesn't have start_time field
-    location: data.location,
-    isOnline: data.is_online,
-    meetingUrl: data.meeting_url,
-    image: data.image,
-    isFree: data.is_free,
-  };
 };
 
 // Delete a service
 export const deleteService = async (id: string): Promise<void> => {
-  const { error } = await supabase
-    .from('services')
-    .update({ is_active: false })
-    .eq('id', id);
-    
-  if (error) {
-    console.error('Error deleting service:', error);
-    throw new Error(error.message);
+  try {
+    const { error } = await supabase
+      .from('services')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Error deleting service ${id}:`, error);
+      throw error;
+    }
+  } catch (error) {
+    console.error(`Error in deleteService:`, error);
+    throw error;
   }
 };
 
-// Book a service - updated to handle paid services
-export const bookService = async (bookingData: {
-  serviceId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userProfileImage?: string;
-  isPaid?: boolean;
-  notes?: string;
-  preferredTime?: string;
-}): Promise<void> => {
-  const { error } = await supabase
-    .from('service_enrollments')
-    .insert({
-      service_id: bookingData.serviceId,
-      user_id: bookingData.userId,
-      user_name: bookingData.userName,
-      user_email: bookingData.userEmail,
-      user_profile_image: bookingData.userProfileImage,
-      status: bookingData.isPaid ? 'approved' : 'pending', // Auto-approve paid bookings
-      payment_status: bookingData.isPaid ? 'paid' : 'unpaid',
-      notes: bookingData.notes,
-      preferred_time: bookingData.preferredTime,
-    });
-    
-  if (error) {
-    console.error('Error booking service:', error);
-    throw new Error(error.message);
+// Fetch enrollments for a service
+export const fetchServiceEnrollments = async (serviceId: string): Promise<ServiceEnrollment[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('service_enrollments')
+      .select('*')
+      .eq('service_id', serviceId);
+
+    if (error) {
+      console.error(`Error fetching enrollments for service ${serviceId}:`, error);
+      throw error;
+    }
+
+    return data ? data.map(mapEnrollmentFromDB) : [];
+  } catch (error) {
+    console.error(`Error in fetchServiceEnrollments:`, error);
+    return [];
   }
 };
 
-// Get service bookings
-export const getServiceBookings = async (serviceId: string) => {
-  const { data, error } = await supabase
-    .from('service_enrollments')
-    .select('*')
-    .eq('service_id', serviceId)
-    .order('created_at', { ascending: false });
-    
-  if (error) {
-    console.error('Error fetching service bookings:', error);
-    throw new Error(error.message);
-  }
-  
-  return data;
-};
+// Fetch enrollments for a user
+export const fetchUserEnrollments = async (userId: string): Promise<ServiceEnrollment[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('service_enrollments')
+      .select('*')
+      .eq('user_id', userId);
 
-// Update booking status
-export const updateBookingStatus = async (bookingId: string, status: 'pending' | 'approved' | 'rejected') => {
-  const { error } = await supabase
-    .from('service_enrollments')
-    .update({ status })
-    .eq('id', bookingId);
-    
-  if (error) {
-    console.error('Error updating booking status:', error);
-    throw new Error(error.message);
+    if (error) {
+      console.error(`Error fetching enrollments for user ${userId}:`, error);
+      throw error;
+    }
+
+    return data ? data.map(mapEnrollmentFromDB) : [];
+  } catch (error) {
+    console.error(`Error in fetchUserEnrollments:`, error);
+    return [];
   }
 };
 
-// Cancel a booking
-export const cancelBooking = async (bookingId: string) => {
-  const { error } = await supabase
-    .from('service_enrollments')
-    .delete()
-    .eq('id', bookingId);
-    
-  if (error) {
-    console.error('Error canceling booking:', error);
-    throw new Error(error.message);
+// Create a new enrollment
+export const createEnrollment = async (enrollmentData: Omit<ServiceEnrollment, 'id' | 'createdAt'>): Promise<ServiceEnrollment> => {
+  try {
+    const dbData = {
+      service_id: enrollmentData.serviceId,
+      user_id: enrollmentData.userId,
+      user_name: enrollmentData.userName,
+      user_email: enrollmentData.userEmail,
+      user_profile_image: enrollmentData.userProfileImage || null,
+      status: enrollmentData.status,
+      payment_status: enrollmentData.paymentStatus
+    };
+
+    const { data, error } = await supabase
+      .from('service_enrollments')
+      .insert(dbData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating enrollment:', error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('Failed to create enrollment');
+    }
+
+    return mapEnrollmentFromDB(data);
+  } catch (error) {
+    console.error('Error in createEnrollment:', error);
+    throw error;
   }
 };
 
-// Get user's bookings
-export const getUserBookings = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('service_enrollments')
-    .select(`
-      *,
-      service:service_id (
-        title,
-        description,
-        price,
-        coach_name,
-        service_type,
-        duration,
-        is_online,
-        location,
-        meeting_url
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-    
-  if (error) {
-    console.error('Error fetching user bookings:', error);
-    throw new Error(error.message);
-  }
-  
-  return data;
-};
+// Update an enrollment's status
+export const updateEnrollmentStatus = async (id: string, status: string, paymentStatus?: string): Promise<ServiceEnrollment> => {
+  try {
+    const dbData: any = { status };
+    if (paymentStatus) dbData.payment_status = paymentStatus;
 
-// Get service provider's bookings
-export const getProviderBookings = async (providerId: string) => {
-  const { data, error } = await supabase
-    .from('service_enrollments')
-    .select(`
-      *,
-      service:service_id (
-        id,
-        title,
-        price,
-        service_type,
-        duration,
-        is_online
-      )
-    `)
-    .eq('service:service_id.coach_id', providerId)
-    .order('created_at', { ascending: false });
-    
-  if (error) {
-    console.error('Error fetching provider bookings:', error);
-    throw new Error(error.message);
-  }
-  
-  return data;
-};
+    const { data, error } = await supabase
+      .from('service_enrollments')
+      .update(dbData)
+      .eq('id', id)
+      .select()
+      .single();
 
-// Check if a user has booked a service
-export const checkBookingStatus = async (userId: string, serviceId: string) => {
-  const { data, error } = await supabase
-    .from('service_enrollments')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('service_id', serviceId);
-    
-  if (error) {
-    console.error('Error checking booking status:', error);
-    throw new Error(error.message);
+    if (error) {
+      console.error(`Error updating enrollment ${id}:`, error);
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error(`Failed to update enrollment ${id}`);
+    }
+
+    return mapEnrollmentFromDB(data);
+  } catch (error) {
+    console.error(`Error in updateEnrollmentStatus:`, error);
+    throw error;
   }
-  
-  if (data.length === 0) {
-    return null;
-  }
-  
-  return data[0];
 };
