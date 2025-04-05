@@ -251,7 +251,14 @@ const HomePage = () => {
                 ) : (
                   <div>
                     {services.slice(0, 1).map(service => (
-                      <ServiceCard key={service.id} service={service} />
+                      <ServiceCard 
+                        key={service.id} 
+                        service={{
+                          ...service,
+                          providerId: (service as any).providerId || service.coachId,
+                          providerName: (service as any).providerName || service.coachName,
+                        } as Service} 
+                      />
                     ))}
                     <Link to="/explore?tab=services" className="text-primary hover:underline text-sm block text-center mt-4">
                       Explore all services

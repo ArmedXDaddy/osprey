@@ -18,7 +18,7 @@ interface DataContextType {
   updateEnrollmentStatus: (enrollmentId: string, status: 'pending' | 'approved' | 'rejected') => Promise<void>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
   
-  createEvent: (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>) => Promise<Event>;
+  createEvent: (eventData: Omit<Event, "id" | "createdAt" | "attendees" | "pendingRequests">) => Promise<Event>;
   getEventRequests: (eventId: string) => JoinRequest[];
   handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
   
@@ -372,16 +372,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log(`Removed member ${userId} from group ${groupId}`);
   };
 
-  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'attendees' | 'pendingRequests'>): Promise<Event> => {
+  const createEvent = async (eventData: Omit<Event, "id" | "createdAt" | "attendees" | "pendingRequests">): Promise<Event> => {
     const newEvent: Event = {
       id: `event-${Date.now()}`,
       ...eventData,
-      hostId: eventData.creatorId as string || eventData.hostId,
-      hostName: eventData.creatorName as string || eventData.hostName,
-      hostRole: eventData.creatorRole as UserRole || eventData.hostRole,
+      hostId: eventData.hostId || eventData.creatorId as string,
+      hostName: eventData.hostName || eventData.creatorName as string,
+      hostRole: eventData.hostRole || eventData.creatorRole as UserRole,
+      creatorId: eventData.creatorId || eventData.hostId,
+      creatorName: eventData.creatorName || eventData.hostName,
+      creatorRole: eventData.creatorRole || eventData.hostRole,
       endDate: eventData.endDate || new Date(new Date(eventData.startDate).getTime() + 3600000),
-      currentAttendees: 0,
+      currentAttendees: eventData.currentAttendees || 0,
       createdAt: new Date(),
+      attendees: [],
+      pendingRequests: 0
     };
     
     setEvents(prev => [...prev, newEvent]);

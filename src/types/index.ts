@@ -1,4 +1,3 @@
-
 // User related types
 export type UserRole = 'user' | 'coach' | 'admin' | 'influencer' | 'company';
 
@@ -39,6 +38,18 @@ export interface Service {
   image?: string;
   coverImage?: string;
   isFree: boolean;
+  coach?: {
+    id: string;
+    name: string;
+    role: UserRole;
+    profileImage?: string;
+  };
+  coachId?: string;
+  coachName?: string;
+  type?: SessionType;
+  status?: SessionStatus;
+  isActive?: boolean;
+  currentAttendees?: number;
 }
 
 // Post related types
@@ -108,13 +119,13 @@ export interface Event {
   image?: string;
   tags?: string[];
   
-  // Additional properties used in components
+  // Additional properties used for compatibility
   date?: Date;
-  attendees?: any[];
-  pendingRequests?: number;
   creatorId?: string;
   creatorName?: string;
   creatorRole?: UserRole;
+  attendees?: any[];
+  pendingRequests?: number;
 }
 
 // Message related types
@@ -177,6 +188,10 @@ export interface Session {
   sessionType: SessionType;
   available: boolean;
   isActive?: boolean;
+  
+  // Added for compatibility with Service
+  providerId?: string;
+  providerName?: string;
 }
 
 export interface SessionEnrollment {

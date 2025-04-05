@@ -82,12 +82,16 @@ const CreateEvent = () => {
         location: values.location,
         isOnline: values.isOnline,
         meetingUrl: values.isOnline ? values.meetingUrl : undefined,
-        startDate: values.date, // Use startDate as expected by type
+        startDate: values.date,
+        endDate: new Date(values.date.getTime() + 3600000), // Default to 1 hour duration
         date: values.date, // Keep date for backward compatibility
         image: values.image,
         creatorId: currentUser?.id || '',
         creatorName: currentUser?.name || '',
         creatorRole: currentUser?.role || 'user',
+        hostId: currentUser?.id || '',
+        hostName: currentUser?.name || '',
+        hostRole: currentUser?.role || 'user',
         privacy: privacy as EventPrivacy,
         price: values.isPaid ? values.price : 0,
         capacity: values.capacity,

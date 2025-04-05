@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Session } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -36,11 +35,21 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
         session.id, 
         currentUser.id, 
         currentUser.name, 
-        currentUser.email, 
+        currentUser.email,
         currentUser.profileImage
       );
+      
+      toast({
+        title: "Enrollment Request Sent",
+        description: "Your request to join this session has been sent",
+      });
     } catch (error) {
       console.error('Error enrolling in session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to enroll in session",
+        variant: "destructive"
+      });
     }
   };
   
@@ -54,13 +63,11 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
     }
   };
   
-  // Support for both formats of coach information
   const coachId = session.coachId || (session.coach?.id || '');
   const isCoach = currentUser?.role === 'coach';
   const isOwnSession = isCoach && currentUser?.id === coachId;
   const coachName = session.coachName || (session.coach?.name || '');
   
-  // Support for both type and sessionType 
   const type = session.type || session.sessionType || 'one_on_one';
   
   return (
