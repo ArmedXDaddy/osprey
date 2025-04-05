@@ -26,10 +26,14 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
   
   // Fetch service messages
   useEffect(() => {
-    if (service?.id) {
-      const serviceMessages = getServiceMessages(service.id);
-      setMessages(serviceMessages);
-    }
+    const fetchMessages = async () => {
+      if (service?.id) {
+        const serviceMessages = await getServiceMessages(service.id);
+        setMessages(serviceMessages);
+      }
+    };
+    
+    fetchMessages();
   }, [service?.id, getServiceMessages]);
 
   // Scroll to bottom on new messages
@@ -47,11 +51,14 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking }) => {
     
     try {
       setIsSubmitting(true);
-      await sendServiceMessage(service.id, newMessage);
+      await sendServiceMessage({
+        serviceId: service.id,
+        content: newMessage,
+      });
       setNewMessage('');
       
       // Refetch messages after sending
-      const updatedMessages = getServiceMessages(service.id);
+      const updatedMessages = await getServiceMessages(service.id);
       setMessages(updatedMessages);
     } catch (error: any) {
       console.error("Failed to send message:", error);
