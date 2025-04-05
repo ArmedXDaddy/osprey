@@ -31,6 +31,15 @@ import Services from "./pages/Services";
 import CreateService from "./pages/CreateService";
 import ManageService from "./pages/ManageService";
 
+// Company Pages
+import JobPostings from "./pages/company/JobPostings";
+import CreateJobPosting from "./pages/company/CreateJobPosting";
+import Products from "./pages/company/Products";
+import Workshops from "./pages/company/Workshops";
+
+// Components
+import CompanyProfile from "./components/company/CompanyProfile";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -64,6 +73,13 @@ const App = () => (
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/register" element={<Register />} />
+                
+                {/* Company Routes */}
+                <Route path="/company/jobs" element={<JobPostings />} />
+                <Route path="/company/jobs/create" element={<CreateJobPosting />} />
+                <Route path="/company/products" element={<Products />} />
+                <Route path="/company/workshops" element={<Workshops />} />
+                
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </MainLayout>

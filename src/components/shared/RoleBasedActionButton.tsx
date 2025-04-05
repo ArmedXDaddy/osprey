@@ -8,7 +8,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Calendar, Users, FileText, DollarSign } from 'lucide-react';
+import { PlusCircle, Calendar, Users, FileText, DollarSign, Briefcase, GraduationCap, Package2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const RoleBasedActionButton: React.FC = () => {
@@ -46,6 +46,10 @@ const RoleBasedActionButton: React.FC = () => {
           { label: 'Create Post', icon: <FileText className="h-4 w-4 mr-2" />, action: () => navigate('/create/post') },
           { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create-event') },
           { label: 'Create Group', icon: <Users className="h-4 w-4 mr-2" />, action: () => navigate('/create-group') },
+          { label: 'Create Service', icon: <DollarSign className="h-4 w-4 mr-2" />, action: () => navigate('/services/create') },
+          { label: 'Post Job', icon: <Briefcase className="h-4 w-4 mr-2" />, action: () => navigate('/company/jobs/create') },
+          { label: 'Add Product', icon: <Package2 className="h-4 w-4 mr-2" />, action: () => navigate('/company/products/create') },
+          { label: 'Create Workshop', icon: <GraduationCap className="h-4 w-4 mr-2" />, action: () => navigate('/company/workshops/create') },
         ];
         
       default:

@@ -15,7 +15,11 @@ import {
   User,
   Menu,
   X,
-  NetworkIcon
+  NetworkIcon,
+  Briefcase,
+  DollarSign,
+  GraduationCap,
+  Building
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -71,6 +75,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     );
   }
 
+  const isCompany = currentUser?.role === 'company';
+
   const NavigationLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
     <NavLink 
       to={to} 
@@ -120,6 +126,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
               <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
               <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+              <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+              
+              {isCompany && (
+                <>
+                  <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Job Postings" />
+                  <NavigationLink to="/company/products" icon={<DollarSign size={18} />} label="Products" />
+                  <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+                </>
+              )}
+              
               <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
               {currentUser?.role === 'admin' && (
                 <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
@@ -159,6 +175,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
             <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
             <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+            <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+            
+            {isCompany && (
+              <>
+                <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Job Postings" />
+                <NavigationLink to="/company/products" icon={<DollarSign size={18} />} label="Products" />
+                <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+              </>
+            )}
+            
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
             {currentUser?.role === 'admin' && (
               <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
