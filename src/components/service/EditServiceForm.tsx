@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,6 +28,12 @@ import { supabase } from '@/integrations/supabase/client';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+// Add the missing interface
+interface EditServiceFormProps {
+  service?: Service;
+  onSave?: (service: Service) => void;
+}
 
 const formSchema = z.object({
   title: z.string().min(2, {
