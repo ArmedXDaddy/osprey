@@ -1,167 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
-import { Service, ServiceBooking } from '@/types';
+import React from 'react';
+import { Service } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, DollarSign, MapPin, Calendar, Users, Video } from 'lucide-react';
-import { format } from 'date-fns';
-import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
-import { useToast } from '@/hooks/use-toast';
-import MockPaymentGateway from './MockPaymentGateway';
+import { Clock, DollarSign, Users, Calendar, Video, Link, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { logError } from '@/utils';
 
 interface ServiceCardProps {
   service: Service;
-  isEnrolled?: boolean;
-  enrollment?: ServiceBooking;
+  showActions?: boolean;
 }
 
-const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, enrollment }) => {
-  const { currentUser } = useAuth();
-  const { bookService, cancelServiceBooking, serviceBookings } = useData();
-  const { toast } = useToast();
+const ServiceCard: React.FC<ServiceCardProps> = ({ service, showActions = true }) => {
   const navigate = useNavigate();
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [localIsEnrolled, setLocalIsEnrolled] = useState(isEnrolled);
-  const [localEnrollment, setLocalEnrollment] = useState(enrollment);
-  
-  // Update local state when props change
-  useEffect(() => {
-    setLocalIsEnrolled(isEnrolled);
-    setLocalEnrollment(enrollment);
-  }, [isEnrolled, enrollment]);
-  
-  // Check if user is enrolled in this service
-  useEffect(() => {
-    if (currentUser && service && serviceBookings && !localIsEnrolled) {
-      const userBooking = serviceBookings.find(
-        booking => booking.serviceId === service.id && booking.userId === currentUser.id
-      );
-      
-      if (userBooking) {
-        setLocalIsEnrolled(true);
-        setLocalEnrollment(userBooking);
-      }
-    }
-  }, [currentUser, service, serviceBookings, localIsEnrolled]);
-  
-  const handleBooking = async () => {
-    try {
-      if (!currentUser) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to book this service",
-          variant: "destructive"
-        });
-        navigate('/auth/login');
-        return;
-      }
-      
-      if (!service.isFree && service.price > 0) {
-        // For paid services, show payment modal
-        setShowPaymentModal(true);
-      } else {
-        // For free services, process booking request directly
-        console.log("Booking free service with ID:", service.id);
-        const newBooking = await bookService(service.id);
-        
-        if (newBooking) {
-          setLocalIsEnrolled(true);
-          setLocalEnrollment(newBooking);
-          
-          toast({
-            title: "Request sent",
-            description: "Your booking request has been sent to the provider",
-          });
-        }
-      }
-    } catch (error) {
-      logError('Error booking service', error);
-      toast({
-        title: "Error",
-        description: "There was an error processing your request",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  const handlePaymentSuccess = async () => {
-    try {
-      if (!service || !service.id) {
-        throw new Error("Service information is missing");
-      }
-      
-      console.log("Payment successful, booking service with ID:", service.id);
-      
-      // Pass the serviceId and isPaid=true to bookService
-      const newBooking = await bookService(service.id, true);
-      console.log("Booking result:", newBooking);
-      
-      if (newBooking) {
-        setLocalIsEnrolled(true);
-        setLocalEnrollment(newBooking);
-        
-        toast({
-          title: "Booking successful",
-          description: "Your payment was processed and your service has been booked",
-        });
-      } else {
-        throw new Error("Booking failed after payment");
-      }
-    } catch (error) {
-      logError('Error booking after payment', error);
-      toast({
-        title: "Error",
-        description: "There was an error processing your booking after payment",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  const handlePaymentCancel = () => {
-    setShowPaymentModal(false);
-    toast({
-      title: "Payment cancelled",
-      description: "Your payment has been cancelled",
-    });
-  };
-  
-  const handleCancel = async () => {
-    if (!localEnrollment) return;
-    
-    try {
-      await cancelServiceBooking(localEnrollment.id);
-      
-      setLocalIsEnrolled(false);
-      setLocalEnrollment(undefined);
-      
-      toast({
-        title: "Booking cancelled",
-        description: "Your booking has been cancelled",
-      });
-    } catch (error) {
-      logError('Error canceling booking', error);
-      toast({
-        title: "Error",
-        description: "There was an error cancelling your booking",
-        variant: "destructive"
-      });
-    }
-  };
   
   const handleViewService = () => {
     navigate(`/services/${service.id}`);
   };
   
-  const isCoach = currentUser?.role === 'coach';
-  const isOwnService = isCoach && currentUser?.id === service.providerId;
-  
-  // Render the card
   return (
-    <Card className="h-full">
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
           <div>
@@ -169,15 +28,15 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
             <div className="text-sm text-gray-500">by {service.providerName}</div>
           </div>
           <Badge variant={service.sessionType === 'one_on_one' ? 'outline' : 'secondary'}>
-            {service.sessionType === 'one_on_one' ? '1:1 Session' : 'Group Class'}
+            {service.sessionType === 'one_on_one' ? '1:1 Session' : 'Group Session'}
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="pb-2">
-        <p className="text-gray-700 text-sm mb-4 line-clamp-2">{service.description}</p>
+      <CardContent className="pb-2 flex-grow">
+        <p className="text-gray-700 text-sm mb-4">{service.description}</p>
         
-        <div className="space-y-2">
+        <div className="flex flex-col space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Clock className="h-4 w-4 text-gray-500" />
@@ -187,106 +46,62 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, isEnrolled = false, 
             <div className="flex items-center gap-1">
               <DollarSign className="h-4 w-4 text-gray-500" />
               <span className="text-sm font-medium">
-                {service.isFree ? 'Free' : `$${service.price}`}
+                {service.price > 0 ? `$${service.price}` : 'Free'}
               </span>
             </div>
           </div>
+          
+          {service.sessionType === 'group' && (
+            <div className="flex items-center gap-1">
+              <Users className="h-4 w-4 text-gray-500" />
+              <span className="text-sm text-gray-700">
+                {service.capacity ? `${service.capacity} seats` : 'Unlimited seats'}
+              </span>
+            </div>
+          )}
           
           {service.startTime && (
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-700">
-                {format(new Date(service.startTime), 'PPp')}
+                {new Date(service.startTime).toLocaleString()}
               </span>
             </div>
           )}
           
-          {service.location && !service.isOnline && (
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">{service.location}</span>
-            </div>
-          )}
-          
-          {service.isOnline && (
-            <div className="flex items-center gap-1">
-              <Video className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">Online Session</span>
-            </div>
-          )}
-          
-          {service.sessionType === 'group' && service.capacity && (
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">Capacity: {service.capacity} people</span>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            {service.isOnline ? (
+              <>
+                <Video className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-700">Online Session</span>
+                
+                {service.meetingUrl && (
+                  <Link className="h-4 w-4 ml-1 text-blue-500" />
+                )}
+              </>
+            ) : (
+              <>
+                <MapPin className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-700">
+                  {service.location || 'Location not specified'}
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </CardContent>
       
-      <CardFooter className="pt-2">
-        {isOwnService ? (
-          <div className="w-full space-y-2">
-            <Button variant="outline" className="w-full" onClick={handleViewService}>
-              View Service
-            </Button>
-            <Button className="w-full" onClick={() => navigate(`/services/${service.id}/manage`)}>
-              Manage Service
-            </Button>
-          </div>
-        ) : localIsEnrolled ? (
-          <div className="w-full space-y-2">
-            {localEnrollment?.status === 'pending' ? (
-              <Badge className="w-full justify-center py-1" variant="outline">Pending Approval</Badge>
-            ) : localEnrollment?.status === 'approved' ? (
-              <Badge className="w-full justify-center py-1" variant="success">Approved</Badge>
-            ) : (
-              <Badge className="w-full justify-center py-1" variant="destructive">Rejected</Badge>
-            )}
-            
-            {localEnrollment?.status === 'approved' && service.isOnline && service.meetingUrl && (
-              <Button variant="outline" className="w-full" asChild>
-                <a href={service.meetingUrl} target="_blank" rel="noopener noreferrer">
-                  Join Meeting
-                </a>
-              </Button>
-            )}
-            
-            <Button variant="outline" className="w-full" onClick={handleCancel}>
-              Cancel Booking
-            </Button>
-          </div>
-        ) : (
-          <div className="w-full space-y-2">
-            <Button className="w-full" onClick={handleViewService}>
-              View Details
-            </Button>
-            
-            <Button 
-              variant="outline" 
-              className="w-full" 
-              onClick={handleBooking} 
-              disabled={!service.available}
-            >
-              {service.available ? (
-                service.isFree ? 'Request Booking' : `Book for $${service.price}`
-              ) : (
-                'Currently Unavailable'
-              )}
-            </Button>
-          </div>
-        )}
-      </CardFooter>
-      
-      <MockPaymentGateway 
-        open={showPaymentModal}
-        onOpenChange={setShowPaymentModal}
-        amount={service.price}
-        serviceName={service.title}
-        serviceId={service.id}
-        onPaymentSuccess={handlePaymentSuccess}
-        onPaymentCancel={handlePaymentCancel}
-      />
+      {showActions && (
+        <CardFooter className="pt-2">
+          <Button 
+            className="w-full" 
+            disabled={!service.available}
+            onClick={handleViewService}
+          >
+            {service.available ? 'View Details' : 'Currently Unavailable'}
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };

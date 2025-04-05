@@ -61,6 +61,13 @@ const CreateSession = () => {
   const { createSession, loading } = useData();
   const { toast } = useToast();
   
+  const coachForSession = {
+    id: currentUser?.id || '',
+    name: currentUser?.name || '',
+    role: currentUser?.role || 'user',
+    profileImage: currentUser?.profileImage || '',
+  };
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -95,15 +102,22 @@ const CreateSession = () => {
         description: data.description,
         coachId: currentUser.id,
         coachName: currentUser.name,
+        coach: coachForSession,
+        type: data.sessionType,
         sessionType: data.sessionType,
         capacity: data.sessionType === 'group' ? data.capacity : undefined,
         price: data.price,
         duration: data.duration,
-        startTime: data.startTime,
+        startTime: data.startTime || new Date(),
+        endTime: data.startTime ? new Date(data.startTime.getTime() + 60*60*1000) : new Date(),
         location: !data.isOnline ? data.location : undefined,
         isOnline: data.isOnline,
         meetingUrl: data.isOnline ? data.meetingUrl : undefined,
         isActive: data.isActive,
+        isFree: data.price === 0,
+        status: 'upcoming',
+        currentAttendees: 0,
+        available: true
       };
       
       const session = await createSession(sessionData);

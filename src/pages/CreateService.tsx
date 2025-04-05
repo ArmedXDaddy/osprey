@@ -1,41 +1,69 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { useForm } from 'react-hook-form';
 import { useMutation } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Switch } from '@/components/ui/switch';
+import { Link } from 'lucide-react';
 import { createService } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { format } from 'date-fns';
-import { Calendar as CalendarIcon } from "lucide-react"; // Changed from @radix-ui/react-icons to lucide-react
-import { Service } from '@/types';
 
 const CreateService = () => {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [sessionType, setSessionType] = useState('one_on_one');
-  const [price, setPrice] = useState('');
-  const [isFree, setIsFree] = useState(false);
-  const [duration, setDuration] = useState('');
-  const [startTime, setStartTime] = useState<Date | undefined>(undefined);
-  const [location, setLocation] = useState('');
-  const [isOnline, setIsOnline] = useState(false);
-  const [meetingUrl, setMeetingUrl] = useState('');
-  const [capacity, setCapacity] = useState('');
-
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-
+  
+  // Redirect if not a coach
+  React.useEffect(() => {
+    if (currentUser && currentUser.role !== 'coach') {
+      navigate('/services');
+      toast({
+        title: "Access Denied",
+        description: "Only coaches can create services",
+        variant: "destructive"
+      });
+    }
+  }, [currentUser, navigate, toast]);
+  
+  // Service creation form schema
+  const formSchema = z.object({
+    title: z.string().min(3, "Title must be at least 3 characters"),
+    description: z.string().min(10, "Description must be at least 10 characters"),
+    sessionType: z.enum(['one_on_one', 'group']),
+    price: z.coerce.number().min(0, "Price must be 0 or greater"),
+    duration: z.string().min(2, "Please specify the duration (e.g., '1 hour')"),
+    capacity: z.coerce.number().optional(),
+    isOnline: z.boolean().default(true),
+    location: z.string().optional(),
+    meetingUrl: z.string().url("Please enter a valid URL").optional(),
+  });
+  
+  type FormValues = z.infer<typeof formSchema>;
+  
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: '',
+      description: '',
+      sessionType: 'one_on_one',
+      price: 0,
+      duration: '',
+      isOnline: true,
+      location: '',
+      meetingUrl: '',
+    },
+  });
+  
   const createServiceMutation = useMutation({
-    mutationFn: (serviceData: Omit<Service, "id" | "createdAt" | "providerName" | "providerId">) => 
-      createService(serviceData),
+    mutationFn: createService,
     onSuccess: () => {
       toast({
         title: "Service Created",
@@ -43,167 +71,260 @@ const CreateService = () => {
       });
       navigate('/services');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast({
         title: "Error",
-        description: error.message,
+        description: `Failed to create service: ${error.message}`,
         variant: "destructive",
       });
     },
   });
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    // Make sure all required fields are present
-    const serviceData: Omit<Service, "id" | "createdAt" | "providerName" | "providerId"> = {
-      title: title,  // Required field
-      description: description || "",
-      sessionType: sessionType as "one_on_one" | "group",
-      price: Number(price),
-      isFree: isFree,
-      duration: duration || "60 minutes",
-      startTime: startTime,
-      location: location || "",
-      isOnline: isOnline,
-      meetingUrl: meetingUrl || "",
-      capacity: sessionType === "group" ? Number(capacity) : undefined,
-      available: true
+  
+  const onSubmit = (data: FormValues) => {
+    if (!currentUser) return;
+    
+    const serviceData = {
+      ...data,
+      providerId: currentUser.id,
+      providerName: currentUser.name,
+      available: true,
+      isFree: data.price === 0,
     };
-
+    
     createServiceMutation.mutate(serviceData);
   };
-
+  
+  const sessionType = form.watch('sessionType');
+  const isOnline = form.watch('isOnline');
+  
   return (
-    <div className="container mx-auto mt-8">
-      <h1 className="text-2xl font-bold mb-4">Create New Service</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="title">Title</Label>
-          <Input
-            type="text"
-            id="title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
+    <div className="max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Create a New Service</h1>
+        <p className="text-gray-500">Share your expertise with others by creating a coaching service</p>
+      </div>
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <FormField
+            control={form.control}
+            name="title"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Service Title</FormLabel>
+                <FormControl>
+                  <Input placeholder="E.g., Career Coaching Session" {...field} />
+                </FormControl>
+                <FormDescription>
+                  Make it clear and attractive to potential clients
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
+          
+          <FormField
+            control={form.control}
+            name="description"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Description</FormLabel>
+                <FormControl>
+                  <Textarea 
+                    placeholder="Describe what clients will get from this service..."
+                    className="min-h-32"
+                    {...field} 
+                  />
+                </FormControl>
+                <FormDescription>
+                  Explain what you offer, your expertise, and what clients can expect
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        <div>
-          <Label htmlFor="sessionType">Session Type</Label>
-          <Select onValueChange={value => setSessionType(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select session type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="one_on_one">One-on-One</SelectItem>
-              <SelectItem value="group">Group</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="price">Price</Label>
-          <Input
-            type="number"
-            id="price"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            required
+          
+          <FormField
+            control={form.control}
+            name="sessionType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Session Type</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    defaultValue={field.value}
+                    onValueChange={field.onChange}
+                    className="flex flex-col space-y-1"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="one_on_one" id="one_on_one" />
+                      <label htmlFor="one_on_one" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        One-on-One Coaching
+                      </label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="group" id="group" />
+                      <label htmlFor="group" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        Group Session
+                      </label>
+                    </div>
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-        </div>
-        <div>
-          <Label htmlFor="isFree">Is Free</Label>
-          <Checkbox
-            id="isFree"
-            checked={isFree}
-            onCheckedChange={(checked) => setIsFree(!!checked)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="duration">Duration</Label>
-          <Input
-            type="text"
-            id="duration"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label>Start Time</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant={"outline"}
-                className={cn(
-                  "w-[240px] justify-start text-left font-normal",
-                  !startTime && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startTime ? format(startTime, "PPP") : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startTime}
-                onSelect={setStartTime}
-                disabled={(date) =>
-                  date < new Date()
-                }
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-        <div>
-          <Label htmlFor="location">Location</Label>
-          <Input
-            type="text"
-            id="location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="isOnline">Is Online</Label>
-          <Checkbox
-            id="isOnline"
-            checked={isOnline}
-            onCheckedChange={(checked) => setIsOnline(!!checked)}
-          />
-        </div>
-        <div>
-          <Label htmlFor="meetingUrl">Meeting URL</Label>
-          <Input
-            type="url"
-            id="meetingUrl"
-            value={meetingUrl}
-            onChange={(e) => setMeetingUrl(e.target.value)}
-          />
-        </div>
-        {sessionType === 'group' && (
-          <div>
-            <Label htmlFor="capacity">Capacity</Label>
-            <Input
-              type="number"
-              id="capacity"
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value)}
+          
+          {sessionType === 'group' && (
+            <FormField
+              control={form.control}
+              name="capacity"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Capacity (Seats)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      min={2}
+                      placeholder="E.g., 10" 
+                      {...field} 
+                      onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Maximum number of participants (leave empty for unlimited)
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
+          )}
+          
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Price (USD)</FormLabel>
+                <FormControl>
+                  <Input 
+                    type="number" 
+                    min={0}
+                    placeholder="0 for free" 
+                    {...field} 
+                    onChange={(e) => field.onChange(e.target.value === '' ? 0 : Number(e.target.value))}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Set to 0 for free services
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="duration"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Duration</FormLabel>
+                <FormControl>
+                  <Input placeholder="E.g., 1 hour" {...field} />
+                </FormControl>
+                <FormDescription>
+                  How long the session will last
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="isOnline"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">Online Session</FormLabel>
+                  <FormDescription>
+                    Is this an online session or in-person?
+                  </FormDescription>
+                </div>
+                <FormControl>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          
+          {isOnline && (
+            <FormField
+              control={form.control}
+              name="meetingUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Meeting Link</FormLabel>
+                  <FormControl>
+                    <div className="flex items-center border rounded-md focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 bg-background">
+                      <span className="pl-3 text-muted-foreground">
+                        <Link className="h-4 w-4" />
+                      </span>
+                      <Input 
+                        placeholder="https://zoom.us/j/12345" 
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        {...field} 
+                      />
+                    </div>
+                  </FormControl>
+                  <FormDescription>
+                    Zoom, Google Meet, or other video conferencing link
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+          
+          {!isOnline && (
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Location</FormLabel>
+                  <FormControl>
+                    <Input placeholder="E.g., 123 Main St, City" {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Where the in-person session will take place
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+          
+          <div className="pt-4 flex justify-end space-x-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => navigate('/services')}
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={createServiceMutation.isPending}
+            >
+              {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
+            </Button>
           </div>
-        )}
-        <Button type="submit" disabled={createServiceMutation.isPending}>
-          {createServiceMutation.isPending ? 'Creating...' : 'Create Service'}
-        </Button>
-      </form>
+        </form>
+      </Form>
     </div>
   );
 };

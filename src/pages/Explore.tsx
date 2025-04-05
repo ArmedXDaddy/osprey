@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { useSearchParams } from 'react-router-dom';
@@ -11,6 +10,7 @@ import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Service } from '@/types';
 
 const Explore = () => {
   const { events, groups, services, loading } = useData();
@@ -18,19 +18,16 @@ const Explore = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
   
-  // Get the active tab from URL or default to 'events'
   const activeTab = searchParams.get('tab') || 'events';
   
-  // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
   };
   
-  // Filter items based on search term
   const filteredEvents = events.filter(event => 
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.location.toLowerCase().includes(searchTerm.toLowerCase())
+    (event.location?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
   
   const filteredGroups = groups.filter(group => 
@@ -41,7 +38,7 @@ const Explore = () => {
   const filteredServices = services.filter(service => 
     service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.providerName.toLowerCase().includes(searchTerm.toLowerCase())
+    ((service as any).providerName || service.coachName || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   return (
@@ -123,15 +120,22 @@ const Explore = () => {
         
         <TabsContent value="services" className="mt-6">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Array(6).fill(0).map((_, i) => (
                 <Skeleton key={i} className="h-64 rounded-lg" />
               ))}
             </div>
           ) : filteredServices.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredServices.map(service => (
-                <ServiceCard key={service.id} service={service} />
+                <ServiceCard 
+                  key={service.id} 
+                  service={{
+                    ...service,
+                    providerId: (service as any).providerId || service.coachId,
+                    providerName: (service as any).providerName || service.coachName,
+                  } as Service} 
+                />
               ))}
             </div>
           ) : (

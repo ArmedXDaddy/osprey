@@ -39,6 +39,7 @@ const RoleBasedActionButton: React.FC = () => {
           { label: 'Create Event', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/create-event') },
           { label: 'Create Group', icon: <Users className="h-4 w-4 mr-2" />, action: () => navigate('/create-group') },
           { label: 'Create Service', icon: <DollarSign className="h-4 w-4 mr-2" />, action: () => navigate('/services/create') },
+          { label: 'Create Session', icon: <Calendar className="h-4 w-4 mr-2" />, action: () => navigate('/sessions/create') },
         ];
       
       case 'company':

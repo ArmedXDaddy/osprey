@@ -27,6 +27,9 @@ const EventCard: React.FC<EventCardProps> = ({ event, compact = false }) => {
     }
   };
 
+  // Use startDate if available, fallback to date for backward compatibility
+  const eventDate = event.startDate || event.date;
+
   return (
     <Card className={`overflow-hidden ${compact ? 'h-full' : ''}`}>
       <div className={`relative ${compact ? 'h-32' : 'h-48'}`}>
@@ -68,7 +71,7 @@ const EventCard: React.FC<EventCardProps> = ({ event, compact = false }) => {
           <div className="flex items-center gap-2">
             <Calendar className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} text-gray-500`} />
             <span className={`${compact ? 'text-xs' : 'text-sm'} text-gray-700`}>
-              {format(new Date(event.date || event.startDate), 'PPP')} at {format(new Date(event.date || event.startDate), 'p')}
+              {eventDate && format(new Date(eventDate), 'PPP')} at {eventDate && format(new Date(eventDate), 'p')}
             </span>
           </div>
           

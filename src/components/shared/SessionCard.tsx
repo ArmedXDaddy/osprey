@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Session } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,9 +31,25 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
         return;
       }
       
-      await enrollInSession(session.id);
+      await enrollInSession(
+        session.id, 
+        currentUser.id, 
+        currentUser.name, 
+        currentUser.email,
+        currentUser.profileImage
+      );
+      
+      toast({
+        title: "Enrollment Request Sent",
+        description: "Your request to join this session has been sent",
+      });
     } catch (error) {
       console.error('Error enrolling in session:', error);
+      toast({
+        title: "Error",
+        description: "Failed to enroll in session",
+        variant: "destructive"
+      });
     }
   };
   
@@ -48,8 +63,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
     }
   };
   
+  const coachId = session.coachId || (session.coach?.id || '');
   const isCoach = currentUser?.role === 'coach';
-  const isOwnSession = isCoach && currentUser?.id === session.coachId;
+  const isOwnSession = isCoach && currentUser?.id === coachId;
+  const coachName = session.coachName || (session.coach?.name || '');
+  
+  const type = session.type || session.sessionType || 'one_on_one';
   
   return (
     <Card className="h-full">
@@ -57,10 +76,10 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-lg">{session.title}</CardTitle>
-            <div className="text-sm text-gray-500">by {session.coachName}</div>
+            <div className="text-sm text-gray-500">by {coachName}</div>
           </div>
-          <Badge variant={session.sessionType === 'one_on_one' ? 'outline' : 'secondary'}>
-            {session.sessionType === 'one_on_one' ? '1:1 Session' : 'Group Class'}
+          <Badge variant={type === 'one_on_one' ? 'outline' : 'secondary'}>
+            {type === 'one_on_one' ? '1:1 Session' : 'Group Class'}
           </Badge>
         </div>
       </CardHeader>
@@ -104,10 +123,12 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
             </div>
           )}
           
-          {session.sessionType === 'group' && session.capacity && (
+          {(type === 'group' || session.capacity) && (
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-700">Capacity: {session.capacity} people</span>
+              <span className="text-sm text-gray-700">
+                Capacity: {session.capacity || 'unlimited'} people
+              </span>
             </div>
           )}
         </div>
@@ -135,7 +156,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
         ) : (
           <Button className="w-full" onClick={handleEnroll} disabled={!session.isActive}>
             {session.isActive ? (
-              session.sessionType === 'one_on_one' ? 'Request Session' : 'Enroll Now'
+              type === 'one_on_one' ? 'Request Session' : 'Enroll Now'
             ) : (
               'Currently Unavailable'
             )}

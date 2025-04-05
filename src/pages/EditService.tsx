@@ -106,12 +106,10 @@ const EditService = () => {
   }, [service, form]);
   
   const updateServiceMutation = useMutation({
-    mutationFn: (data: FormValues) => {
-      return updateService(id as string, {
-        ...data,
-        isFree: data.price === 0,
-      });
-    },
+    mutationFn: (data: FormValues) => updateService(id as string, {
+      ...data,
+      isFree: data.price === 0,
+    }),
     onSuccess: () => {
       toast({
         title: "Service Updated",

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -8,32 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import ServiceCard from '@/components/shared/ServiceCard';
-import { Plus, Search, AlertTriangle } from 'lucide-react';
-import { fetchServices } from '@/api/services';
-import { useToast } from '@/hooks/use-toast';
+import { Plus, Search } from 'lucide-react';
+import { fetchServices } from '@/api/services'; 
 
 const Services = () => {
   const { currentUser } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   
-  const { data: services, isLoading, error, refetch } = useQuery({
+  const { data: services, isLoading } = useQuery({
     queryKey: ['services'],
     queryFn: fetchServices,
-    retry: 2,
   });
-  
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: "Error loading services",
-        description: "There was a problem loading services. Please try again.",
-        variant: "destructive"
-      });
-    }
-  }, [error, toast]);
   
   const isCoach = currentUser?.role === 'coach';
   
@@ -49,8 +36,8 @@ const Services = () => {
     if (activeTab === 'all') return true;
     if (activeTab === 'one_on_one') return service.sessionType === 'one_on_one';
     if (activeTab === 'group') return service.sessionType === 'group';
-    if (activeTab === 'free') return service.isFree;
-    if (activeTab === 'paid') return !service.isFree && service.price > 0;
+    if (activeTab === 'free') return service.price === 0;
+    if (activeTab === 'paid') return service.price > 0;
     
     return true;
   });
@@ -91,14 +78,7 @@ const Services = () => {
         </TabsList>
         
         <TabsContent value={activeTab} className="pt-4">
-          {error ? (
-            <div className="text-center py-10">
-              <AlertTriangle className="h-12 w-12 mx-auto text-red-500 mb-4" />
-              <h3 className="text-lg font-semibold">Error Loading Services</h3>
-              <p className="text-gray-500 mb-4">There was a problem loading the services. Please try again later.</p>
-              <Button variant="outline" onClick={() => refetch()}>Try Again</Button>
-            </div>
-          ) : isLoading ? (
+          {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <div key={n} className="rounded-lg border overflow-hidden">

@@ -29,26 +29,18 @@ import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
 import CreateService from "./pages/CreateService";
 import EditService from "./pages/EditService";
-import ManageService from "./pages/ManageService";
+import ManageServiceBookings from "./pages/ManageServiceBookings";
 
-// Create a client
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
         <DataProvider>
+          <Toaster />
+          <Sonner />
           <BrowserRouter>
-            <Toaster />
-            <Sonner />
             <MainLayout>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -68,7 +60,7 @@ const App = () => (
                 <Route path="/services/:id" element={<ServiceDetail />} />
                 <Route path="/services/create" element={<CreateService />} />
                 <Route path="/services/:id/edit" element={<EditService />} />
-                <Route path="/services/:id/manage" element={<ManageService />} />
+                <Route path="/services/bookings" element={<ManageServiceBookings />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:id" element={<Profile />} />
                 <Route path="/auth/login" element={<Login />} />

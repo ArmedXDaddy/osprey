@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '@/context/AuthContext';
@@ -7,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link } from 'lucide-react';
-import { fetchServiceById, bookService, deleteService } from '@/api/services';
+import { Calendar, Clock, DollarSign, MapPin, Users, Video, Edit, Trash, AlertTriangle, Link, ImageIcon, Check } from 'lucide-react';
+import { fetchServiceById, bookService, deleteService, updateService, checkBookingStatus } from '@/api/services';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import MockPaymentGateway from '@/components/shared/MockPaymentGateway';
+import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,69 +22,49 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { logError } from '@/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const ServiceDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvc, setCardCvc] = useState('');
 
   const { data: service, isLoading, error, refetch } = useQuery({
     queryKey: ['service', id],
     queryFn: () => fetchServiceById(id as string),
     enabled: !!id,
-    retry: 2,
   });
   
-  const [isBooked, setIsBooked] = useState(false);
-  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-
-  // Check if user has already booked this service
-  useEffect(() => {
-    if (currentUser && service) {
-      const checkBookingStatus = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('service_enrollments')
-            .select('*')
-            .eq('service_id', id)
-            .eq('user_id', currentUser.id)
-            .maybeSingle();
-            
-          if (error) throw error;
-          
-          setIsBooked(!!data);
-          if (data) {
-            setBookingStatus(data.status);
-          }
-        } catch (error) {
-          console.error('Error checking booking status:', error);
-        }
-      };
-      
-      checkBookingStatus();
-    }
-  }, [currentUser, service, id]);
-
-  // Mutation for booking a service
+  const { data: bookingStatus, isLoading: isLoadingBookingStatus } = useQuery({
+    queryKey: ['booking-status', id, currentUser?.id],
+    queryFn: () => checkBookingStatus(id as string, currentUser?.id as string),
+    enabled: !!id && !!currentUser?.id,
+  });
+  
   const bookServiceMutation = useMutation({
-    mutationFn: (isPaid: boolean = false) => {
-      if (!id) throw new Error("Service ID is required");
-      return bookService(id, isPaid);
-    },
-    onSuccess: (data) => {
+    mutationFn: bookService,
+    onSuccess: () => {
       toast({
         title: "Booking Successful",
         description: "You have successfully booked this service",
       });
-      setIsBooked(true);
-      setBookingStatus(data?.status || 'pending');
       refetch();
+      setIsPaymentModalOpen(false);
     },
-    onError: (error: any) => {
-      logError('Book service mutation error', error);
+    onError: (error) => {
       toast({
         title: "Booking Failed",
         description: `Error: ${error.message}`,
@@ -94,7 +73,6 @@ const ServiceDetail = () => {
     },
   });
   
-  // Mutation for deleting a service
   const deleteServiceMutation = useMutation({
     mutationFn: deleteService,
     onSuccess: () => {
@@ -105,7 +83,7 @@ const ServiceDetail = () => {
       navigate('/services');
     },
     onError: (error: any) => {
-      logError('Delete service mutation error', error);
+      console.error("Service deletion error:", error);
       toast({
         title: "Deletion Failed",
         description: `Error: ${error.message}`,
@@ -113,63 +91,101 @@ const ServiceDetail = () => {
       });
     },
   });
+
+  const uploadCoverImageMutation = useMutation({
+    mutationFn: async (file: File) => {
+      if (!service) throw new Error('No service found');
+      
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${service.id}_cover.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('service_images')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('service_images')
+        .getPublicUrl(filePath);
+
+      await updateService(service.id, { coverImage: publicUrl });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Cover Image Updated",
+        description: "Your service cover image has been updated successfully",
+      });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Image Upload Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
   
-  // Handle booking request for free services
   const handleBookService = () => {
-    if (!currentUser || !service) {
+    if (!currentUser || !service) return;
+    
+    if (service.price > 0) {
+      setIsPaymentModalOpen(true);
+    } else {
+      processBooking();
+    }
+  };
+  
+  const processBooking = () => {
+    if (!currentUser || !service) return;
+    
+    bookServiceMutation.mutate({
+      serviceId: service.id,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      userProfileImage: currentUser.profileImage,
+    });
+  };
+  
+  const handleProcessPayment = () => {
+    if (cardNumber.length < 16 || cardExpiry.length < 5 || cardCvc.length < 3) {
       toast({
-        title: "Authentication required",
-        description: "Please log in to book this service",
-        variant: "destructive"
+        title: "Invalid Card Details",
+        description: "Please enter valid card information",
+        variant: "destructive",
       });
-      navigate('/auth/login');
       return;
     }
     
-    bookServiceMutation.mutate(false);
+    processBooking();
   };
   
-  // Handle opening payment modal for paid services
-  const handlePaidBookService = () => {
-    if (!currentUser || !service) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to book this service",
-        variant: "destructive"
-      });
-      navigate('/auth/login');
-      return;
-    }
-    
-    setShowPaymentModal(true);
-  };
-  
-  // Handle successful payment
-  const handlePaymentSuccess = () => {
-    bookServiceMutation.mutate(true);
-  };
-  
-  // Handle payment cancellation
-  const handlePaymentCancel = () => {
-    setShowPaymentModal(false);
-  };
-  
-  // Navigation handlers
   const handleEditService = () => {
     navigate(`/services/${id}/edit`);
   };
   
-  const handleManageService = () => {
-    navigate(`/services/${id}/manage`);
-  };
-  
-  // Handle service deletion
   const handleDeleteService = () => {
     if (!id) return;
+    console.log("Deleting service with ID:", id);
     deleteServiceMutation.mutate(id);
+  };
+
+  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCoverImageFile(file);
+      uploadCoverImageMutation.mutate(file);
+    }
   };
   
   const isOwner = currentUser?.id === service?.providerId;
+  const isAlreadyBooked = bookingStatus?.isBooked;
   
   if (isLoading) {
     return (
@@ -204,6 +220,23 @@ const ServiceDetail = () => {
   
   return (
     <div className="space-y-6">
+      {isOwner && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Cover Image</h2>
+          <div className="flex items-center space-x-4">
+            <Input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleCoverImageChange}
+              className="w-64"
+            />
+            {uploadCoverImageMutation.isPending && (
+              <span>Uploading...</span>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold">{service.title}</h1>
@@ -231,15 +264,10 @@ const ServiceDetail = () => {
           {isOwner && (
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-xl font-semibold mb-4">Manage Service</h2>
-              <div className="flex flex-wrap gap-4">
+              <div className="flex gap-4">
                 <Button onClick={handleEditService} variant="outline" className="flex items-center gap-2">
                   <Edit className="h-4 w-4" />
                   Edit Service
-                </Button>
-                
-                <Button onClick={handleManageService} variant="outline" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Manage Bookings
                 </Button>
                 
                 <AlertDialog>
@@ -314,7 +342,7 @@ const ServiceDetail = () => {
                   )}
                 </div>
                 
-                {service.isOnline && service.meetingUrl && (isOwner || (isBooked && bookingStatus === 'approved')) && (
+                {service.isOnline && service.meetingUrl && (isOwner || bookServiceMutation.isSuccess) && (
                   <div className="flex items-center gap-2">
                     <Link className="h-5 w-5 text-gray-500" />
                     <a 
@@ -328,91 +356,104 @@ const ServiceDetail = () => {
                   </div>
                 )}
                 
-                {!isOwner && service.available && !isBooked && (
-                  <div className="space-y-2 mt-6">
-                    {service.price > 0 ? (
-                      <Button 
-                        className="w-full" 
-                        disabled={bookServiceMutation.isPending}
-                        onClick={handlePaidBookService}
-                      >
-                        {bookServiceMutation.isPending 
+                <Button 
+                  className="w-full mt-6" 
+                  disabled={!service?.available || isOwner || bookServiceMutation.isPending || isAlreadyBooked}
+                  onClick={handleBookService}
+                >
+                  {isOwner 
+                    ? 'You own this service' 
+                    : !service?.available 
+                      ? 'Currently Unavailable'
+                      : isAlreadyBooked
+                        ? 'Already Booked'
+                        : bookServiceMutation.isPending 
                           ? 'Processing...' 
-                          : `Pay Now $${service.price}`}
-                      </Button>
-                    ) : (
-                      <Button 
-                        className="w-full" 
-                        disabled={bookServiceMutation.isPending}
-                        onClick={handleBookService}
-                      >
-                        {bookServiceMutation.isPending 
-                          ? 'Processing...' 
-                          : 'Book for Free (Requires Approval)'}
-                      </Button>
-                    )}
+                          : bookServiceMutation.isSuccess
+                            ? 'Booked Successfully'
+                            : 'Book Now'}
+                </Button>
+                
+                {isAlreadyBooked && (
+                  <div className="flex items-center justify-center gap-2 text-green-600">
+                    <Check className="h-4 w-4" />
+                    <span>You've already booked this service</span>
                   </div>
-                )}
-                
-                {!isOwner && service.available && isBooked && (
-                  <div className="space-y-2 mt-6">
-                    <Badge className="w-full flex justify-center py-2" variant={
-                      bookingStatus === 'approved' ? 'success' : 
-                      bookingStatus === 'rejected' ? 'destructive' : 
-                      'outline'
-                    }>
-                      {bookingStatus === 'approved' ? 'Approved' : 
-                       bookingStatus === 'rejected' ? 'Rejected' : 
-                       'Pending Approval'}
-                    </Badge>
-                    
-                    {bookingStatus === 'approved' && service.isOnline && service.meetingUrl && (
-                      <Button 
-                        className="w-full" 
-                        variant="outline"
-                        asChild
-                      >
-                        <a href={service.meetingUrl} target="_blank" rel="noopener noreferrer">
-                          Join Meeting
-                        </a>
-                      </Button>
-                    )}
-                  </div>
-                )}
-                
-                {!isOwner && !service.available && (
-                  <Button 
-                    className="w-full mt-6" 
-                    disabled={true}
-                  >
-                    Currently Unavailable
-                  </Button>
-                )}
-                
-                {isOwner && (
-                  <Button 
-                    className="w-full mt-6" 
-                    onClick={handleManageService}
-                    variant="outline"
-                  >
-                    Manage This Service
-                  </Button>
                 )}
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      <MockPaymentGateway 
-        open={showPaymentModal}
-        onOpenChange={setShowPaymentModal}
-        amount={service.price}
-        serviceName={service.title}
-        serviceId={service.id}
-        onPaymentSuccess={handlePaymentSuccess}
-        onPaymentCancel={handlePaymentCancel}
-      />
+      
+      <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Complete Payment</DialogTitle>
+            <DialogDescription>
+              Enter your payment details to book this service.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="cardNumber" className="text-sm font-medium">Card Number</label>
+              <Input 
+                id="cardNumber" 
+                placeholder="1234 5678 9012 3456" 
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, '').slice(0, 16))}
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="expiry" className="text-sm font-medium">Expiry Date</label>
+                <Input 
+                  id="expiry" 
+                  placeholder="MM/YY" 
+                  value={cardExpiry}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    if (val.length <= 2) {
+                      setCardExpiry(val);
+                    } else if (val.length <= 4) {
+                      setCardExpiry(`${val.slice(0, 2)}/${val.slice(2)}`);
+                    }
+                  }}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label htmlFor="cvc" className="text-sm font-medium">CVC</label>
+                <Input 
+                  id="cvc" 
+                  placeholder="123" 
+                  value={cardCvc}
+                  onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                />
+              </div>
+            </div>
+            
+            <div className="pt-4 font-semibold text-lg flex justify-between">
+              <span>Total:</span>
+              <span>${service?.price || 0}</span>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPaymentModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleProcessPayment}
+              disabled={bookServiceMutation.isPending}
+            >
+              {bookServiceMutation.isPending ? "Processing..." : "Pay Now"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

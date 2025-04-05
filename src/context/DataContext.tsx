@@ -1,906 +1,466 @@
-import React, { createContext, useState, useContext } from 'react';
-import { Service, SessionEnrollment, Session, User, Post, Event, Group, JoinRequest, Message, ServiceBooking, BookingStatus, PaymentStatus } from '@/types';
-import { generateId, logError } from '@/utils';
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { UserRole, Session, SessionEnrollment, Event, Post, Group, Message, JoinRequest, GroupPrivacy, EventPrivacy, SessionType, SessionStatus, PaymentStatus, Service } from '@/types';
+import { supabase } from "@/integrations/supabase/client";
 
-interface DataContextProps {
-  services: Service[];
-  sessions: Session[];
-  users: User[];
-  posts: Post[];
+interface DataContextType {
   events: Event[];
-  groups: Group[];
-  joinRequests: JoinRequest[];
-  messages: Message[];
-  serviceBookings: ServiceBooking[];
+  sessions: Session[];
   sessionEnrollments: SessionEnrollment[];
+  posts: Post[];
+  groups: Group[];
+  services: Service[];
   loading: boolean;
-  bookService: (serviceId: string, isPaid?: boolean) => Promise<ServiceBooking | undefined>;
-  cancelServiceBooking: (enrollmentId: string) => Promise<void>;
-  enrollSession: (sessionId: string) => Promise<SessionEnrollment | undefined>;
-  cancelSessionEnrollment: (enrollmentId: string) => Promise<void>;
-  createPost: (content: string, mediaUrl?: string, mediaType?: string) => Promise<Post | undefined>;
-  addComment: (postId: string, content: string) => Promise<Post | undefined>;
-  likePost: (postId: string) => Promise<Post | undefined>;
-  createEvent: (eventData: Omit<Event, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'creatorImage' | 'attendees' | 'currentAttendees'>) => Promise<Event | undefined>;
-  joinEvent: (eventId: string) => Promise<JoinRequest | undefined>;
-  leaveEvent: (eventId: string) => Promise<void>;
-  createGroup: (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'members'>) => Promise<Group | undefined>;
-  joinGroup: (groupId: string) => Promise<JoinRequest | undefined>;
-  leaveGroup: (groupId: string) => Promise<void>;
-  sendMessage: (groupId: string, content: string, mediaUrl?: string, mediaType?: string) => Promise<Message | undefined>;
-  enrollInSession: (sessionId: string, isPaid?: boolean) => Promise<SessionEnrollment | undefined>;
+  group?: Group;
+  
+  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session | null>;
+  updateSession: (sessionId: string, updates: Partial<Session>) => Promise<void>;
+  deleteSession: (sessionId: string) => Promise<void>;
+  enrollInSession: (sessionId: string, userId?: string, userName?: string, userEmail?: string, userProfileImage?: string) => Promise<void>;
+  updateEnrollmentStatus: (enrollmentId: string, status: 'pending' | 'approved' | 'rejected') => Promise<void>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
+  
+  createEvent: (eventData: Omit<Event, "id" | "createdAt" | "attendees" | "pendingRequests">) => Promise<Event>;
   getEventRequests: (eventId: string) => JoinRequest[];
   handleEventJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  
+  createGroup: (groupData: any) => Promise<Group>;
+  updateGroupDetails: (groupId: string, updates: any) => Promise<void>;
   getGroupRequests: (groupId: string) => JoinRequest[];
   handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
+  joinGroup: (groupId: string) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  requestToJoinGroup: (groupId: string) => Promise<void>;
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
-  updateGroupDetails: (groupId: string, data: any) => Promise<Group | undefined>;
-  getUserSessions: (userId: string) => Session[];
-  getCoachSessions: (coachId: string) => Session[];
-  getUserEnrollments: (userId: string) => SessionEnrollment[];
-  requestToJoinGroup: (groupId: string) => Promise<JoinRequest | undefined>;
-  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
-  updateSession: (sessionId: string, data: Partial<Session>) => Promise<Session | undefined>;
-  updateEnrollmentStatus: (enrollmentId: string, status: 'approved' | 'rejected') => Promise<SessionEnrollment | undefined>;
+  
+  likePost: (postId: string) => Promise<void>;
+  
+  sendMessage: (messageData: Omit<Message, 'id' | 'createdAt'>) => Promise<void>;
 }
 
-const DataContext = createContext<DataContextProps | undefined>(undefined);
+const DataContext = createContext<DataContextType | undefined>(undefined);
 
-const mockServices: Service[] = [
-  {
-    id: '1',
-    title: 'Personal Coaching Session',
-    description: 'One-on-one coaching session tailored to your needs',
-    providerId: '1',
-    providerName: 'John Coach',
-    price: 50,
-    duration: '60 minutes',
-    available: true,
-    sessionType: 'one_on_one',
-    isOnline: true,
-    isFree: false,
-    location: 'Online',
-    meetingUrl: 'https://zoom.us/j/123456789',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    title: 'Group Fitness Class',
-    description: 'High-intensity fitness class for all levels',
-    providerId: '2',
-    providerName: 'Jane Fitness',
-    price: 20,
-    duration: '45 minutes',
-    available: true,
-    sessionType: 'group',
-    isOnline: false,
-    isFree: false,
-    location: 'Local Gym',
-    meetingUrl: 'https://zoom.us/j/987654321',
-    createdAt: new Date(),
-  },
-  {
-    id: '3',
-    title: 'Free Meditation Session',
-    description: 'Relax and unwind with our free meditation session',
-    providerId: '3',
-    providerName: 'Mike Meditation',
-    price: 0,
-    duration: '30 minutes',
-    available: true,
-    sessionType: 'one_on_one',
-    isOnline: true,
-    isFree: true,
-    location: 'Online',
-    meetingUrl: 'https://zoom.us/j/555555555',
-    createdAt: new Date(),
-  },
-];
+export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [group, setGroup] = useState<Group | undefined>(undefined);
 
-const mockSessions: Session[] = [
-  {
-    id: '1',
-    title: 'Yoga for Beginners',
-    description: 'Learn the basics of yoga in this introductory session',
-    price: 15,
-    duration: '60 minutes',
-    coachId: '2',
-    coachName: 'Jane Fitness',
-    isActive: true,
-    capacity: 10,
-    startTime: new Date(),
-    location: 'Yoga Studio',
-    isOnline: false,
-    meetingUrl: 'https://zoom.us/j/111111111',
-    sessionType: 'group',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    title: 'Advanced Pilates',
-    description: 'Challenge yourself with our advanced Pilates session',
-    price: 25,
-    duration: '75 minutes',
-    coachId: '2',
-    coachName: 'Jane Fitness',
-    isActive: true,
-    capacity: 5,
-    startTime: new Date(),
-    location: 'Pilates Studio',
-    isOnline: false,
-    meetingUrl: 'https://zoom.us/j/222222222',
-    sessionType: 'group',
-    createdAt: new Date(),
-  },
-];
+  useEffect(() => {
+    const mockEvents: Event[] = [
+      {
+        id: 'event-1',
+        title: 'Yoga Session in the Park',
+        description: 'Join us for a relaxing yoga session in the park.',
+        hostId: 'coach-1',
+        hostName: 'Sarah Johnson',
+        hostRole: 'coach' as UserRole,
+        startDate: new Date('2023-06-15T10:00:00Z'),
+        endDate: new Date('2023-06-15T11:30:00Z'),
+        location: 'Central Park',
+        isOnline: false,
+        price: 0,
+        capacity: 20,
+        currentAttendees: 8,
+        privacy: 'public',
+        image: '/images/yoga-park.jpg',
+        createdAt: new Date('2023-06-01'),
+        attendees: [],
+        date: new Date('2023-06-15T10:00:00Z'),
+      },
+      {
+        id: 'event-2',
+        title: 'Tech Meetup',
+        description: 'A meetup for tech enthusiasts to share ideas and network.',
+        hostId: 'influencer-1',
+        hostName: 'Alex Williams',
+        hostRole: 'influencer' as UserRole,
+        startDate: new Date('2023-07-20T18:00:00Z'),
+        endDate: new Date('2023-07-20T21:00:00Z'),
+        location: 'Online',
+        isOnline: true,
+        meetingUrl: 'https://meet.google.com/techmeetup',
+        price: 5,
+        capacity: 50,
+        currentAttendees: 35,
+        privacy: 'public',
+        image: '/images/tech-meetup.jpg',
+        createdAt: new Date('2023-07-01'),
+        attendees: [],
+        date: new Date('2023-07-20T18:00:00Z'),
+      },
+      {
+        id: 'event-3',
+        title: 'Corporate Training',
+        description: 'Training session for employees to enhance their skills.',
+        hostId: 'company-1',
+        hostName: 'Acme Corp',
+        hostRole: 'company' as UserRole,
+        startDate: new Date('2023-08-10T09:00:00Z'),
+        endDate: new Date('2023-08-10T17:00:00Z'),
+        location: 'Acme Corp HQ',
+        isOnline: false,
+        price: 100,
+        capacity: 30,
+        currentAttendees: 25,
+        privacy: 'private',
+        image: '/images/corporate-training.jpg',
+        createdAt: new Date('2023-08-01'),
+        attendees: [],
+        date: new Date('2023-08-10T09:00:00Z'),
+      },
+    ];
+    setEvents(mockEvents);
 
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'John Coach',
-    email: 'john@example.com',
-    role: 'coach',
-  },
-  {
-    id: '2',
-    name: 'Jane Fitness',
-    email: 'jane@example.com',
-    role: 'coach',
-  },
-  {
-    id: '3',
-    name: 'Mike Meditation',
-    email: 'mike@example.com',
-    role: 'coach',
-  },
-  {
-    id: '4',
-    name: 'Alice User',
-    email: 'alice@example.com',
-    role: 'user',
-  },
-];
+    const mockSessions: Session[] = [
+      {
+        id: 'session-1',
+        title: 'One-on-One Coaching',
+        description: 'Personalized coaching session to help you achieve your goals.',
+        coach: {
+          id: 'coach-1',
+          name: 'Sarah Johnson',
+          role: 'coach',
+          profileImage: '/images/coach-sarah.jpg',
+        },
+        coachId: 'coach-1',
+        coachName: 'Sarah Johnson',
+        type: 'one_on_one',
+        status: 'scheduled',
+        startTime: new Date('2023-06-20T14:00:00Z'),
+        endTime: new Date('2023-06-20T15:00:00Z'),
+        duration: '1 hour',
+        price: 50,
+        isFree: false,
+        currentAttendees: 1,
+        location: 'Online',
+        isOnline: true,
+        meetingUrl: 'https://meet.google.com/coaching',
+        createdAt: new Date('2023-06-01'),
+        updatedAt: new Date('2023-06-05'),
+        sessionType: 'one_on_one',
+        available: true,
+        isActive: true,
+      },
+      {
+        id: 'session-2',
+        title: 'Group Fitness Class',
+        description: 'A fun and energetic group fitness class to get you moving.',
+        coach: {
+          id: 'coach-2',
+          name: 'Mike Davis',
+          role: 'coach',
+          profileImage: '/images/coach-mike.jpg',
+        },
+        coachId: 'coach-2',
+        coachName: 'Mike Davis',
+        type: 'group',
+        status: 'upcoming',
+        startTime: new Date('2023-07-05T17:30:00Z'),
+        endTime: new Date('2023-07-05T18:30:00Z'),
+        duration: '1 hour',
+        price: 20,
+        isFree: false,
+        capacity: 10,
+        currentAttendees: 5,
+        location: 'Community Gym',
+        isOnline: false,
+        createdAt: new Date('2023-07-01'),
+        updatedAt: new Date('2023-07-03'),
+        sessionType: 'group',
+        available: true,
+        isActive: true,
+      },
+    ];
+    setSessions(mockSessions);
 
-const mockPosts: Post[] = [
-  {
-    id: '1',
-    content: 'Excited to share my fitness journey with you all!',
-    authorId: '4',
-    authorName: 'Alice User',
-    authorRole: 'user',
-    likes: 25,
-    comments: 5,
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    content: 'Check out my new meditation routine for stress relief.',
-    authorId: '3',
-    authorName: 'Mike Meditation',
-    authorRole: 'coach',
-    likes: 40,
-    comments: 10,
-    createdAt: new Date(),
-  },
-];
+    const mockEnrollment: SessionEnrollment = {
+      id: 'enrollment-1',
+      sessionId: 'session-1',
+      userId: 'user-1',
+      userName: 'John Doe',
+      userEmail: 'john@example.com',
+      userProfileImage: '/images/avatar.jpg',
+      status: 'approved',
+      paymentStatus: 'paid',
+      paymentRequired: true,
+      amount: 50,
+      paymentCompleted: true,
+      createdAt: new Date('2023-05-28'),
+    };
 
-const mockEvents: Event[] = [
-  {
-    id: '1',
-    title: 'Community Yoga Session',
-    description: 'Join us for a relaxing yoga session in the park.',
-    location: 'Central Park',
-    isOnline: false,
-    startDate: new Date(),
-    endDate: new Date(),
-    price: 0,
-    capacity: 20,
-    currentAttendees: 15,
-    creatorId: '2',
-    creatorName: 'Jane Fitness',
-    creatorRole: 'coach',
-    privacy: 'public',
-    createdAt: new Date(),
-    attendees: [],
-  },
-  {
-    id: '2',
-    title: 'Online Meditation Workshop',
-    description: 'Learn mindfulness techniques in our online workshop.',
-    isOnline: true,
-    meetingUrl: 'https://zoom.us/j/333333333',
-    startDate: new Date(),
-    endDate: new Date(),
-    price: 10,
-    capacity: 10,
-    currentAttendees: 8,
-    creatorId: '3',
-    creatorName: 'Mike Meditation',
-    creatorRole: 'coach',
-    privacy: 'paid',
-    createdAt: new Date(),
-    attendees: [],
-  },
-];
-
-const mockGroups: Group[] = [
-  {
-    id: '1',
-    name: 'Fitness Fanatics',
-    description: 'A group for fitness enthusiasts to share tips and motivate each other.',
-    members: 50,
-    creatorId: '2',
-    creatorName: 'Jane Fitness',
-    creatorRole: 'coach',
-    privacy: 'public',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    name: 'Meditation Masters',
-    description: 'A community for meditation practitioners to deepen their practice.',
-    members: 30,
-    creatorId: '3',
-    creatorName: 'Mike Meditation',
-    creatorRole: 'coach',
-    privacy: 'private',
-    createdAt: new Date(),
-  },
-];
-
-const mockJoinRequests: JoinRequest[] = [
-  {
-    id: '1',
-    groupId: '1',
-    userId: '4',
-    userName: 'Alice User',
-    status: 'pending',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    eventId: '2',
-    userId: '4',
-    userName: 'Alice User',
-    status: 'approved',
-    createdAt: new Date(),
-  },
-];
-
-const mockMessages: Message[] = [
-  {
-    id: '1',
-    content: 'Welcome to the Fitness Fanatics group!',
-    groupId: '1',
-    userId: '2',
-    userName: 'Jane Fitness',
-    userRole: 'coach',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    content: 'Namaste everyone! Ready for a peaceful meditation session?',
-    groupId: '2',
-    userId: '3',
-    userName: 'Mike Meditation',
-    userRole: 'coach',
-    createdAt: new Date(),
-  },
-];
-
-const mockServiceBookings: ServiceBooking[] = [
-  {
-    id: '1',
-    serviceId: '1',
-    userId: '4',
-    userName: 'Alice User',
-    userEmail: 'alice@example.com',
-    status: 'approved',
-    paymentStatus: 'paid',
-    amount: 50,
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    serviceId: '2',
-    userId: '4',
-    userName: 'Alice User',
-    userEmail: 'alice@example.com',
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    amount: 20,
-    createdAt: new Date(),
-  },
-];
-
-const mockSessionEnrollments: SessionEnrollment[] = [
-  {
-    id: '1',
-    sessionId: '1',
-    userId: '4',
-    userName: 'Alice User',
-    userEmail: 'alice@example.com',
-    status: 'approved',
-    paymentStatus: 'paid',
-    createdAt: new Date(),
-  },
-  {
-    id: '2',
-    sessionId: '2',
-    userId: '4',
-    userName: 'Alice User',
-    userEmail: 'alice@example.com',
-    status: 'pending',
-    paymentStatus: 'unpaid',
-    createdAt: new Date(),
-  },
-];
-
-export const DataProvider = ({ children }: { children: React.ReactNode }) => {
-  const [services, setServices] = useState<Service[]>(mockServices);
-  const [sessions, setSessions] = useState<Session[]>(mockSessions);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [posts, setPosts] = useState<Post[]>(mockPosts);
-  const [events, setEvents] = useState<Event[]>(mockEvents);
-  const [groups, setGroups] = useState<Group[]>(mockGroups);
-  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>(mockJoinRequests);
-  const [messages, setMessages] = useState<Message[]>(mockMessages);
-  const [serviceBookings, setServiceBookings] = useState<ServiceBooking[]>(mockServiceBookings);
-  const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>(mockSessionEnrollments);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const bookService = async (serviceId: string, isPaid: boolean = false) => {
-    try {
-      console.log("bookService called with serviceId:", serviceId, "isPaid:", isPaid);
-      
-      const service = services.find(s => s.id === serviceId);
-      const currentUser = users.find(u => u.id === '4'); // Assuming user ID 4 for testing
-      
-      if (!service) {
-        console.error("Service not found with ID:", serviceId);
-        console.log("Available services:", services.map(s => s.id));
-        throw new Error('Service not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const existingBooking = serviceBookings.find(
-        booking => booking.serviceId === serviceId && booking.userId === currentUser.id
-      );
-
-      if (existingBooking) {
-        console.log("Found existing booking:", existingBooking);
-        
-        if (isPaid && (existingBooking.status !== 'approved' || existingBooking.paymentStatus !== 'paid')) {
-          const updatedBooking: ServiceBooking = {
-            ...existingBooking,
-            status: 'approved' as BookingStatus,
-            paymentStatus: 'paid' as PaymentStatus
-          };
-
-          setServiceBookings(prev => 
-            prev.map(booking => 
-              booking.id === existingBooking.id ? updatedBooking : booking
-            )
-          );
-
-          return updatedBooking;
-        }
-        
-        return existingBooking;
-      }
-
-      const status: BookingStatus = isPaid ? 'approved' : 'pending';
-      const paymentStatus: PaymentStatus = isPaid ? 'paid' : 'unpaid';
-      
-      const newEnrollment: ServiceBooking = {
-        id: generateId(),
-        serviceId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userEmail: currentUser.email,
-        userProfileImage: currentUser.profileImage,
-        status,
-        paymentStatus,
-        amount: service.price,
-        createdAt: new Date(),
-      };
-
-      console.log("Creating new enrollment:", newEnrollment);
-      
-      setServiceBookings(prev => [...prev, newEnrollment]);
-      return newEnrollment;
-    } catch (error) {
-      logError('bookService', error);
-      throw error;
-    }
-  };
-
-  const cancelServiceBooking = async (enrollmentId: string) => {
-    setServiceBookings(prev => prev.filter(enrollment => enrollment.id !== enrollmentId));
-  };
-
-  const enrollSession = async (sessionId: string) => {
-    try {
-      const session = sessions.find(s => s.id === sessionId);
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!session) {
-        throw new Error('Session not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newEnrollment: SessionEnrollment = {
-        id: generateId(),
-        sessionId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userEmail: currentUser.email,
+    const mockEnrollments: SessionEnrollment[] = [
+      mockEnrollment,
+      {
+        id: 'enrollment-2',
+        sessionId: 'session-2',
+        userId: 'user-2',
+        userName: 'Jane Smith',
+        userEmail: 'jane@example.com',
+        userProfileImage: '/images/avatar-jane.jpg',
         status: 'pending',
         paymentStatus: 'unpaid',
-        createdAt: new Date(),
+        paymentRequired: true,
+        amount: 20,
+        paymentCompleted: false,
+        createdAt: new Date('2023-07-02'),
+      },
+    ];
+    setSessionEnrollments(mockEnrollments);
+
+    setLoading(false);
+  }, []);
+
+  const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>): Promise<Session | null> => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const coachInfo = {
+        id: sessionData.coachId,
+        name: sessionData.coachName,
+        role: 'coach' as UserRole,
+        profileImage: sessionData.coach?.profileImage,
       };
 
-      setSessionEnrollments(prev => [...prev, newEnrollment]);
-      return newEnrollment;
-    } catch (error) {
-      console.error('Error enrolling in session:', error);
-      throw error;
-    }
-  };
-
-  const cancelSessionEnrollment = async (enrollmentId: string) => {
-    setSessionEnrollments(prev => prev.filter(enrollment => enrollment.id !== enrollmentId));
-  };
-
-  const createPost = async (content: string, mediaUrl?: string, mediaType?: string) => {
-    try {
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newPost: Post = {
-        id: generateId(),
-        content,
-        authorId: currentUser.id,
-        authorName: currentUser.name,
-        authorRole: currentUser.role,
-        likes: 0,
-        comments: 0,
-        createdAt: new Date(),
-        mediaUrl,
-        mediaType,
-      };
-
-      setPosts(prev => [...prev, newPost]);
-      return newPost;
-    } catch (error) {
-      console.error('Error creating post:', error);
-      throw error;
-    }
-  };
-
-  const addComment = async (postId: string, content: string) => {
-    setPosts(prev =>
-      prev.map(post => {
-        if (post.id === postId) {
-          return { ...post, comments: post.comments + 1 };
-        }
-        return post;
-      })
-    );
-    return posts.find(post => post.id === postId);
-  };
-
-  const likePost = async (postId: string) => {
-    setPosts(prev =>
-      prev.map(post => {
-        if (post.id === postId) {
-          return { ...post, likes: post.likes + 1 };
-        }
-        return post;
-      })
-    );
-    return posts.find(post => post.id === postId);
-  };
-
-  const createEvent = async (eventData: Omit<Event, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'creatorImage' | 'attendees' | 'currentAttendees'>) => {
-    try {
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newEvent: Event = {
-        id: generateId(),
-        title: eventData.title,
-        description: eventData.description,
-        location: eventData.location,
-        isOnline: eventData.isOnline,
-        meetingUrl: eventData.meetingUrl,
-        startDate: eventData.startDate,
-        endDate: eventData.endDate,
-        price: eventData.price,
-        capacity: eventData.capacity,
-        currentAttendees: 0,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role,
-        privacy: eventData.privacy,
-        createdAt: new Date(),
-        attendees: [],
-      };
-
-      setEvents(prev => [...prev, newEvent]);
-      return newEvent;
-    } catch (error) {
-      console.error('Error creating event:', error);
-      throw error;
-    }
-  };
-
-  const joinEvent = async (eventId: string) => {
-    try {
-      const event = events.find(e => e.id === eventId);
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!event) {
-        throw new Error('Event not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newJoinRequest: JoinRequest = {
-        id: generateId(),
-        eventId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        status: 'pending',
-        createdAt: new Date(),
-      };
-
-      setJoinRequests(prev => [...prev, newJoinRequest]);
-      return newJoinRequest;
-    } catch (error) {
-      console.error('Error joining event:', error);
-      throw error;
-    }
-  };
-
-  const leaveEvent = async (eventId: string) => {
-    setJoinRequests(prev => prev.filter(req => req.eventId !== eventId && req.userId !== '4'));
-  };
-
-  const createGroup = async (groupData: Omit<Group, 'id' | 'createdAt' | 'creatorName' | 'creatorRole' | 'members'>) => {
-    try {
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newGroup: Group = {
-        id: generateId(),
-        name: groupData.name,
-        description: groupData.description,
-        members: 1,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role,
-        privacy: groupData.privacy,
-        createdAt: new Date(),
-        ...groupData
-      };
-
-      setGroups(prev => [...prev, newGroup]);
-      return newGroup;
-    } catch (error) {
-      console.error('Error creating group:', error);
-      throw error;
-    }
-  };
-
-  const joinGroup = async (groupId: string) => {
-    try {
-      const group = groups.find(g => g.id === groupId);
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!group) {
-        throw new Error('Group not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newJoinRequest: JoinRequest = {
-        id: generateId(),
-        groupId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        status: 'pending',
-        createdAt: new Date(),
-      };
-
-      setJoinRequests(prev => [...prev, newJoinRequest]);
-      return newJoinRequest;
-    } catch (error) {
-      console.error('Error joining group:', error);
-      throw error;
-    }
-  };
-
-  const leaveGroup = async (groupId: string) => {
-    setJoinRequests(prev => prev.filter(req => req.groupId !== groupId && req.userId !== '4'));
-  };
-
-  const sendMessage = async (groupId: string, content: string, mediaUrl?: string, mediaType?: string) => {
-    try {
-      const group = groups.find(g => g.id === groupId);
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!group) {
-        throw new Error('Group not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newMessage: Message = {
-        id: generateId(),
-        content,
-        groupId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userRole: currentUser.role,
-        createdAt: new Date(),
-        mediaUrl,
-        mediaType,
-      };
-
-      setMessages(prev => [...prev, newMessage]);
-      return newMessage;
-    } catch (error) {
-      console.error('Error sending message:', error);
-      throw error;
-    }
-  };
-
-  const enrollInSession = async (sessionId: string, isPaid: boolean = false) => {
-    try {
-      const session = sessions.find(s => s.id === sessionId);
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!session) {
-        throw new Error('Session not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const status = isPaid ? 'approved' : 'pending';
-      
-      const newEnrollment: SessionEnrollment = {
-        id: generateId(),
-        sessionId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        userEmail: currentUser.email,
-        status: status,
-        paymentStatus: isPaid ? 'paid' : 'unpaid',
-        createdAt: new Date(),
-      };
-
-      setSessionEnrollments(prev => [...prev, newEnrollment]);
-      return newEnrollment;
-    } catch (error) {
-      console.error('Error enrolling in session:', error);
-      throw error;
-    }
-  };
-
-  const cancelEnrollment = async (enrollmentId: string) => {
-    setSessionEnrollments(prev => prev.filter(enrollment => enrollment.id !== enrollmentId));
-  };
-
-  const getEventRequests = (eventId: string) => {
-    return joinRequests.filter(request => request.eventId === eventId && request.status === 'pending');
-  };
-
-  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
-    setJoinRequests(prev => 
-      prev.map(request => 
-        request.id === requestId ? { ...request, status } : request
-      )
-    );
-  };
-
-  const getGroupRequests = (groupId: string) => {
-    return joinRequests.filter(request => request.groupId === groupId && request.status === 'pending');
-  };
-
-  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
-    setJoinRequests(prev => 
-      prev.map(request => 
-        request.id === requestId ? { ...request, status } : request
-      )
-    );
-    
-    if (status === 'approved') {
-      const request = joinRequests.find(r => r.id === requestId);
-      if (request && request.groupId) {
-        setGroups(prev => 
-          prev.map(group => 
-            group.id === request.groupId ? { ...group, members: group.members + 1 } : group
-          )
-        );
-      }
-    }
-  };
-
-  const removeGroupMember = async (groupId: string, userId: string) => {
-    setJoinRequests(prev => 
-      prev.filter(request => !(request.groupId === groupId && request.userId === userId))
-    );
-    
-    setGroups(prev => 
-      prev.map(group => 
-        group.id === groupId ? { ...group, members: Math.max(1, group.members - 1) } : group
-      )
-    );
-  };
-
-  const updateGroupDetails = async (groupId: string, data: any) => {
-    const updatedGroups = groups.map(group => 
-      group.id === groupId ? { ...group, ...data } : group
-    );
-    setGroups(updatedGroups);
-    return updatedGroups.find(group => group.id === groupId);
-  };
-
-  const getUserSessions = (userId: string) => {
-    const userEnrollments = sessionEnrollments.filter(enrollment => enrollment.userId === userId);
-    return sessions.filter(session => 
-      userEnrollments.some(enrollment => enrollment.sessionId === session.id)
-    );
-  };
-
-  const getCoachSessions = (coachId: string) => {
-    return sessions.filter(session => session.coachId === coachId);
-  };
-
-  const getUserEnrollments = (userId: string) => {
-    return sessionEnrollments.filter(enrollment => enrollment.userId === userId);
-  };
-
-  const requestToJoinGroup = async (groupId: string) => {
-    try {
-      const group = groups.find(g => g.id === groupId);
-      const currentUser = users.find(u => u.id === '4');
-
-      if (!group) {
-        throw new Error('Group not found');
-      }
-
-      if (!currentUser) {
-        throw new Error('User not found');
-      }
-
-      const newJoinRequest: JoinRequest = {
-        id: generateId(),
-        groupId,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        status: 'pending',
-        createdAt: new Date(),
-      };
-
-      setJoinRequests(prev => [...prev, newJoinRequest]);
-      return newJoinRequest;
-    } catch (error) {
-      console.error('Error requesting to join group:', error);
-      throw error;
-    }
-  };
-
-  const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
       const newSession: Session = {
-        id: generateId(),
+        id: `session-${Date.now()}`,
         ...sessionData,
+        coach: coachInfo,
         createdAt: new Date(),
+        updatedAt: new Date(),
+        sessionType: sessionData.type,
+        available: sessionData.available !== undefined ? sessionData.available : true,
+        currentAttendees: 0,
+        isActive: sessionData.isActive !== undefined ? sessionData.isActive : true,
       };
-      
-      setSessions(prev => [...prev, newSession]);
+
+      setSessions(prevSessions => [...prevSessions, newSession]);
       return newSession;
     } catch (error) {
-      console.error('Error creating session:', error);
-      throw error;
+      console.error("Error creating session:", error);
+      return null;
     }
   };
 
-  const updateSession = async (sessionId: string, data: Partial<Session>) => {
-    const updatedSessions = sessions.map(session => 
-      session.id === sessionId ? { ...session, ...data } : session
-    );
-    setSessions(updatedSessions);
-    return updatedSessions.find(session => session.id === sessionId);
+  const updateSession = async (sessionId: string, updates: Partial<Session>): Promise<void> => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setSessions(prevSessions =>
+        prevSessions.map(session =>
+          session.id === sessionId ? { ...session, ...updates } : session
+        )
+      );
+    } catch (error) {
+      console.error("Error updating session:", error);
+    }
   };
 
-  const updateEnrollmentStatus = async (enrollmentId: string, status: 'approved' | 'rejected') => {
-    const updatedEnrollments = sessionEnrollments.map(enrollment => 
-      enrollment.id === enrollmentId ? { ...enrollment, status } : enrollment
-    );
-    setSessionEnrollments(updatedEnrollments);
-    return updatedEnrollments.find(enrollment => enrollment.id === enrollmentId);
+  const deleteSession = async (sessionId: string): Promise<void> => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setSessions(prevSessions => prevSessions.filter(session => session.id !== sessionId));
+    } catch (error) {
+      console.error("Error deleting session:", error);
+    }
   };
 
-  const value: DataContextProps = {
-    services,
-    sessions,
-    users,
-    posts,
+  const enrollInSession = async (sessionId: string, userId: string = 'user-1', userName: string = 'John Doe', userEmail: string = 'john@example.com', userProfileImage: string = ''): Promise<void> => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      const newEnrollment: SessionEnrollment = {
+        id: `enrollment-${Date.now()}`,
+        sessionId,
+        userId,
+        userName,
+        userEmail,
+        userProfileImage,
+        status: 'pending',
+        paymentStatus: 'unpaid',
+        paymentRequired: true,
+        amount: 50,
+        paymentCompleted: false,
+        createdAt: new Date(),
+      };
+
+      setSessionEnrollments(prevEnrollments => [...prevEnrollments, newEnrollment]);
+    } catch (error) {
+      console.error("Error enrolling in session:", error);
+    }
+  };
+
+  const updateEnrollmentStatus = async (enrollmentId: string, status: 'pending' | 'approved' | 'rejected'): Promise<void> => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setSessionEnrollments(prevEnrollments =>
+        prevEnrollments.map(e =>
+          e.id === enrollmentId ? { ...e, status } : e
+        )
+      );
+    } catch (error) {
+      console.error("Error updating enrollment status:", error);
+    }
+  };
+
+  const cancelEnrollment = async (enrollmentId: string): Promise<void> => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setSessionEnrollments(prevEnrollments =>
+        prevEnrollments.filter(enrollment => enrollment.id !== enrollmentId)
+      );
+    } catch (error) {
+      console.error("Error cancelling enrollment:", error);
+    }
+  };
+
+  const createGroup = async (groupData: any): Promise<Group> => {
+    const newGroup: Group = {
+      id: `group-${Date.now()}`,
+      ...groupData,
+      members: 1,
+      pendingRequests: 0,
+      createdAt: new Date(),
+    };
+    
+    setGroups(prev => [...prev, newGroup]);
+    return newGroup;
+  };
+
+  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
+    setGroups(prev => 
+      prev.map(group => 
+        group.id === groupId ? { ...group, ...updates } : group
+      )
+    );
+  };
+
+  const getGroupRequests = (groupId: string): JoinRequest[] => {
+    return [
+      {
+        id: 'request-1',
+        userId: 'user-2',
+        userName: 'Jane Smith',
+        userProfileImage: '/images/avatar-jane.jpg',
+        groupId,
+        status: 'pending',
+        createdAt: new Date(Date.now() - 3600000)
+      }
+    ];
+  };
+
+  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    console.log(`Join request ${requestId} ${status}`);
+  };
+
+  const joinGroup = async (groupId: string): Promise<void> => {
+    console.log(`Joined group ${groupId}`);
+  };
+
+  const leaveGroup = async (groupId: string): Promise<void> => {
+    console.log(`Left group ${groupId}`);
+  };
+
+  const requestToJoinGroup = async (groupId: string): Promise<void> => {
+    console.log(`Requested to join group ${groupId}`);
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
+    console.log(`Removed member ${userId} from group ${groupId}`);
+  };
+
+  const createEvent = async (eventData: Omit<Event, "id" | "createdAt" | "attendees" | "pendingRequests">): Promise<Event> => {
+    const newEvent: Event = {
+      id: `event-${Date.now()}`,
+      ...eventData,
+      hostId: eventData.hostId || eventData.creatorId as string,
+      hostName: eventData.hostName || eventData.creatorName as string,
+      hostRole: eventData.hostRole || eventData.creatorRole as UserRole,
+      creatorId: eventData.creatorId || eventData.hostId,
+      creatorName: eventData.creatorName || eventData.hostName,
+      creatorRole: eventData.creatorRole || eventData.hostRole,
+      endDate: eventData.endDate || new Date(new Date(eventData.startDate).getTime() + 3600000),
+      currentAttendees: eventData.currentAttendees || 0,
+      createdAt: new Date(),
+      attendees: [],
+      pendingRequests: 0
+    };
+    
+    setEvents(prev => [...prev, newEvent]);
+    return newEvent;
+  };
+
+  const getEventRequests = (eventId: string): JoinRequest[] => {
+    return [
+      {
+        id: `request-${eventId}-1`,
+        userId: 'user-2',
+        userName: 'Jane Smith',
+        userProfileImage: '/images/avatar-jane.jpg',
+        eventId,
+        status: 'pending',
+        createdAt: new Date(Date.now() - 3600000)
+      }
+    ];
+  };
+
+  const handleEventJoinRequest = async (requestId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    console.log(`Event join request ${requestId} ${status}`);
+  };
+
+  const likePost = async (postId: string): Promise<void> => {
+    setPosts(prev => 
+      prev.map(post => 
+        post.id === postId ? { ...post, likes: (post.likes || 0) + 1, liked: true } : post
+      )
+    );
+  };
+
+  const sendMessage = async (messageData: Omit<Message, 'id' | 'createdAt'>): Promise<void> => {
+    console.log("Message sent:", messageData);
+  };
+
+  const value = {
     events,
-    groups,
-    joinRequests,
-    messages,
-    serviceBookings,
+    sessions,
     sessionEnrollments,
+    posts,
+    groups,
+    services: sessions as unknown as Service[],
     loading,
-    bookService,
-    cancelServiceBooking,
-    enrollSession,
-    cancelSessionEnrollment,
-    createPost,
-    addComment,
-    likePost,
-    createEvent,
-    joinEvent,
-    leaveEvent,
-    createGroup,
-    joinGroup,
-    leaveGroup,
-    sendMessage,
-    enrollInSession,
-    cancelEnrollment,
-    getEventRequests,
-    handleEventJoinRequest,
-    getGroupRequests,
-    handleJoinRequest,
-    removeGroupMember,
-    updateGroupDetails,
-    getUserSessions,
-    getCoachSessions,
-    getUserEnrollments,
-    requestToJoinGroup,
+    group,
     createSession,
     updateSession,
+    deleteSession,
+    enrollInSession,
     updateEnrollmentStatus,
+    cancelEnrollment,
+    createGroup,
+    updateGroupDetails,
+    getGroupRequests,
+    handleJoinRequest,
+    joinGroup,
+    leaveGroup,
+    requestToJoinGroup,
+    removeGroupMember,
+    createEvent,
+    getEventRequests,
+    handleEventJoinRequest,
+    likePost,
+    sendMessage,
   };
 
-  return (
-    <DataContext.Provider value={value}>
-      {children}
-    </DataContext.Provider>
-  );
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 };
 
 export const useData = () => {
   const context = useContext(DataContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useData must be used within a DataProvider');
   }
   return context;

@@ -112,9 +112,11 @@ const ImageGallery: React.FC<ImageGalleryProps> = ({
         )}
       </ScrollArea>
       
-      <div className="flex justify-end">
-        <Button onClick={onClose}>Done</Button>
-      </div>
+      {onClose && (
+        <div className="flex justify-end">
+          <Button onClick={onClose}>Done</Button>
+        </div>
+      )}
     </div>
   );
 };
