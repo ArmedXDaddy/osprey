@@ -288,16 +288,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to book a service');
     
     try {
-      const isPaid = notes === 'paid';
-      const status = isPaid ? 'approved' : 'pending';
+      console.log(`Booking service ${serviceId} with notes: ${notes}`);
       
-      await createServiceBooking(
+      const bookingId = await createServiceBooking(
         serviceId,
         currentUser.id,
         notes,
-        isPaid ? 'paid' : 'unpaid',
-        status
+        preferredTime
       );
+      
+      console.log(`Successfully created booking with ID: ${bookingId}`);
     } catch (err: any) {
       console.error("Error booking service:", err);
       throw new Error(err.message || 'Failed to book service');

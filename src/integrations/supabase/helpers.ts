@@ -50,10 +50,23 @@ export const createServiceBooking = async (
   serviceId: string,
   userId: string,
   notes?: string,
-  paymentStatus: string = 'unpaid',
-  status: string = 'pending'
+  preferredTime?: Date
 ): Promise<string> => {
   try {
+    // Automatically set status to 'approved' if the notes indicate it's paid
+    const isPaid = notes === 'paid';
+    const paymentStatus = isPaid ? 'paid' : 'unpaid';
+    const status = isPaid ? 'approved' : 'pending';
+    
+    console.log("Creating service booking with:", {
+      serviceId,
+      userId,
+      notes,
+      paymentStatus,
+      status,
+      isPaid
+    });
+
     // Insert directly into the service_bookings table
     const { data, error } = await supabase
       .from('service_bookings')
@@ -74,6 +87,7 @@ export const createServiceBooking = async (
 
     // Add a console log to verify we're getting the correct booking ID back
     console.log('Successfully created booking with ID:', data.id);
+    console.log('Booking data:', data);
     return data.id;
   } catch (error: any) {
     console.error('Error in createServiceBooking:', error);
@@ -171,6 +185,8 @@ export const getServiceBookings = async (serviceId: string): Promise<Booking[]> 
  */
 export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
+    console.log(`Getting booking for service ${serviceId} and user ${userId}`);
+    
     // Query the booking directly from the database table instead of using the stored procedure
     const { data, error } = await supabase
       .from('service_bookings')
@@ -192,7 +208,12 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       throw new Error(error.message || 'Failed to fetch booking');
     }
 
-    if (!data) return null;
+    console.log("Booking data from database:", data);
+    
+    if (!data) {
+      console.log("No booking found");
+      return null;
+    }
     
     // Get user profile data separately to avoid the relation error
     const { data: profileData, error: profileError } = await supabase
@@ -205,7 +226,7 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       console.error('Error fetching user profile:', profileError);
     }
     
-    return {
+    const booking = {
       id: data.id,
       serviceId: data.service_id,
       userId: data.user_id,
@@ -219,6 +240,10 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       isPaid: data.payment_status === 'paid',
       createdAt: new Date(data.created_at)
     };
+    
+    console.log("Processed booking object:", booking);
+    
+    return booking;
   } catch (error: any) {
     console.error('Error in getUserBookingForService:', error);
     return null;
