@@ -59,12 +59,21 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
       try {
         setUploading(true);
         await onFileUpload(selectedFile);
+        // Update selected image to show change immediately
+        if (previewImage) {
+          onSelect(previewImage);
+        }
         // Reset after upload
         setPreviewImage(null);
         setSelectedFile(null);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
+        
+        toast({
+          title: "Upload successful",
+          description: "Your image has been uploaded and applied",
+        });
       } catch (error) {
         console.error('Upload error:', error);
         toast({
@@ -147,6 +156,37 @@ const GroupImageGallery: React.FC<GroupImageGalleryProps> = ({
     const croppedFile = new File([blob], fileName, { type: 'image/jpeg' });
     
     setSelectedFile(croppedFile);
+    
+    // Auto-upload after cropping to make changes reflect immediately
+    try {
+      setUploading(true);
+      await onFileUpload(croppedFile);
+      // Update selected image to show change immediately
+      onSelect(croppedImageUrl);
+      
+      // Reset
+      setTimeout(() => {
+        setPreviewImage(null);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        setUploading(false);
+      }, 500);
+      
+      toast({
+        title: "Image updated",
+        description: "Your image has been cropped and applied",
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Update failed",
+        description: "There was an error applying your image.",
+        variant: "destructive"
+      });
+      setUploading(false);
+    }
   };
 
   return (

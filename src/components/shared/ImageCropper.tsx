@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
-import { Crop, ZoomIn, ZoomOut, RotateCcw, Check, Square } from 'lucide-react';
+import { RotateCcw, Check, Square } from 'lucide-react';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 
 interface ImageCropperProps {
   imageSrc: string;
@@ -18,18 +18,19 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   onCropComplete,
   onCancel
 }) => {
-  const [scale, setScale] = useState(1);
   const [rotation, setRotation] = useState(0);
   
   // Crop selection area
   const [cropSelection, setCropSelection] = useState({
     x: 0,
     y: 0,
-    width: 0,
-    height: 0,
+    width: 200,
+    height: 200,
     isDragging: false,
     startX: 0,
-    startY: 0
+    startY: 0,
+    isResizing: false,
+    corner: '' as '' | 'tl' | 'tr' | 'bl' | 'br'
   });
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,25 +47,8 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         const containerWidth = containerRef.current.offsetWidth;
         const containerHeight = containerRef.current.offsetHeight;
         
-        // Calculate initial scale to fit the container
-        const containerRatio = containerWidth / containerHeight;
-        const imageRatio = image.width / image.height;
-        
-        let initialScale = 1;
-        if (containerRatio > imageRatio) {
-          // Container is wider than image
-          initialScale = containerHeight / image.height;
-        } else {
-          // Container is taller than image
-          initialScale = containerWidth / image.width;
-        }
-        
-        // Apply a minimum scale to ensure the image covers enough area
-        initialScale = Math.max(initialScale, 0.9);
-        setScale(initialScale);
-        
-        // Initialize crop selection to 80% of container size, centered
-        const selectionSize = Math.min(containerWidth, containerHeight) * 0.8;
+        // Calculate the selection size (50% of the smaller dimension)
+        const selectionSize = Math.min(containerWidth, containerHeight) * 0.5;
         setCropSelection({
           x: (containerWidth - selectionSize) / 2,
           y: (containerHeight - selectionSize) / 2,
@@ -72,7 +56,9 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
           height: selectionSize / aspectRatio,
           isDragging: false,
           startX: 0,
-          startY: 0
+          startY: 0,
+          isResizing: false,
+          corner: ''
         });
       }
     };
@@ -80,6 +66,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
 
   // Start dragging the crop selection
   const handleSelectionMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     setCropSelection(prev => ({
       ...prev,
       isDragging: true,
@@ -104,6 +91,52 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
         x: Math.max(0, Math.min(maxX, newX)),
         y: Math.max(0, Math.min(maxY, newY))
       }));
+    } else if (cropSelection.isResizing && containerRef.current) {
+      e.preventDefault();
+      const containerRect = containerRef.current.getBoundingClientRect();
+      
+      let newWidth, newHeight, newX = cropSelection.x, newY = cropSelection.y;
+      
+      // Calculate new dimensions based on corner being dragged
+      if (cropSelection.corner === 'br') {
+        newWidth = Math.max(80, Math.min(e.clientX - containerRect.left - cropSelection.x, containerRect.width - cropSelection.x));
+        newHeight = newWidth / aspectRatio;
+      } else if (cropSelection.corner === 'bl') {
+        const rightEdge = cropSelection.x + cropSelection.width;
+        newWidth = Math.max(80, Math.min(rightEdge - (e.clientX - containerRect.left), rightEdge));
+        newHeight = newWidth / aspectRatio;
+        newX = rightEdge - newWidth;
+      } else if (cropSelection.corner === 'tr') {
+        const bottomEdge = cropSelection.y + cropSelection.height;
+        newWidth = Math.max(80, Math.min(e.clientX - containerRect.left - cropSelection.x, containerRect.width - cropSelection.x));
+        newHeight = newWidth / aspectRatio;
+        newY = bottomEdge - newHeight;
+      } else if (cropSelection.corner === 'tl') {
+        const rightEdge = cropSelection.x + cropSelection.width;
+        const bottomEdge = cropSelection.y + cropSelection.height;
+        newWidth = Math.max(80, Math.min(rightEdge - (e.clientX - containerRect.left), rightEdge));
+        newHeight = newWidth / aspectRatio;
+        newX = rightEdge - newWidth;
+        newY = bottomEdge - newHeight;
+      }
+      
+      // Ensure selection stays within container
+      if (newX < 0) {
+        newX = 0;
+        newWidth = cropSelection.x + cropSelection.width;
+      }
+      if (newY < 0) {
+        newY = 0;
+        newHeight = cropSelection.y + cropSelection.height;
+      }
+      
+      setCropSelection(prev => ({
+        ...prev,
+        x: newX,
+        y: newY,
+        width: newWidth,
+        height: newHeight
+      }));
     }
   };
 
@@ -111,7 +144,19 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   const handleSelectionMouseUp = () => {
     setCropSelection(prev => ({
       ...prev,
-      isDragging: false
+      isDragging: false,
+      isResizing: false,
+      corner: ''
+    }));
+  };
+
+  // Handle corner resize start
+  const handleCornerMouseDown = (e: React.MouseEvent, corner: 'tl' | 'tr' | 'bl' | 'br') => {
+    e.stopPropagation();
+    setCropSelection(prev => ({
+      ...prev,
+      isResizing: true,
+      corner: corner
     }));
   };
 
@@ -155,14 +200,6 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     setRotation((prev) => (prev + 90) % 360);
   };
 
-  const handleZoomIn = () => {
-    setScale((prev) => Math.min(prev + 0.1, 3));
-  };
-
-  const handleZoomOut = () => {
-    setScale((prev) => Math.max(prev - 0.1, 0.5));
-  };
-
   // Resize crop selection when aspectRatio changes
   useEffect(() => {
     setCropSelection(prev => ({
@@ -193,7 +230,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
     const imgWidth = img.naturalWidth;
     const imgHeight = img.naturalHeight;
     
-    // Calculate the scaling and position of the image in the container
+    // Calculate the scaling of the image in the container
     const containerRatio = containerWidth / containerHeight;
     const imageRatio = imgWidth / imgHeight;
     
@@ -213,14 +250,6 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
       imgX = 0;
       imgY = (containerHeight - scaledImgHeight) / 2;
     }
-    
-    // Apply scaling
-    scaledImgWidth *= scale;
-    scaledImgHeight *= scale;
-    
-    // Apply center adjustment for scaling
-    imgX -= (scaledImgWidth - containerWidth) / 2;
-    imgY -= (scaledImgHeight - containerHeight) / 2;
     
     // Draw the cropped image onto the canvas
     ctx.save();
@@ -274,7 +303,7 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
   return (
     <div className="flex flex-col space-y-4">
       <div className="text-center text-sm text-muted-foreground mb-2">
-        Drag the selection area to crop your image, use slider to zoom, and buttons to rotate
+        Drag the selection area to position your crop, or resize using the corner handles
       </div>
       
       <div className="relative bg-black/20 rounded-lg overflow-hidden" style={{ touchAction: 'none' }}>
@@ -288,11 +317,11 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
             onTouchMove={handleSelectionTouchMove}
             onTouchEnd={handleSelectionTouchEnd}
           >
-            {/* Image with zoom and rotation */}
+            {/* Image with rotation */}
             <div 
               className="absolute w-full h-full"
               style={{
-                transform: `rotate(${rotation}deg) scale(${scale})`,
+                transform: `rotate(${rotation}deg)`,
                 transformOrigin: 'center center',
                 transition: 'transform 0.1s ease-out'
               }}
@@ -323,26 +352,25 @@ const ImageCropper: React.FC<ImageCropperProps> = ({
               onTouchStart={handleSelectionTouchStart}
             >
               {/* Corner handles */}
-              <div className="absolute w-2 h-2 bg-white rounded-full -top-1 -left-1"></div>
-              <div className="absolute w-2 h-2 bg-white rounded-full -top-1 -right-1"></div>
-              <div className="absolute w-2 h-2 bg-white rounded-full -bottom-1 -left-1"></div>
-              <div className="absolute w-2 h-2 bg-white rounded-full -bottom-1 -right-1"></div>
+              <div 
+                className="absolute w-5 h-5 bg-white/80 border border-gray-400 rounded-full -top-2 -left-2 cursor-nwse-resize"
+                onMouseDown={(e) => handleCornerMouseDown(e, 'tl')}
+              ></div>
+              <div 
+                className="absolute w-5 h-5 bg-white/80 border border-gray-400 rounded-full -top-2 -right-2 cursor-nesw-resize"
+                onMouseDown={(e) => handleCornerMouseDown(e, 'tr')}
+              ></div>
+              <div 
+                className="absolute w-5 h-5 bg-white/80 border border-gray-400 rounded-full -bottom-2 -left-2 cursor-nesw-resize"
+                onMouseDown={(e) => handleCornerMouseDown(e, 'bl')}
+              ></div>
+              <div 
+                className="absolute w-5 h-5 bg-white/80 border border-gray-400 rounded-full -bottom-2 -right-2 cursor-nwse-resize"
+                onMouseDown={(e) => handleCornerMouseDown(e, 'br')}
+              ></div>
             </div>
           </div>
         </AspectRatio>
-      </div>
-      
-      <div className="flex items-center gap-2">
-        <ZoomOut className="h-4 w-4 text-muted-foreground" />
-        <Slider 
-          value={[scale]} 
-          min={0.5} 
-          max={3} 
-          step={0.01} 
-          onValueChange={(values) => setScale(values[0])}
-          className="flex-1"
-        />
-        <ZoomIn className="h-4 w-4 text-muted-foreground" />
       </div>
       
       <div className="flex justify-center gap-2">
