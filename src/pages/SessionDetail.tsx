@@ -16,11 +16,13 @@ import {
   Users, 
   Video,
   ChevronLeft, 
-  User 
+  User,
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Session, SessionEnrollment } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import MockPaymentGateway from '@/components/shared/MockPaymentGateway';
 
 const SessionDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +38,7 @@ const SessionDetail = () => {
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [userEnrollment, setUserEnrollment] = useState<SessionEnrollment | null>(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   
   useEffect(() => {
     if (id && sessions.length > 0) {
@@ -70,16 +73,47 @@ const SessionDetail = () => {
         return;
       }
       
-      await enrollInSession(
-        session.id,
-        currentUser.id,
-        currentUser.name,
-        currentUser.email,
-        currentUser.profileImage
-      );
+      // If it's a paid session, show payment modal
+      if (session.price > 0) {
+        setShowPaymentModal(true);
+      } else {
+        // For free sessions, just send a request
+        await enrollInSession(session.id);
+        toast({
+          title: "Request sent",
+          description: "Your request has been sent to the coach for approval",
+        });
+      }
     } catch (error) {
       console.error('Error enrolling in session:', error);
+      toast({
+        title: "Error",
+        description: "There was an error processing your request",
+        variant: "destructive"
+      });
     }
+  };
+  
+  const handlePaymentSuccess = async () => {
+    if (!session) return;
+    
+    try {
+      // Enroll with payment status set to paid
+      await enrollInSession(session.id, true);
+      toast({
+        title: "Enrollment successful",
+        description: "You have successfully enrolled in this session",
+      });
+    } catch (error) {
+      console.error('Error enrolling after payment:', error);
+    }
+  };
+  
+  const handlePaymentCancel = () => {
+    toast({
+      title: "Payment cancelled",
+      description: "Your payment has been cancelled",
+    });
   };
   
   const handleCancel = async () => {
@@ -88,8 +122,17 @@ const SessionDetail = () => {
     try {
       await cancelEnrollment(userEnrollment.id);
       setUserEnrollment(null);
+      toast({
+        title: "Enrollment cancelled",
+        description: "Your enrollment has been cancelled",
+      });
     } catch (error) {
       console.error('Error canceling enrollment:', error);
+      toast({
+        title: "Error",
+        description: "There was an error cancelling your enrollment",
+        variant: "destructive"
+      });
     }
   };
   
@@ -108,6 +151,36 @@ const SessionDetail = () => {
       </div>
     );
   }
+  
+  const getStatusBadge = () => {
+    if (!userEnrollment) return null;
+    
+    switch (userEnrollment.status) {
+      case 'pending':
+        return <Badge className="w-full justify-center py-1" variant="outline">Pending Approval</Badge>;
+      case 'approved':
+        return <Badge className="w-full justify-center py-1" variant="success">Approved</Badge>;
+      case 'rejected':
+        return <Badge className="w-full justify-center py-1" variant="destructive">Rejected</Badge>;
+      default:
+        return null;
+    }
+  };
+  
+  const getPaymentBadge = () => {
+    if (!userEnrollment) return null;
+    
+    switch (userEnrollment.paymentStatus) {
+      case 'paid':
+        return <Badge className="w-full justify-center py-1" variant="success">Paid</Badge>;
+      case 'unpaid':
+        return <Badge className="w-full justify-center py-1" variant="outline">Unpaid</Badge>;
+      case 'refunded':
+        return <Badge className="w-full justify-center py-1" variant="secondary">Refunded</Badge>;
+      default:
+        return null;
+    }
+  };
   
   return (
     <div className="space-y-6">
@@ -132,6 +205,9 @@ const SessionDetail = () => {
                       <Badge variant="success">Active</Badge>
                     ) : (
                       <Badge variant="destructive">Inactive</Badge>
+                    )}
+                    {session.price === 0 && (
+                      <Badge variant="outline" className="ml-2">Free</Badge>
                     )}
                   </div>
                 </div>
@@ -195,6 +271,20 @@ const SessionDetail = () => {
                   )}
                 </div>
               </div>
+              
+              {session.price === 0 && (
+                <div className="bg-blue-50 p-4 rounded-md mt-4">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="h-5 w-5 text-blue-500 mt-0.5" />
+                    <div>
+                      <h4 className="font-medium text-blue-700">Free Session Information</h4>
+                      <p className="text-sm text-blue-600">
+                        This is a free session. Your request will need to be approved by the coach before you can join.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -227,14 +317,15 @@ const SessionDetail = () => {
                   <div className="space-y-4">
                     <div className="rounded-md p-3 bg-gray-50">
                       <div className="text-sm font-medium mb-1">Enrollment Status</div>
-                      {userEnrollment.status === 'pending' ? (
-                        <Badge className="w-full justify-center py-1" variant="outline">Pending Approval</Badge>
-                      ) : userEnrollment.status === 'approved' ? (
-                        <Badge className="w-full justify-center py-1" variant="success">Approved</Badge>
-                      ) : (
-                        <Badge className="w-full justify-center py-1" variant="destructive">Rejected</Badge>
-                      )}
+                      {getStatusBadge()}
                     </div>
+                    
+                    {session.price > 0 && (
+                      <div className="rounded-md p-3 bg-gray-50">
+                        <div className="text-sm font-medium mb-1">Payment Status</div>
+                        {getPaymentBadge()}
+                      </div>
+                    )}
                     
                     <Button variant="outline" className="w-full" onClick={handleCancel}>
                       Cancel Enrollment
@@ -247,7 +338,9 @@ const SessionDetail = () => {
                     disabled={!session.isActive}
                   >
                     {session.isActive ? (
-                      session.sessionType === 'one_on_one' ? 'Request Session' : 'Enroll Now'
+                      session.sessionType === 'one_on_one' ? 
+                        (session.price > 0 ? `Book for $${session.price}` : 'Request Session') : 
+                        (session.price > 0 ? `Enroll for $${session.price}` : 'Enroll Now')
                     ) : (
                       'Currently Unavailable'
                     )}
@@ -258,6 +351,15 @@ const SessionDetail = () => {
           </Card>
         </div>
       </div>
+      
+      <MockPaymentGateway 
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        amount={session.price}
+        serviceName={session.title}
+        onPaymentSuccess={handlePaymentSuccess}
+        onPaymentCancel={handlePaymentCancel}
+      />
     </div>
   );
 };

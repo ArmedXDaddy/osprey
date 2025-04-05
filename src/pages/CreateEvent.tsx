@@ -16,7 +16,7 @@ import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { EventPrivacy } from '@/types';
 
 const formSchema = z.object({
@@ -82,16 +82,12 @@ const CreateEvent = () => {
         location: values.location,
         isOnline: values.isOnline,
         meetingUrl: values.isOnline ? values.meetingUrl : undefined,
-        startDate: values.date,
-        endDate: new Date(values.date.getTime() + 3600000), // Default to 1 hour duration
+        startDate: values.date, // Use startDate as expected by type
         date: values.date, // Keep date for backward compatibility
         image: values.image,
         creatorId: currentUser?.id || '',
         creatorName: currentUser?.name || '',
         creatorRole: currentUser?.role || 'user',
-        hostId: currentUser?.id || '',
-        hostName: currentUser?.name || '',
-        hostRole: currentUser?.role || 'user',
         privacy: privacy as EventPrivacy,
         price: values.isPaid ? values.price : 0,
         capacity: values.capacity,

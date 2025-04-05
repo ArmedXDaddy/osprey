@@ -27,13 +27,12 @@ export const fetchServices = async (): Promise<Service[]> => {
     createdAt: new Date(item.created_at),
     sessionType: item.service_type as 'one_on_one' | 'group',
     capacity: item.capacity,
-    startTime: item.start_time ? new Date(item.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
     image: item.image,
     isFree: item.is_free,
-    coverImage: item.cover_image,
   }));
 };
 
@@ -63,13 +62,12 @@ export const fetchServiceById = async (id: string): Promise<Service> => {
     createdAt: new Date(data.created_at),
     sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: data.start_time ? new Date(data.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
     image: data.image,
     isFree: data.is_free,
-    coverImage: data.cover_image,
   };
 };
 
@@ -99,18 +97,18 @@ export const fetchServicesByProviderId = async (providerId: string): Promise<Ser
     createdAt: new Date(item.created_at),
     sessionType: item.service_type as 'one_on_one' | 'group',
     capacity: item.capacity,
-    startTime: item.start_time ? new Date(item.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: item.location,
     isOnline: item.is_online,
     meetingUrl: item.meeting_url,
     image: item.image,
     isFree: item.is_free,
-    coverImage: item.cover_image,
   }));
 };
 
 // Create a new service
 export const createService = async (serviceData: Partial<Service>): Promise<Service> => {
+  // Transform our Service type to match Supabase schema
   const supabaseData = {
     title: serviceData.title,
     description: serviceData.description,
@@ -121,13 +119,11 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     is_active: true,
     service_type: serviceData.sessionType,
     capacity: serviceData.capacity,
-    start_time: serviceData.startTime ? serviceData.startTime.toISOString() : null,
     is_online: serviceData.isOnline,
     location: serviceData.location,
     meeting_url: serviceData.meetingUrl,
     is_free: serviceData.isFree || false,
     image: serviceData.image,
-    cover_image: serviceData.coverImage,
   };
   
   const { data, error } = await supabase
@@ -141,6 +137,7 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     throw new Error(error.message);
   }
   
+  // Return the created service
   return {
     id: data.id,
     title: data.title,
@@ -153,18 +150,18 @@ export const createService = async (serviceData: Partial<Service>): Promise<Serv
     createdAt: new Date(data.created_at),
     sessionType: data.service_type as 'one_on_one' | 'group',
     capacity: data.capacity,
-    startTime: data.start_time ? new Date(data.start_time) : undefined,
+    startTime: undefined, // The database doesn't have start_time field
     location: data.location,
     isOnline: data.is_online,
     meetingUrl: data.meeting_url,
     image: data.image,
     isFree: data.is_free,
-    coverImage: data.cover_image,
   };
 };
 
 // Update an existing service
 export const updateService = async (id: string, serviceData: Partial<Service>): Promise<Service> => {
+  // Transform our Service type to match Supabase schema
   const supabaseData: any = {};
   
   if (serviceData.title !== undefined) supabaseData.title = serviceData.title;
@@ -174,91 +171,68 @@ export const updateService = async (id: string, serviceData: Partial<Service>): 
   if (serviceData.available !== undefined) supabaseData.is_active = serviceData.available;
   if (serviceData.sessionType !== undefined) supabaseData.service_type = serviceData.sessionType;
   if (serviceData.capacity !== undefined) supabaseData.capacity = serviceData.capacity;
-  if (serviceData.startTime !== undefined) supabaseData.start_time = serviceData.startTime ? serviceData.startTime.toISOString() : null;
   if (serviceData.location !== undefined) supabaseData.location = serviceData.location;
   if (serviceData.isOnline !== undefined) supabaseData.is_online = serviceData.isOnline;
   if (serviceData.meetingUrl !== undefined) supabaseData.meeting_url = serviceData.meetingUrl;
   if (serviceData.image !== undefined) supabaseData.image = serviceData.image;
   if (serviceData.isFree !== undefined) supabaseData.is_free = serviceData.isFree;
-  if (serviceData.coverImage !== undefined) supabaseData.cover_image = serviceData.coverImage;
   
-  try {
-    const { data, error } = await supabase
-      .from('services')
-      .update(supabaseData)
-      .eq('id', id)
-      .select()
-      .single();
-      
-    if (error) {
-      console.error('Error updating service:', error);
-      throw new Error(error.message);
-    }
+  const { data, error } = await supabase
+    .from('services')
+    .update(supabaseData)
+    .eq('id', id)
+    .select()
+    .single();
     
-    return {
-      id: data.id,
-      title: data.title,
-      description: data.description || '',
-      providerId: data.coach_id,
-      providerName: data.coach_name,
-      price: data.price,
-      duration: data.duration || '1 hour',
-      available: data.is_active,
-      createdAt: new Date(data.created_at),
-      sessionType: data.service_type as 'one_on_one' | 'group',
-      capacity: data.capacity,
-      startTime: data.start_time ? new Date(data.start_time) : undefined,
-      location: data.location,
-      isOnline: data.is_online,
-      meetingUrl: data.meeting_url,
-      image: data.image,
-      isFree: data.is_free,
-      coverImage: data.cover_image,
-    };
-  } catch (error: any) {
-    console.error('Update error:', error);
-    throw error;
+  if (error) {
+    console.error('Error updating service:', error);
+    throw new Error(error.message);
+  }
+  
+  // Return the updated service
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description || '',
+    providerId: data.coach_id,
+    providerName: data.coach_name,
+    price: data.price,
+    duration: data.duration || '1 hour',
+    available: data.is_active,
+    createdAt: new Date(data.created_at),
+    sessionType: data.service_type as 'one_on_one' | 'group',
+    capacity: data.capacity,
+    startTime: undefined, // The database doesn't have start_time field
+    location: data.location,
+    isOnline: data.is_online,
+    meetingUrl: data.meeting_url,
+    image: data.image,
+    isFree: data.is_free,
+  };
+};
+
+// Delete a service
+export const deleteService = async (id: string): Promise<void> => {
+  const { error } = await supabase
+    .from('services')
+    .update({ is_active: false })
+    .eq('id', id);
+    
+  if (error) {
+    console.error('Error deleting service:', error);
+    throw new Error(error.message);
   }
 };
 
-// Check if a user has already booked a service
-export const checkBookingStatus = async (serviceId: string, userId: string): Promise<{ isBooked: boolean }> => {
-  try {
-    const { data, error } = await supabase
-      .from('service_enrollments')
-      .select('id')
-      .eq('service_id', serviceId)
-      .eq('user_id', userId);
-      
-    if (error) {
-      console.error('Error checking booking status:', error);
-      throw new Error(error.message);
-    }
-    
-    return { isBooked: data && data.length > 0 };
-  } catch (error: any) {
-    console.error('Error checking booking status:', error);
-    throw error;
-  }
-};
-
-// Book a service (now handling different workflows for free and paid services)
+// Book a service - updated to handle paid services
 export const bookService = async (bookingData: {
   serviceId: string;
   userId: string;
   userName: string;
   userEmail: string;
   userProfileImage?: string;
+  isPaid?: boolean;
 }): Promise<void> => {
-  // First check if the user has already booked this service
-  const { isBooked } = await checkBookingStatus(bookingData.serviceId, bookingData.userId);
-  
-  if (isBooked) {
-    throw new Error('You have already booked this service');
-  }
-
-  const service = await fetchServiceById(bookingData.serviceId);
-
   const { error } = await supabase
     .from('service_enrollments')
     .insert({
@@ -267,10 +241,8 @@ export const bookService = async (bookingData: {
       user_name: bookingData.userName,
       user_email: bookingData.userEmail,
       user_profile_image: bookingData.userProfileImage,
-      status: service.isFree ? 'approved' : 'pending', // Auto-approve free services
-      payment_status: service.isFree ? 'unpaid' : 'paid', // Mark paid services as paid
-      payment_required: !service.isFree,
-      amount: service.price
+      status: bookingData.isPaid ? 'approved' : 'pending', // Auto-approve paid bookings
+      payment_status: bookingData.isPaid ? 'paid' : 'unpaid',
     });
     
   if (error) {
@@ -279,24 +251,119 @@ export const bookService = async (bookingData: {
   }
 };
 
-// Delete a service
-export const deleteService = async (id: string): Promise<void> => {
-  console.log('Attempting to delete service with ID:', id);
-  
-  try {
-    const { error } = await supabase
-      .from('services')
-      .delete()
-      .eq('id', id);
-      
-    if (error) {
-      console.error('Error deleting service:', error);
-      throw new Error(error.message);
-    }
+// Get service bookings
+export const getServiceBookings = async (serviceId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select('*')
+    .eq('service_id', serviceId)
+    .order('created_at', { ascending: false });
     
-    console.log('Service deleted successfully');
-  } catch (error: any) {
-    console.error('Deletion error:', error);
-    throw error;
+  if (error) {
+    console.error('Error fetching service bookings:', error);
+    throw new Error(error.message);
   }
+  
+  return data;
+};
+
+// Update booking status
+export const updateBookingStatus = async (bookingId: string, status: 'pending' | 'approved' | 'rejected') => {
+  const { error } = await supabase
+    .from('service_enrollments')
+    .update({ status })
+    .eq('id', bookingId);
+    
+  if (error) {
+    console.error('Error updating booking status:', error);
+    throw new Error(error.message);
+  }
+};
+
+// Cancel a booking
+export const cancelBooking = async (bookingId: string) => {
+  const { error } = await supabase
+    .from('service_enrollments')
+    .delete()
+    .eq('id', bookingId);
+    
+  if (error) {
+    console.error('Error canceling booking:', error);
+    throw new Error(error.message);
+  }
+};
+
+// Get user's bookings
+export const getUserBookings = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select(`
+      *,
+      service:service_id (
+        title,
+        description,
+        price,
+        coach_name,
+        service_type,
+        duration,
+        is_online,
+        location,
+        meeting_url
+      )
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching user bookings:', error);
+    throw new Error(error.message);
+  }
+  
+  return data;
+};
+
+// Get service provider's bookings
+export const getProviderBookings = async (providerId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select(`
+      *,
+      service:service_id (
+        id,
+        title,
+        price,
+        service_type,
+        duration,
+        is_online
+      )
+    `)
+    .eq('service:service_id.coach_id', providerId)
+    .order('created_at', { ascending: false });
+    
+  if (error) {
+    console.error('Error fetching provider bookings:', error);
+    throw new Error(error.message);
+  }
+  
+  return data;
+};
+
+// Check if a user has booked a service
+export const checkBookingStatus = async (userId: string, serviceId: string) => {
+  const { data, error } = await supabase
+    .from('service_enrollments')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('service_id', serviceId);
+    
+  if (error) {
+    console.error('Error checking booking status:', error);
+    throw new Error(error.message);
+  }
+  
+  if (data.length === 0) {
+    return null;
+  }
+  
+  return data[0];
 };
