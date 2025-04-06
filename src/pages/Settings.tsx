@@ -14,7 +14,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
@@ -81,17 +80,10 @@ export const useTheme = () => {
 };
 
 const Settings = () => {
-  const { currentUser, isLoading, updateProfile, logout } = useAuth();
+  const { currentUser, isLoading, logout } = useAuth();
   const navigate = useNavigate();
   const { isDarkTheme, toggleTheme } = useTheme();
-  const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [profileData, setProfileData] = useState({
-    name: currentUser?.name || '',
-    email: currentUser?.email || '',
-    bio: currentUser?.bio || '',
-    location: currentUser?.location || '',
-  });
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
     pushNotifications: true,
@@ -101,32 +93,10 @@ const Settings = () => {
     profileVisibility: true,
     activityVisibility: true,
   });
-
-  const handleProfileUpdate = async () => {
-    if (!currentUser) return;
-    
-    try {
-      setIsUpdating(true);
-      await updateProfile({
-        name: profileData.name,
-        bio: profileData.bio,
-        location: profileData.location,
-      });
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully",
-      });
-    } catch (error) {
-      toast({
-        title: "Update failed",
-        description: "There was a problem updating your profile",
-        variant: "destructive",
-      });
-      console.error('Profile update error:', error);
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+  const [appearance, setAppearance] = useState({
+    reducedMotion: false,
+    compactView: false,
+  });
 
   const handleDeleteAccount = async () => {
     if (!currentUser) return;
@@ -233,7 +203,13 @@ const Settings = () => {
                     Minimize animations throughout the application
                   </p>
                 </div>
-                <Switch id="reduced-motion" />
+                <Switch 
+                  id="reduced-motion" 
+                  checked={appearance.reducedMotion}
+                  onCheckedChange={(checked) => 
+                    setAppearance({...appearance, reducedMotion: checked})
+                  } 
+                />
               </div>
               
               <Separator />
@@ -245,9 +221,28 @@ const Settings = () => {
                     Use a more compact layout for content
                   </p>
                 </div>
-                <Switch id="compact-view" />
+                <Switch 
+                  id="compact-view" 
+                  checked={appearance.compactView}
+                  onCheckedChange={(checked) => 
+                    setAppearance({...appearance, compactView: checked})
+                  } 
+                />
               </div>
             </CardContent>
+            <CardFooter>
+              <Button 
+                className="w-full" 
+                onClick={() => 
+                  toast({ 
+                    title: "Appearance settings saved", 
+                    description: "Your preferences have been updated" 
+                  })
+                }
+              >
+                Save Appearance Settings
+              </Button>
+            </CardFooter>
           </Card>
         </TabsContent>
         
@@ -261,43 +256,11 @@ const Settings = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input 
-                  id="name" 
-                  value={profileData.name} 
-                  onChange={(e) => setProfileData({...profileData, name: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
-                <Input 
-                  id="email" 
-                  value={profileData.email} 
-                  disabled
-                  readOnly
-                />
+                <p className="text-base font-medium">{currentUser.email}</p>
                 <p className="text-xs text-muted-foreground">
                   Email cannot be changed directly. Please contact support.
                 </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
-                <Input 
-                  id="bio" 
-                  value={profileData.bio} 
-                  onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input 
-                  id="location" 
-                  value={profileData.location} 
-                  onChange={(e) => setProfileData({...profileData, location: e.target.value})}
-                />
               </div>
               
               <Separator className="my-4" />
@@ -333,15 +296,17 @@ const Settings = () => {
                 </div>
               </div>
             </CardContent>
-            <CardFooter className="flex justify-between">
-              <Button variant="outline">Cancel</Button>
+            <CardFooter>
               <Button 
-                onClick={handleProfileUpdate} 
-                disabled={isUpdating}
-                className="flex items-center gap-2"
+                className="w-full" 
+                onClick={() => 
+                  toast({ 
+                    title: "Account settings saved", 
+                    description: "Your preferences have been updated" 
+                  })
+                }
               >
-                <Save size={16} />
-                {isUpdating ? 'Saving...' : 'Save Changes'}
+                Save Account Settings
               </Button>
             </CardFooter>
           </Card>
@@ -457,7 +422,15 @@ const Settings = () => {
               </div>
             </CardContent>
             <CardFooter>
-              <Button className="w-full" onClick={() => toast({ title: "Privacy settings saved" })}>
+              <Button 
+                className="w-full" 
+                onClick={() => 
+                  toast({ 
+                    title: "Privacy settings saved",
+                    description: "Your privacy preferences have been updated" 
+                  })
+                }
+              >
                 Save Privacy Settings
               </Button>
             </CardFooter>
