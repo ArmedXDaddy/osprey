@@ -1,122 +1,60 @@
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import MainLayout from '@/layouts/MainLayout';
+import Home from '@/pages/Home';
+import Auth from '@/pages/Auth';
+import Profile from '@/pages/Profile';
+import Events from '@/pages/Events';
+import EventDetail from '@/pages/EventDetail';
+import Services from '@/pages/Services';
+import ServiceDetail from '@/pages/ServiceDetail';
+import CreateService from '@/pages/CreateService';
+import EditService from '@/pages/EditService';
+import Sessions from '@/pages/Sessions';
+import SessionDetail from '@/pages/SessionDetail';
+import CreateSession from '@/pages/CreateSession';
+import Groups from '@/pages/Groups';
+import GroupDetail from '@/pages/GroupDetail';
+import CreateGroup from '@/pages/CreateGroup';
+import Products from '@/pages/Products';
+import ProductDetail from '@/pages/ProductDetail';
+import Workshops from '@/pages/Workshops';
+import WorkshopDetail from '@/pages/WorkshopDetail';
+import Jobs from '@/pages/Jobs';
+import JobDetail from '@/pages/JobDetail';
+import EditGroup from '@/pages/EditGroup';
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/context/AuthContext";
-import { DataProvider } from "@/context/DataContext";
-import MainLayout from "@/components/layout/MainLayout";
-import { ThemeProvider } from "@/pages/Settings";
-
-// Pages
-import Index from "./pages/Index";
-import Explore from "./pages/Explore";
-import Events from "./pages/Events";
-import EventDetail from "./pages/EventDetail";
-import CreateEvent from "./pages/CreateEvent";
-import Groups from "./pages/Groups";
-import GroupDetail from "./pages/GroupDetail";
-import CreateGroup from "./pages/CreateGroup";
-import Profile from "./pages/Profile";
-import Login from "./pages/auth/Login";
-import Register from "./pages/auth/Register";
-import NotFound from "./pages/NotFound";
-import Networking from "./pages/Networking";
-import Sessions from "./pages/Sessions";
-import SessionDetail from "./pages/SessionDetail";
-import ServiceDetail from "./pages/ServiceDetail";
-import CreateSession from "./pages/CreateSession";
-import ManageSession from "./pages/ManageSession";
-import Services from "./pages/Services";
-import CreateService from "./pages/CreateService";
-import ManageService from "./pages/ManageService";
-import Settings from "./pages/Settings";
-
-// Company Pages
-import JobPostings from "./pages/company/JobPostings";
-import CreateJobPosting from "./pages/company/CreateJobPosting";
-import Products from "./pages/company/Products";
-import Workshops from "./pages/company/Workshops";
-import CreateProduct from "./pages/company/CreateProduct";
-import CreateWorkshop from "./pages/company/CreateWorkshop";
-import CompanyProfile from "./components/company/CompanyProfile";
-
-// New Job, Product, Workshop Detail Pages
-import JobPostingDetail from "./pages/company/JobPostingDetail";
-import ProductDetail from "./pages/company/ProductDetail";
-import WorkshopDetail from "./pages/company/WorkshopDetail";
-
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <ThemeProvider>
-          <DataProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <MainLayout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/explore" element={<Explore />} />
-                  <Route path="/networking" element={<Networking />} />
-                  <Route path="/events" element={<Events />} />
-                  <Route path="/events/:id" element={<EventDetail />} />
-                  <Route path="/create-event" element={<CreateEvent />} />
-                  <Route path="/groups" element={<Groups />} />
-                  <Route path="/groups/:id" element={<GroupDetail />} />
-                  <Route path="/create-group" element={<CreateGroup />} />
-                  <Route path="/sessions" element={<Sessions />} />
-                  <Route path="/sessions/:id" element={<SessionDetail />} />
-                  <Route path="/sessions/create" element={<CreateSession />} />
-                  <Route path="/sessions/:id/manage" element={<ManageSession />} />
-                  <Route path="/services" element={<Services />} />
-                  <Route path="/services/create" element={<CreateService />} />
-                  <Route path="/services/:id" element={<ServiceDetail />} />
-                  <Route path="/services/:id/manage" element={<ManageService />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/profile/:id" element={<Profile />} />
-                  <Route path="/settings" element={<Settings />} />
-                  <Route path="/auth/login" element={<Login />} />
-                  <Route path="/auth/register" element={<Register />} />
-                  
-                  {/* Jobs Routes */}
-                  <Route path="/jobs" element={<JobPostings />} />
-                  <Route path="/jobs/:id" element={<JobPostingDetail />} />
-                  
-                  {/* Products Routes */}
-                  <Route path="/products" element={<Products />} />
-                  <Route path="/products/:id" element={<ProductDetail />} />
-                  
-                  {/* Workshops Routes */}
-                  <Route path="/workshops" element={<Workshops />} />
-                  <Route path="/workshops/:id" element={<WorkshopDetail />} />
-                  
-                  {/* Company Routes - redirected through individual management pages */}
-                  <Route path="/company/jobs" element={<JobPostings />} />
-                  <Route path="/company/jobs/create" element={<CreateJobPosting />} />
-                  <Route path="/company/jobs/:id" element={<JobPostingDetail />} />
-                  <Route path="/company/products" element={<Products />} />
-                  <Route path="/company/products/create" element={<CreateProduct />} />
-                  <Route path="/company/products/:id" element={<ProductDetail />} />
-                  <Route path="/company/workshops" element={<Workshops />} />
-                  <Route path="/company/workshops/create" element={<CreateWorkshop />} />
-                  <Route path="/company/workshops/:id" element={<WorkshopDetail />} />
-                  <Route path="/company/profile" element={<Profile />} />
-                  <Route path="/company/profile/:id" element={<Profile />} />
-                  
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </MainLayout>
-            </BrowserRouter>
-          </DataProvider>
-        </ThemeProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<Home />} />
+          <Route path="auth" element={<Auth />} />
+          <Route path="profile/:id" element={<Profile />} />
+          <Route path="events" element={<Events />} />
+          <Route path="events/:id" element={<EventDetail />} />
+          <Route path="services" element={<Services />} />
+          <Route path="services/:id" element={<ServiceDetail />} />
+          <Route path="services/create" element={<CreateService />} />
+          <Route path="services/:id/edit" element={<EditService />} />
+          <Route path="sessions" element={<Sessions />} />
+          <Route path="sessions/:id" element={<SessionDetail />} />
+          <Route path="sessions/create" element={<CreateSession />} />
+          <Route path="groups" element={<Groups />} />
+          <Route path="groups/:id" element={<GroupDetail />} />
+          <Route path="groups/create" element={<CreateGroup />} />
+          <Route path="groups/:id/edit" element={<EditGroup />} />
+          <Route path="products" element={<Products />} />
+          <Route path="products/:id" element={<ProductDetail />} />
+          <Route path="workshops" element={<Workshops />} />
+          <Route path="workshops/:id" element={<WorkshopDetail />} />
+          <Route path="jobs" element={<Jobs />} />
+          <Route path="jobs/:id" element={<JobDetail />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 export default App;

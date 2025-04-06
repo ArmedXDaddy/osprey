@@ -26,12 +26,14 @@ import { format } from 'date-fns';
 import GroupRequestsSection from '@/components/group/GroupRequestsSection';
 import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
 import GroupChatSection from '@/components/group/GroupChatSection';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { toast } from 'react-toastify';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { groups, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails, getGroupRequests } = useData();
+  const { groups, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails, getGroupRequests, deleteGroup } = useData();
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
@@ -45,6 +47,7 @@ const GroupDetail = () => {
   const [editingMemberLimit, setEditingMemberLimit] = useState(false);
   const [tempMemberLimit, setTempMemberLimit] = useState<number | undefined>(undefined);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     if (id && groups.length > 0) {
@@ -185,6 +188,25 @@ const GroupDetail = () => {
     setEditingMemberLimit(false);
   };
 
+  const handleDeleteGroup = async () => {
+    if (!currentUser || !group) return;
+    
+    try {
+      await deleteGroup(id);
+      toast({
+        title: "Group deleted",
+        description: "Your group has been deleted successfully"
+      });
+      navigate('/groups');
+    } catch (error: any) {
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete group",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="container py-8">
       <div className="flex items-center mb-6">
@@ -248,7 +270,7 @@ const GroupDetail = () => {
               <Button onClick={() => navigate('/auth/login')}>Login to Join</Button>
             ) : isGroupAdmin ? (
               <div className="space-y-2">
-                <Button variant="destructive" onClick={() => console.log('Delete group')}>
+                <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
                   Delete Group
                 </Button>
               </div>
@@ -415,6 +437,23 @@ const GroupDetail = () => {
           </div>
         )}
       </Card>
+
+      {showDeleteConfirm && (
+        <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Group</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to delete this group? This action cannot be undone and all group data will be permanently lost.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+              <Button variant="destructive" onClick={handleDeleteGroup}>Delete Group</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

@@ -273,3 +273,48 @@ export interface Announcement {
   content: string;
   createdAt: Date;
 }
+
+export interface DataContextType {
+  posts: Post[];
+  events: Event[];
+  groups: Group[];
+  services: Service[];
+  sessions: Session[];
+  sessionEnrollments: SessionEnrollment[];
+  messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
+  joinRequests: JoinRequest[];
+  loading: boolean;
+  error: Error | null;
+  postComments: Record<string, Comment[]>;
+  completedEvents: Event[];
+  announcements: Announcement[];
+  postAnnouncement: (eventId: string, content: string) => Promise<void>;
+  createPost: (content: string, imageFile?: File | null) => Promise<void>;
+  likePost: (postId: string) => Promise<void>;
+  unlikePost: (postId: string) => Promise<void>;
+  addComment: (postId: string, content: string) => Promise<void>;
+  updateComment: (commentId: string, content: string) => Promise<void>;
+  deleteComment: (commentId: string) => Promise<void>;
+  createEvent: (eventData: any) => Promise<Event>;
+  joinEvent: (eventId: string) => Promise<void>;
+  leaveEvent: (eventId: string) => Promise<void>;
+  deleteEvent: (eventId: string, reason?: 'cancelled' | 'completed') => Promise<void>;
+  requestToJoinEvent: (eventId: string) => Promise<void>;
+  approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
+  rejectEventRequest: (requestId: string) => Promise<void>;
+  getEventRequests: (eventId: string) => Promise<JoinRequest[]>;
+  handleEventJoinRequest: (eventId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
+  createGroup: (groupData: any) => Promise<Group>;
+  joinGroup: (groupId: string) => Promise<void>;
+  leaveGroup: (groupId: string) => Promise<void>;
+  requestToJoinGroup: (groupId: string) => Promise<void>;
+  approveGroupRequest: (requestId: string, groupId: string, userId: string) => Promise<void>;
+  rejectGroupRequest: (requestId: string) => Promise<void>;
+  getGroupRequests: (groupId: string) => Promise<JoinRequest[]>;
+  handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
+  removeGroupMember: (groupId: string, userId: string) => Promise<void>;
+  updateGroupDetails: (groupId: string, updates: any) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
+  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>) => Promise<Session>;
+}

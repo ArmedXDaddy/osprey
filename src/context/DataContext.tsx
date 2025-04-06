@@ -604,7 +604,94 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   
   const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to update a group');
+    
+    try {
+      const groupToUpdate = groups.find(g => g.id === groupId);
+      if (!groupToUpdate) throw new Error('Group not found');
+      
+      // Verify the user is the creator of the group
+      if (groupToUpdate.creatorId !== currentUser.id) {
+        throw new Error('Only the group creator can update this group');
+      }
+      
+      // Prepare the data for update
+      const updateData: any = {};
+      
+      if (updates.name !== undefined) updateData.name = updates.name;
+      if (updates.description !== undefined) updateData.description = updates.description;
+      if (updates.image !== undefined) updateData.image = updates.image;
+      if (updates.rules !== undefined) updateData.rules = updates.rules;
+      if (updates.memberLimit !== undefined) updateData.member_limit = updates.memberLimit;
+      
+      // Update in database
+      const { error } = await supabase
+        .from('groups')
+        .update(updateData)
+        .eq('id', groupId)
+        .eq('creator_id', currentUser.id);
+      
+      if (error) throw error;
+      
+      // Update in local state
+      setGroups(prev => prev.map(group => 
+        group.id === groupId 
+          ? { ...group, ...updates } 
+          : group
+      ));
+      
+      toast({
+        title: "Group updated",
+        description: "Your group details have been updated successfully"
+      });
+    } catch (error: any) {
+      console.error("Error updating group:", error);
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update group",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+  
+  const deleteGroup = async (groupId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a group');
+    
+    try {
+      const groupToDelete = groups.find(g => g.id === groupId);
+      if (!groupToDelete) throw new Error('Group not found');
+      
+      // Verify the user is the creator of the group
+      if (groupToDelete.creatorId !== currentUser.id) {
+        throw new Error('Only the group creator can delete this group');
+      }
+      
+      // Delete from database
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId)
+        .eq('creator_id', currentUser.id);
+      
+      if (error) throw error;
+      
+      // Remove from local state
+      setGroups(prev => prev.filter(group => group.id !== groupId));
+      
+      toast({
+        title: "Group deleted",
+        description: "Your group has been deleted successfully"
+      });
+    } catch (error: any) {
+      console.error("Error deleting group:", error);
+      toast({
+        title: "Delete failed",
+        description: error.message || "Failed to delete group",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
@@ -1214,7 +1301,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       sendServiceMessage,
       getServiceMessages,
       getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices
+      fetchUserServices,
+      deleteGroup
     }}>
       {children}
     </DataContext.Provider>
