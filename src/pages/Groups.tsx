@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import GroupCard from '@/components/shared/GroupCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Users, List, Grid, Filter } from 'lucide-react';
+import { Search, Users, List, Grid, Filter, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -46,7 +45,7 @@ const Groups = () => {
   const userGroups = currentUser ? groups.filter(group => group.creatorId === currentUser?.id) : [];
   
   // Get groups the user has joined (for future implementation)
-  const joinedGroups = []; // This would be populated from the backend in a real implementation
+  const joinedGroups = [];
 
   if (loading) {
     return (
@@ -60,6 +59,9 @@ const Groups = () => {
       </div>
     );
   }
+
+  // Check if user can create groups (influencers, companies, and coaches)
+  const canCreateGroup = currentUser && ['influencer', 'company', 'coach'].includes(currentUser.role);
 
   return (
     <div className="space-y-6">
@@ -81,10 +83,12 @@ const Groups = () => {
             />
           </div>
           
-          {/* Only allow influencers and companies to create groups */}
-          {currentUser && ['influencer', 'company'].includes(currentUser.role) && (
+          {/* Show create button for influencers, companies, and coaches */}
+          {canCreateGroup && (
             <Link to="/create-group">
-              <Button>Create Group</Button>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" /> Create Group
+              </Button>
             </Link>
           )}
         </div>
@@ -195,7 +199,7 @@ const Groups = () => {
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto text-gray-300" />
                 <h3 className="mt-4 text-lg font-medium">You haven't created any groups yet</h3>
-                {['influencer', 'company'].includes(currentUser.role) && (
+                {['influencer', 'company', 'coach'].includes(currentUser.role) && (
                   <Link to="/create-group" className="mt-4 inline-block">
                     <Button>Create Your First Group</Button>
                   </Link>
