@@ -1,241 +1,248 @@
 
-import React, { useState, useEffect } from 'react';
-import { useData } from '@/context/DataContext';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Search, Users } from 'lucide-react';
-import EventCard from '@/components/shared/EventCard';
-import GroupCard from '@/components/shared/GroupCard';
-import ServiceCard from '@/components/shared/ServiceCard';
-import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Product, Workshop } from '@/types';
-import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Search, Filter, Users, Calendar, User, RefreshCw, Package2, GraduationCap } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { UserCard } from '@/components/shared/UserCard';
+import { EventCard } from '@/components/shared/EventCard';
+import { GroupCard } from '@/components/shared/GroupCard';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { WorkshopCard } from '@/components/shared/WorkshopCard';
+import { useNavigate } from 'react-router-dom';
+import { Product, Workshop } from '@/types';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
 
 const Explore = () => {
-  const { events, groups, services, loading } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [workshops, setWorkshops] = useState<Workshop[]>([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [workshopsLoading, setWorkshopsLoading] = useState(true);
   
-  // Get the active tab from URL or default to 'events'
-  const activeTab = searchParams.get('tab') || 'events';
+  const activeTab = searchParams.get('tab') || 'people';
   
-  // Load products and workshops when the component mounts
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        setProductsLoading(true);
-        const productsData = await fetchProducts();
-        setProducts(productsData);
-      } catch (error) {
-        console.error('Error loading products:', error);
-      } finally {
-        setProductsLoading(false);
-      }
-    };
-
-    const loadWorkshops = async () => {
-      try {
-        setWorkshopsLoading(true);
-        const workshopsData = await fetchWorkshops();
-        setWorkshops(workshopsData);
-      } catch (error) {
-        console.error('Error loading workshops:', error);
-      } finally {
-        setWorkshopsLoading(false);
-      }
-    };
-
-    loadProducts();
-    loadWorkshops();
-  }, []);
-  
-  // Update URL when tab changes
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
   };
-  
-  // Filter items based on search term
-  const filteredEvents = events.filter(event => 
-    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const filteredGroups = groups.filter(group => 
-    group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    group.description.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  
-  const filteredServices = services.filter(service => 
-    service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.providerName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
-  const filteredProducts = products.filter(product => 
-    product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Fetch products data
+  const { 
+    data: products = [], 
+    isLoading: isLoadingProducts,
+  } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+  });
 
-  const filteredWorkshops = workshops.filter(workshop => 
-    workshop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    workshop.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    workshop.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (workshop.category && workshop.category.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Fetch workshops data
+  const { 
+    data: workshops = [], 
+    isLoading: isLoadingWorkshops,
+  } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: fetchWorkshops,
+  });
+  
+  // Mock data - in a real application this would come from an API
+  const users = [
+    { id: '1', name: 'Alex Johnson', role: 'influencer', followers: 21500, location: 'New York, NY', image: 'https://randomuser.me/api/portraits/men/32.jpg', bio: 'Tech influencer focusing on mobile development and emerging technologies.' },
+    { id: '2', name: 'Sarah Williams', role: 'coach', followers: 8900, location: 'San Francisco, CA', image: 'https://randomuser.me/api/portraits/women/44.jpg', bio: 'Career coach helping tech professionals advance their careers and find work-life balance.' },
+    { id: '3', name: 'Tech Solutions Inc.', role: 'company', followers: 45600, location: 'Boston, MA', image: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=0D8ABC&color=fff', bio: 'Leading technology consulting firm specializing in digital transformation.' },
+    { id: '4', name: 'Michael Brown', role: 'influencer', followers: 15200, location: 'Austin, TX', image: 'https://randomuser.me/api/portraits/men/22.jpg', bio: 'Sharing insights on startup growth, venture capital, and entrepreneurship.' },
+    { id: '5', name: 'Innovation Labs', role: 'company', followers: 32100, location: 'Seattle, WA', image: 'https://ui-avatars.com/api/?name=Innovation+Labs&background=FF5733&color=fff', bio: 'Cutting-edge research lab focused on AI and robotics.' },
+    { id: '6', name: 'Emma Clark', role: 'coach', followers: 11800, location: 'Chicago, IL', image: 'https://randomuser.me/api/portraits/women/28.jpg', bio: 'Executive coach with expertise in leadership development for tech executives.' }
+  ];
+  
+  const events = [
+    { id: '1', title: 'Tech Conference 2023', description: 'Annual tech conference featuring top industry speakers.', date: new Date('2023-05-15'), location: 'San Francisco, CA', image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 120, creator: 'Tech Solutions Inc.' },
+    { id: '2', title: 'Networking Mixer', description: 'Connect with professionals in your industry.', date: new Date('2023-04-20'), location: 'New York, NY', image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 80, creator: 'Sarah Williams' },
+    { id: '3', title: 'Startup Workshop', description: 'Learn the essentials of launching a successful startup.', date: new Date('2023-06-10'), location: 'Austin, TX', image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 50, creator: 'Michael Brown' },
+    { id: '4', title: 'AI in Business Seminar', description: 'Explore practical applications of AI in business operations.', date: new Date('2023-05-25'), location: 'Boston, MA', image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 90, creator: 'Innovation Labs' }
+  ];
+  
+  const groups = [
+    { id: '1', name: 'Tech Founders', description: 'A community for startup founders to share experiences and advice.', members: 520, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'public', creator: 'Michael Brown' },
+    { id: '2', name: 'Women in Tech', description: 'Supporting women in technology fields through networking and mentorship.', members: 780, image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'public', creator: 'Sarah Williams' },
+    { id: '3', name: 'AI Research Group', description: 'Discussions on the latest developments in artificial intelligence.', members: 350, image: 'https://images.unsplash.com/photo-1669130650646-67905bfaddd5?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'private', creator: 'Innovation Labs' },
+    { id: '4', name: 'Mobile Dev Meetup', description: 'Regular meetups for mobile developers to share knowledge and network.', members: 420, image: 'https://images.unsplash.com/photo-1574689211272-bc14e289e223?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'public', creator: 'Alex Johnson' }
+  ];
   
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold">Explore</h1>
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/networking')}
-            className="flex items-center gap-2"
-          >
-            <Users className="h-4 w-4" />
-            <span>Networking</span>
-          </Button>
+      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <div>
+          <h1 className="text-2xl font-bold md:text-3xl">Explore</h1>
+          <p className="text-muted-foreground">Discover people, events, groups, products, and more</p>
         </div>
         
-        <div className="relative w-full sm:max-w-sm">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 w-full"
-          />
+        <div className="flex w-full flex-col space-y-2 md:w-auto md:flex-row md:space-x-2 md:space-y-0">
+          <div className="relative w-full md:w-auto">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="pl-9 md:w-[250px] lg:w-[300px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Button variant="outline" size="icon">
+            <Filter className="h-4 w-4" />
+            <span className="sr-only">Filter</span>
+          </Button>
+          
+          <Button variant="outline" size="icon">
+            <RefreshCw className="h-4 w-4" />
+            <span className="sr-only">Refresh</span>
+          </Button>
         </div>
       </div>
       
-      <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="groups">Groups</TabsTrigger>
-          <TabsTrigger value="services">Services</TabsTrigger>
-          <TabsTrigger value="products">Products</TabsTrigger>
-          <TabsTrigger value="workshops">Workshops</TabsTrigger>
+      <Tabs defaultValue={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="grid grid-cols-5 md:w-[600px]">
+          <TabsTrigger value="people">
+            <User className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">People</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="events">
+            <Calendar className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Events</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="groups">
+            <Users className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Groups</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="products">
+            <Package2 className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Products</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="workshops">
+            <GraduationCap className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Workshops</span>
+          </TabsTrigger>
         </TabsList>
         
+        <TabsContent value="people" className="mt-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {users
+              .filter(user => 
+                searchTerm === '' || 
+                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.role.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map(user => (
+                <UserCard key={user.id} user={user} />
+              ))}
+          </div>
+        </TabsContent>
+        
         <TabsContent value="events" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-80 rounded-lg" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {events
+              .filter(event => 
+                searchTerm === '' || 
+                event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                event.location.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map(event => (
+                <EventCard key={event.id} event={event} />
               ))}
-            </div>
-          ) : filteredEvents.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEvents.map(event => (
-                <Link to={`/events/${event.id}`} key={event.id}>
-                  <EventCard key={event.id} event={event} />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-500">No events found matching your search.</p>
-            </div>
-          )}
+          </div>
         </TabsContent>
         
         <TabsContent value="groups" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-80 rounded-lg" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {groups
+              .filter(group => 
+                searchTerm === '' || 
+                group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                group.description.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map(group => (
+                <GroupCard key={group.id} group={group} />
               ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="products" className="mt-6">
+          {isLoadingProducts ? (
+            <div className="flex justify-center p-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filteredGroups.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredGroups.map(group => (
-                <Link to={`/groups/${group.id}`} key={group.id}>
-                  <GroupCard key={group.id} group={group} />
-                </Link>
-              ))}
+          ) : products.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {products
+                .filter(product => 
+                  searchTerm === '' || 
+                  product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  product.category.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map(product => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onClick={() => navigate(`/products/${product.id}`)} 
+                  />
+                ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-500">No groups found matching your search.</p>
-            </div>
+            <Card>
+              <CardHeader className="text-center">
+                <CardTitle>No Products Found</CardTitle>
+                <CardDescription>
+                  There are no products available at this time.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Package2 className="h-16 w-16 text-muted-foreground/50" />
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
         
-        <TabsContent value="services" className="mt-6">
-          {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-64 rounded-lg" />
-              ))}
-            </div>
-          ) : filteredServices.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredServices.map(service => (
-                <ServiceCard key={service.id} service={service} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-500">No services found matching your search.</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="products" className="mt-6">
-          {productsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-80 rounded-lg" />
-              ))}
-            </div>
-          ) : filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map(product => (
-                <Link to={`/products/${product.id}`} key={product.id}>
-                  <ProductCard key={product.id} product={product} onClick={() => {}} />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-500">No products found matching your search.</p>
-            </div>
-          )}
-        </TabsContent>
-
         <TabsContent value="workshops" className="mt-6">
-          {workshopsLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array(6).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-80 rounded-lg" />
-              ))}
+          {isLoadingWorkshops ? (
+            <div className="flex justify-center p-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filteredWorkshops.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredWorkshops.map(workshop => (
-                <Link to={`/workshops/${workshop.id}`} key={workshop.id}>
-                  <WorkshopCard key={workshop.id} workshop={workshop} onClick={() => {}} />
-                </Link>
-              ))}
+          ) : workshops.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {workshops
+                .filter(workshop => 
+                  searchTerm === '' || 
+                  workshop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  workshop.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  workshop.category.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map(workshop => (
+                  <WorkshopCard 
+                    key={workshop.id} 
+                    workshop={workshop} 
+                    onClick={() => navigate(`/workshops/${workshop.id}`)} 
+                  />
+                ))}
             </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-lg text-gray-500">No workshops found matching your search.</p>
-            </div>
+            <Card>
+              <CardHeader className="text-center">
+                <CardTitle>No Workshops Found</CardTitle>
+                <CardDescription>
+                  There are no workshops available at this time.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <GraduationCap className="h-16 w-16 text-muted-foreground/50" />
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
