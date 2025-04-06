@@ -12,13 +12,15 @@ interface EventAnnouncementsProps {
   eventId: string;
   isCreator: boolean;
   onPostAnnouncement: (eventId: string, content: string) => Promise<void>;
+  hasJoined?: boolean;
 }
 
 const EventAnnouncements = ({
   announcements,
   eventId,
   isCreator,
-  onPostAnnouncement
+  onPostAnnouncement,
+  hasJoined = false
 }: EventAnnouncementsProps) => {
   const [isCreating, setIsCreating] = useState(false);
   const [announcementContent, setAnnouncementContent] = useState('');
@@ -50,6 +52,19 @@ const EventAnnouncements = ({
       });
     }
   };
+
+  // If the user is not the creator and hasn't joined, show a message to join first
+  if (!isCreator && !hasJoined) {
+    return (
+      <div className="py-8 text-center border rounded-lg bg-muted/20">
+        <Megaphone className="mx-auto h-12 w-12 text-muted-foreground" />
+        <h3 className="mt-2 text-lg font-medium">Join to see announcements</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Attend this event to access announcements from the organizer
+        </p>
+      </div>
+    );
+  }
 
   if (!announcements || announcements.length === 0) {
     if (!isCreator) {

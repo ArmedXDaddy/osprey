@@ -297,6 +297,7 @@ const EventDetail = () => {
             eventId={event.id}
             isCreator={currentUser?.id === event.creatorId}
             onPostAnnouncement={postAnnouncement}
+            hasJoined={isAttending}
           />
         </div>
       )}
