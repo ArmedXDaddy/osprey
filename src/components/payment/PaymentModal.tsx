@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/types';
@@ -39,7 +40,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [cardName, setCardName] = useState('');
-  const [notes, setNotes] = useState('');
 
   const isFreeService = service.price === 0;
 
@@ -66,10 +66,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      await bookService(service.id, {
-        paymentStatus: isFreeService ? undefined : 'paid',
-        notes: notes
-      });
+      // For paid services, mark as 'paid' in the database
+      // Using String 'paid' rather than an enum type as per the function implementation
+      await bookService(service.id, isFreeService ? undefined : 'paid');
 
       toast({
         title: "Booking successful!",
@@ -105,9 +104,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      await bookService(service.id, {
-        notes: notes
-      });
+      // For free services, we pass undefined to use the default payment status
+      await bookService(service.id);
 
       toast({
         title: "Request submitted!",
@@ -162,16 +160,6 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
               </div>
             </CardContent>
           </Card>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
-            <Input 
-              id="notes" 
-              placeholder="Any special requests or information for the provider" 
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
-          </div>
 
           {!isFreeService && (
             <div className="space-y-4">

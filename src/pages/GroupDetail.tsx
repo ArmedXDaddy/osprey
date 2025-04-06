@@ -1,410 +1,463 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
-import { Group, GroupPrivacy } from '@/types';
-import { Users, Globe, Lock, DollarSign, Edit, Trash2, Share2 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { 
+  Users, 
+  Lock, 
+  Unlock, 
+  DollarSign, 
+  Edit, 
+  Plus, 
+  X, 
+  ArrowLeft,
+  UserPlus,
+  User,
+  Eye,
+  EyeOff,
+  Trash2
+} from 'lucide-react';
+import { Group, UserRole, GroupPrivacy, JoinRequest } from '@/types';
 import { format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from '@/hooks/use-toast';
-import GroupChatSection from '@/components/group/GroupChatSection';
-import GroupMembersSection from '@/components/group/GroupMembersSection';
 import GroupRequestsSection from '@/components/group/GroupRequestsSection';
-import GroupRulesSection from '@/components/group/GroupRulesSection';
-import GroupSettingsSection from '@/components/group/GroupSettingsSection';
+import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
+import GroupChatSection from '@/components/group/GroupChatSection';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { currentUser } = useAuth();
-  const { 
-    groups, 
-    joinGroup, 
-    leaveGroup, 
-    requestToJoinGroup, 
-    removeGroupMember, 
-    updateGroupDetails, 
-    getGroupRequests, 
-    deleteGroup 
-  } = useData();
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { groups, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails, getGroupRequests, deleteGroup } = useData();
   const [group, setGroup] = useState<Group | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('chat');
+  const [loading, setLoading] = useState(true);
+  const [isMember, setIsMember] = useState(false);
+  const [isRequestSent, setIsRequestSent] = useState(false);
+  const [isGroupAdmin, setIsGroupAdmin] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const [editingRules, setEditingRules] = useState(false);
+  const [newRule, setNewRule] = useState('');
+  const [tempRules, setTempRules] = useState<string[]>([]);
+  const [showMemberLimit, setShowMemberLimit] = useState(false);
+  const [editingMemberLimit, setEditingMemberLimit] = useState(false);
+  const [tempMemberLimit, setTempMemberLimit] = useState<number | undefined>(undefined);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
 
   useEffect(() => {
     if (id && groups.length > 0) {
-      const foundGroup = groups.find(group => group.id === id);
+      const foundGroup = groups.find(g => g.id === id);
       if (foundGroup) {
         setGroup(foundGroup);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Group not found",
-          description: "The group you're looking for doesn't exist or has been removed."
-        });
-        navigate('/groups');
       }
     }
-  }, [id, groups, navigate]);
+  }, [id, groups]);
 
-  const handleJoinGroup = async () => {
-    if (!group) return;
-    
-    try {
-      await joinGroup(group.id, currentUser?.id);
-      toast({
-        title: "Success",
-        description: "You've successfully joined this group.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "There was an error joining the group."
-      });
+  useEffect(() => {
+    if (group) {
+      setLoading(false);
+      if (currentUser) {
+        setIsMember(group.memberIds?.includes(currentUser.id) || false);
+        setIsRequestSent(false);
+        setIsGroupAdmin(group.creatorId === currentUser.id);
+      }
+      setTempRules(group.rules || []);
+      setTempMemberLimit(group.memberLimit);
     }
-  };
+  }, [group, currentUser]);
 
-  const handleLeaveGroup = async () => {
-    if (!group) return;
-    
-    try {
-      await leaveGroup(group.id, currentUser?.id);
-      toast({
-        title: "Success",
-        description: "You've successfully left this group.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "There was an error leaving the group."
-      });
-    }
-  };
-
-  const handleRequestToJoin = async () => {
-    if (!group) return;
-    
-    try {
-      await requestToJoinGroup(group.id);
-      toast({
-        title: "Request sent",
-        description: "Your request to join this group has been sent to the group admin.",
-      });
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "There was an error requesting to join the group."
-      });
-    }
-  };
-
-  const handleDeleteGroup = async () => {
-    if (!group) return;
-    
-    try {
-      await deleteGroup(group.id);
-      setIsDeleteDialogOpen(false);
-      navigate('/groups');
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "There was an error deleting the group."
-      });
-    }
-  };
-
-  const handleCopyLink = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      toast({
-        title: "Link copied",
-        description: "Group link has been copied to clipboard."
-      });
-      setIsShareDialogOpen(false);
-    }).catch(() => {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to copy link to clipboard."
-      });
-    });
-  };
-
-  if (!group) {
+  if (loading || !group) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <div className="animate-pulse text-xl">Loading group details...</div>
+      <div className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-[250px]" />
+            <Skeleton className="h-4 w-[200px]" />
+          </div>
+        </div>
+        <Skeleton className="h-[300px] w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-[150px] w-full" />
+          <Skeleton className="h-[150px] w-full" />
+        </div>
       </div>
     );
   }
 
-  const isMember = currentUser && group.memberIds?.includes(currentUser.id);
-  const isCreator = currentUser && group.creatorId === currentUser.id;
-  const isPaidGroup = group.privacy === 'paid' && group.price && group.price > 0;
+  const handleJoinGroup = async () => {
+    if (!currentUser) {
+      navigate('/auth/login');
+      return;
+    }
 
-  const renderPrivacyBadge = () => {
-    switch (group.privacy) {
-      case 'public':
-        return <Badge variant="outline" className="flex gap-1 items-center"><Globe className="h-3 w-3" /> Public</Badge>;
-      case 'private':
-        return <Badge variant="outline" className="flex gap-1 items-center"><Lock className="h-3 w-3" /> Private</Badge>;
-      case 'paid':
-        return <Badge variant="outline" className="flex gap-1 items-center"><DollarSign className="h-3 w-3" /> Paid</Badge>;
-      default:
-        return null;
+    if (group.privacy === 'private') {
+      await requestToJoinGroup(id);
+      setIsRequestSent(true);
+    } else {
+      await joinGroup(id);
+      setIsMember(true);
     }
   };
 
+  const handleLeaveGroup = async () => {
+    if (!currentUser) return;
+    await leaveGroup(id);
+    setIsMember(false);
+  };
+
+  const handleRemoveMember = async (userId: string) => {
+    if (!currentUser) return;
+    await removeGroupMember(id, userId);
+    setGroup(prevGroup => {
+      if (prevGroup) {
+        return {
+          ...prevGroup,
+          members: prevGroup.members - 1,
+          memberIds: prevGroup.memberIds?.filter(memberId => memberId !== userId)
+        };
+      }
+      return prevGroup;
+    });
+  };
+
+  const handleToggleRules = () => {
+    setShowRules(!showRules);
+  };
+
+  const handleEditRules = () => {
+    setEditingRules(true);
+  };
+
+  const handleAddRule = () => {
+    if (newRule.trim() !== '') {
+      setTempRules([...tempRules, newRule]);
+      setNewRule('');
+    }
+  };
+
+  const handleRemoveRule = (index: number) => {
+    const newRules = [...tempRules];
+    newRules.splice(index, 1);
+    setTempRules(newRules);
+  };
+
+  const handleSaveRules = async () => {
+    await updateGroupDetails(id, { rules: tempRules });
+    setGroup(prevGroup => {
+      if (prevGroup) {
+        return { ...prevGroup, rules: tempRules };
+      }
+      return prevGroup;
+    });
+    setEditingRules(false);
+  };
+
+  const handleCancelEditRules = () => {
+    setTempRules(group.rules || []);
+    setEditingRules(false);
+  };
+
+  const handleToggleMemberLimit = () => {
+    setShowMemberLimit(!showMemberLimit);
+  };
+
+  const handleEditMemberLimit = () => {
+    setEditingMemberLimit(true);
+    setTempMemberLimit(group.memberLimit);
+  };
+
+  const handleSaveMemberLimit = async () => {
+    await updateGroupDetails(id, { memberLimit: tempMemberLimit });
+    setGroup(prevGroup => {
+      if (prevGroup) {
+        return { ...prevGroup, memberLimit: tempMemberLimit };
+      }
+      return prevGroup;
+    });
+    setEditingMemberLimit(false);
+  };
+
+  const handleCancelEditMemberLimit = () => {
+    setTempMemberLimit(group.memberLimit);
+    setEditingMemberLimit(false);
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!currentUser) return;
+    await deleteGroup(id!);
+    navigate('/groups');
+  };
+
   return (
-    <div className="container max-w-5xl py-8">
-      <div className="space-y-8">
-        {/* Group header */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-start">
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold">{group.name}</h1>
-              <p className="text-muted-foreground">Created by {group.creatorName}</p>
+    <div className="container py-8">
+      <div className="flex items-center mb-6">
+        <Link to="/groups" className="flex items-center text-gray-600 hover:text-gray-800">
+          <ArrowLeft className="mr-2 h-5 w-5" />
+          Back to Groups
+        </Link>
+      </div>
+
+      <Card className="space-y-4">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={group.image} alt={group.name} />
+                <AvatarFallback>{group.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <CardTitle className="text-2xl font-bold">{group.name}</CardTitle>
             </div>
-            <div className="flex gap-2">
-              {isCreator && (
-                <>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to={`/groups/${group.id}/edit`} className="flex items-center gap-1">
-                      <Edit className="h-4 w-4" /> Edit
-                    </Link>
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="flex items-center gap-1 text-destructive hover:text-destructive"
-                    onClick={() => setIsDeleteDialogOpen(true)}
-                  >
-                    <Trash2 className="h-4 w-4" /> Delete
-                  </Button>
-                </>
-              )}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="flex items-center gap-1"
-                onClick={() => setIsShareDialogOpen(true)}
-              >
-                <Share2 className="h-4 w-4" /> Share
-              </Button>
-            </div>
+            {isGroupAdmin && (
+              <div className="flex space-x-2">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/edit`)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Group
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the
+                        "{group.name}" group and remove all data associated with it.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteGroup}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </div>
+          <CardDescription>{group.description}</CardDescription>
+        </CardHeader>
 
-          {/* Group cover image */}
-          {group.image && (
-            <div className="rounded-lg overflow-hidden h-64 relative">
-              <img 
-                src={group.image} 
-                alt={group.name} 
-                className="w-full h-full object-cover"
-              />
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-xl font-semibold mb-4">Group Details</h3>
+            <div className="space-y-2">
+              <div className="flex items-center">
+                <Users className="h-5 w-5 mr-2 text-gray-500" />
+                <span>{group.members} Members</span>
+              </div>
+              <div className="flex items-center">
+                {group.privacy === 'public' && <Unlock className="h-5 w-5 mr-2 text-gray-500" />}
+                {group.privacy === 'private' && <Lock className="h-5 w-5 mr-2 text-gray-500" />}
+                <span>{group.privacy === 'public' ? 'Public Group' : 'Private Group'}</span>
+              </div>
+              {group.price && (
+                <div className="flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2 text-gray-500" />
+                  <span>Price: ${group.price}</span>
+                </div>
+              )}
+              {group.memberLimit && (
+                <div className="flex items-center">
+                  <User className="h-5 w-5 mr-2 text-gray-500" />
+                  <span>Member Limit: {group.memberLimit}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-
-        {/* Group metadata and description */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>About this group</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="whitespace-pre-line">{group.description}</p>
-              </CardContent>
-            </Card>
           </div>
 
           <div>
-            <Card>
-              <CardContent className="space-y-4 pt-6">
-                <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">{group.members} members</p>
-                    <p className="text-sm text-muted-foreground">
-                      {group.memberLimit ? `Limited to ${group.memberLimit} members` : 'No member limit'}
-                    </p>
-                  </div>
-                </div>
+            <h3 className="text-xl font-semibold mb-4">Actions</h3>
+            {!currentUser ? (
+              <Button onClick={() => navigate('/auth/login')}>Login to Join</Button>
+            ) : isGroupAdmin ? (
+              <div className="space-y-2">
+                <Button variant="destructive" onClick={() => console.log('Delete group')}>
+                  Delete Group
+                </Button>
+              </div>
+            ) : isMember ? (
+              <Button variant="secondary" onClick={handleLeaveGroup}>
+                Leave Group
+              </Button>
+            ) : isRequestSent ? (
+              <div className="text-gray-500">Request Sent</div>
+            ) : (
+              <Button onClick={handleJoinGroup}>Join Group</Button>
+            )}
+          </div>
+        </CardContent>
 
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {renderPrivacyBadge()}
-                  {isPaidGroup && (
-                    <Badge variant="secondary">${group.price}</Badge>
+        <CardContent>
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Group Rules</h3>
+                <Button variant="ghost" size="sm" onClick={handleToggleRules}>
+                  {showRules ? (
+                    <>
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      Hide Rules
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Show Rules
+                    </>
+                  )}
+                </Button>
+              </div>
+              {showRules && (
+                <div className="mt-4">
+                  {editingRules ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            placeholder="New rule"
+                            value={newRule}
+                            onChange={(e) => setNewRule(e.target.value)}
+                            className="border p-2 rounded w-full"
+                          />
+                          <Button size="sm" onClick={handleAddRule}>
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {tempRules.map((rule, index) => (
+                          <div key={index} className="flex items-center justify-between">
+                            <span>{rule}</span>
+                            <Button variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelEditRules}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveRules}>
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {group.rules && group.rules.length > 0 ? (
+                        <ul className="list-disc pl-5">
+                          {group.rules.map((rule, index) => (
+                            <li key={index}>{rule}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="text-gray-500">No rules specified for this group.</div>
+                      )}
+                      {isGroupAdmin && (
+                        <Button variant="outline" size="sm" onClick={handleEditRules}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Rules
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
-
-                <div className="text-sm text-muted-foreground">
-                  Created on {format(new Date(group.createdAt), 'MMMM d, yyyy')}
-                </div>
-              </CardContent>
-              <CardFooter className="flex flex-col space-y-2">
-                {!isCreator && (
-                  <>
-                    {!isMember ? (
-                      <>
-                        {group.privacy === 'public' ? (
-                          <Button 
-                            className="w-full" 
-                            onClick={handleJoinGroup}
-                          >
-                            Join Group
-                          </Button>
-                        ) : group.privacy === 'private' ? (
-                          <Button 
-                            className="w-full"
-                            onClick={handleRequestToJoin}
-                          >
-                            Request to Join
-                          </Button>
-                        ) : (
-                          <Button 
-                            className="w-full"
-                          >
-                            Join (${group.price})
-                          </Button>
-                        )}
-                      </>
-                    ) : (
-                      <Button 
-                        variant="outline" 
-                        className="w-full" 
-                        onClick={handleLeaveGroup}
-                      >
-                        Leave Group
-                      </Button>
-                    )}
-                  </>
-                )}
-              </CardFooter>
-            </Card>
-          </div>
-        </div>
-
-        {/* Group content */}
-        {(isMember || isCreator || group.privacy === 'public') && (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="chat">Chat</TabsTrigger>
-              <TabsTrigger value="members">Members</TabsTrigger>
-              <TabsTrigger value="rules">Rules</TabsTrigger>
-              {isCreator && (
-                <>
-                  <TabsTrigger value="requests">
-                    Requests
-                    {group.pendingRequests && group.pendingRequests > 0 && (
-                      <Badge variant="destructive" className="ml-2">
-                        {group.pendingRequests}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                  <TabsTrigger value="settings">Settings</TabsTrigger>
-                </>
               )}
-            </TabsList>
-            
-            <TabsContent value="chat" className="space-y-4">
-              <GroupChatSection groupId={group.id} isCreator={isCreator} />
-            </TabsContent>
-            
-            <TabsContent value="members" className="space-y-4">
-              <GroupMembersSection 
-                group={group} 
-                isCreator={isCreator} 
-                onRemoveMember={removeGroupMember}
-              />
-            </TabsContent>
-            
-            <TabsContent value="rules" className="space-y-4">
-              <GroupRulesSection rules={group.rules || []} isCreator={isCreator} />
-            </TabsContent>
-            
-            {isCreator && (
-              <>
-                <TabsContent value="requests" className="space-y-4">
-                  <GroupRequestsSection groupId={group.id} />
-                </TabsContent>
-                
-                <TabsContent value="settings" className="space-y-4">
-                  <GroupSettingsSection 
-                    group={group} 
-                    onUpdateSettings={updateGroupDetails}
-                  />
-                </TabsContent>
-              </>
-            )}
-          </Tabs>
-        )}
-      </div>
+            </div>
 
-      {/* Delete group dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Group</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this group? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={handleDeleteGroup}
-            >
-              Delete Group
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Share group dialog */}
-      <Dialog open={isShareDialogOpen} onOpenChange={setIsShareDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Share Group</DialogTitle>
-            <DialogDescription>
-              Share this group with your friends and network.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex items-center space-x-2 py-4">
-            <input 
-              readOnly 
-              value={window.location.href} 
-              className="flex-1 px-3 py-2 border rounded-md"
-            />
-            <Button type="button" onClick={handleCopyLink}>
-              Copy
-            </Button>
+            <div>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold">Member Limit</h3>
+                <Button variant="ghost" size="sm" onClick={handleToggleMemberLimit}>
+                  {showMemberLimit ? (
+                    <>
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      Hide Limit
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-2" />
+                      Show Limit
+                    </>
+                  )}
+                </Button>
+              </div>
+              {showMemberLimit && (
+                <div className="mt-4">
+                  {editingMemberLimit ? (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <input
+                          type="number"
+                          placeholder="Member limit"
+                          value={tempMemberLimit !== undefined ? tempMemberLimit.toString() : ''}
+                          onChange={(e) => setTempMemberLimit(e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+                          className="border p-2 rounded w-full"
+                        />
+                      </div>
+                      <div className="flex justify-end space-x-2">
+                        <Button variant="outline" size="sm" onClick={handleCancelEditMemberLimit}>
+                          Cancel
+                        </Button>
+                        <Button size="sm" onClick={handleSaveMemberLimit}>
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {group.memberLimit ? (
+                        <div className="text-gray-700">Member limit: {group.memberLimit}</div>
+                      ) : (
+                        <div className="text-gray-500">No member limit specified for this group.</div>
+                      )}
+                      {isGroupAdmin && (
+                        <Button variant="outline" size="sm" onClick={handleEditMemberLimit}>
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Limit
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
-          
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setIsShareDialogOpen(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </CardContent>
+
+        {group.pendingRequests && group.pendingRequests > 0 && isGroupAdmin && (
+          <div className="mt-8">
+            <h3 className="text-xl font-semibold mb-4">Pending Requests ({pendingRequestsCount})</h3>
+            <GroupRequestsSection groupId={id} />
+          </div>
+        )}
+
+        {(isMember || isGroupAdmin) && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Group Chat</h2>
+            <GroupChatSection group={group} />
+          </div>
+        )}
+      </Card>
     </div>
   );
 };
