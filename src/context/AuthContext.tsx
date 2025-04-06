@@ -96,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSupabaseSession(session);
       
       if (session?.user) {
-        // Fix: Properly handle the Promise chain with proper error handling
+        // Fix: Corrected Promise handling for proper error handling
         supabase
           .from('profiles')
           .select('*')
