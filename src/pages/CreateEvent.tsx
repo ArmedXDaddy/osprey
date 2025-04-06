@@ -21,6 +21,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import ImageGallery from "@/components/profile/ImageGallery"
+import { Image, Upload } from 'lucide-react';
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -42,6 +45,15 @@ const CreateEvent = () => {
   const navigate = useNavigate();
   const { createEvent } = useData();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showImageGallery, setShowImageGallery] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [mediaGallery, setMediaGallery] = useState([
+    { name: 'Event 1', url: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81' },
+    { name: 'Event 2', url: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158' },
+    { name: 'Event 3', url: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c' },
+    { name: 'Event 4', url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d' },
+    { name: 'Event 5', url: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7' },
+  ]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,6 +70,7 @@ const CreateEvent = () => {
 
   // Watch the privacy field to conditionally display price input
   const watchPrivacy = form.watch("privacy");
+  const watchImage = form.watch("image");
 
   const handleSubmit = async (formData: z.infer<typeof formSchema>) => {
     try {
@@ -86,6 +99,46 @@ const CreateEvent = () => {
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSelectImage = (url: string) => {
+    form.setValue("image", url);
+    setShowImageGallery(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      // In a real app, we would upload the file to storage here
+      // For this demo, we'll create a local URL
+      const imageUrl = URL.createObjectURL(file);
+      
+      // Add the new image to the gallery
+      setMediaGallery(prev => [
+        { name: file.name, url: imageUrl },
+        ...prev
+      ]);
+      
+      // Auto-select the uploaded image
+      form.setValue("image", imageUrl);
+      
+      toast({
+        title: "Image uploaded",
+        description: "Your image has been uploaded successfully."
+      });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast({
+        variant: "destructive",
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again."
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -201,10 +254,52 @@ const CreateEvent = () => {
             name="image"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Image URL</FormLabel>
-                <FormControl>
-                  <Input placeholder="Event image URL" {...field} />
-                </FormControl>
+                <FormLabel>Event Image</FormLabel>
+                <div className="space-y-4">
+                  {field.value ? (
+                    <div className="relative aspect-video w-full max-w-md overflow-hidden rounded-md border border-gray-200">
+                      <img 
+                        src={field.value} 
+                        alt="Event preview" 
+                        className="h-full w-full object-cover"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="absolute bottom-2 right-2 bg-white/80"
+                        onClick={() => setShowImageGallery(true)}
+                      >
+                        Change Image
+                      </Button>
+                    </div>
+                  ) : (
+                    <div 
+                      className="flex aspect-video w-full max-w-md cursor-pointer flex-col items-center justify-center rounded-md border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100"
+                      onClick={() => setShowImageGallery(true)}
+                    >
+                      <div className="flex flex-col items-center justify-center space-y-2 p-4 text-center">
+                        <Image className="h-10 w-10 text-gray-400" />
+                        <p className="text-sm font-medium">
+                          Click to select an image
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Select an image from your gallery or upload a new one
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowImageGallery(true)}
+                    className="w-full max-w-md"
+                  >
+                    <Image className="mr-2 h-4 w-4" /> 
+                    Select from Gallery
+                  </Button>
+                </div>
                 <FormMessage />
               </FormItem>
             )}
@@ -214,6 +309,22 @@ const CreateEvent = () => {
           </Button>
         </form>
       </Form>
+
+      <Dialog open={showImageGallery} onOpenChange={setShowImageGallery}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogTitle>Select Event Image</DialogTitle>
+          <ImageGallery
+            images={mediaGallery}
+            onSelectImage={handleSelectImage}
+            onUploadImage={handleImageUpload}
+            uploading={uploading}
+            emptyMessage="No images found in your gallery."
+            aspectRatio="landscape"
+            selectedImage={watchImage}
+            onClose={() => setShowImageGallery(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
