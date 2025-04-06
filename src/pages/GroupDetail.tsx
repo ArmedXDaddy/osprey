@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -15,7 +14,7 @@ import GroupChatSection from '@/components/group/GroupChatSection';
 import GroupMembersSection from '@/components/group/GroupMembersSection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Group } from '@/types';
+import { Group, UserRole, GroupPrivacy } from '@/types';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,11 +49,11 @@ const GroupDetail = () => {
               description: data.description,
               creatorId: data.creator_id,
               creatorName: data.creator_name,
-              creatorRole: data.creator_role,
+              creatorRole: data.creator_role as UserRole,
               members: data.members,
-              memberIds: data.member_ids,
+              memberIds: data.member_ids || [],
               image: data.image,
-              privacy: data.privacy,
+              privacy: data.privacy as GroupPrivacy,
               price: data.price,
               pendingRequests: data.pending_requests,
               rules: data.rules || [],
