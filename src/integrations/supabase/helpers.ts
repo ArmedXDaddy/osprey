@@ -490,7 +490,7 @@ export const deleteComment = async (commentId: string): Promise<void> => {
  * Fetch products
  * @returns Array of products
  */
-export const fetchProducts = async () => {
+export const fetchProducts = async (): Promise<Product[]> => {
   try {
     const { data, error } = await supabase
       .from('products')
@@ -504,7 +504,7 @@ export const fetchProducts = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.long_description || null, // Handle potentially missing property
+      longDescription: item.description, // Use description since long_description doesn't exist in DB
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
@@ -516,9 +516,9 @@ export const fetchProducts = async () => {
       demoUrl: item.demo_url,
       releaseDate: new Date(item.release_date),
       createdAt: new Date(item.created_at),
-      features: item.features || [], // Handle potentially missing property
-      useCases: item.use_cases || [], // Handle potentially missing property
-      pricingTiers: item.pricing_tiers || [] // Handle potentially missing property
+      features: [], // Default to empty array as this doesn't exist in DB
+      useCases: [], // Default to empty array as this doesn't exist in DB
+      pricingTiers: [] // Default to empty array as this doesn't exist in DB
     }));
     
     return mappedProducts as Product[];
@@ -532,7 +532,7 @@ export const fetchProducts = async () => {
  * Fetch workshops
  * @returns Array of workshops
  */
-export const fetchWorkshops = async () => {
+export const fetchWorkshops = async (): Promise<Workshop[]> => {
   try {
     const { data, error } = await supabase
       .from('workshops')
@@ -546,14 +546,14 @@ export const fetchWorkshops = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.long_description || null, // Handle potentially missing property
+      longDescription: item.description, // Use description since long_description doesn't exist in DB
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
       price: item.price,
       date: new Date(item.date),
-      startTime: item.start_time ? new Date(item.start_time) : null, // Handle potentially missing property
-      endTime: item.end_time ? new Date(item.end_time) : null, // Handle potentially missing property
+      startTime: "", // Empty string since start_time doesn't exist in DB
+      endTime: "", // Empty string since end_time doesn't exist in DB
       duration: item.duration,
       capacity: item.capacity,
       location: item.location,
@@ -562,11 +562,11 @@ export const fetchWorkshops = async () => {
       category: item.category,
       image: item.image,
       createdAt: new Date(item.created_at),
-      topics: item.topics || [], // Handle potentially missing property
-      prerequisites: item.prerequisites || [], // Handle potentially missing property
-      includes: item.includes || [], // Handle potentially missing property
-      tags: item.tags || [], // Handle potentially missing property
-      instructors: item.instructors || [] // Handle potentially missing property
+      topics: [], // Default to empty array as this doesn't exist in DB
+      prerequisites: [], // Default to empty array as this doesn't exist in DB
+      includes: [], // Default to empty array as this doesn't exist in DB
+      tags: [], // Default to empty array as this doesn't exist in DB
+      instructors: [] // Default to empty array as this doesn't exist in DB
     }));
     
     return mappedWorkshops as Workshop[];
