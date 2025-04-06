@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import GroupCard from '@/components/shared/GroupCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, Users, List, Grid, Filter, Plus, Trash2, PenSquare } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
   DropdownMenu,
@@ -32,6 +31,7 @@ const Groups = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('popular');
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Filter groups based on search term
   const filteredGroups = groups.filter(group =>
@@ -57,28 +57,13 @@ const Groups = () => {
   // Get user's groups (groups created by the current user)
   const userGroups = currentUser ? groups.filter(group => group.creatorId === currentUser?.id) : [];
   
-  // Get groups the user has joined (for future implementation)
-  const joinedGroups = [];
-
-  const handleDeleteGroup = async () => {
-    if (!groupToDelete) return;
-    
-    try {
-      await deleteGroup(groupToDelete);
-      toast({
-        title: "Group deleted",
-        description: "Your group has been successfully deleted."
-      });
-      setGroupToDelete(null);
-    } catch (error) {
-      console.error("Error deleting group:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete the group."
-      });
-    }
+  // Handle navigating to a group's detail page
+  const handleGroupClick = (groupId: string) => {
+    navigate(`/groups/${groupId}`);
   };
+
+  // Check if user can create groups (influencers, companies, and coaches)
+  const canCreateGroup = currentUser && ['influencer', 'company', 'coach'].includes(currentUser.role);
 
   if (loading) {
     return (
@@ -92,9 +77,6 @@ const Groups = () => {
       </div>
     );
   }
-
-  // Check if user can create groups (influencers, companies, and coaches)
-  const canCreateGroup = currentUser && ['influencer', 'company', 'coach'].includes(currentUser.role);
 
   return (
     <div className="space-y-6">
@@ -179,9 +161,11 @@ const Groups = () => {
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sortedGroups.map((group) => (
-                <Link to={`/groups/${group.id}`} key={group.id}>
-                  <GroupCard group={group} />
-                </Link>
+                <GroupCard 
+                  key={group.id} 
+                  group={group} 
+                  onClick={() => handleGroupClick(group.id)}
+                />
               ))}
             </div>
           ) : (
@@ -224,9 +208,10 @@ const Groups = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userGroups.map((group) => (
                   <div key={group.id} className="relative">
-                    <Link to={`/groups/${group.id}`}>
-                      <GroupCard group={group} />
-                    </Link>
+                    <GroupCard 
+                      group={group} 
+                      onClick={() => handleGroupClick(group.id)}
+                    />
                     <div className="absolute top-2 right-2 flex gap-1">
                       <Button 
                         size="icon" 
@@ -244,6 +229,7 @@ const Groups = () => {
                         className="h-8 w-8"
                         onClick={(e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           setGroupToDelete(group.id);
                         }}
                       >
@@ -302,7 +288,7 @@ const Groups = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteGroup} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={() => { handleDeleteGroup(); }} className="bg-destructive text-destructive-foreground">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

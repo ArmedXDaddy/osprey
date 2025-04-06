@@ -1,7 +1,12 @@
+
 // Export any necessary types from the existing types file
 export * from './badge.d';
 
-// If the types from badge.d.ts don't include GroupPrivacy, Event, etc., we need to add them here
+// Update GroupPrivacy type to use string values instead of boolean properties
+export type GroupPrivacy = 'public' | 'private' | 'paid';
+export type GroupPrivacyString = 'public' | 'private' | 'paid';
+
+// User role definitions
 export type UserRole = 'user' | 'coach' | 'influencer' | 'company' | 'admin';
 
 export type EventPrivacy = 'public' | 'private' | 'paid';
@@ -18,6 +23,22 @@ export interface UserProfile {
   followers?: number;
   following?: number;
   createdAt: Date;
+  interests?: string[];
+  verified?: boolean;
+  coverImage?: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  email?: string;
+  role: UserRole;
+  profileImage?: string;
+  bio?: string;
+  location?: string;
+  followers?: number;
+  following?: string[];
+  createdAt?: Date;
 }
 
 export interface Post {
@@ -45,12 +66,7 @@ export interface Comment {
   createdAt: Date;
 }
 
-export interface GroupPrivacy {
-  private: boolean;
-  public: boolean;
-}
-
-// Because code expects these fields in the Group interface
+// Updated Group interface to use string type for privacy
 export interface Group {
   id: string;
   name: string;
@@ -60,9 +76,9 @@ export interface Group {
   creatorRole: UserRole;
   image?: string;
   members: number;
-  memberIds?: string[]; // Add this field which is expected by the code
+  memberIds?: string[]; 
   memberLimit?: number;
-  privacy: GroupPrivacy;
+  privacy: string;
   price?: number;
   pendingRequests?: number;
   rules: string[];
@@ -95,7 +111,7 @@ export interface Service {
   providerId: string;
   providerName: string;
   price: number;
-  duration: number;
+  duration: string;
   available: boolean;
   createdAt: Date;
   isOnline: boolean;
@@ -106,14 +122,18 @@ export interface Service {
   meetingUrl?: string;
 }
 
+export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
+export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+
 export interface Booking {
   id: string;
   serviceId: string;
   userId: string;
   userName: string;
   userProfileImage?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
   notes?: string;
   createdAt: Date;
   scheduledTime?: Date;
@@ -143,9 +163,10 @@ export interface SessionEnrollment {
   sessionId: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   userProfileImage?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
   notes?: string;
   createdAt: Date;
 }
@@ -171,4 +192,73 @@ export interface JoinRequest {
   eventId?: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
+}
+
+export interface Product {
+  id: string;
+  title: string;
+  description: string;
+  longDescription?: string;
+  price: string;
+  image?: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  category: string;
+  features?: string[];
+  useCases?: string[];
+  tags?: string[];
+  pricingTiers?: any[];
+  websiteUrl?: string;
+  demoUrl?: string;
+  releaseDate: Date;
+  createdAt: Date;
+}
+
+export interface Workshop {
+  id: string;
+  title: string;
+  description: string;
+  longDescription?: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  date: Date;
+  duration: string;
+  price: number;
+  capacity?: number;
+  location?: string;
+  isOnline: boolean;
+  meetingUrl?: string;
+  image?: string;
+  category: string;
+  topics?: string[];
+  prerequisites?: string[];
+  includes?: string[];
+  instructors?: any[];
+  tags?: string[];
+  startTime?: string;
+  endTime?: string;
+}
+
+export interface JobPosting {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  companyDescription?: string;
+  location?: string;
+  jobType: string;
+  salaryRange?: string;
+  skills?: string[];
+  requirements?: string[];
+  responsibilities?: string[];
+  benefits?: string[];
+  applicationUrl?: string;
+  applicationEmail?: string;
+  applicationDeadline?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Group } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
@@ -10,9 +9,10 @@ import { Badge } from '@/components/ui/badge';
 interface GroupCardProps {
   group: Group;
   compact?: boolean;
+  onClick?: () => void;
 }
 
-const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false }) => {
+const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false, onClick }) => {
   const getPrivacyIcon = () => {
     switch (group.privacy) {
       case 'private':
@@ -35,7 +35,7 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false }) => {
     }
   };
 
-  return (
+  const cardContent = (
     <Card className={`overflow-hidden ${compact ? 'h-full' : ''}`}>
       <div className={`relative ${compact ? 'h-32' : 'h-48'}`}>
         <img 
@@ -88,6 +88,12 @@ const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false }) => {
       )}
     </Card>
   );
+
+  if (onClick) {
+    return <div onClick={onClick}>{cardContent}</div>;
+  }
+
+  return cardContent;
 };
 
 export default GroupCard;

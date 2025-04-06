@@ -24,7 +24,7 @@ const CreateGroup = () => {
     name: '',
     description: '',
     image: '',
-    privacy: 'public' as GroupPrivacy,
+    privacy: 'public',
     price: 9.99,
     memberLimit: 100,
     rules: ['Be respectful to all members', 'No spam or self-promotion']
@@ -47,7 +47,7 @@ const CreateGroup = () => {
     }
   };
 
-  const handlePrivacyChange = (value: GroupPrivacy) => {
+  const handlePrivacyChange = (value: string) => {
     setFormData(prev => ({ ...prev, privacy: value }));
   };
 
@@ -295,7 +295,7 @@ const CreateGroup = () => {
               <RadioGroup 
                 defaultValue="public" 
                 value={formData.privacy}
-                onValueChange={handlePrivacyChange as (value: string) => void}
+                onValueChange={handlePrivacyChange}
                 className="grid grid-cols-1 gap-4 pt-2"
               >
                 <div className="flex items-center space-x-2 border rounded-md p-3">
