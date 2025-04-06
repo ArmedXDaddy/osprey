@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
 import { Button } from '@/components/ui/button';
@@ -13,69 +12,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
-import { Event, UserRole, EventPrivacy } from '@/types';
-import { toast } from '@/hooks/use-toast';
 
 const Events = () => {
-  const { events: contextEvents, loading: contextLoading } = useData();
+  const { events, loading } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchAllEvents = async () => {
-      try {
-        setLoading(true);
-        
-        // Get all events from Supabase
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          const formattedEvents: Event[] = data.map(event => ({
-            id: event.id,
-            title: event.title,
-            description: event.description,
-            creatorId: event.creator_id,
-            creatorName: event.creator_name,
-            creatorRole: event.creator_role as UserRole, // Cast to UserRole
-            location: event.location,
-            date: new Date(event.date),
-            image: event.image,
-            attendees: event.attendees || [],
-            privacy: event.privacy as EventPrivacy, // Cast to EventPrivacy explicitly
-            price: event.price,
-            pendingRequests: event.pending_requests,
-            createdAt: new Date(event.created_at)
-          }));
-          
-          setEvents(formattedEvents);
-        }
-      } catch (error) {
-        console.error("Error fetching events:", error);
-        toast({
-          title: "Error",
-          description: "Could not load events",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchAllEvents();
-  }, []);
-
-  if (loading || contextLoading) {
+  if (loading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-40 bg-gray-200 animate-pulse rounded"></div>

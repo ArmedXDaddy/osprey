@@ -1,114 +1,24 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, Edit, Trash2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
-import { Event, UserRole, EventPrivacy } from '@/types';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { events } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
-  const [event, setEvent] = useState<Event | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isCreator, setIsCreator] = useState(false);
   
-  useEffect(() => {
-    const fetchEvent = async () => {
-      try {
-        setLoading(true);
-        
-        if (!id) return;
-        
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', id)
-          .single();
-        
-        if (error) {
-          console.error('Error fetching event:', error);
-          return;
-        }
-        
-        if (data) {
-          // Format the event data to match our Event type
-          const formattedEvent: Event = {
-            id: data.id,
-            title: data.title,
-            description: data.description,
-            creatorId: data.creator_id,
-            creatorName: data.creator_name,
-            creatorRole: data.creator_role as UserRole,
-            location: data.location,
-            date: new Date(data.date),
-            image: data.image,
-            attendees: data.attendees || [],
-            privacy: data.privacy as EventPrivacy,
-            price: data.price,
-            pendingRequests: data.pending_requests,
-            createdAt: new Date(data.created_at)
-          };
-          
-          setEvent(formattedEvent);
-          
-          // Check if current user is attending
-          if (currentUser && Array.isArray(data.attendees)) {
-            setIsAttending(data.attendees.includes(currentUser.id));
-          }
-          
-          // Check if current user is the creator
-          if (currentUser && data.creator_id === currentUser.id) {
-            setIsCreator(true);
-          }
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchEvent();
-  }, [id, currentUser]);
-  
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-        <div className="h-8 w-40 bg-gray-200 animate-pulse rounded"></div>
-        <div className="h-4 w-64 bg-gray-200 animate-pulse rounded"></div>
-      </div>
-    );
-  }
+  const event = events.find(e => e.id === id);
   
   if (!event) {
     return (
@@ -123,60 +33,18 @@ const EventDetail = () => {
     );
   }
   
-  const handleAttendEvent = async () => {
-    if (!currentUser) {
-      toast({
-        title: "Login required",
-        description: "Please log in to attend events",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleAttendEvent = () => {
+    setIsAttending(!isAttending);
     
-    try {
-      let updatedAttendees = [...event.attendees];
-      
-      if (isAttending) {
-        // Remove user from attendees
-        updatedAttendees = updatedAttendees.filter(id => id !== currentUser.id);
-      } else {
-        // Add user to attendees
-        updatedAttendees.push(currentUser.id);
-      }
-      
-      // Update event in Supabase
-      const { error } = await supabase
-        .from('events')
-        .update({ attendees: updatedAttendees })
-        .eq('id', event.id);
-      
-      if (error) throw error;
-      
-      // Update local state
-      setEvent({
-        ...event,
-        attendees: updatedAttendees
-      });
-      
-      setIsAttending(!isAttending);
-      
-      if (!isAttending) {
-        toast({
-          title: "You're attending this event!",
-          description: "You've been added to the attendee list."
-        });
-      } else {
-        toast({
-          title: "You're no longer attending",
-          description: "You've been removed from the attendee list."
-        });
-      }
-    } catch (error) {
-      console.error('Error updating attendance:', error);
+    if (!isAttending) {
       toast({
-        title: "Error",
-        description: "There was a problem updating your attendance status.",
-        variant: "destructive"
+        title: "You're attending this event!",
+        description: "You've been added to the attendee list."
+      });
+    } else {
+      toast({
+        title: "You're no longer attending",
+        description: "You've been removed from the attendee list."
       });
     }
   };
@@ -187,45 +55,6 @@ const EventDetail = () => {
       title: "Link copied!",
       description: "Event link has been copied to your clipboard."
     });
-  };
-  
-  const handleDeleteEvent = async () => {
-    if (!currentUser || !isCreator || !event) {
-      toast({
-        title: "Error",
-        description: "You don't have permission to delete this event.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', event.id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Event deleted",
-        description: "The event has been successfully deleted."
-      });
-      
-      // Navigate back to events page
-      navigate('/events');
-    } catch (error) {
-      console.error('Error deleting event:', error);
-      toast({
-        title: "Error",
-        description: "There was a problem deleting the event.",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  const handleEditEvent = () => {
-    navigate(`/events/edit/${event.id}`);
   };
   
   const attendeesCount = Array.isArray(event.attendees) ? event.attendees.length : 0;
@@ -357,40 +186,6 @@ const EventDetail = () => {
           </div>
           
           <div className="flex flex-col gap-3">
-            {/* Show edit and delete buttons only if the current user is the creator */}
-            {isCreator && (
-              <>
-                <Button variant="outline" onClick={handleEditEvent}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Event
-                </Button>
-                
-                <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Event
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete the event
-                        and remove it from our servers.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleDeleteEvent} className="bg-red-600 hover:bg-red-700">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </>
-            )}
-            
             <Button 
               onClick={handleAttendEvent}
               className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}

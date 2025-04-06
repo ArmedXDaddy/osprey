@@ -48,15 +48,7 @@ interface DataContextType {
   rejectEventRequest: (requestId: string) => Promise<void>;
   getEventRequests: (eventId: string) => Promise<JoinRequest[]>;
   handleEventJoinRequest: (eventId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
-  createGroup: (groupData: {
-    name: string;
-    description: string;
-    privacy: string;
-    price?: number;
-    rules?: string[];
-    memberLimit?: number;
-    image?: string;
-  }) => Promise<Group | null>;
+  createGroup: (groupData: any) => Promise<Group>;
   joinGroup: (groupId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
   requestToJoinGroup: (groupId: string) => Promise<void>;
@@ -1038,75 +1030,67 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     throw new Error('Not implemented');
   };
   
-  const createGroup = async (groupData: {
-    name: string;
-    description: string;
-    privacy: string;
-    price?: number;
-    rules?: string[];
-    memberLimit?: number;
-    image?: string;
-  }): Promise<Group | null> => {
+  const createGroup = async (groupData: any): Promise<Group> => {
+    if (!currentUser) throw new Error('You must be logged in to create a group');
+    
     try {
-      if (!currentUser) {
-        throw new Error("User must be logged in to create a group");
-      }
-      
-      const { name, description, privacy, price, rules, memberLimit, image } = groupData;
-      
-      const newGroup = {
-        name,
-        description,
-        creator_id: currentUser.id,
-        creator_name: currentUser.name,
-        creator_role: currentUser.role,
-        members: 1,
-        image: image || null,
-        privacy: privacy,
-        price: price || null,
-        pending_requests: 0,
-        rules: rules || [],
-        member_limit: memberLimit || null
-      };
+      const { name, description, image, privacy, price, memberLimit, rules } = groupData;
       
       const { data, error } = await supabase
         .from('groups')
-        .insert(newGroup)
+        .insert({
+          name,
+          description,
+          image,
+          privacy,
+          price: privacy === 'paid' ? price : null,
+          member_limit: memberLimit,
+          rules,
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          creator_role: currentUser.role as string,
+          members: 1,
+          pending_requests: 0
+        })
         .select()
         .single();
       
-      if (error) {
-        console.error("Error creating group:", error);
-        throw error;
-      }
+      if (error) throw error;
       
-      if (data) {
-        const formattedGroup: Group = {
-          id: data.id,
-          name: data.name,
-          description: data.description,
-          creatorId: data.creator_id,
-          creatorName: data.creator_name,
-          creatorRole: data.creator_role as UserRole,
-          members: data.members,
-          memberIds: [],
-          image: data.image,
-          privacy: data.privacy as any,
-          price: data.price,
-          pendingRequests: data.pending_requests,
-          rules: data.rules || [],
-          memberLimit: data.member_limit,
-          createdAt: new Date(data.created_at)
-        };
-        
-        setGroups(prev => [formattedGroup, ...prev]);
-        
-        return formattedGroup;
-      }
+      if (!data) throw new Error('Failed to create group');
       
-      return null;
-    } catch (error) {
-      console.error("Failed to create group:", error);
+      const newGroup: Group = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role as UserRole,
+        image: data.image,
+        members: data.members,
+        memberLimit: data.member_limit,
+        privacy: data.privacy as GroupPrivacy,
+        price: data.price,
+        pendingRequests: data.pending_requests,
+        rules: data.rules || [],
+        createdAt: new Date(data.created_at)
+      };
+      
+      setGroups(prev => [newGroup, ...prev]);
+      
+      toast({
+        title: "Group created",
+        description: "Your group has been created successfully",
+      });
+      
+      return newGroup;
+    } catch (error: any) {
+      console.error("Error creating group:", error);
+      toast({
+        title: "Creation failed",
+        description: error.message || "There was a problem creating your group",
+        variant: "destructive",
+      });
       throw error;
     }
   };
@@ -1230,6 +1214,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a group');
     
     try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the groups array
       setGroups(prev => prev.filter(group => group.id !== groupId));
       
       toast({
@@ -1246,6 +1232,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the events array
       setEvents(prev => prev.filter(event => event.id !== eventId));
       
       toast({
