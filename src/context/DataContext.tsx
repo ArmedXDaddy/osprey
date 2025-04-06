@@ -1267,7 +1267,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   const deleteGroup = async (groupId: string) => {
     try {
-      // In a real app, you would make an API call to delete the group
+      // Delete the group from the database
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+      
+      if (error) throw error;
+      
+      // Then update the local state
       const updatedGroups = groups.filter(group => group.id !== groupId);
       setGroups(updatedGroups);
       
