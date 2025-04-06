@@ -1,4 +1,3 @@
-
 import { supabase, runQuery } from './client';
 import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
@@ -487,5 +486,45 @@ export const deleteComment = async (commentId: string): Promise<void> => {
   } catch (error: any) {
     console.error('Error in deleteComment:', error);
     throw new Error(error.message || 'Failed to delete comment');
+  }
+};
+
+/**
+ * Fetch products
+ * @returns Array of products
+ */
+export const fetchProducts = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    
+    return data as Product[];
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    return [];
+  }
+};
+
+/**
+ * Fetch workshops
+ * @returns Array of workshops
+ */
+export const fetchWorkshops = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('workshops')
+      .select('*')
+      .order('date', { ascending: true });
+    
+    if (error) throw error;
+    
+    return data as Workshop[];
+  } catch (error) {
+    console.error('Error fetching workshops:', error);
+    return [];
   }
 };

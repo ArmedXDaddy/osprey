@@ -11,15 +11,53 @@ import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Product, Workshop } from '@/types';
+import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
+import { ProductCard } from '@/components/shared/ProductCard';
+import { WorkshopCard } from '@/components/shared/WorkshopCard';
 
 const Explore = () => {
   const { events, groups, services, loading } = useData();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState('');
   const navigate = useNavigate();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [workshopsLoading, setWorkshopsLoading] = useState(true);
   
   // Get the active tab from URL or default to 'events'
   const activeTab = searchParams.get('tab') || 'events';
+  
+  // Load products and workshops when the component mounts
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setProductsLoading(true);
+        const productsData = await fetchProducts();
+        setProducts(productsData);
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setProductsLoading(false);
+      }
+    };
+
+    const loadWorkshops = async () => {
+      try {
+        setWorkshopsLoading(true);
+        const workshopsData = await fetchWorkshops();
+        setWorkshops(workshopsData);
+      } catch (error) {
+        console.error('Error loading workshops:', error);
+      } finally {
+        setWorkshopsLoading(false);
+      }
+    };
+
+    loadProducts();
+    loadWorkshops();
+  }, []);
   
   // Update URL when tab changes
   const handleTabChange = (value: string) => {
@@ -42,6 +80,20 @@ const Explore = () => {
     service.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     service.providerName.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredProducts = products.filter(product => 
+    product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (product.category && product.category.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const filteredWorkshops = workshops.filter(workshop => 
+    workshop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    workshop.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    workshop.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (workshop.category && workshop.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
   
   return (
@@ -71,10 +123,12 @@ const Explore = () => {
       </div>
       
       <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="products">Products</TabsTrigger>
+          <TabsTrigger value="workshops">Workshops</TabsTrigger>
         </TabsList>
         
         <TabsContent value="events" className="mt-6">
@@ -137,6 +191,50 @@ const Explore = () => {
           ) : (
             <div className="text-center py-12">
               <p className="text-lg text-gray-500">No services found matching your search.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="products" className="mt-6">
+          {productsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array(6).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-80 rounded-lg" />
+              ))}
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map(product => (
+                <Link to={`/products/${product.id}`} key={product.id}>
+                  <ProductCard key={product.id} product={product} onClick={() => {}} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-lg text-gray-500">No products found matching your search.</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="workshops" className="mt-6">
+          {workshopsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array(6).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-80 rounded-lg" />
+              ))}
+            </div>
+          ) : filteredWorkshops.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredWorkshops.map(workshop => (
+                <Link to={`/workshops/${workshop.id}`} key={workshop.id}>
+                  <WorkshopCard key={workshop.id} workshop={workshop} onClick={() => {}} />
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-lg text-gray-500">No workshops found matching your search.</p>
             </div>
           )}
         </TabsContent>
