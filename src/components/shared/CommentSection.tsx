@@ -35,7 +35,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
     
     setIsSubmitting(true);
     try {
-      await addComment(postId, commentText);
+      await addComment(postId);
       setCommentText('');
     } catch (error) {
       console.error('Error adding comment:', error);

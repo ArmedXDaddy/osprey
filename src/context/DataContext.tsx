@@ -89,7 +89,7 @@ interface DataContextType {
   sponsorships: Sponsorship[];
   getSponsorships: () => Sponsorship[];
   getSponsorshipById: (id: string) => Sponsorship;
-  createSponsorship: (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => Sponsorship;
+  createSponsorship: (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => Promise<Sponsorship>;
   updateSponsorship: (id: string, updatedData: Partial<Sponsorship>) => Sponsorship;
   deleteSponsorship: (id: string) => void;
   getSponsorshipApplications: (sponsorshipId: string) => SponsorshipApplication[];
@@ -104,7 +104,7 @@ interface DataContextType {
       twitter?: string;
       website?: string;
     };
-  }) => SponsorshipApplication;
+  }) => Promise<SponsorshipApplication>;
   updateApplicationStatus: (applicationId: string, status: ApplicationStatus) => { success: boolean };
 }
 
@@ -1094,7 +1094,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
           user_profile_image: currentUser.profileImage,
           motivation: applicationData.motivation,
           experience: applicationData.experience,
-          social_links: applicationData.socialLinks ? applicationData.socialLinks : null,
+          social_links: applicationData.socialLinks || null,
           status: 'pending'
         })
         .select()
@@ -1111,7 +1111,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         userProfileImage: data.user_profile_image,
         motivation: data.motivation,
         experience: data.experience,
-        socialLinks: data.social_links as any,
+        socialLinks: data.social_links,
         status: data.status as ApplicationStatus,
         createdAt: new Date(data.created_at)
       };
