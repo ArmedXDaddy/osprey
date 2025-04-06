@@ -42,7 +42,6 @@ const formSchema = z.object({
   image: z.string().optional(),
 });
 
-// Define the EventFormValues type for TypeScript
 type EventFormValues = z.infer<typeof formSchema>;
 
 const CreateEvent = () => {
@@ -414,7 +413,7 @@ const CreateEvent = () => {
                       key={index} 
                       className={`
                         relative cursor-pointer group overflow-hidden rounded-md border-2
-                        ${watchImage === image.url ? "border-primary ring-2 ring-primary ring-opacity-50" : "border-transparent hover:border-gray-300"}
+                        ${imagePreview === image.url ? "border-primary ring-2 ring-primary ring-opacity-50" : "border-transparent hover:border-gray-300"}
                       `}
                       onClick={() => handleSelectImage(image.url)}
                     >
