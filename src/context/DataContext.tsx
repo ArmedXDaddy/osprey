@@ -528,10 +528,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (joinError) throw joinError;
       
-      // Update group member count
+      // Update group member count using a direct update approach
       const { error: updateError } = await supabase
         .from('groups')
-        .update({ members: supabase.rpc('increment', { row_id: groupId, table: 'groups', column: 'members' }) })
+        .update({ members: supabase.rpc('increment_group_members', { row_id: groupId }) as any })
         .eq('id', groupId);
         
       if (updateError) throw updateError;
@@ -626,7 +626,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         content: data.content,
         userId: data.user_id,
         userName: data.user_name,
-        userRole: data.user_role,
+        userRole: data.user_role as UserRole,
         userProfileImage: data.user_profile_image,
         createdAt: new Date(data.created_at),
         groupId: data.group_id
@@ -883,127 +883,4 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       console.log("Fetching messages for service:", serviceId);
       
-      const { data, error } = await supabase.rpc('get_service_chat_messages', {
-        p_service_id: serviceId
-      });
-      
-      if (error) throw error;
-      
-      console.log("Retrieved messages:", data);
-      
-      return data.map((message: any) => ({
-        id: message.id,
-        serviceId: message.service_id,
-        userId: message.user_id,
-        userName: message.user_name,
-        userRole: message.user_role || 'user',
-        userProfileImage: message.user_profile_image,
-        content: message.content,
-        createdAt: new Date(message.created_at)
-      }));
-    } catch (err: any) {
-      console.error("Error fetching service messages:", err);
-      return [];
-    }
-  };
-  
-  const fetchUserServices = async (userId: string): Promise<Service[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('coach_id', userId)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
-      return data.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        providerId: item.coach_id,
-        providerName: item.coach_name,
-        price: item.price,
-        duration: item.duration,
-        available: item.is_active,
-        createdAt: new Date(item.created_at),
-        isOnline: item.is_online,
-        location: item.location,
-        capacity: item.capacity,
-        serviceType: item.service_type as ServiceType,
-        coverImage: item.cover_image,
-        meetingUrl: item.meeting_url
-      }));
-    } catch (err: any) {
-      console.error("Error fetching user services:", err);
-      return [];
-    }
-  };
-  
-  return (
-    <DataContext.Provider value={{
-      posts,
-      events,
-      groups,
-      services,
-      sessions,
-      sessionEnrollments,
-      messages,
-      setMessages,
-      joinRequests,
-      loading,
-      error,
-      postComments,
-      createPost: async () => { throw new Error('Not implemented'); },
-      likePost: async () => { throw new Error('Not implemented'); },
-      unlikePost: async () => { throw new Error('Not implemented'); },
-      addComment: async () => { throw new Error('Not implemented'); },
-      updateComment: async () => { throw new Error('Not implemented'); },
-      deleteComment: async () => { throw new Error('Not implemented'); },
-      createEvent: async () => { throw new Error('Not implemented'); },
-      joinEvent: async () => { throw new Error('Not implemented'); },
-      leaveEvent: async () => { throw new Error('Not implemented'); },
-      requestToJoinEvent: async () => { throw new Error('Not implemented'); },
-      approveEventRequest: async () => { throw new Error('Not implemented'); },
-      rejectEventRequest: async () => { throw new Error('Not implemented'); },
-      getEventRequests: async () => { return []; },
-      handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
-      createGroup: async () => { throw new Error('Not implemented'); },
-      joinGroup,
-      leaveGroup,
-      requestToJoinGroup,
-      approveGroupRequest,
-      rejectGroupRequest,
-      getGroupRequests,
-      handleJoinRequest,
-      removeGroupMember,
-      updateGroupDetails,
-      createSession,
-      enrollInSession,
-      cancelEnrollment,
-      approveEnrollment,
-      rejectEnrollment,
-      getUserSessions,
-      getCoachSessions,
-      getUserEnrollments,
-      updateSession,
-      updateEnrollmentStatus,
-      sendMessage,
-      getServiceById,
-      bookService,
-      cancelBooking: cancelBookingImpl,
-      getUserBookings: getUserBookingsImpl,
-      getServiceBookings: getServiceBookingsImpl,
-      createService,
-      updateService,
-      deleteService,
-      approveBooking: approveBookingImpl,
-      sendServiceMessage,
-      getServiceMessages,
-      getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices
-    }}>
-      {children}
-    </DataContext.Provider>
-  );
-};
+      const { data, error } = await supabase.rpc('get_

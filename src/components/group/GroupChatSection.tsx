@@ -2,7 +2,7 @@
 // This is a wrapper component for OriginalGroupChatSection
 // It fetches the messages from Supabase and handles real-time updates
 import React, { useEffect, useState } from 'react';
-import { Group, Message } from '@/types';
+import { Group, Message, UserRole } from '@/types';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -69,7 +69,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
             content: msg.content,
             userId: msg.user_id,
             userName: msg.user_name,
-            userRole: msg.user_role,
+            userRole: msg.user_role as UserRole, // Fix: Type assertion to UserRole
             userProfileImage: msg.user_profile_image,
             createdAt: new Date(msg.created_at),
             groupId: msg.group_id
@@ -109,7 +109,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
             content: newMessage.content,
             userId: newMessage.user_id,
             userName: newMessage.user_name,
-            userRole: newMessage.user_role,
+            userRole: newMessage.user_role as UserRole, // Fix: Type assertion to UserRole
             userProfileImage: newMessage.user_profile_image,
             createdAt: new Date(newMessage.created_at),
             groupId: newMessage.group_id
