@@ -17,6 +17,8 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
+import { createComment, createEvent, createGroup, createJoinRequest, createMessage, createPost, createProduct, createService, createWorkshop, deleteEvent, deleteGroup, deleteMessage, deletePost, getEvents, getGroups, getJoinRequests, getMessages, getPosts, getProducts, getServices, getWorkshops, updateEvent, updateGroup, updateJoinRequest, updateMessage, updatePost, uploadImage } from '@/integrations/supabase/helpers';
+
 interface GroupPrivacy {
   private: boolean;
   public: boolean;
