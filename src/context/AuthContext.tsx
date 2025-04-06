@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -28,10 +27,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSupabaseSession(session);
         
         if (session?.user) {
-          // Use setTimeout to avoid Supabase auth deadlock
           setTimeout(async () => {
             try {
-              // Try to get profile data from the profiles table
               const { data: profileData, error: profileError } = await supabase
                 .from('profiles')
                 .select('*')
@@ -52,7 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   console.error("Error parsing social links:", e);
                 }
               }
-                
+              
               const userData: User = {
                 id: session.user.id,
                 email: session.user.email!,
@@ -71,7 +68,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } catch (error) {
               console.error("Error fetching profile data:", error);
               
-              // Fallback to user metadata
               const userData: User = {
                 id: session.user.id,
                 email: session.user.email!,
@@ -99,7 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSupabaseSession(session);
       
       if (session?.user) {
-        // Try to get profile data
         supabase
           .from('profiles')
           .select('*')
@@ -140,7 +135,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .catch((error) => {
             console.error("Error fetching profile data on init:", error);
             
-            // Fallback to user metadata
             const userData: User = {
               id: session.user.id,
               email: session.user.email!,
@@ -268,7 +262,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Update profile in the profiles table
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
