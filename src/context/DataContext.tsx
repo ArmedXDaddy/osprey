@@ -10,7 +10,9 @@ import {
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
-  uploadImage, updateComment, deleteComment 
+  uploadImage, updateComment, deleteComment, deleteGroupFromDB,
+  deleteEventFromDB, deleteServiceFromDB, deleteProduct,
+  deleteWorkshop, deleteJobPosting, deleteSponsorshipFromDB
 } from '@/integrations/supabase/helpers';
 import { 
   generateMockServices, generateMockPosts, generateMockEvents, 
@@ -1091,16 +1093,21 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
-        
-      if (error) throw error;
+      await deleteEventFromDB(eventId);
       
       setEvents(prev => prev.filter(event => event.id !== eventId));
+      
+      toast({
+        title: "Event deleted",
+        description: "The event has been permanently deleted"
+      });
     } catch (error: any) {
       console.error('Error deleting event:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
+      });
       throw error;
     }
   };
@@ -1167,7 +1174,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
   };
 
   const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    return []; // Implementation needed
+    return [];
   };
 
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
@@ -1252,12 +1259,21 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     if (!currentUser) throw new Error('You must be logged in to delete a service');
     
     try {
-      await supabase
-        .from('services')
-        .delete()
-        .eq('id', serviceId);
+      await deleteServiceFromDB(serviceId);
+      
+      setServices(prev => prev.filter(service => service.id !== serviceId));
+      
+      toast({
+        title: "Service deleted",
+        description: "The service has been permanently deleted"
+      });
     } catch (error: any) {
       console.error('Error deleting service:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete service",
+        variant: "destructive"
+      });
       throw error;
     }
   };
@@ -1289,10 +1305,10 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         content: data.content,
         userId: data.user_id,
         userName: data.user_name,
-        userRole: currentUser.role as UserRole, // Add missing user_role
+        userRole: currentUser.role as UserRole,
         userProfileImage: data.user_profile_image,
         createdAt: new Date(data.created_at),
-        serviceId: data.service_id // Use serviceId instead of groupId
+        serviceId: data.service_id
       };
       
       setMessages(prev => [...prev, transformedMessage]);
@@ -1373,14 +1389,34 @@ export const DataProvider = ({ children }: DataProviderProps) => {
   };
 
   const deleteSponsorship = (id: string): void => {
-    const filteredSponsorships = sponsorships.filter(sponsorship => sponsorship.id !== id);
-    setSponsorships(filteredSponsorships);
-    
-    // Update in localStorage
     try {
-      localStorage.setItem('user_sponsorships', JSON.stringify(filteredSponsorships));
-    } catch (err) {
-      console.error("Error removing sponsorship from localStorage:", err);
+      // Delete from database if it exists there
+      deleteSponsorshipFromDB(id).catch(err => {
+        console.error("Error deleting sponsorship from database:", err);
+      });
+      
+      // Update local state
+      const filteredSponsorships = sponsorships.filter(sponsorship => sponsorship.id !== id);
+      setSponsorships(filteredSponsorships);
+      
+      // Update in localStorage
+      try {
+        localStorage.setItem('user_sponsorships', JSON.stringify(filteredSponsorships));
+      } catch (err) {
+        console.error("Error removing sponsorship from localStorage:", err);
+      }
+      
+      toast({
+        title: "Sponsorship deleted",
+        description: "The sponsorship has been permanently deleted"
+      });
+    } catch (error: any) {
+      console.error('Error deleting sponsorship:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete sponsorship",
+        variant: "destructive"
+      });
     }
   };
 
