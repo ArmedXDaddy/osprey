@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -21,18 +20,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
 
-  // Initialize and set up auth state listener
   useEffect(() => {
-    // First, set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.id);
         setSupabaseSession(session);
         
         if (session?.user) {
-          // Set a timeout to avoid recursive calls in the auth state change
           setTimeout(async () => {
-            // Convert Supabase user to our app's user format
             const userData: User = {
               id: session.user.id,
               email: session.user.email!,
@@ -54,13 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
     
-    // Then check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       console.log("Got existing session:", session?.user?.id);
       setSupabaseSession(session);
       
       if (session?.user) {
-        // Convert Supabase user to our app's user format
         const userData: User = {
           id: session.user.id,
           email: session.user.email!,
@@ -94,7 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) throw error;
-      return !!data.session; // Return true if session exists
+      return !!data.session;
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -119,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Authentication is handled by the onAuthStateChange listener
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -131,15 +123,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
-      // Clear local user state first
       setCurrentUser(null);
       
-      // Then attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       
       if (error) {
         console.error('Logout error from Supabase:', error);
-        // Even if there's a Supabase error, we still want to ensure local state is cleared
         toast({
           title: "Signed out",
           description: "You have been signed out locally."
@@ -153,14 +142,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Logout error:', error);
-      // Still clear local state if an exception occurs
       toast({
         title: "Error during logout",
         description: "Signed out locally, but there was an issue with the server.",
         variant: "destructive"
       });
     } finally {
-      // Clear any remaining session state
       setSupabaseSession(null);
       setIsLoading(false);
     }
@@ -173,13 +160,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user logged in');
       }
       
-      // Update user metadata in Supabase
       const { data, error } = await supabase.auth.updateUser({
         data: {
           name: userData.name || currentUser.name,
-          // Only update role if provided and user is allowed to change it
           ...(userData.role && { role: userData.role }),
-          // Add support for profile image and cover image
           ...(userData.profileImage && { profileImage: userData.profileImage }),
           ...(userData.coverImage && { coverImage: userData.coverImage }),
           ...(userData.bio && { bio: userData.bio }),
@@ -195,7 +179,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Update the profiles table to ensure other users can see the updated data
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -212,14 +195,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (profileError) {
         console.error('Error updating public profile:', profileError);
-        // Continue even if there's an error with the profile update
       }
       
-      // Update local state immediately to reflect changes
       const updatedUser = { 
         ...currentUser, 
         ...userData,
-        // Ensure these fields are properly transferred
         profileImage: userData.profileImage || currentUser.profileImage,
         coverImage: userData.coverImage || currentUser.coverImage,
       };

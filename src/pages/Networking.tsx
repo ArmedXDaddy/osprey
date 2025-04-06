@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -72,7 +71,7 @@ const Networking = () => {
           name: user.name || 'Unknown User',
           email: user.email || '',
           role: user.role as UserRole,
-          profileImage: user.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || 'User')}&background=random`,
+          profileImage: user.profile_image || null,
           bio: user.bio || '',
           location: user.location || '',
           interests: user.interests || [],
@@ -82,6 +81,7 @@ const Networking = () => {
           createdAt: new Date(user.created_at)
         }));
         
+        console.log('Formatted users with profile data:', formattedUsers);
         setUsers(formattedUsers);
       } catch (error: any) {
         console.error('Error fetching users:', error);
