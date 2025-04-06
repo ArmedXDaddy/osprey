@@ -1,279 +1,346 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Verified } from 'lucide-react';
+
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Search, Filter, Users, Calendar, User, RefreshCw, Package2, GraduationCap } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import UserCard from '@/components/shared/UserCard';
+import EventCard from '@/components/shared/EventCard';
+import GroupCard from '@/components/shared/GroupCard';
+import { ProductCard } from '@/components/shared/ProductCard';
+import { WorkshopCard } from '@/components/shared/WorkshopCard';
+import { useNavigate } from 'react-router-dom';
+import { Product, Workshop, Event, Group } from '@/types';
+import { useQuery } from '@tanstack/react-query';
+import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
 
 const Explore = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchTerm, setSearchTerm] = useState("");
+  const navigate = useNavigate();
+  
+  const activeTab = searchParams.get('tab') || 'people';
+  
+  const handleTabChange = (value: string) => {
+    setSearchParams({ tab: value });
+  };
+
+  const { 
+    data: products = [], 
+    isLoading: isLoadingProducts,
+  } = useQuery({
+    queryKey: ['products'],
+    queryFn: fetchProducts,
+  });
+
+  const { 
+    data: workshops = [], 
+    isLoading: isLoadingWorkshops,
+  } = useQuery({
+    queryKey: ['workshops'],
+    queryFn: fetchWorkshops,
+  });
+
+  const users = [
+    { id: '1', name: 'Alex Johnson', role: 'influencer', followers: 21500, location: 'New York, NY', image: 'https://randomuser.me/api/portraits/men/32.jpg', bio: 'Tech influencer focusing on mobile development and emerging technologies.' },
+    { id: '2', name: 'Sarah Williams', role: 'coach', followers: 8900, location: 'San Francisco, CA', image: 'https://randomuser.me/api/portraits/women/44.jpg', bio: 'Career coach helping tech professionals advance their careers and find work-life balance.' },
+    { id: '3', name: 'Tech Solutions Inc.', role: 'company', followers: 45600, location: 'Boston, MA', image: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=0D8ABC&color=fff', bio: 'Leading technology consulting firm specializing in digital transformation.' },
+    { id: '4', name: 'Michael Brown', role: 'influencer', followers: 15200, location: 'Austin, TX', image: 'https://randomuser.me/api/portraits/men/22.jpg', bio: 'Sharing insights on startup growth, venture capital, and entrepreneurship.' },
+    { id: '5', name: 'Innovation Labs', role: 'company', followers: 32100, location: 'Seattle, WA', image: 'https://ui-avatars.com/api/?name=Innovation+Labs&background=FF5733&color=fff', bio: 'Cutting-edge research lab focused on AI and robotics.' },
+    { id: '6', name: 'Emma Clark', role: 'coach', followers: 11800, location: 'Chicago, IL', image: 'https://randomuser.me/api/portraits/women/28.jpg', bio: 'Executive coach with expertise in leadership development for tech executives.' }
+  ];
+
+  const events: Event[] = [
+    { 
+      id: '1', 
+      title: 'Tech Conference 2023', 
+      description: 'Annual tech conference featuring top industry speakers.', 
+      date: new Date('2023-05-15'), 
+      location: 'San Francisco, CA', 
+      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2', '3'], 
+      privacy: 'public',
+      creatorId: '1',
+      creatorName: 'Tech Solutions Inc.',
+      creatorRole: 'company',
+      createdAt: new Date('2023-04-15')
+    },
+    { 
+      id: '2', 
+      title: 'Networking Mixer', 
+      description: 'Connect with professionals in your industry.', 
+      date: new Date('2023-04-20'), 
+      location: 'New York, NY', 
+      image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2', '3', '4'], 
+      privacy: 'public',
+      creatorId: '2',
+      creatorName: 'Sarah Williams',
+      creatorRole: 'coach',
+      createdAt: new Date('2023-03-20')
+    },
+    { 
+      id: '3', 
+      title: 'Startup Workshop', 
+      description: 'Learn the essentials of launching a successful startup.', 
+      date: new Date('2023-06-10'), 
+      location: 'Austin, TX', 
+      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2'], 
+      privacy: 'public',
+      creatorId: '4',
+      creatorName: 'Michael Brown',
+      creatorRole: 'influencer',
+      createdAt: new Date('2023-05-10')
+    },
+    { 
+      id: '4', 
+      title: 'AI in Business Seminar', 
+      description: 'Explore practical applications of AI in business operations.', 
+      date: new Date('2023-05-25'), 
+      location: 'Boston, MA', 
+      image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2', '3', '4', '5'], 
+      privacy: 'public',
+      creatorId: '5',
+      creatorName: 'Innovation Labs',
+      creatorRole: 'company',
+      createdAt: new Date('2023-04-25')
+    }
+  ];
+
+  const groups: Group[] = [
+    { 
+      id: '1', 
+      name: 'Tech Founders', 
+      description: 'A community for startup founders to share experiences and advice.', 
+      members: 520, 
+      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'public', 
+      creatorId: '4',
+      creatorName: 'Michael Brown',
+      creatorRole: 'influencer',
+      createdAt: new Date('2022-10-15')
+    },
+    { 
+      id: '2', 
+      name: 'Women in Tech', 
+      description: 'Supporting women in technology fields through networking and mentorship.', 
+      members: 780, 
+      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'public', 
+      creatorId: '2',
+      creatorName: 'Sarah Williams',
+      creatorRole: 'coach',
+      createdAt: new Date('2022-11-20')
+    },
+    { 
+      id: '3', 
+      name: 'AI Research Group', 
+      description: 'Discussions on the latest developments in artificial intelligence.', 
+      members: 350, 
+      image: 'https://images.unsplash.com/photo-1669130650646-67905bfaddd5?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'private', 
+      creatorId: '5',
+      creatorName: 'Innovation Labs',
+      creatorRole: 'company',
+      createdAt: new Date('2023-01-15')
+    },
+    { 
+      id: '4', 
+      name: 'Mobile Dev Meetup', 
+      description: 'Regular meetups for mobile developers to share knowledge and network.', 
+      members: 420, 
+      image: 'https://images.unsplash.com/photo-1574689211272-bc14e289e223?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'public', 
+      creatorId: '1',
+      creatorName: 'Alex Johnson',
+      creatorRole: 'influencer',
+      createdAt: new Date('2023-02-10')
+    }
+  ];
+
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-bold mb-4">Explore</h1>
-      <p className="text-muted-foreground">
-        Discover new content, connect with experts, and expand your network.
-      </p>
-
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-3">Trending Now</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Trending Influencers */}
-          <div className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium mb-3">Top Influencers</h3>
-              <ul className="divide-y divide-border">
-                {/* Example Influencer */}
-                <li className="py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src="https://images.unsplash.com/photo-1531427186611-ecfd6d936e63?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80" alt="twinkle" />
-                      <AvatarFallback>TW</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">Twinkle Whatley <Verified className="inline-block text-blue-500 h-4 w-4 ml-1" /></p>
-                      <p className="text-xs text-muted-foreground">Marketing Expert</p>
-                    </div>
-                  </div>
-                  <Link to="/profile/123" className="text-primary hover:underline text-sm">View Profile</Link>
-                </li>
-                {/* Add more influencers here */}
-                <li className="py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src="https://images.unsplash.com/photo-1570295999919-56bcae82799c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=580&q=80" alt="john" />
-                      <AvatarFallback>JD</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">John Doe <Verified className="inline-block text-blue-500 h-4 w-4 ml-1" /></p>
-                      <p className="text-xs text-muted-foreground">Tech Reviewer</p>
-                    </div>
-                  </div>
-                  <Link to="/profile/456" className="text-primary hover:underline text-sm">View Profile</Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Trending Coaches */}
-          <div className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium mb-3">Top Coaches</h3>
-              <ul className="divide-y divide-border">
-                {/* Example Coach */}
-                <li className="py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src="https://images.unsplash.com/photo-1494790108377-be9c29b2933e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80" alt="jane" />
-                      <AvatarFallback>JS</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">Jane Smith <Verified className="inline-block text-blue-500 h-4 w-4 ml-1" /></p>
-                      <p className="text-xs text-muted-foreground">Life Coach</p>
-                    </div>
-                  </div>
-                  <Link to="/profile/789" className="text-primary hover:underline text-sm">View Profile</Link>
-                </li>
-                {/* Add more coaches here */}
-                 <li className="py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src="https://images.unsplash.com/photo-1507003211169-0a1dd8a72f9d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=627&q=80" alt="mark" />
-                      <AvatarFallback>MB</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">Mark Brown <Verified className="inline-block text-blue-500 h-4 w-4 ml-1" /></p>
-                      <p className="text-xs text-muted-foreground">Business Coach</p>
-                    </div>
-                  </div>
-                  <Link to="/profile/101" className="text-primary hover:underline text-sm">View Profile</Link>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Top Companies */}
-          <div className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <div className="px-4 py-5 sm:p-6">
-              <h3 className="text-lg font-medium mb-3">Leading Companies</h3>
-              <ul className="divide-y divide-border">
-                {/* Example Company */}
-                <li className="py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src="https://images.unsplash.com/photo-1605296867304-46d4625df7ea?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80" alt="acme" />
-                      <AvatarFallback>AC</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">Acme Corp <Verified className="inline-block text-blue-500 h-4 w-4 ml-1" /></p>
-                      <p className="text-xs text-muted-foreground">Tech Solutions</p>
-                    </div>
-                  </div>
-                  <Link to="/profile/222" className="text-primary hover:underline text-sm">View Profile</Link>
-                </li>
-                {/* Add more companies here */}
-                <li className="py-3 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar>
-                      <AvatarImage src="https://images.unsplash.com/photo-1542831323-5398288a7b59?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80" alt="beta" />
-                      <AvatarFallback>BT</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">Beta Industries <Verified className="inline-block text-blue-500 h-4 w-4 ml-1" /></p>
-                      <p className="text-xs text-muted-foreground">Software Development</p>
-                    </div>
-                  </div>
-                  <Link to="/profile/333" className="text-primary hover:underline text-sm">View Profile</Link>
-                </li>
-              </ul>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+        <div>
+          <h1 className="text-2xl font-bold md:text-3xl">Explore</h1>
+          <p className="text-muted-foreground">Discover people, events, groups, products, and more</p>
         </div>
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-2xl font-semibold mb-3">Trending Groups</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Trending Groups Section */}
-          {renderTrendingItems()}
+        
+        <div className="flex w-full flex-col space-y-2 md:w-auto md:flex-row md:space-x-2 md:space-y-0">
+          <div className="relative w-full md:w-auto">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search..."
+              className="pl-9 md:w-[250px] lg:w-[300px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <Button variant="outline" size="icon">
+            <Filter className="h-4 w-4" />
+            <span className="sr-only">Filter</span>
+          </Button>
+          
+          <Button variant="outline" size="icon">
+            <RefreshCw className="h-4 w-4" />
+            <span className="sr-only">Refresh</span>
+          </Button>
         </div>
-      </section>
-
-      <section>
-        <h2 className="text-2xl font-semibold mb-3">Upcoming Events</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Example Event Card */}
-          <Card className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium mb-2">Tech Conference 2024</h3>
-              <p className="text-sm text-muted-foreground">Join industry leaders and innovators...</p>
-              <Link to="/events/123" className="inline-block mt-3 text-primary hover:underline text-sm">Learn More</Link>
-            </CardContent>
-          </Card>
-          {/* Add more event cards here */}
-           <Card className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium mb-2">Marketing Webinar</h3>
-              <p className="text-sm text-muted-foreground">Learn the latest digital marketing strategies...</p>
-              <Link to="/events/456" className="inline-block mt-3 text-primary hover:underline text-sm">Learn More</Link>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+      </div>
+      
+      <Tabs defaultValue={activeTab} onValueChange={handleTabChange}>
+        <TabsList className="grid grid-cols-5 md:w-[600px]">
+          <TabsTrigger value="people">
+            <User className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">People</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="events">
+            <Calendar className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Events</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="groups">
+            <Users className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Groups</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="products">
+            <Package2 className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Products</span>
+          </TabsTrigger>
+          
+          <TabsTrigger value="workshops">
+            <GraduationCap className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Workshops</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="people" className="mt-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {users
+              .filter(user => 
+                searchTerm === '' || 
+                user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.role.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map(user => (
+                <UserCard key={user.id} user={user} />
+              ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="events" className="mt-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            {events
+              .filter(event => 
+                searchTerm === '' || 
+                event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                event.location.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map(event => (
+                <EventCard key={event.id} event={event} />
+              ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="groups" className="mt-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {groups
+              .filter(group => 
+                searchTerm === '' || 
+                group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                group.description.toLowerCase().includes(searchTerm.toLowerCase())
+              )
+              .map(group => (
+                <GroupCard key={group.id} group={group} />
+              ))}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="products" className="mt-6">
+          {isLoadingProducts ? (
+            <div className="flex justify-center p-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : products.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {products
+                .filter(product => 
+                  searchTerm === '' || 
+                  product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  product.category.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map(product => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onClick={() => navigate(`/products/${product.id}`)} 
+                  />
+                ))}
+            </div>
+          ) : (
+            <Card>
+              <CardHeader className="text-center">
+                <CardTitle>No Products Found</CardTitle>
+                <CardDescription>
+                  There are no products available at this time.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <Package2 className="h-16 w-16 text-muted-foreground/50" />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="workshops" className="mt-6">
+          {isLoadingWorkshops ? (
+            <div className="flex justify-center p-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : workshops.length > 0 ? (
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              {workshops
+                .filter(workshop => 
+                  searchTerm === '' || 
+                  workshop.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  workshop.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  workshop.category.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map(workshop => (
+                  <WorkshopCard 
+                    key={workshop.id} 
+                    workshop={workshop} 
+                    onClick={() => navigate(`/workshops/${workshop.id}`)} 
+                  />
+                ))}
+            </div>
+          ) : (
+            <Card>
+              <CardHeader className="text-center">
+                <CardTitle>No Workshops Found</CardTitle>
+                <CardDescription>
+                  There are no workshops available at this time.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex justify-center">
+                <GraduationCap className="h-16 w-16 text-muted-foreground/50" />
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
-
-  function renderTrendingItems() {
-    const trendingGroups = [
-      {
-        id: "trending-group-1",
-        name: "Digital Marketing Strategies",
-        description: "Share and learn effective digital marketing techniques and strategies.",
-        members: 2345,
-        image: "https://images.unsplash.com/photo-1568992687947-868a62a9f521?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1932&q=80",
-        privacy: "public",
-        creatorId: "influencer-1",
-        creatorName: "Marketing Expert",
-        creatorRole: "influencer" as const,
-        createdAt: new Date(),
-        rules: ["Be respectful", "No spam", "Stay on topic"]
-      },
-    ];
-  
-    const coachGroups = [
-      {
-        id: "coach-group-1",
-        name: "Fitness Transformation",
-        description: "Join our fitness community for daily workouts, motivation, and results tracking.",
-        members: 1856,
-        image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80",
-        privacy: "public",
-        creatorId: "coach-1",
-        creatorName: "Fitness Coach",
-        creatorRole: "coach" as const,
-        createdAt: new Date(),
-        rules: ["Be supportive", "No negative comments", "Share your progress"]
-      },
-    ];
-  
-    const companyGroups = [
-      {
-        id: "company-group-1",
-        name: "Tech Innovators Network",
-        description: "A professional network for tech industry leaders and innovators.",
-        members: 3211,
-        image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1740&q=80",
-        privacy: "private",
-        creatorId: "company-1",
-        creatorName: "Tech Solutions Inc",
-        creatorRole: "company" as const,
-        createdAt: new Date(),
-        rules: ["Professional conduct only", "Industry-related discussions", "No soliciting"]
-      },
-    ];
-  
-    const eventGroups = [
-      {
-        id: "event-group-1",
-        name: "Conference Attendees",
-        description: "Connect with other attendees from the upcoming tech conference.",
-        members: 587,
-        image: "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1112&q=80",
-        privacy: "public",
-        creatorId: "influencer-2",
-        creatorName: "Event Organizer",
-        creatorRole: "influencer" as const,
-        createdAt: new Date(),
-        rules: ["Discuss conference topics", "Share insights", "Network professionally"]
-      },
-    ];
-  
-    return (
-      <>
-        {trendingGroups.map((group) => (
-          <Card key={group.id} className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium mb-2">{group.name}</h3>
-              <p className="text-sm text-muted-foreground">{group.description}</p>
-              <Link to={`/groups/${group.id}`} className="inline-block mt-3 text-primary hover:underline text-sm">
-                Learn More
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-        {coachGroups.map((group) => (
-          <Card key={group.id} className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium mb-2">{group.name}</h3>
-              <p className="text-sm text-muted-foreground">{group.description}</p>
-              <Link to={`/groups/${group.id}`} className="inline-block mt-3 text-primary hover:underline text-sm">
-                Learn More
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-        {companyGroups.map((group) => (
-          <Card key={group.id} className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium mb-2">{group.name}</h3>
-              <p className="text-sm text-muted-foreground">{group.description}</p>
-              <Link to={`/groups/${group.id}`} className="inline-block mt-3 text-primary hover:underline text-sm">
-                Learn More
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-        {eventGroups.map((group) => (
-          <Card key={group.id} className="bg-card text-card-foreground rounded-lg shadow-sm overflow-hidden">
-            <CardContent className="p-4">
-              <h3 className="text-lg font-medium mb-2">{group.name}</h3>
-              <p className="text-sm text-muted-foreground">{group.description}</p>
-              <Link to={`/groups/${group.id}`} className="inline-block mt-3 text-primary hover:underline text-sm">
-                Learn More
-              </Link>
-            </CardContent>
-          </Card>
-        ))}
-      </>
-    );
-  }
 };
 
 export default Explore;

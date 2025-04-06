@@ -1,135 +1,91 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Group } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { User, UsersRound, Lock, LucideIcon } from 'lucide-react';
-
-type GroupPrivacyTypes = 'public' | 'private' | 'paid';
-
-const privacyIcons: Record<GroupPrivacyTypes, LucideIcon> = {
-  public: UsersRound,
-  private: Lock,
-  paid: User,
-};
+import { Users, Lock, Globe, DollarSign } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
 
 interface GroupCardProps {
   group: Group;
-  isJoined?: boolean;
-  onClick?: (groupId: string) => void;
-  onJoin?: (groupId: string) => void;
-  onRequestJoin?: (groupId: string) => void;
-  onLeave?: (groupId: string) => void;
-  onDelete?: () => void;
   compact?: boolean;
 }
 
-const GroupCard: React.FC<GroupCardProps> = ({
-  group,
-  isJoined = false,
-  onClick,
-  onJoin,
-  onRequestJoin,
-  onLeave,
-  onDelete,
-  compact = false,
-}) => {
-  const { id, name, description, image, privacy, members, price } = group;
-  const privacyType = privacy as GroupPrivacyTypes;
-  const PrivacyIcon = privacyIcons[privacyType] || UsersRound;
-
-  const handleClick = () => {
-    if (onClick) {
-      onClick(id);
+const GroupCard: React.FC<GroupCardProps> = ({ group, compact = false }) => {
+  const getPrivacyIcon = () => {
+    switch (group.privacy) {
+      case 'private':
+        return <Lock className="h-3 w-3 mr-1" />;
+      case 'paid':
+        return <DollarSign className="h-3 w-3 mr-1" />;
+      default:
+        return <Globe className="h-3 w-3 mr-1" />;
+    }
+  };
+  
+  const getPrivacyLabel = () => {
+    switch (group.privacy) {
+      case 'private':
+        return 'Private';
+      case 'paid':
+        return `Paid ($${group.price}/month)`;
+      default:
+        return 'Public';
     }
   };
 
   return (
-    <Card className="overflow-hidden">
-      {!compact && (
-        <div className="aspect-video relative">
-          {image ? (
-            <img src={image} alt={name} className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-              <span className="text-gray-400">No image</span>
-            </div>
-          )}
+    <Card className={`overflow-hidden ${compact ? 'h-full' : ''}`}>
+      <div className={`relative ${compact ? 'h-32' : 'h-48'}`}>
+        <img 
+          src={group.image || 'https://images.unsplash.com/photo-1576678927484-cc907957088c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80'} 
+          alt={group.name} 
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+        
+        <div className="absolute bottom-0 left-0 right-0 p-4 text-white">
+          <p className="font-bold truncate">{group.name}</p>
+          <div className="flex items-center gap-1 text-xs">
+            <span className={`inline-block px-2 py-0.5 rounded-full capitalize
+              ${group.creatorRole === 'influencer' ? 'bg-red-500' : 
+                group.creatorRole === 'coach' ? 'bg-teal-500' : 
+                group.creatorRole === 'company' ? 'bg-blue-500' : 
+                'bg-purple-500'}`}
+            >
+              {group.creatorRole}
+            </span>
+            <span>by {group.creatorName}</span>
+          </div>
         </div>
-      )}
-      <CardContent className={`p-4 ${compact ? 'pt-4' : ''}`}>
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="text-lg font-semibold">{name}</h3>
-          <Badge
-            variant={privacy === 'public' ? 'default' : privacy === 'private' ? 'secondary' : 'destructive'}
-            className="flex items-center gap-1"
-          >
-            <PrivacyIcon className="h-3 w-3" />
-            <span>{privacy.charAt(0).toUpperCase() + privacy.slice(1)}</span>
-          </Badge>
-        </div>
-        <p className="text-sm text-gray-600 line-clamp-2 mb-3">{description}</p>
-
-        <div className="flex items-center text-sm text-gray-500 mb-1">
-          <UsersRound className="h-4 w-4 mr-1" />
-          <span>{members} member{members !== 1 ? 's' : ''}</span>
-        </div>
-
-        {privacy === 'paid' && price && (
-          <div className="text-sm font-medium mb-2">${price.toFixed(2)} to join</div>
-        )}
-      </CardContent>
+      </div>
       
-      <CardFooter className="p-4 pt-0 flex justify-between">
-        {onDelete && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={onDelete}
-          >
-            Delete
-          </Button>
-        )}
-        {(onJoin || onRequestJoin || onLeave) && (
-          <Button
-            variant={isJoined ? "outline" : "default"}
-            size="sm"
-            onClick={() => {
-              if (isJoined && onLeave) {
-                onLeave(id);
-              } else if (privacy === 'public' && onJoin) {
-                onJoin(id);
-              } else if (onRequestJoin) {
-                onRequestJoin(id);
-              }
-            }}
-          >
-            {isJoined 
-              ? 'Leave' 
-              : privacy === 'public' 
-                ? 'Join' 
-                : privacy === 'private' 
-                  ? 'Request to Join' 
-                  : 'Subscribe'}
-          </Button>
+      <CardContent className={compact ? 'p-3' : 'p-4'}>
+        <Badge variant="outline" className="mb-2">
+          {getPrivacyIcon()}
+          {getPrivacyLabel()}
+        </Badge>
+        
+        {!compact && (
+          <p className="text-gray-600 text-sm line-clamp-2 mb-4">{group.description}</p>
         )}
         
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handleClick}
-          asChild={!onClick}
-        >
-          {onClick ? (
-            <span>View</span>
-          ) : (
-            <Link to={`/groups/${id}`}>View</Link>
-          )}
-        </Button>
-      </CardFooter>
+        <div className="flex items-center gap-2">
+          <Users className={`${compact ? 'h-4 w-4' : 'h-5 w-5'} text-gray-500`} />
+          <span className={`${compact ? 'text-xs' : 'text-sm'} text-gray-700`}>
+            {group.members} {group.members === 1 ? 'member' : 'members'}
+          </span>
+        </div>
+      </CardContent>
+      
+      {!compact && (
+        <CardFooter className="px-4 pt-0 pb-4">
+          <Link to={`/groups/${group.id}`} className="w-full">
+            <Button size="sm" className="w-full">View Group</Button>
+          </Link>
+        </CardFooter>
+      )}
     </Card>
   );
 };

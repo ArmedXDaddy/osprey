@@ -4,30 +4,18 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment
+  Booking, ServiceType, Comment 
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
-  updateComment as updateCommentHelper, deleteComment as deleteCommentHelper 
+  uploadImage, updateComment, deleteComment 
 } from '@/integrations/supabase/helpers';
 import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
   generateMockMessages, generateMockJoinRequests 
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
-
-import { 
-  createComment, createEvent as createEventHelper, createGroup as createGroupHelper, 
-  createJoinRequest, createMessage, createPost as createPostHelper, 
-  createProduct, createService as createServiceHelper, 
-  createWorkshop, deleteEvent as deleteEventHelper, 
-  deleteGroup as deleteGroupHelper, deletePost as deletePostHelper, 
-  getEvents, getGroups, getJoinRequests, getMessages, 
-  getPosts, getProducts, getServices, getWorkshops, 
-  updateEvent, updateGroup, updateJoinRequest, updateMessageData, uploadImage 
-} from '@/integrations/supabase/helpers';
-import { asUserRole } from '@/utils/typeHelpers';
 
 interface DataContextType {
   posts: Post[];
@@ -117,53 +105,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [mockServices, setMockServices] = useState<Service[]>([]);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
-  const fetchEvents = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error("Error fetching events:", error);
-        return generateMockEvents();
-      }
-      
-      if (data && data.length > 0) {
-        return data.map((event: any): Event => ({
-          id: event.id,
-          title: event.title,
-          description: event.description,
-          creatorId: event.creator_id,
-          creatorName: event.creator_name,
-          creatorRole: asUserRole(event.creator_role),
-          location: event.location,
-          date: new Date(event.date),
-          image: event.image,
-          attendees: event.attendees || [],
-          privacy: event.privacy as EventPrivacy,
-          price: event.price,
-          pendingRequests: event.pending_requests || 0,
-          createdAt: new Date(event.created_at)
-        }));
-      }
-      
-      return generateMockEvents();
-    } catch (err) {
-      console.error("Error in fetchEvents:", err);
-      return generateMockEvents();
-    }
-  };
-  
   React.useEffect(() => {
-    const loadData = async () => {
+    const loadMockData = async () => {
       try {
         setLoading(true);
         
@@ -208,9 +159,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           setPosts(generateMockPosts());
         }
         
-        const eventsData = await fetchEvents();
-        setEvents(eventsData);
-        
+        setEvents(generateMockEvents());
         setGroups(generateMockGroups());
         setSessions(generateMockSessions());
         setSessionEnrollments(generateMockSessionEnrollments());
@@ -222,16 +171,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         setLoading(false);
       }
     };
-    
-    loadData();
+    loadMockData();
     
     const postsChannel = supabase.channel('public:posts');
     const commentsChannel = supabase.channel('public:comments');
     const likesChannel = supabase.channel('public:post_likes');
     
     postsChannel
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'posts' },
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'posts' }, 
         async (payload) => {
           console.log('New post:', payload);
           const newPost = payload.new as any;
@@ -360,78 +308,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       )
       .subscribe();
       
-    const eventsChannel = supabase.channel('public:events');
-    
-    eventsChannel
-      .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'events' },
-        (payload) => {
-          console.log('New event:', payload);
-          const newEvent = payload.new as any;
-          
-          const event: Event = {
-            id: newEvent.id,
-            title: newEvent.title,
-            description: newEvent.description,
-            creatorId: newEvent.creator_id,
-            creatorName: newEvent.creator_name,
-            creatorRole: asUserRole(newEvent.creator_role),
-            location: newEvent.location,
-            date: new Date(newEvent.date),
-            image: newEvent.image,
-            attendees: newEvent.attendees || [],
-            privacy: newEvent.privacy as EventPrivacy,
-            price: newEvent.price,
-            pendingRequests: newEvent.pending_requests || 0,
-            createdAt: new Date(newEvent.created_at)
-          };
-          
-          setEvents(prevEvents => [event, ...prevEvents]);
-        }
-      )
-      .on('postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'events' },
-        (payload) => {
-          console.log('Updated event:', payload);
-          const updatedEvent = payload.new as any;
-          
-          setEvents(prevEvents => prevEvents.map(event => {
-            if (event.id === updatedEvent.id) {
-              return {
-                ...event,
-                title: updatedEvent.title,
-                description: updatedEvent.description,
-                location: updatedEvent.location,
-                date: new Date(updatedEvent.date),
-                image: updatedEvent.image,
-                privacy: updatedEvent.privacy as EventPrivacy,
-                price: updatedEvent.price,
-                attendees: updatedEvent.attendees || event.attendees,
-                pendingRequests: updatedEvent.pending_requests || event.pendingRequests
-              };
-            }
-            return event;
-          }));
-        }
-      )
-      .on('postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'events' },
-        (payload) => {
-          console.log('Deleted event:', payload);
-          const deletedEvent = payload.old as any;
-          
-          setEvents(prevEvents => 
-            prevEvents.filter(event => event.id !== deletedEvent.id)
-          );
-        }
-      )
-      .subscribe();
-      
     return () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(likesChannel);
-      supabase.removeChannel(eventsChannel);
     };
   }, []);
   
@@ -589,45 +469,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a message');
-    
-    try {
-      const { data, error } = await supabase
-        .from('messages')
-        .insert({
-          group_id: messageData.groupId,
-          content: messageData.content,
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          user_role: currentUser.role,
-          user_profile_image: currentUser.profileImage
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      const newMessage: Message = {
-        id: data.id,
-        groupId: data.group_id,
-        content: data.content,
-        userId: data.user_id,
-        userName: data.user_name,
-        userRole: data.user_role as UserRole,
-        userProfileImage: data.user_profile_image,
-        createdAt: new Date(data.created_at)
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      
-    } catch (error) {
-      console.error("Error sending message:", error);
-      toast({
-        title: "Message failed",
-        description: "There was a problem sending your message",
-        variant: "destructive"
-      });
-      throw error;
-    }
   };
   
   const getServiceById = async (serviceId: string): Promise<Service | null> => {
@@ -671,13 +512,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const isPaid = notes === 'paid';
       const status = isPaid ? 'approved' : 'pending';
       
-      await createServiceBooking({
+      await createServiceBooking(
         serviceId,
-        userId: currentUser.id,
+        currentUser.id,
         notes,
-        paymentStatus: isPaid ? 'paid' : 'unpaid',
+        isPaid ? 'paid' : 'unpaid',
         status
-      });
+      );
     } catch (err: any) {
       console.error("Error booking service:", err);
       throw new Error(err.message || 'Failed to book service');
@@ -1065,7 +906,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: eventData.description,
         creator_id: currentUser.id,
         creator_name: currentUser.name,
-        creator_role: currentUser.role,
+        creator_role: currentUser.role as string,
         location: eventData.location,
         date: eventData.date,
         image: eventData.image || null,
@@ -1075,7 +916,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         pending_requests: 0
       };
       
-      const data = await createEventHelper(newEventData);
+      const { data, error } = await supabase.rpc('create_event', newEventData);
+      
+      if (error) throw error;
       
       const eventFromDb = typeof data === 'string' ? JSON.parse(data) : data;
       
@@ -1085,7 +928,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: eventFromDb.description,
         creatorId: eventFromDb.creator_id,
         creatorName: eventFromDb.creator_name,
-        creatorRole: asUserRole(eventFromDb.creator_role),
+        creatorRole: eventFromDb.creator_role as UserRole,
         location: eventFromDb.location,
         date: new Date(eventFromDb.date),
         image: eventFromDb.image,
@@ -1116,101 +959,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to join an event');
-    
-    try {
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('attendees')
-        .eq('id', eventId)
-        .single();
-      
-      if (eventError) throw eventError;
-      
-      const attendees = eventData.attendees || [];
-      if (!attendees.includes(currentUser.id)) {
-        attendees.push(currentUser.id);
-        
-        const { error } = await supabase
-          .from('events')
-          .update({ attendees })
-          .eq('id', eventId);
-        
-        if (error) throw error;
-        
-        setEvents(prev => prev.map(event => 
-          event.id === eventId 
-            ? { ...event, attendees } 
-            : event
-        ));
-        
-        toast({
-          title: "Success",
-          description: "You have joined the event",
-        });
-      } else {
-        toast({
-          title: "Already joined",
-          description: "You are already attending this event",
-        });
-      }
-    } catch (error: any) {
-      console.error("Error joining event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join event",
-        variant: "destructive"
-      });
-      throw error;
-    }
+    throw new Error('Not implemented');
   };
   
   const leaveEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to leave an event');
-    
-    try {
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('attendees, creator_id')
-        .eq('id', eventId)
-        .single();
-      
-      if (eventError) throw eventError;
-      
-      if (eventData.creator_id === currentUser.id) {
-        throw new Error("Event creator cannot leave their own event");
-      }
-      
-      const attendees = (eventData.attendees || []).filter(
-        (userId: string) => userId !== currentUser.id
-      );
-      
-      const { error } = await supabase
-        .from('events')
-        .update({ attendees })
-        .eq('id', eventId);
-      
-      if (error) throw error;
-      
-      setEvents(prev => prev.map(event => 
-        event.id === eventId 
-          ? { ...event, attendees } 
-          : event
-      ));
-      
-      toast({
-        title: "Success",
-        description: "You have left the event",
-      });
-    } catch (error: any) {
-      console.error("Error leaving event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to leave event",
-        variant: "destructive"
-      });
-      throw error;
-    }
+    throw new Error('Not implemented');
   };
   
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
@@ -1234,61 +987,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    
-    try {
-      const { name, description, image, privacy, price, memberLimit, rules } = groupData;
-      
-      const data = await createGroupHelper({
-        name,
-        description,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role,
-        image,
-        privacy,
-        price: privacy === 'paid' ? price : null,
-        memberLimit,
-        rules
-      });
-      
-      if (!data) throw new Error('Failed to create group');
-      
-      const newGroup: Group = {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        creatorId: data.creator_id,
-        creatorName: data.creator_name,
-        creatorRole: asUserRole(data.creator_role),
-        image: data.image,
-        members: data.members,
-        memberIds: data.member_ids || [],
-        memberLimit: data.member_limit,
-        privacy: data.privacy as any,
-        price: data.price,
-        pendingRequests: data.pending_requests,
-        rules: data.rules || [],
-        createdAt: new Date(data.created_at)
-      };
-      
-      setGroups(prev => [newGroup, ...prev]);
-      
-      toast({
-        title: "Group created",
-        description: "Your group has been created successfully",
-      });
-      
-      return newGroup;
-    } catch (error: any) {
-      console.error("Error creating group:", error);
-      toast({
-        title: "Creation failed",
-        description: error.message || "There was a problem creating your group",
-        variant: "destructive",
-      });
-      throw error;
-    }
+    throw new Error('Not implemented');
   };
   
   const joinGroup = async (groupId: string): Promise<void> => {
@@ -1331,7 +1030,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to update a comment');
     
     try {
-      await updateCommentHelper(commentId, content);
+      await updateComment(commentId, content);
       
       setPostComments(prev => {
         const updatedComments = { ...prev };
@@ -1365,7 +1064,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a comment');
     
     try {
-      await deleteCommentHelper(commentId);
+      await deleteComment(commentId);
       
       setPostComments(prev => {
         const updatedComments = { ...prev };
@@ -1410,6 +1109,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a group');
     
     try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the groups array
       setGroups(prev => prev.filter(group => group.id !== groupId));
       
       toast({
@@ -1426,39 +1127,17 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
-      const { data: eventData, error: eventError } = await supabase
-        .from('events')
-        .select('creator_id')
-        .eq('id', eventId)
-        .single();
-      
-      if (eventError) throw eventError;
-      
-      if (eventData.creator_id !== currentUser.id) {
-        throw new Error("Only the event creator can delete this event");
-      }
-      
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId);
-      
-      if (error) throw error;
-      
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the events array
       setEvents(prev => prev.filter(event => event.id !== eventId));
       
       toast({
         title: "Event deleted",
         description: "Your event has been successfully deleted."
       });
-    } catch (error: any) {
-      console.error("Error deleting event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive"
-      });
-      throw error;
+    } catch (err: any) {
+      console.error("Error deleting event:", err);
+      throw new Error(err.message || 'Failed to delete event');
     }
   };
   

@@ -1,948 +1,577 @@
-import { supabase } from './client';
-import { generateId } from '@/utils';
-import { UserRole, GroupPrivacy, ServiceType, BookingStatus, PaymentStatus, Product, Workshop, Group, Message, Service, Booking } from '@/types';
-import { asUserRole } from '@/utils/typeHelpers';
+import { supabase, runQuery } from './client';
+import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
-// Function to create a user profile
-export const createUserProfile = async (userId: string, email: string, name: string, role: string) => {
-  const { data, error } = await supabase.from('profiles').insert([{
-    id: userId,
-    email,
-    name,
-    role
-  }]).select();
-  
-  if (error) {
-    console.error('Error creating user profile:', error);
-    throw error;
+/**
+ * Uploads an image to Supabase storage
+ * @param file File to upload
+ * @param path Path to store the file at in the bucket
+ * @returns URL of the uploaded file
+ */
+export const uploadImage = async (file: File, path: string): Promise<string> => {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const filePath = `${path}/${Math.random().toString(36).substring(2)}.${fileExt}`;
+    
+    const { error: uploadError, data } = await supabase.storage
+      .from('covers')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Error uploading file:', uploadError);
+      throw new Error('Error uploading file');
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('covers')
+      .getPublicUrl(filePath);
+      
+    return publicUrl;
+  } catch (error) {
+    console.error('Error in uploadImage:', error);
+    // Fallback to local URL for development
+    return URL.createObjectURL(file);
   }
-  return data;
 };
 
 /**
- * Function to upload an image to Supabase storage
- * @param file The file to upload
- * @param bucket The bucket where the file should be stored
- * @returns The public URL of the uploaded image
+ * Create a new product
+ * @param productData Product data to create
+ * @returns Created product data
  */
-export const uploadImage = async (file: File, bucket: string): Promise<string> => {
+export const createProduct = async (productData: any): Promise<Product> => {
   try {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}.${fileExt}`;
-    const filePath = `${bucket}/${fileName}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file);
-
-    if (uploadError) {
-      throw uploadError;
-    }
-
-    const { data } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
-
-    return data.publicUrl;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
-  }
-};
-
-export const getUserProfile = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single();
-
-  if (error) {
-    console.error('Error fetching user profile:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updateUserProfile = async (userId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId);
-
-  if (error) {
-    console.error('Error updating user profile:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const getPosts = async () => {
-  const { data, error } = await supabase
-    .from('posts')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching posts:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createPost = async (post: any) => {
-  const { data, error } = await supabase
-    .from('posts')
-    .insert([post]);
-
-  if (error) {
-    console.error('Error creating post:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updatePost = async (postId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('posts')
-    .update(updates)
-    .eq('id', postId);
-
-  if (error) {
-    console.error('Error updating post:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deletePost = async (postId: string) => {
-  const { data, error } = await supabase
-    .from('posts')
-    .delete()
-    .eq('id', postId);
-
-  if (error) {
-    console.error('Error deleting post:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createComment = async (comment: any) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .insert([comment]);
-
-  if (error) {
-    console.error('Error creating comment:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updateComment = async (commentId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .update(updates)
-    .eq('id', commentId);
-
-  if (error) {
-    console.error('Error updating comment:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteComment = async (commentId: string) => {
-  const { data, error } = await supabase
-    .from('comments')
-    .delete()
-    .eq('id', commentId);
-
-  if (error) {
-    console.error('Error deleting comment:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const getMessages = async (senderId: string, receiverId: string) => {
-  const { data, error } = await supabase
-    .from('messages')
-    .select('*')
-    .or(`and(senderId.eq.${senderId}, receiverId.eq.${receiverId}),and(senderId.eq.${receiverId}, receiverId.eq.${senderId})`)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching messages:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createService = async (service: Service) => {
-  const { data, error } = await supabase
-    .from('services')
-    .insert({
-      id: service.id || generateId(),
-      title: service.title,
-      description: service.description,
-      coach_id: service.providerId,
-      coach_name: service.providerName,
-      price: service.price,
-      duration: service.duration,
-      capacity: service.capacity,
-      service_type: service.serviceType,
-      is_online: service.isOnline,
-      location: service.location,
-      meeting_url: service.meetingUrl,
-      cover_image: service.coverImage,
-      is_active: true,
-      is_free: service.price === 0
-    });
-
-  if (error) {
-    console.error('Error creating service:', error);
-    throw error;
-  }
-
-  return data || [];
-};
-
-export const getServices = async () => {
-  const { data, error } = await supabase
-    .from('services')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching services:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updateService = async (serviceId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('services')
-    .update(updates)
-    .eq('id', serviceId);
-
-  if (error) {
-    console.error('Error updating service:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteService = async (serviceId: string) => {
-  const { data, error } = await supabase
-    .from('services')
-    .delete()
-    .eq('id', serviceId);
-
-  if (error) {
-    console.error('Error deleting service:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createProduct = async (product: any) => {
-  const { data, error } = await supabase
-    .from('products')
-    .insert([{
-      id: generateId(),
-      title: product.title,
-      description: product.description,
-      long_description: product.longDescription,
-      price: product.price,
-      image: product.image,
-      company_id: product.companyId,
-      company_name: product.companyName,
-      company_logo: product.companyLogo,
-      category: product.category,
-      features: product.features,
-      use_cases: product.useCases,
-      tags: product.tags,
-      pricing_tiers: product.pricingTiers,
-      website_url: product.websiteUrl,
-      demo_url: product.demoUrl,
-      release_date: product.releaseDate
-    }]);
-
-  if (error) {
-    console.error('Error creating product:', error);
-    throw error;
-  }
-
-  return data?.[0] || null;
-};
-
-export const getProducts = async () => {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching products:', error);
-    throw error;
-  }
-
-  // Map DB products to Product type
-  return data.map(mapDbProductToProduct);
-};
-
-export const updateProduct = async (productId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('products')
-    .update(updates)
-    .eq('id', productId);
-
-  if (error) {
-    console.error('Error updating product:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteProduct = async (productId: string) => {
-  const { data, error } = await supabase
-    .from('products')
-    .delete()
-    .eq('id', productId);
-
-  if (error) {
-    console.error('Error deleting product:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createWorkshop = async (workshop: any) => {
-  const { data, error } = await supabase
-    .from('workshops')
-    .insert([{
-      id: generateId(),
-      title: workshop.title,
-      description: workshop.description,
-      long_description: workshop.longDescription,
-      company_id: workshop.companyId,
-      company_name: workshop.companyName,
-      company_logo: workshop.companyLogo,
-      date: workshop.date,
-      duration: workshop.duration,
-      price: workshop.price,
-      capacity: workshop.capacity,
-      location: workshop.location,
-      is_online: workshop.isOnline,
-      meeting_url: workshop.meetingUrl,
-      image: workshop.image,
-      category: workshop.category,
-      topics: workshop.topics,
-      prerequisites: workshop.prerequisites,
-      includes: workshop.includes,
-      instructors: workshop.instructors,
-      tags: workshop.tags,
-      start_time: workshop.startTime,
-      end_time: workshop.endTime
-    }]);
-
-  if (error) {
-    console.error('Error creating workshop:', error);
-    throw error;
-  }
-
-  return data?.[0] || null;
-};
-
-export const getWorkshops = async () => {
-  const { data, error } = await supabase
-    .from('workshops')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching workshops:', error);
-    throw error;
-  }
-
-  // Map DB workshops to Workshop type
-  return data.map(mapDbWorkshopToWorkshop);
-};
-
-export const updateWorkshop = async (workshopId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('workshops')
-    .update(updates)
-    .eq('id', workshopId);
-
-  if (error) {
-    console.error('Error updating workshop:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteWorkshop = async (workshopId: string) => {
-  const { data, error } = await supabase
-    .from('workshops')
-    .delete()
-    .eq('id', workshopId);
-
-  if (error) {
-    console.error('Error deleting workshop:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createGroup = async (group: any) => {
-  const { data, error } = await supabase
-    .from('groups')
-    .insert([{
-      name: group.name,
-      description: group.description,
-      creator_id: group.creatorId,
-      creator_name: group.creatorName,
-      creator_role: group.creatorRole,
-      image: group.image,
-      members: 1,
-      member_limit: group.memberLimit,
-      privacy: group.privacy,
-      price: group.price,
-      pending_requests: 0,
-      rules: group.rules || []
-    }]);
-
-  if (error) {
-    console.error('Error creating group:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const getGroups = async () => {
-  const { data, error } = await supabase
-    .from('groups')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching groups:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updateGroup = async (groupId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('groups')
-    .update(updates)
-    .eq('id', groupId);
-
-  if (error) {
-    console.error('Error updating group:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteGroup = async (groupId: string) => {
-  const { data, error } = await supabase
-    .from('groups')
-    .delete()
-    .eq('id', groupId);
-
-  if (error) {
-    console.error('Error deleting group:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createJoinRequest = async (joinRequest: any) => {
-  const { data, error } = await supabase
-    .from('join_requests')
-    .insert([joinRequest]);
-
-  if (error) {
-    console.error('Error creating join request:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const getJoinRequests = async (groupId: string) => {
-  const { data, error } = await supabase
-    .from('join_requests')
-    .select('*')
-    .eq('groupId', groupId);
-
-  if (error) {
-    console.error('Error fetching join requests:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updateJoinRequest = async (joinRequestId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('join_requests')
-    .update(updates)
-    .eq('id', joinRequestId);
-
-  if (error) {
-    console.error('Error updating join request:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteJoinRequest = async (joinRequestId: string) => {
-  const { data, error } = await supabase
-    .from('join_requests')
-    .delete()
-    .eq('id', joinRequestId);
-
-  if (error) {
-    console.error('Error deleting join request:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createEvent = async (eventData: any) => {
-  const { data, error } = await supabase.rpc('create_event', {
-    title: eventData.title,
-    description: eventData.description,
-    creator_id: eventData.creatorId,
-    creator_name: eventData.creatorName,
-    creator_role: eventData.creatorRole,
-    location: eventData.location,
-    date: eventData.date,
-    image: eventData.image,
-    privacy: eventData.privacy,
-    price: eventData.price,
-    attendees: eventData.attendees || [],
-    pending_requests: eventData.pendingRequests || 0
-  });
-
-  if (error) {
-    console.error('Error creating event:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const getEvents = async () => {
-  const { data, error } = await supabase
-    .from('events')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching events:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const updateEvent = async (eventId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('events')
-    .update(updates)
-    .eq('id', eventId);
-
-  if (error) {
-    console.error('Error updating event:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const deleteEvent = async (eventId: string) => {
-  const { data, error } = await supabase
-    .from('events')
-    .delete()
-    .eq('id', eventId);
-
-  if (error) {
-    console.error('Error deleting event:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createMessage = async (messageData: any) => {
-  const { data, error } = await supabase
-    .from('messages')
-    .insert([messageData]);
-
-  if (error) {
-    console.error('Error creating message:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const createServiceBooking = async (
-  serviceId: string, 
-  userId: string, 
-  notes?: string, 
-  paymentStatus: PaymentStatus = 'unpaid', 
-  status: BookingStatus = 'pending'
-) => {
-  const { data, error } = await supabase
-    .from('service_bookings')
-    .insert([{
-      id: generateId(),
-      service_id: serviceId,
-      user_id: userId,
-      status: status,
-      payment_status: paymentStatus,
-      notes: notes
-    }]);
-
-  if (error) {
-    console.error('Error creating service booking:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const getServiceBookings = async (serviceId: string): Promise<Booking[]> => {
-  try {
-    const { data, error } = await supabase.rpc('get_service_bookings', {
-      p_service_id: serviceId
-    });
+    // Use the runQuery helper to work around TypeScript limitations
+    const { data, error } = await runQuery(`
+      INSERT INTO products (
+        title, description, company_id, company_name, company_logo, 
+        price, category, tags, image, website_url, demo_url, release_date,
+        long_description, features, use_cases, pricing_tiers
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+      ) RETURNING *
+    `, [
+      productData.title,
+      productData.description,
+      productData.company_id,
+      productData.company_name,
+      productData.company_logo,
+      productData.price,
+      productData.category,
+      productData.tags,
+      productData.image,
+      productData.website_url,
+      productData.demo_url,
+      productData.release_date,
+      productData.long_description || null,
+      productData.features || null,
+      productData.use_cases || null,
+      productData.pricing_tiers ? JSON.stringify(productData.pricing_tiers) : null
+    ]);
+      
     if (error) {
-      console.error('Error fetching service bookings:', error);
-      throw error;
+      console.error('Error creating product:', error);
+      throw new Error(error.message || 'Failed to create product');
     }
     
-    // Map the data to the Booking type
-    const bookings = data.map((item: any) => ({
-      id: item.id,
-      serviceId: item.service_id,
-      userId: item.user_id,
-      userName: item.user_name,
-      userEmail: item.user_email,
-      status: item.status as BookingStatus,
-      paymentStatus: item.payment_status as PaymentStatus,
-      notes: item.notes,
-      createdAt: new Date(item.created_at),
-      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined
-    }));
-    
-    return bookings;
-  } catch (error) {
-    console.error('Error in getServiceBookings:', error);
-    throw error;
+    return data[0] as unknown as Product;
+  } catch (error: any) {
+    console.error('Error in createProduct:', error);
+    throw new Error(error.message || 'Failed to create product');
   }
 };
 
+/**
+ * Create a new workshop
+ * @param workshopData Workshop data to create
+ * @returns Created workshop data
+ */
+export const createWorkshop = async (workshopData: any): Promise<Workshop> => {
+  try {
+    console.log('Creating workshop with data:', workshopData);
+    
+    // Use direct SQL query with supabase instead of runQuery
+    const { data, error } = await supabase
+      .from('workshops')
+      .insert({
+        title: workshopData.title,
+        description: workshopData.description,
+        company_id: workshopData.company_id,
+        company_name: workshopData.company_name,
+        company_logo: workshopData.company_logo,
+        price: workshopData.price,
+        date: workshopData.date,
+        duration: workshopData.duration,
+        capacity: workshopData.capacity,
+        location: workshopData.location,
+        is_online: workshopData.is_online,
+        meeting_url: workshopData.meeting_url,
+        category: workshopData.category,
+        image: workshopData.image,
+        // Store additional data as JSON in the long_description column if available
+        long_description: workshopData.long_description || null,
+        topics: workshopData.topics || null,
+        prerequisites: workshopData.prerequisites || null,
+        includes: workshopData.includes || null,
+        tags: workshopData.tags || null,
+        instructors: workshopData.instructors ? JSON.stringify(workshopData.instructors) : null,
+        start_time: workshopData.start_time || null,
+        end_time: workshopData.end_time || null
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error('Error creating workshop:', error);
+      throw new Error(error.message || 'Failed to create workshop');
+    }
+    
+    return data as unknown as Workshop;
+  } catch (error: any) {
+    console.error('Error in createWorkshop:', error);
+    throw new Error(error.message || 'Failed to create workshop');
+  }
+};
+
+/**
+ * Get products with optional filters
+ * @param companyId Optional company ID to filter by
+ * @returns Array of products
+ */
+export const getProducts = async (companyId?: string): Promise<Product[]> => {
+  try {
+    let query = `SELECT * FROM products`;
+    const params = [];
+      
+    if (companyId) {
+      query += ` WHERE company_id = $1`;
+      params.push(companyId);
+    }
+    
+    query += ` ORDER BY created_at DESC`;
+    
+    const { data, error } = await runQuery(query, params);
+    
+    if (error) {
+      console.error('Error fetching products:', error);
+      throw new Error(error.message || 'Failed to fetch products');
+    }
+    
+    return (data || []) as unknown as Product[];
+  } catch (error: any) {
+    console.error('Error in getProducts:', error);
+    return [];
+  }
+};
+
+/**
+ * Get workshops with optional filters
+ * @param companyId Optional company ID to filter by
+ * @returns Array of workshops
+ */
+export const getWorkshops = async (companyId?: string): Promise<Workshop[]> => {
+  try {
+    let query = `SELECT * FROM workshops`;
+    const params = [];
+      
+    if (companyId) {
+      query += ` WHERE company_id = $1`;
+      params.push(companyId);
+    }
+    
+    query += ` ORDER BY date ASC`;
+    
+    const { data, error } = await runQuery(query, params);
+    
+    if (error) {
+      console.error('Error fetching workshops:', error);
+      throw new Error(error.message || 'Failed to fetch workshops');
+    }
+    
+    return (data || []) as unknown as Workshop[];
+  } catch (error: any) {
+    console.error('Error in getWorkshops:', error);
+    return [];
+  }
+};
+
+/**
+ * Book a service with direct SQL query to work around TypeScript issues
+ * @param serviceId Service ID to book
+ * @param userId User ID making the booking
+ * @param notes Optional notes for the booking
+ * @param paymentStatus Payment status (paid/unpaid)
+ * @param status Booking status (pending/approved)
+ * @returns ID of the created booking
+ */
+export const createServiceBooking = async (
+  serviceId: string,
+  userId: string,
+  notes?: string,
+  paymentStatus: string = 'unpaid',
+  status: string = 'pending'
+): Promise<string> => {
+  try {
+    console.log(`Creating booking with: serviceId=${serviceId}, userId=${userId}, notes=${notes}, paymentStatus=${paymentStatus}, status=${status}`);
+    
+    // Using direct SQL query with custom PostgreSQL function
+    const { data, error } = await supabase.rpc(
+      'create_service_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId,
+        p_notes: notes || null,
+        p_payment_status: paymentStatus,
+        p_status: status
+      }
+    );
+
+    if (error) {
+      console.error('Error booking service:', error);
+      throw new Error(error.message || 'Failed to book service');
+    }
+
+    return data as string;
+  } catch (error: any) {
+    console.error('Error in createServiceBooking:', error);
+    throw new Error(error.message || 'Failed to book service');
+  }
+};
+
+/**
+ * Get bookings for a user with direct SQL query
+ * @param userId User ID to get bookings for
+ * @returns Array of bookings
+ */
 export const getUserBookings = async (userId: string): Promise<Booking[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_user_bookings', {
-      p_user_id: userId
-    });
-    
+    // Using stored procedure to get bookings
+    const { data, error } = await supabase.rpc(
+      'get_user_bookings' as any, // Type cast to avoid TypeScript errors
+      {
+        p_user_id: userId
+      }
+    );
+
     if (error) {
       console.error('Error fetching user bookings:', error);
-      throw error;
+      throw new Error(error.message || 'Failed to fetch bookings');
     }
-    
-    // Map the data to the Booking type
-    const bookings = data.map((item: any) => ({
+
+    return (data || []).map((item: any) => ({
       id: item.id,
       serviceId: item.service_id,
       userId: item.user_id,
-      userName: item.user_name,
-      userEmail: item.user_email,
+      userName: item.user_name || '',
+      userEmail: item.user_email || '',
       status: item.status as BookingStatus,
       paymentStatus: item.payment_status as PaymentStatus,
-      notes: item.notes,
+      notes: item.notes || undefined,
+      preferredTime: undefined, // This field is not currently in our database
+      scheduledTime: undefined,
+      isPaid: item.payment_status === 'paid',
       createdAt: new Date(item.created_at),
-      scheduledTime: item.created_at ? new Date(item.created_at) : undefined,
-      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
-      serviceTitle: item.service_title,
-      coachName: item.coach_name,
-      price: item.price,
-      duration: item.duration,
-      isOnline: item.is_online,
-      serviceType: item.service_type as ServiceType
+      serviceName: item.service_title || '',
+      providerName: item.coach_name || '',
     }));
-    
-    return bookings;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in getUserBookings:', error);
-    throw error;
+    return [];
   }
 };
 
+/**
+ * Get bookings for a service with direct SQL query
+ * @param serviceId Service ID to get bookings for
+ * @returns Array of bookings
+ */
+export const getServiceBookings = async (serviceId: string): Promise<Booking[]> => {
+  try {
+    // Using stored procedure to get bookings
+    const { data, error } = await supabase.rpc(
+      'get_service_bookings' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId
+      }
+    );
+
+    if (error) {
+      console.error('Error fetching service bookings:', error);
+      throw new Error(error.message || 'Failed to fetch bookings');
+    }
+
+    return (data || []).map((item: any) => ({
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name || '',
+      userEmail: item.user_email || '',
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
+      notes: item.notes || undefined,
+      preferredTime: undefined, // This field is not currently in our database
+      scheduledTime: undefined,
+      isPaid: item.payment_status === 'paid',
+      createdAt: new Date(item.created_at)
+    }));
+  } catch (error: any) {
+    console.error('Error in getServiceBookings:', error);
+    return [];
+  }
+};
+
+/**
+ * Get a user's booking for a specific service
+ * @param serviceId Service ID to check booking for
+ * @param userId User ID making the booking
+ * @returns Booking object or null if not found
+ */
 export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
-    const { data, error } = await supabase.rpc('get_user_booking_for_service', {
-      p_service_id: serviceId,
-      p_user_id: userId
-    });
-    
+    console.log(`Checking booking for: serviceId=${serviceId}, userId=${userId}`);
+    // Using stored procedure to get a specific booking
+    const { data, error } = await supabase.rpc(
+      'get_user_booking_for_service' as any, // Type cast to avoid TypeScript errors
+      {
+        p_service_id: serviceId,
+        p_user_id: userId
+      }
+    );
+
     if (error) {
       console.error('Error fetching user booking for service:', error);
-      return null;
+      throw new Error(error.message || 'Failed to fetch booking');
     }
+
+    console.log("Booking data received:", data);
     
     if (!data || data.length === 0) {
+      console.log("No booking found");
       return null;
     }
     
-    // Map the data to the Booking type
-    const bookingData = data[0];
-    const booking: Booking = {
-      id: bookingData.id,
-      serviceId: bookingData.service_id,
-      userId: bookingData.user_id,
-      userName: bookingData.user_name,
-      userEmail: bookingData.user_email,
-      status: bookingData.status as BookingStatus,
-      paymentStatus: bookingData.payment_status as PaymentStatus,
-      notes: bookingData.notes,
-      createdAt: new Date(bookingData.created_at)
+    const item = data[0];
+    return {
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name || '',
+      userEmail: item.user_email || '',
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
+      notes: item.notes || undefined,
+      preferredTime: undefined, // This field is not currently in our database
+      scheduledTime: undefined,
+      isPaid: item.payment_status === 'paid',
+      createdAt: new Date(item.created_at)
     };
-    
-    return booking;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in getUserBookingForService:', error);
     return null;
   }
 };
 
-export const approveBooking = async (bookingId: string) => {
-  const { data, error } = await supabase
-    .from('service_bookings')
-    .update({ status: 'approved' })
-    .eq('id', bookingId);
-
-  if (error) {
-    console.error('Error approving booking:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const cancelBooking = async (bookingId: string) => {
-  const { data, error } = await supabase
-    .from('service_bookings')
-    .update({ status: 'cancelled' })
-    .eq('id', bookingId);
-
-  if (error) {
-    console.error('Error cancelling booking:', error);
-    throw error;
-  }
-
-  return data;
-};
-
-export const sendServiceChatMessage = async (serviceId: string, userId: string, content: string) => {
+/**
+ * Cancel a booking
+ * @param bookingId Booking ID to cancel
+ * @returns void
+ */
+export const cancelBooking = async (bookingId: string): Promise<void> => {
   try {
-    const { data, error } = await supabase.rpc('send_service_chat_message', {
-      p_service_id: serviceId,
-      p_user_id: userId,
-      p_content: content
-    });
-    
+    // Using stored procedure to cancel a booking
+    const { error } = await supabase.rpc(
+      'cancel_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_booking_id: bookingId
+      }
+    );
+
     if (error) {
-      console.error('Error sending service chat message:', error);
-      throw error;
+      console.error('Error cancelling booking:', error);
+      throw new Error(error.message || 'Failed to cancel booking');
+    }
+  } catch (error: any) {
+    console.error('Error in cancelBooking:', error);
+    throw new Error(error.message || 'Failed to cancel booking');
+  }
+};
+
+/**
+ * Approve a booking
+ * @param bookingId Booking ID to approve
+ * @returns void
+ */
+export const approveBooking = async (bookingId: string): Promise<void> => {
+  try {
+    // Using stored procedure to approve a booking
+    const { error } = await supabase.rpc(
+      'approve_booking' as any, // Type cast to avoid TypeScript errors
+      {
+        p_booking_id: bookingId
+      }
+    );
+
+    if (error) {
+      console.error('Error approving booking:', error);
+      throw new Error(error.message || 'Failed to approve booking');
+    }
+  } catch (error: any) {
+    console.error('Error in approveBooking:', error);
+    throw new Error(error.message || 'Failed to approve booking');
+  }
+};
+
+/**
+ * Update a comment
+ * @param commentId Comment ID to update
+ * @param content New content for the comment
+ * @returns void
+ */
+export const updateComment = async (commentId: string, content: string): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('comments')
+      .update({ content })
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Error updating comment:', error);
+      throw new Error(error.message || 'Failed to update comment');
+    }
+  } catch (error: any) {
+    console.error('Error in updateComment:', error);
+    throw new Error(error.message || 'Failed to update comment');
+  }
+};
+
+/**
+ * Delete a comment
+ * @param commentId Comment ID to delete
+ * @returns void
+ */
+export const deleteComment = async (commentId: string): Promise<void> => {
+  try {
+    // First, decrement the comments count on the parent post
+    const { data: comment } = await supabase
+      .from('comments')
+      .select('post_id')
+      .eq('id', commentId)
+      .single();
+    
+    if (comment?.post_id) {
+      // Decrement post comments count using direct SQL query to work around TypeScript issues
+      const client = supabase as any;
+      const { error: rpcError } = await client.rpc('decrement_post_comments', { post_id: comment.post_id });
+      
+      if (rpcError) {
+        console.error('Error decrementing post comments count:', rpcError);
+      }
     }
     
-    return data;
-  } catch (error) {
-    console.error('Error in sendServiceChatMessage:', error);
-    throw error;
+    // Then delete the comment
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) {
+      console.error('Error deleting comment:', error);
+      throw new Error(error.message || 'Failed to delete comment');
+    }
+  } catch (error: any) {
+    console.error('Error in deleteComment:', error);
+    throw new Error(error.message || 'Failed to delete comment');
   }
 };
 
-export const getServiceChatMessages = async (serviceId: string) => {
+/**
+ * Fetch products
+ * @returns Array of products
+ */
+export const fetchProducts = async (): Promise<Product[]> => {
   try {
-    const { data, error } = await supabase.rpc('get_service_chat_messages', {
-      p_service_id: serviceId
-    });
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
     
-    if (error) {
-      console.error('Error fetching service chat messages:', error);
-      throw error;
-    }
+    if (error) throw error;
     
-    // Map the data to the Message type
-    const messages = data.map((item: any) => ({
+    // Map the snake_case database columns to camelCase properties expected by Product type
+    const mappedProducts = data.map(item => ({
       id: item.id,
-      serviceId: item.service_id,
-      userId: item.user_id,
-      userName: item.user_name,
-      userProfileImage: item.user_profile_image,
-      content: item.content,
+      title: item.title,
+      description: item.description,
+      longDescription: item.long_description || item.description,
+      companyId: item.company_id,
+      companyName: item.company_name,
+      companyLogo: item.company_logo,
+      price: item.price,
+      category: item.category,
+      tags: item.tags || [],
+      image: item.image,
+      websiteUrl: item.website_url || '',
+      demoUrl: item.demo_url || '',
+      releaseDate: new Date(item.release_date),
       createdAt: new Date(item.created_at),
-      userRole: asUserRole(item.user_role || 'user')
+      features: item.features || [],
+      useCases: item.use_cases || [],
+      pricingTiers: item.pricing_tiers || []
     }));
     
-    return messages;
+    return mappedProducts as Product[];
   } catch (error) {
-    console.error('Error in getServiceChatMessages:', error);
-    throw error;
+    console.error('Error fetching products:', error);
+    return [];
   }
 };
 
-export const mapDbServiceToService = (dbService: any): Service => {
-  return {
-    id: dbService.id,
-    title: dbService.title,
-    description: dbService.description,
-    providerId: dbService.coach_id,
-    providerName: dbService.coach_name,
-    price: dbService.price,
-    duration: dbService.duration,
-    available: dbService.is_active,
-    createdAt: new Date(dbService.created_at),
-    isOnline: dbService.is_online,
-    location: dbService.location,
-    capacity: dbService.capacity,
-    serviceType: dbService.service_type as ServiceType,
-    coverImage: dbService.cover_image,
-    meetingUrl: dbService.meeting_url
-  };
-};
-
-export const mapDbProductToProduct = (dbProduct: any): Product => {
-  return {
-    id: dbProduct.id,
-    title: dbProduct.title,
-    description: dbProduct.description,
-    price: Number(dbProduct.price),
-    image: dbProduct.image,
-    companyId: dbProduct.company_id,
-    companyName: dbProduct.company_name,
-    companyLogo: dbProduct.company_logo,
-    category: dbProduct.category,
-    features: dbProduct.features || [],
-    useCases: dbProduct.use_cases || [],
-    tags: dbProduct.tags || [],
-    pricingTiers: dbProduct.pricing_tiers,
-    websiteUrl: dbProduct.website_url,
-    demoUrl: dbProduct.demo_url,
-    releaseDate: new Date(dbProduct.release_date || dbProduct.created_at),
-    createdAt: new Date(dbProduct.created_at)
-  };
-};
-
-export const mapDbWorkshopToWorkshop = (dbWorkshop: any): Workshop => {
-  return {
-    id: dbWorkshop.id,
-    title: dbWorkshop.title,
-    description: dbWorkshop.description,
-    longDescription: dbWorkshop.long_description,
-    companyId: dbWorkshop.company_id,
-    companyName: dbWorkshop.company_name,
-    companyLogo: dbWorkshop.company_logo,
-    date: new Date(dbWorkshop.date),
-    duration: dbWorkshop.duration || "1 hour",
-    price: dbWorkshop.price,
-    capacity: dbWorkshop.capacity,
-    location: dbWorkshop.location,
-    isOnline: dbWorkshop.is_online,
-    isFree: dbWorkshop.price === 0 || dbWorkshop.is_free,
-    meetingUrl: dbWorkshop.meeting_url,
-    image: dbWorkshop.image,
-    category: dbWorkshop.category,
-    topics: dbWorkshop.topics || [],
-    prerequisites: dbWorkshop.prerequisites || [],
-    includes: dbWorkshop.includes || [],
-    instructors: dbWorkshop.instructors || [],
-    tags: dbWorkshop.tags || [],
-    startTime: dbWorkshop.start_time,
-    endTime: dbWorkshop.end_time
-  };
-};
-
-export const mapDbGroupToGroup = (dbGroup: any): Group => {
-  return {
-    id: dbGroup.id,
-    name: dbGroup.name,
-    description: dbGroup.description,
-    creatorId: dbGroup.creator_id,
-    creatorName: dbGroup.creator_name,
-    creatorRole: asUserRole(dbGroup.creator_role || 'user'),
-    image: dbGroup.image,
-    members: dbGroup.members,
-    memberIds: dbGroup.member_ids || [],
-    memberLimit: dbGroup.member_limit,
-    privacy: dbGroup.privacy as GroupPrivacy,
-    price: dbGroup.price,
-    pendingRequests: dbGroup.pending_requests || 0,
-    rules: dbGroup.rules || [],
-    createdAt: new Date(dbGroup.created_at)
-  };
-};
-
-export const updateMessageData = async (messageId: string, updates: any) => {
-  const { data, error } = await supabase
-    .from('messages')
-    .update(updates)
-    .eq('id', messageId);
-
-  if (error) {
-    console.error('Error updating message:', error);
-    throw error;
+/**
+ * Fetch workshops
+ * @returns Array of workshops
+ */
+export const fetchWorkshops = async (): Promise<Workshop[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('workshops')
+      .select('*')
+      .order('date', { ascending: true });
+    
+    if (error) throw error;
+    
+    // Map the snake_case database columns to camelCase properties expected by Workshop type
+    const mappedWorkshops = data.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      longDescription: item.long_description || item.description,
+      companyId: item.company_id,
+      companyName: item.company_name,
+      companyLogo: item.company_logo,
+      price: item.price || 0,
+      date: new Date(item.date),
+      startTime: item.start_time || "",
+      endTime: item.end_time || "",
+      duration: item.duration || "",
+      capacity: item.capacity || null,
+      location: item.location || "",
+      isOnline: item.is_online,
+      meetingUrl: item.meeting_url || "",
+      category: item.category,
+      image: item.image || "",
+      createdAt: new Date(item.created_at),
+      topics: item.topics || [],
+      prerequisites: item.prerequisites || [],
+      includes: item.includes || [],
+      tags: item.tags || [],
+      instructors: item.instructors || []
+    }));
+    
+    return mappedWorkshops as Workshop[];
+  } catch (error) {
+    console.error('Error fetching workshops:', error);
+    return [];
   }
-
-  return data;
-};
-
-export const deleteMessageData = async (messageId: string) => {
-  const { data, error } = await supabase
-    .from('messages')
-    .delete()
-    .eq('id', messageId);
-
-  if (error) {
-    console.error('Error deleting message:', error);
-    throw error;
-  }
-
-  return data;
 };

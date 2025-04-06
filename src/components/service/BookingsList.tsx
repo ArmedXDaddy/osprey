@@ -55,11 +55,11 @@ const BookingsList = ({ bookings, isLoading, serviceId }: BookingsListProps) => 
                     <span className="font-medium">{booking.userName}</span>
                   </div>
                   
-                  {booking.scheduledTime && (
+                  {booking.preferredTime && (
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                       <span>
-                        {format(new Date(booking.scheduledTime), 'PPP')}
+                        {format(new Date(booking.preferredTime), 'PPP')}
                       </span>
                     </div>
                   )}

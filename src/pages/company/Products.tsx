@@ -1,80 +1,107 @@
 
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { UserRole, Product } from '@/types';
-import ProductGrid from '@/components/company/ProductGrid';
-import { Plus } from 'lucide-react';
-import { getProducts } from '@/integrations/supabase/helpers';
-import { mapDbProductToProduct } from '@/utils/typeMappers';
+import { PlusCircle, Package2 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Separator } from '@/components/ui/separator';
+import { fetchProducts } from '@/integrations/supabase/helpers';
+import { Product } from '@/types';
+import { ProductCard } from '@/components/shared/ProductCard';
+import { useToast } from '@/components/ui/use-toast';
 
 const Products = () => {
-  const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { toast } = useToast();
+  const isCompany = currentUser?.role === 'company';
+  const isCompanyRoute = location.pathname.startsWith('/company');
+  
   const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    const fetchProducts = async () => {
-      if (!currentUser) return;
-      setIsLoading(true);
+    const loadProducts = async () => {
       try {
-        const productsData = await getProducts();
-        // Filter products to only show the current company's products
-        const companyProducts = productsData.filter(product => product.companyId === currentUser.id);
-        setProducts(companyProducts);
+        setLoading(true);
+        // If on company route and user is a company, only show their products
+        const productsData = await fetchProducts();
+        
+        // Filter by company if needed
+        const filteredProducts = isCompanyRoute && isCompany && currentUser?.id
+          ? productsData.filter(p => p.companyId === currentUser.id)
+          : productsData;
+          
+        setProducts(filteredProducts);
       } catch (error) {
-        console.error("Error fetching products:", error);
+        console.error('Error loading products:', error);
+        toast({
+          title: 'Failed to load products',
+          description: 'Please try again later',
+          variant: 'destructive',
+        });
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-
-    fetchProducts();
-  }, [currentUser]);
-
-  if (!currentUser || currentUser.role !== 'company') {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
-        <p className="text-gray-600">Only company accounts can access this page.</p>
-        <Button 
-          className="mt-4" 
-          variant="outline" 
-          onClick={() => navigate('/profile')}
-        >
-          Go to Profile
-        </Button>
-      </div>
-    );
-  }
-
+    
+    loadProducts();
+  }, [currentUser, isCompany, isCompanyRoute, toast]);
+  
+  const handleCreateProduct = () => {
+    navigate('/company/products/create');
+  };
+  
+  const handleViewProduct = (id: string) => {
+    navigate(isCompanyRoute ? `/company/products/${id}` : `/products/${id}`);
+  };
+  
   return (
-    <div className="container py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Your Products</h2>
-        <Button onClick={() => navigate('/company/products/create')}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add Product
-        </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Products & Services</h1>
+          <p className="text-gray-500">Browse products and services</p>
+        </div>
+        
+        {isCompany && (
+          <Button onClick={handleCreateProduct}>
+            <PlusCircle className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
+        )}
       </div>
       
-      {isLoading ? (
-        <div className="text-center py-8">
-          <p className="text-gray-500">Loading products...</p>
+      <Separator />
+      
+      {loading ? (
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-80 rounded-lg border bg-card animate-pulse" />
+          ))}
         </div>
       ) : products.length > 0 ? (
-        <ProductGrid products={products} />
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-3">
+          {products.map((product) => (
+            <ProductCard key={product.id} product={product} onClick={() => handleViewProduct(product.id)} />
+          ))}
+        </div>
       ) : (
-        <div className="text-center py-8">
-          <p className="text-gray-500">No products created yet.</p>
-          <Button 
-            className="mt-4" 
-            onClick={() => navigate('/company/products/create')}
-          >
-            Create Your First Product
-          </Button>
+        <div className="text-center py-12">
+          <Package2 className="h-12 w-12 mx-auto text-gray-400" />
+          <h3 className="mt-4 text-lg font-medium">No products available</h3>
+          <p className="text-gray-500 mt-2">
+            {isCompany 
+              ? "You haven't added any products or services yet."
+              : "There are no products or services available at this time."}
+          </p>
+          {isCompany && (
+            <Button className="mt-4" onClick={handleCreateProduct}>
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Add Product
+            </Button>
+          )}
         </div>
       )}
     </div>
