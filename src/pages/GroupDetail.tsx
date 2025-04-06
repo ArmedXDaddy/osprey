@@ -25,6 +25,7 @@ import { Group, UserRole, GroupPrivacy, JoinRequest } from '@/types';
 import { format } from 'date-fns';
 import GroupRequestsSection from '@/components/group/GroupRequestsSection';
 import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
+import GroupChatSection from '@/components/group/GroupChatSection';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +60,7 @@ const GroupDetail = () => {
       setLoading(false);
       if (currentUser) {
         setIsMember(group.memberIds?.includes(currentUser.id) || false);
-        setIsRequestSent(false); // Implement logic to check if request is sent
+        setIsRequestSent(false);
         setIsGroupAdmin(group.creatorId === currentUser.id);
       }
       setTempRules(group.rules || []);
@@ -406,14 +407,14 @@ const GroupDetail = () => {
             <GroupRequestsSection groupId={id} />
           </div>
         )}
-      </Card>
 
-      {isMember && (
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-4">Group Chat</h2>
-          <OriginalGroupChatSection groupId={id} />
-        </div>
-      )}
+        {(isMember || isGroupAdmin) && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Group Chat</h2>
+            <GroupChatSection group={group} />
+          </div>
+        )}
+      </Card>
     </div>
   );
 };

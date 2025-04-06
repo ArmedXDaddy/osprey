@@ -1,4 +1,3 @@
-
 // This is a wrapper component for OriginalGroupChatSection
 // It fetches the messages from Supabase and handles real-time updates
 import React, { useEffect, useState } from 'react';
@@ -23,11 +22,18 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
   const [isMember, setIsMember] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Check if the current user is a member of the group
+  // Check if the current user is a member of the group or is the creator
   useEffect(() => {
     const checkMembership = async () => {
       if (!currentUser) {
         setIsMember(false);
+        setLoading(false);
+        return;
+      }
+
+      // If the user is the creator, they're automatically considered a member
+      if (group.creatorId === currentUser.id) {
+        setIsMember(true);
         setLoading(false);
         return;
       }
@@ -49,7 +55,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
     };
 
     checkMembership();
-  }, [currentUser, group.id]);
+  }, [currentUser, group.id, group.creatorId]);
 
   // Fetch messages for this group
   useEffect(() => {
