@@ -1,4 +1,5 @@
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User } from '@/types';
+
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User, Sponsorship, SponsorshipStatus } from '@/types';
 
 // Generate mock services
 export const generateMockServices = (): Service[] => {
@@ -92,3 +93,39 @@ export const mockUsers: User[] = [
     createdAt: new Date()
   }
 ];
+
+// Add mock sponsorships so they persist after reload
+export const generateMockSponsorships = (): Sponsorship[] => {
+  return [
+    {
+      id: 'sponsorship-1',
+      title: 'Fitness Brand Ambassador',
+      description: 'Looking for fitness enthusiasts to promote our new line of workout gear.',
+      companyId: 'company-1',
+      companyName: 'FitLife Gear',
+      companyLogo: '/placeholder.svg',
+      requirements: ['Minimum 1000 followers', 'Regular fitness content creator', 'Located in the US'],
+      benefits: ['Free products', 'Commission on sales', 'Featured on our social media'],
+      compensation: '$200 per month + commission',
+      deadline: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+      status: 'active' as SponsorshipStatus,
+      tags: ['fitness', 'lifestyle', 'sports'],
+      createdAt: new Date()
+    },
+    {
+      id: 'sponsorship-2',
+      title: 'Tech Product Review',
+      description: 'Seeking tech influencers to review our latest smartphone accessories.',
+      companyId: 'company-2',
+      companyName: 'TechGizmo',
+      companyLogo: '/placeholder.svg',
+      requirements: ['Tech-focused content', 'Minimum 5k followers'],
+      benefits: ['Keep the products', 'Exclusive early access'],
+      compensation: 'Products + $100 per review',
+      deadline: new Date(new Date().setMonth(new Date().getMonth() + 2)),
+      status: 'active' as SponsorshipStatus,
+      tags: ['tech', 'gadgets', 'reviews'],
+      createdAt: new Date()
+    }
+  ];
+};

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -16,7 +15,8 @@ import {
 import { 
   generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
-  generateMockMessages, generateMockJoinRequests, mockUsers
+  generateMockMessages, generateMockJoinRequests, mockUsers,
+  generateMockSponsorships
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
@@ -140,9 +140,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
 
   const { toast } = useToast();
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
 
   React.useEffect(() => {
+    if (!isAuthenticated) return;
+
     const loadMockData = async () => {
       try {
         setLoading(true);
