@@ -39,6 +39,7 @@ interface DataContextType {
   createEvent: (eventData: any) => Promise<Event>;
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
+  deleteEvent: (eventId: string, reason?: 'cancelled' | 'completed') => Promise<void>;
   requestToJoinEvent: (eventId: string) => Promise<void>;
   approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
   rejectEventRequest: (requestId: string) => Promise<void>;
@@ -638,7 +639,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       setMessages(prev => [...prev, transformedMessage]);
     } catch (error: any) {
       console.error("Error sending message:", error);
-      throw error;
+      throw new Error(error.message || 'Failed to send message');
     }
   };
   
@@ -798,11 +799,81 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to join an event');
+    
+    try {
+      const eventToUpdate = events.find(e => e.id === eventId);
+      if (!eventToUpdate) throw new Error('Event not found');
+      
+      // Check if user is already attending
+      if (eventToUpdate.attendees && eventToUpdate.attendees.includes(currentUser.id)) {
+        return; // User is already attending
+      }
+      
+      // Update attendees list
+      const updatedAttendees = eventToUpdate.attendees ? [...eventToUpdate.attendees, currentUser.id] : [currentUser.id];
+      
+      // Update the events state
+      setEvents(prev => prev.map(e => 
+        e.id === eventId 
+          ? { ...e, attendees: updatedAttendees } 
+          : e
+      ));
+      
+    } catch (error: any) {
+      console.error("Error joining event:", error);
+      throw new Error(error.message || 'Failed to join event');
+    }
   };
   
   const leaveEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to leave an event');
+    
+    try {
+      const eventToUpdate = events.find(e => e.id === eventId);
+      if (!eventToUpdate) throw new Error('Event not found');
+      
+      // Remove user from attendees list
+      const updatedAttendees = eventToUpdate.attendees 
+        ? eventToUpdate.attendees.filter(id => id !== currentUser.id)
+        : [];
+      
+      // Update the events state
+      setEvents(prev => prev.map(e => 
+        e.id === eventId 
+          ? { ...e, attendees: updatedAttendees } 
+          : e
+      ));
+      
+    } catch (error: any) {
+      console.error("Error leaving event:", error);
+      throw new Error(error.message || 'Failed to leave event');
+    }
+  };
+  
+  const deleteEvent = async (eventId: string, reason: 'cancelled' | 'completed' = 'cancelled'): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete an event');
+    
+    try {
+      const eventToDelete = events.find(e => e.id === eventId);
+      if (!eventToDelete) throw new Error('Event not found');
+      
+      // Verify the user is the creator of the event
+      if (eventToDelete.creatorId !== currentUser.id) {
+        throw new Error('Only the event creator can delete this event');
+      }
+      
+      // Remove the event from the state
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      
+      // Here you would typically also delete from the database
+      // For now we just log the reason
+      console.log(`Event ${eventId} has been ${reason} by creator ${currentUser.id}`);
+      
+    } catch (error: any) {
+      console.error(`Error ${reason} event:`, error);
+      throw new Error(error.message || `Failed to ${reason} event`);
+    }
   };
   
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
@@ -1042,8 +1113,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       updateComment: async () => { throw new Error('Not implemented'); },
       deleteComment: async () => { throw new Error('Not implemented'); },
       createEvent,
-      joinEvent: async () => { throw new Error('Not implemented'); },
-      leaveEvent: async () => { throw new Error('Not implemented'); },
+      joinEvent,
+      leaveEvent,
+      deleteEvent,
       requestToJoinEvent: async () => { throw new Error('Not implemented'); },
       approveEventRequest: async () => { throw new Error('Not implemented'); },
       rejectEventRequest: async () => { throw new Error('Not implemented'); },

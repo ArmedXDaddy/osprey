@@ -8,12 +8,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { events } = useData();
+  const { events, joinEvent, leaveEvent, deleteEvent } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
@@ -33,18 +33,85 @@ const EventDetail = () => {
     );
   }
   
-  const handleAttendEvent = () => {
-    setIsAttending(!isAttending);
-    
-    if (!isAttending) {
+  // Check if current user is attending the event
+  React.useEffect(() => {
+    if (currentUser && event.attendees) {
+      const isUserAttending = event.attendees.includes(currentUser.id);
+      setIsAttending(isUserAttending);
+    }
+  }, [currentUser, event]);
+  
+  const isCreator = currentUser && event.creatorId === currentUser.id;
+  
+  const handleAttendEvent = async () => {
+    if (!currentUser) {
       toast({
-        title: "You're attending this event!",
-        description: "You've been added to the attendee list."
+        title: "Authentication required",
+        description: "Please log in to attend events.",
+        variant: "destructive"
       });
-    } else {
+      return;
+    }
+    
+    try {
+      if (isAttending) {
+        await leaveEvent(event.id);
+        setIsAttending(false);
+        toast({
+          title: "You're no longer attending",
+          description: "You've been removed from the attendee list."
+        });
+      } else {
+        await joinEvent(event.id);
+        setIsAttending(true);
+        toast({
+          title: "You're attending this event!",
+          description: "You've been added to the attendee list."
+        });
+      }
+    } catch (error: any) {
       toast({
-        title: "You're no longer attending",
-        description: "You've been removed from the attendee list."
+        title: "Error",
+        description: error.message || "An error occurred",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleCancelEvent = async () => {
+    if (!currentUser || !isCreator) return;
+    
+    try {
+      await deleteEvent(event.id, 'cancelled');
+      toast({
+        title: "Event cancelled",
+        description: "The event has been cancelled and removed from the list."
+      });
+      navigate('/events');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to cancel the event",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleMarkEventDone = async () => {
+    if (!currentUser || !isCreator) return;
+    
+    try {
+      await deleteEvent(event.id, 'completed');
+      toast({
+        title: "Event completed",
+        description: "The event has been marked as completed and archived."
+      });
+      navigate('/events');
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to mark the event as done",
+        variant: "destructive"
       });
     }
   };
@@ -186,19 +253,37 @@ const EventDetail = () => {
           </div>
           
           <div className="flex flex-col gap-3">
-            <Button 
-              onClick={handleAttendEvent}
-              className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
-            >
-              {isAttending ? (
-                <>
+            {isCreator ? (
+              <>
+                <Button 
+                  variant="destructive" 
+                  onClick={handleCancelEvent}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancel Event
+                </Button>
+                <Button 
+                  onClick={handleMarkEventDone}
+                >
                   <Check className="mr-2 h-4 w-4" />
-                  Attending
-                </>
-              ) : (
-                "Attend Event"
-              )}
-            </Button>
+                  Mark as Done
+                </Button>
+              </>
+            ) : (
+              <Button 
+                onClick={handleAttendEvent}
+                className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
+              >
+                {isAttending ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Attending
+                  </>
+                ) : (
+                  "Attend Event"
+                )}
+              </Button>
+            )}
             
             <Button variant="outline" onClick={handleShareEvent}>
               <Share2 className="mr-2 h-4 w-4" />
