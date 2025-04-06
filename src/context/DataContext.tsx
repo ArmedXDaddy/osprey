@@ -122,7 +122,7 @@ interface DataProviderProps {
   children: ReactNode;
 }
 
-export const DataProvider = ({ children }: { children: React.ReactNode }) => {
+export const DataProvider = ({ children }: DataProviderProps) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -1132,7 +1132,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return { success: true };
   };
 
-  return {
+  const value: DataContextType = {
     posts,
     events,
     groups,
@@ -1147,13 +1147,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     postComments,
     completedEvents,
     announcements,
-    postAnnouncement: async () => {},
+    postAnnouncement: async (eventId, content) => {},
     createPost: async () => {},
-    likePost: async () => {},
-    unlikePost: async () => {},
-    addComment: async () => {},
-    updateComment: async () => {},
-    deleteComment: async () => {},
+    likePost: async (postId) => {},
+    unlikePost: async (postId) => {},
+    addComment: async (postId) => {},
+    updateComment,
+    deleteComment,
     createEvent,
     joinEvent: async () => {},
     leaveEvent: async () => {},
@@ -1199,8 +1199,14 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     getUserBookingForService: getUserBookingForServiceImpl,
     fetchUserServices: async () => [],
     sponsorships,
-    getSponsorships,
-    getSponsorshipById,
+    getSponsorships: () => sponsorships,
+    getSponsorshipById: (id) => {
+      const sponsorship = sponsorships.find(s => s.id === id);
+      if (!sponsorship) {
+        throw new Error('Sponsorship not found');
+      }
+      return sponsorship;
+    },
     createSponsorship,
     updateSponsorship,
     deleteSponsorship,
@@ -1209,4 +1215,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     applyForSponsorship,
     updateApplicationStatus
   };
+
+  return (
+    <DataContext.Provider value={value}>
+      {children}
+    </DataContext.Provider>
+  );
 };
