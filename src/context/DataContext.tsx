@@ -877,3 +877,293 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         description: data.description,
         providerId: data.coach_id,
         providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url
+      };
+    } catch (err: any) {
+      console.error("Error fetching service:", err);
+      return null;
+    }
+  };
+  
+  const bookService = async (serviceId: string, paymentStatus?: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to book a service');
+    
+    try {
+      const { data, error } = await supabase
+        .from('service_bookings')
+        .insert({
+          service_id: serviceId,
+          user_id: currentUser.id,
+          payment_status: paymentStatus || 'pending'
+        })
+        .select();
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const newBooking: Booking = {
+          id: data[0].id,
+          serviceId: data[0].service_id,
+          userId: data[0].user_id,
+          paymentStatus: data[0].payment_status,
+          createdAt: new Date(data[0].created_at)
+        };
+        
+        setMessages(prev => [...prev, newBooking]);
+      }
+    } catch (error: any) {
+      console.error("Error booking service:", error);
+      throw new Error(error.message || 'Failed to book service');
+    }
+  };
+  
+  const cancelBooking = async (bookingId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to cancel a booking');
+  };
+  
+  const getUserBookings = async (userId: string): Promise<Booking[]> => {
+    return [];
+  };
+  
+  const getServiceBookings = async (serviceId: string): Promise<Booking[]> => {
+    return [];
+  };
+  
+  const createService = async (serviceData: any): Promise<Service> => {
+    if (!currentUser) throw new Error('You must be logged in to create a service');
+    
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .insert(serviceData)
+        .select();
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const newService: Service = {
+          id: data[0].id,
+          title: data[0].title,
+          description: data[0].description,
+          providerId: data[0].coach_id,
+          providerName: data[0].coach_name,
+          price: data[0].price,
+          duration: data[0].duration,
+          available: data[0].is_active,
+          createdAt: new Date(data[0].created_at),
+          isOnline: data[0].is_online,
+          location: data[0].location,
+          capacity: data[0].capacity,
+          serviceType: data[0].service_type as ServiceType,
+          coverImage: data[0].cover_image,
+          meetingUrl: data[0].meeting_url
+        };
+        
+        setServices(prev => [...prev, newService]);
+      }
+      
+      return newService;
+    } catch (error: any) {
+      console.error("Error creating service:", error);
+      throw new Error(error.message || 'Failed to create service');
+    }
+  };
+  
+  const updateService = async (serviceId: string, updates: any): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a service');
+  };
+  
+  const deleteService = async (serviceId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a service');
+  };
+  
+  const approveBooking = async (bookingId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to approve a booking');
+  };
+  
+  const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to send a service message');
+    
+    try {
+      const newMessage = {
+        service_id: messageData.serviceId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content: messageData.content
+      };
+      
+      const { data, error } = await supabase
+        .from('service_messages')
+        .insert(newMessage)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      console.log("Service message sent successfully:", data);
+      
+      const transformedMessage: Message = {
+        id: data.id,
+        content: data.content,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role as UserRole,
+        userProfileImage: data.user_profile_image,
+        createdAt: new Date(data.created_at),
+        groupId: data.group_id
+      };
+      
+      setMessages(prev => [...prev, transformedMessage]);
+    } catch (error: any) {
+      console.error("Error sending service message:", error);
+      throw new Error(error.message || 'Failed to send service message');
+    }
+  };
+  
+  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
+    return [];
+  };
+  
+  const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
+    return null;
+  };
+  
+  const fetchUserServices = async (userId: string): Promise<Service[]> => {
+    return [];
+  };
+  
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    try {
+      const { data, error } = await supabase
+        .from('event_announcements')
+        .insert({
+          event_id: eventId,
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          content: content
+        })
+        .select();
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const newAnnouncement: Announcement = {
+          id: data[0].id,
+          eventId: data[0].event_id,
+          creatorId: data[0].creator_id,
+          creatorName: data[0].creator_name,
+          content: data[0].content,
+          createdAt: new Date(data[0].created_at)
+        };
+        
+        setAnnouncements(prevAnnouncements => [newAnnouncement, ...prevAnnouncements]);
+      }
+      
+      toast({
+        title: "Announcement Posted",
+        description: "Your announcement has been shared with event attendees"
+      });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({
+        title: "Failed to Post Announcement",
+        description: error.message || "An error occurred",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+
+  return (
+    <DataContext.Provider value={{
+      posts,
+      events,
+      groups,
+      services,
+      sessions,
+      sessionEnrollments,
+      messages,
+      setMessages,
+      joinRequests,
+      loading,
+      error,
+      postComments,
+      completedEvents,
+      announcements,
+      postAnnouncement,
+      createPost,
+      likePost,
+      unlikePost,
+      addComment,
+      updateComment,
+      deleteComment,
+      createEvent,
+      joinEvent,
+      leaveEvent,
+      deleteEvent,
+      requestToJoinEvent,
+      approveEventRequest,
+      rejectEventRequest,
+      getEventRequests,
+      handleEventJoinRequest,
+      createGroup,
+      joinGroup,
+      leaveGroup,
+      requestToJoinGroup,
+      approveGroupRequest,
+      rejectGroupRequest,
+      getGroupRequests,
+      handleJoinRequest,
+      removeGroupMember,
+      updateGroupDetails,
+      deleteGroup,
+      createSession,
+      enrollInSession,
+      cancelEnrollment,
+      approveEnrollment,
+      rejectEnrollment,
+      getUserSessions,
+      getCoachSessions,
+      getUserEnrollments,
+      updateSession,
+      updateEnrollmentStatus,
+      sendMessage,
+      getServiceById,
+      bookService,
+      cancelBooking,
+      getUserBookings,
+      getServiceBookings,
+      createService,
+      updateService,
+      deleteService,
+      approveBooking,
+      sendServiceMessage,
+      getServiceMessages,
+      getUserBookingForService,
+      fetchUserServices
+    }}>
+      {children}
+    </DataContext.Provider>
+  );
+};
+
+export const useData = () => {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error("useData must be used within a DataProvider");
+  }
+  return context;
+};

@@ -50,6 +50,41 @@ export type Database = {
           },
         ]
       }
+      event_announcements: {
+        Row: {
+          content: string
+          created_at: string
+          creator_id: string
+          creator_name: string
+          event_id: string | null
+          id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          creator_id: string
+          creator_name: string
+          event_id?: string | null
+          id?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          creator_id?: string
+          creator_name?: string
+          event_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_announcements_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           attendees: string[] | null
@@ -61,6 +96,7 @@ export type Database = {
           description: string
           id: string
           image: string | null
+          is_completed: boolean | null
           location: string
           pending_requests: number | null
           price: number | null
@@ -77,6 +113,7 @@ export type Database = {
           description: string
           id?: string
           image?: string | null
+          is_completed?: boolean | null
           location: string
           pending_requests?: number | null
           price?: number | null
@@ -93,6 +130,7 @@ export type Database = {
           description?: string
           id?: string
           image?: string | null
+          is_completed?: boolean | null
           location?: string
           pending_requests?: number | null
           price?: number | null
