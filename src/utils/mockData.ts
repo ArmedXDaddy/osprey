@@ -1,5 +1,5 @@
 
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest } from '@/types';
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, Announcement } from '@/types';
 
 // Generate mock services
 export const generateMockServices = (): Service[] => {

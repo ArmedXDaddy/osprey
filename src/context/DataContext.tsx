@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -225,7 +224,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           
           setEvents(transformedEvents);
           
-          // Instead of querying completed_events, let's adapt to use the events table with a filter
           const { data: compEventsData, error: compError } = await supabase
             .from('events')
             .select('*')
@@ -258,7 +256,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           setEvents(generateMockEvents());
         }
         
-        // Instead of directly querying the announcements table, check if it exists first
         try {
           const { data, error } = await supabase
             .from('event_announcements')
@@ -616,20 +613,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     fetchAllServices();
   }, []);
   
-  // Implement function to post announcements
   const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to post an announcement');
     
     try {
-      // Check if event_announcements table exists first
       const { data: testData, error: testError } = await supabase
         .from('event_announcements')
         .select('id')
         .limit(1);
       
-      if (testError && testError.code === '42P01') { // Table doesn't exist error
+      if (testError && testError.code === '42P01') {
         console.error("event_announcements table doesn't exist, creating mock announcement");
-        // If table doesn't exist, add to local state only
         const mockAnnouncement: Announcement = {
           id: Date.now().toString(),
           eventId,
@@ -647,7 +641,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
       
-      // If table exists, insert the data
       const announcementData = {
         event_id: eventId,
         creator_id: currentUser.id,
@@ -993,7 +986,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to create an event');
     
     try {
-      // Prepare event data
       const newEventData = {
         title: eventData.title,
         description: eventData.description,
@@ -1009,7 +1001,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         pending_requests: 0
       };
       
-      // Insert into Supabase
       const { data, error } = await supabase
         .from('events')
         .insert(newEventData)
@@ -1018,7 +1009,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (error) throw error;
       
-      // Transform the result
       const newEvent: Event = {
         id: data.id,
         title: data.title,
@@ -1047,7 +1037,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to join an event');
     
     try {
-      // Get current event data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('attendees')
@@ -1056,13 +1045,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (eventError) throw eventError;
       
-      // Check if user is already attending
       const currentAttendees = eventData?.attendees || [];
       if (currentAttendees.includes(currentUser.id)) {
         throw new Error('You are already attending this event');
       }
       
-      // Update attendees
       const updatedAttendees = [...currentAttendees, currentUser.id];
       
       const { error: updateError } = await supabase
@@ -1072,7 +1059,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (updateError) throw updateError;
       
-      // Update local state
       setEvents(prevEvents => 
         prevEvents.map(event => 
           event.id === eventId 
@@ -1090,7 +1076,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to leave an event');
     
     try {
-      // Get current event data
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('attendees')
@@ -1099,13 +1084,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (eventError) throw eventError;
       
-      // Check if user is attending
       const currentAttendees = eventData?.attendees || [];
       if (!currentAttendees.includes(currentUser.id)) {
         throw new Error('You are not attending this event');
       }
       
-      // Update attendees
       const updatedAttendees = currentAttendees.filter(id => id !== currentUser.id);
       
       const { error: updateError } = await supabase
@@ -1115,7 +1098,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (updateError) throw updateError;
       
-      // Update local state
       setEvents(prevEvents => 
         prevEvents.map(event => 
           event.id === eventId 
@@ -1133,7 +1115,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
-      // Get event data before deleting
       const { data: eventData, error: getError } = await supabase
         .from('events')
         .select('*')
@@ -1143,7 +1124,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       if (getError) throw getError;
       
       if (reason === 'completed') {
-        // Instead of moving to a separate table, update the event as completed
         const { error: updateError } = await supabase
           .from('events')
           .update({ is_completed: true })
@@ -1151,7 +1131,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           
         if (updateError) throw updateError;
         
-        // Move from active events to completed events in local state
         const completedEvent: Event = {
           id: eventData.id,
           title: eventData.title,
@@ -1172,7 +1151,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         setCompletedEvents(prev => [completedEvent, ...prev]);
         setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
       } else {
-        // If cancelled, delete the event entirely
         const { error: deleteError } = await supabase
           .from('events')
           .delete()
@@ -1180,7 +1158,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (deleteError) throw deleteError;
         
-        // Update local state
         setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
       }
     } catch (error: any) {
@@ -1191,38 +1168,31 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to request joining an event');
-    // Implement if needed
   };
 
   const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to approve event requests');
-    // Implement if needed
   };
 
   const rejectEventRequest = async (requestId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to reject event requests');
-    // Implement if needed
   };
 
   const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    // Implement if needed
     return [];
   };
 
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to handle join requests');
-    // Implement if needed
   };
 
   const createGroup = async (groupData: any): Promise<Group> => {
     if (!currentUser) throw new Error('You must be logged in to create a group');
-    // Implement if needed
     throw new Error('Not implemented');
   };
 
   const deleteGroup = async (groupId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to delete a group');
-    // Implement if needed
     throw new Error('Not implemented');
   };
 
@@ -1230,7 +1200,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to create a service');
     
     try {
-      // Prepare service data for Supabase
       const newServiceData = {
         title: serviceData.title,
         description: serviceData.description,
@@ -1247,7 +1216,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         meeting_url: serviceData.meetingUrl
       };
       
-      // Insert into Supabase
       const { data, error } = await supabase
         .from('services')
         .insert(newServiceData)
@@ -1256,7 +1224,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         
       if (error) throw error;
       
-      // Transform the result
       const newService: Service = {
         id: data.id,
         title: data.title,
@@ -1275,7 +1242,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         meetingUrl: data.meeting_url
       };
       
-      // Update local state
       setServices(prevServices => [newService, ...prevServices]);
       
       return newService;
@@ -1287,26 +1253,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateService = async (serviceId: string, updates: any): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update a service');
-    // Implement if needed
   };
 
   const deleteService = async (serviceId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to delete a service');
-    // Implement if needed
   };
 
   const fetchUserServices = async (userId: string): Promise<Service[]> => {
-    // Implement if needed
     return [];
   };
 
   const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a message');
-    // Implement if needed
   };
 
   const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
-    // Implement if needed
     return [];
   };
   
@@ -1321,7 +1282,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const addComment = async (postId: string, content: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to comment on a post');
-    // Implement if needed
   };
 
   const updateComment = async (commentId: string, content: string): Promise<void> => {
@@ -1346,20 +1306,16 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
 
   const likePost = async (postId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to like a post');
-    // Implement if needed
   };
 
   const unlikePost = async (postId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to unlike a post');
-    // Implement if needed
   };
 
   const createPost = async (content: string, imageFile?: File | null): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to create a post');
-    // Implement if needed
   };
 
-  // Return the data context value
   return (
     <DataContext.Provider
       value={{
