@@ -86,7 +86,6 @@ const CreateWorkshop = () => {
         return;
       }
 
-      // Map file objects to image URLs
       const imageUrls = data
         .filter(file => file.name.match(/\.(jpeg|jpg|gif|png)$/i))
         .map(file => {
@@ -122,11 +121,9 @@ const CreateWorkshop = () => {
     setUploading(true);
     
     try {
-      // Upload the image to the user's folder in the covers bucket
       const imagePath = `${currentUser.id}`;
       const imageUrl = await uploadImage(file, imagePath);
       
-      // Reload the images to show the newly uploaded one
       await loadImages();
       
       toast({
@@ -173,19 +170,11 @@ const CreateWorkshop = () => {
     setIsLoading(true);
     
     try {
-      // Format the topics as an array
       const topicsArray = topics.split('\n').map(topic => topic.trim()).filter(topic => topic);
-      
-      // Format the prerequisites as an array
       const prerequisitesArray = prerequisites.split('\n').map(prereq => prereq.trim()).filter(prereq => prereq);
-      
-      // Format the includes as an array
       const includesArray = includes.split('\n').map(item => item.trim()).filter(item => item);
-      
-      // Format the tags as an array
       const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
       
-      // Format the instructors
       const formattedInstructors = instructors.filter(i => i.name).map(instructor => ({
         name: instructor.name,
         role: instructor.role,
@@ -193,12 +182,10 @@ const CreateWorkshop = () => {
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor.name)}`
       }));
       
-      // Create a combined date and time
       const workshopDate = new Date(date);
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       workshopDate.setHours(startHours, startMinutes);
       
-      // Create workshop data object
       const workshopData = {
         title,
         description,
@@ -224,7 +211,6 @@ const CreateWorkshop = () => {
         instructors: formattedInstructors
       };
       
-      // Create workshop in database using our helper function
       const data = await createWorkshop(workshopData);
       
       toast({
@@ -232,7 +218,6 @@ const CreateWorkshop = () => {
         description: "Your workshop has been created successfully.",
       });
       
-      // Navigate to the workshop detail page
       navigate(`/company/workshops/${data.id}`);
     } catch (error: any) {
       console.error('Error creating workshop:', error);
@@ -270,7 +255,6 @@ const CreateWorkshop = () => {
       </div>
       
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Basic Workshop Information */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -355,7 +339,6 @@ const CreateWorkshop = () => {
           </CardContent>
         </Card>
         
-        {/* Workshop Scheduling */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
@@ -515,7 +498,6 @@ const CreateWorkshop = () => {
           </CardContent>
         </Card>
         
-        {/* Workshop Content */}
         <Card>
           <CardHeader>
             <CardTitle>Workshop Content</CardTitle>
@@ -563,7 +545,6 @@ Workshop materials and slides"
           </CardContent>
         </Card>
         
-        {/* Instructors */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Instructors</CardTitle>
@@ -632,7 +613,6 @@ Workshop materials and slides"
           </CardContent>
         </Card>
         
-        {/* Workshop Image */}
         <Card>
           <CardHeader>
             <CardTitle>Workshop Image</CardTitle>
