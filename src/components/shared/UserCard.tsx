@@ -7,18 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { User as UserIcon, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import FollowButton from '@/components/profile/FollowButton';
+import { User } from '@/types';
 
 interface UserCardProps {
-  user: {
-    id: string;
-    name: string;
-    role: string;
-    followers?: number;
-    location?: string;
-    image?: string;
-    profileImage?: string; // Support both image and profileImage
-    bio?: string;
-  };
+  user: User;
 }
 
 const UserCard: React.FC<UserCardProps> = ({ user }) => {
@@ -31,9 +23,6 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
     company: 'bg-green-100 text-green-800',
     admin: 'bg-red-100 text-red-800'
   };
-  
-  // Use profileImage if available, fall back to image
-  const userImage = user.profileImage || user.image;
   
   // Generate fallback avatar URL based on user name
   const getFallbackAvatarUrl = (name: string) => {
@@ -52,9 +41,8 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
   
   // Log user data for debugging
   console.log('UserCard rendering for:', user.id, user.name);
-  console.log('User image:', userImage);
+  console.log('User profile image:', user.profileImage);
   console.log('User bio:', user.bio);
-  console.log('User full data:', user);
   
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
@@ -62,7 +50,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
       <div className="relative px-4">
         <Avatar className="h-16 w-16 -mt-8 border-4 border-background">
           <AvatarImage 
-            src={userImage} 
+            src={user.profileImage} 
             alt={user.name} 
             fallbackSrc={getFallbackAvatarUrl(user.name)}
           />

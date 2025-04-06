@@ -28,6 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSupabaseSession(session);
         
         if (session?.user) {
+          // Use setTimeout to avoid Supabase auth deadlock
           setTimeout(async () => {
             try {
               // Try to get profile data from the profiles table
@@ -35,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .from('profiles')
                 .select('*')
                 .eq('id', session.user.id)
-                .single();
+                .maybeSingle();
                 
               console.log("Fetched profile data:", profileData);
               
@@ -103,7 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
-          .single()
+          .maybeSingle()
           .then(({ data: profileData, error: profileError }) => {
             console.log("Profile data on init:", profileData);
             
