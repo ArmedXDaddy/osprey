@@ -85,6 +85,7 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/auth/login" element={<Login />} />
                   <Route path="/auth/register" element={<Register />} />
+                  <Route path="/create-group" element={<CreateGroup />} />
                   
                   {/* Jobs Routes */}
                   <Route path="/jobs" element={<JobPostings />} />

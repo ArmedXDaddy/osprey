@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
@@ -46,6 +46,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   React.useEffect(() => {
     if (!isLoading && !currentUser && !location.pathname.startsWith('/auth')) {
       navigate('/auth/login');
+    }
+    
+    // Handle redirect from old path to new path for create group
+    if (location.pathname === '/create-group') {
+      navigate('/groups/create');
     }
   }, [currentUser, isLoading, location.pathname, navigate]);
 
