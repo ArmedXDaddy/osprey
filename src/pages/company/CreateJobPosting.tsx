@@ -12,6 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const jobSchema = z.object({
   title: z.string().min(5, 'Job title must be at least 5 characters'),
@@ -58,16 +59,40 @@ const CreateJobPosting = () => {
     }
   });
   
-  const onSubmit = (data: JobFormValues) => {
-    // This would call an API in a real implementation
-    console.log('Job posting data:', data);
-    
-    toast({
-      title: 'Job Posted Successfully',
-      description: 'Your job posting has been published.'
-    });
-    
-    navigate('/company/jobs');
+  const onSubmit = async (data: JobFormValues) => {
+    try {
+      // Save to Supabase
+      const { error } = await supabase.from('job_postings').insert({
+        title: data.title,
+        description: data.description,
+        location: data.location,
+        job_type: data.type,
+        salary_range: data.salaryRange,
+        skills: data.skills.split(',').map(skill => skill.trim()),
+        application_url: data.applicationUrl,
+        application_email: data.applicationEmail,
+        application_deadline: data.applicationDeadline,
+        company_id: currentUser?.id,
+        company_name: currentUser?.name,
+        company_logo: currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Company')}&background=random`
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Job Posted Successfully',
+        description: 'Your job posting has been published.'
+      });
+      
+      navigate('/company/jobs');
+    } catch (error) {
+      console.error('Error creating job posting:', error);
+      toast({
+        title: 'Failed to Create Job',
+        description: 'There was an error posting your job. Please try again.',
+        variant: 'destructive'
+      });
+    }
   };
   
   return (

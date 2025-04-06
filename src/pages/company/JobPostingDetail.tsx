@@ -1,60 +1,108 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Briefcase, Building, MapPin, Clock, DollarSign, Calendar, ExternalLink } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const JobPostingDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const { toast } = useToast();
+  const [job, setJob] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
-  // In a real implementation, we would fetch the job details by ID
-  // For now, using placeholder data
-  const job = {
-    id: id,
-    title: 'Senior Frontend Developer',
-    company: 'Tech Solutions Inc.',
-    companyLogo: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=random',
-    location: 'San Francisco, CA (Remote Available)',
-    type: 'Full-time',
-    salary: '$130,000 - $160,000',
-    description: 'We are looking for a passionate Senior Frontend Developer to join our growing team. You will be responsible for building and maintaining our web applications, ensuring high-performance and responsiveness to user interactions.',
-    responsibilities: [
-      'Develop new user-facing features using React.js',
-      'Build reusable components and front-end libraries for future use',
-      'Translate designs and wireframes into high-quality code',
-      'Optimize components for maximum performance across devices and browsers',
-      'Coordinate with various stakeholders from design, product, and engineering teams'
-    ],
-    requirements: [
-      '5+ years of experience in frontend development',
-      'Strong proficiency in JavaScript, TypeScript, and React.js',
-      'Experience with modern frontend build pipelines and tools',
-      'Understanding of server-side rendering and its benefits',
-      'Familiarity with RESTful APIs and GraphQL',
-      'Knowledge of modern authorization mechanisms like OAuth 2.0'
-    ],
-    benefits: [
-      'Competitive salary package',
-      'Flexible working hours and remote work options',
-      'Health, dental, and vision insurance',
-      '401(k) matching',
-      'Professional development budget',
-      'Unlimited PTO policy'
-    ],
-    skills: ['React', 'TypeScript', 'JavaScript', 'CSS', 'HTML', 'GraphQL'],
-    postedDate: '2025-03-15',
-    applicationUrl: 'https://example.com/apply',
-    companyDescription: 'Tech Solutions Inc. is a leading software development company specializing in creating innovative solutions for enterprise clients. With offices in major tech hubs and a team of over 200 professionals, we are dedicated to pushing the boundaries of what technology can achieve.'
-  };
+  useEffect(() => {
+    const fetchJobDetails = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('job_postings')
+          .select('*')
+          .eq('id', id)
+          .single();
+          
+        if (error) throw error;
+        
+        setJob({
+          id: data.id,
+          title: data.title,
+          company: data.company_name,
+          companyLogo: data.company_logo,
+          location: data.location,
+          type: data.job_type,
+          salary: data.salary_range,
+          description: data.description,
+          responsibilities: data.responsibilities || [],
+          requirements: data.requirements || [],
+          benefits: data.benefits || [],
+          skills: Array.isArray(data.skills) ? data.skills : [],
+          postedDate: data.created_at,
+          applicationUrl: data.application_url,
+          applicationDeadline: data.application_deadline,
+          companyDescription: data.company_description || 'No company description available.'
+        });
+      } catch (error) {
+        console.error('Error fetching job details:', error);
+        toast({
+          title: 'Failed to load job details',
+          description: 'Please try again later',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchJobDetails();
+  }, [id, toast]);
+  
+  if (loading) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <Card className="animate-pulse">
+          <CardHeader className="pb-3">
+            <div className="h-8 bg-gray-200 rounded mb-2"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-4 bg-gray-200 rounded w-full"></div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
+  if (!job) {
+    return (
+      <div className="text-center py-12">
+        <Briefcase className="h-12 w-12 mx-auto text-gray-400" />
+        <h3 className="mt-4 text-lg font-medium">Job not found</h3>
+        <p className="text-gray-500 mt-2">The job posting you're looking for doesn't exist or has been removed.</p>
+      </div>
+    );
+  }
   
   const formattedDate = new Date(job.postedDate).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
   });
+  
+  const formattedDeadline = job.applicationDeadline 
+    ? new Date(job.applicationDeadline).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    : null;
   
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -94,46 +142,61 @@ const JobPostingDetail = () => {
         <CardContent className="space-y-6">
           <div>
             <h3 className="text-lg font-medium mb-2">Job Description</h3>
-            <p className="text-gray-700">{job.description}</p>
+            <p className="text-gray-700 whitespace-pre-line">{job.description}</p>
           </div>
           
           <Separator />
           
-          <div>
-            <h3 className="text-lg font-medium mb-2">Key Responsibilities</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              {job.responsibilities.map((item, i) => (
-                <li key={i} className="text-gray-700">{item}</li>
-              ))}
-            </ul>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-medium mb-2">Requirements</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              {job.requirements.map((item, i) => (
-                <li key={i} className="text-gray-700">{item}</li>
-              ))}
-            </ul>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-medium mb-2">Benefits & Perks</h3>
-            <ul className="list-disc pl-5 space-y-1">
-              {job.benefits.map((item, i) => (
-                <li key={i} className="text-gray-700">{item}</li>
-              ))}
-            </ul>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-medium mb-2">Skills</h3>
-            <div className="flex flex-wrap gap-2">
-              {job.skills.map((skill, i) => (
-                <Badge key={i} variant="secondary">{skill}</Badge>
-              ))}
+          {job.responsibilities && job.responsibilities.length > 0 && (
+            <div>
+              <h3 className="text-lg font-medium mb-2">Key Responsibilities</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                {job.responsibilities.map((item: string, i: number) => (
+                  <li key={i} className="text-gray-700">{item}</li>
+                ))}
+              </ul>
             </div>
-          </div>
+          )}
+          
+          {job.requirements && job.requirements.length > 0 && (
+            <div>
+              <h3 className="text-lg font-medium mb-2">Requirements</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                {job.requirements.map((item: string, i: number) => (
+                  <li key={i} className="text-gray-700">{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {job.benefits && job.benefits.length > 0 && (
+            <div>
+              <h3 className="text-lg font-medium mb-2">Benefits & Perks</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                {job.benefits.map((item: string, i: number) => (
+                  <li key={i} className="text-gray-700">{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {job.skills && job.skills.length > 0 && (
+            <div>
+              <h3 className="text-lg font-medium mb-2">Skills</h3>
+              <div className="flex flex-wrap gap-2">
+                {job.skills.map((skill: string, i: number) => (
+                  <Badge key={i} variant="secondary">{skill}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          {formattedDeadline && (
+            <div>
+              <h3 className="text-lg font-medium mb-2">Application Deadline</h3>
+              <p className="text-gray-700">{formattedDeadline}</p>
+            </div>
+          )}
           
           <Separator />
           

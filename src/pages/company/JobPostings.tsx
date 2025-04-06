@@ -10,6 +10,21 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 
+// Define the JobPosting type
+interface JobPosting {
+  id: string;
+  title: string;
+  company: string;
+  companyLogo?: string;
+  location: string;
+  type: string;
+  salary: string;
+  description: string;
+  skills: string[];
+  postedDate: string;
+  companyId: string;
+}
+
 const JobPostings = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -18,31 +33,42 @@ const JobPostings = () => {
   const isCompany = currentUser?.role === 'company';
   const isCompanyRoute = location.pathname.startsWith('/company');
   
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // This is a placeholder. In a real implementation, you'd have a fetchJobs helper
-    // or directly query the job_postings table
     const loadJobs = async () => {
       try {
         setLoading(true);
-        // Mock data for now
-        setJobs([
-          {
-            id: '1',
-            title: 'Senior Frontend Developer',
-            company: 'Tech Solutions Inc.',
-            companyLogo: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=random',
-            location: 'San Francisco, CA',
-            type: 'Full-time',
-            salary: '$120,000 - $150,000',
-            description: 'We are looking for a skilled senior frontend developer to join our team...',
-            skills: ['React', 'TypeScript', 'GraphQL'],
-            postedDate: '2025-03-15'
-          },
-          // More mock jobs here...
-        ]);
+        
+        // Fetch job postings from Supabase
+        const { data, error } = await supabase
+          .from('job_postings')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        
+        // If on company route and user is a company, filter to only show their jobs
+        const formattedJobs = data.map(job => ({
+          id: job.id,
+          title: job.title,
+          company: job.company_name || 'Unknown Company',
+          companyLogo: job.company_logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company_name || 'Company')}&background=random`,
+          location: job.location || 'Remote',
+          type: job.job_type || 'Full-time',
+          salary: job.salary_range || 'Not specified',
+          description: job.description || 'No description provided',
+          skills: job.skills ? (typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : job.skills) : [],
+          postedDate: job.created_at,
+          companyId: job.company_id
+        }));
+        
+        const filteredJobs = isCompanyRoute && isCompany && currentUser?.id
+          ? formattedJobs.filter(job => job.companyId === currentUser.id)
+          : formattedJobs;
+          
+        setJobs(filteredJobs);
       } catch (error) {
         console.error('Error loading jobs:', error);
         toast({
@@ -56,7 +82,7 @@ const JobPostings = () => {
     };
     
     loadJobs();
-  }, [toast]);
+  }, [currentUser, isCompany, isCompanyRoute, toast]);
   
   const handleCreateJob = () => {
     navigate('/company/jobs/create');
@@ -92,8 +118,8 @@ const JobPostings = () => {
         </div>
       ) : jobs.length > 0 ? (
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
-          {jobs.map((job, i) => (
-            <JobCard key={i} job={job} onClick={() => handleViewJob(job.id)} />
+          {jobs.map((job) => (
+            <JobCard key={job.id} job={job} onClick={() => handleViewJob(job.id)} />
           ))}
         </div>
       ) : (
@@ -117,7 +143,7 @@ const JobPostings = () => {
   );
 };
 
-const JobCard = ({ job, onClick }: { job: any, onClick: () => void }) => {
+const JobCard = ({ job, onClick }: { job: JobPosting, onClick: () => void }) => {
   const formattedDate = new Date(job.postedDate).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -162,7 +188,7 @@ const JobCard = ({ job, onClick }: { job: any, onClick: () => void }) => {
         <p className="text-sm text-gray-600 line-clamp-2 mb-3">{job.description}</p>
         
         <div className="flex flex-wrap gap-1 mb-2">
-          {job.skills.map((skill: string, i: number) => (
+          {job.skills.map((skill, i) => (
             <Badge key={i} variant="outline">{skill}</Badge>
           ))}
         </div>
