@@ -1,7 +1,8 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
+import { Heart, MessageSquare, MoreHorizontal, Trash2, Share } from "lucide-react";
 import { formatDistance } from 'date-fns';
 import { Link } from 'react-router-dom';
 import { Post, Comment } from '@/types';
@@ -73,6 +74,26 @@ const PostCard: React.FC<PostCardProps> = ({ post, comments = [] }) => {
         description: "Failed to delete the post."
       });
     }
+  };
+  
+  const handleShare = () => {
+    // Create a URL to the post (this would ideally point to a specific post view)
+    const postUrl = `${window.location.origin}/explore?post=${post.id}`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(postUrl).then(() => {
+      toast({
+        title: "Link copied!",
+        description: "Post link has been copied to your clipboard."
+      });
+    }).catch(err => {
+      console.error('Could not copy text: ', err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to copy link to clipboard."
+      });
+    });
   };
   
   const isPostOwner = currentUser && post.userId === currentUser.id;
@@ -154,6 +175,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, comments = [] }) => {
           >
             <MessageSquare className="h-4 w-4" />
             <span>{post.comments}</span>
+          </Button>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-1"
+            onClick={handleShare}
+          >
+            <Share className="h-4 w-4" />
+            <span>Share</span>
           </Button>
         </div>
       </CardFooter>
