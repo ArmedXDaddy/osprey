@@ -14,12 +14,6 @@ import {
   deleteEventFromDB, deleteServiceFromDB, deleteProduct,
   deleteWorkshop, deleteJobPosting, deleteSponsorshipFromDB
 } from '@/integrations/supabase/helpers';
-import { 
-  generateMockServices, generateMockPosts, generateMockEvents, 
-  generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
-  generateMockMessages, generateMockJoinRequests, mockUsers,
-  generateMockSponsorships
-} from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
 interface DataContextType {
@@ -865,6 +859,8 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     try {
       const eventPrivacy = eventData.privacy as EventPrivacy;
       
+      const userRole = currentUser.role as UserRole;
+      
       const newEvent: Event = {
         id: Date.now().toString(),
         title: eventData.title,
@@ -878,7 +874,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         createdAt: new Date(),
         creatorId: currentUser.id,
         creatorName: currentUser.name,
-        creatorRole: currentUser.role as UserRole
+        creatorRole: userRole
       };
       
       setEvents(prev => [newEvent, ...prev]);
