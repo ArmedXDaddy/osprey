@@ -500,7 +500,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to join a group');
     
     try {
-      // First, check if the user is already a member of the group
       const { data: groupMemberData, error: memberCheckError } = await supabase
         .from('group_members')
         .select('*')
@@ -509,7 +508,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (memberCheckError) throw memberCheckError;
       
-      // If user is already a member, don't do anything
       if (groupMemberData && groupMemberData.length > 0) {
         toast({
           title: "Already a member",
@@ -518,7 +516,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         return;
       }
       
-      // Add user to group_members table
       const { error: joinError } = await supabase
         .from('group_members')
         .insert({
@@ -528,7 +525,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (joinError) throw joinError;
       
-      // First, get the current members count
       const { data: groupData, error: getGroupError } = await supabase
         .from('groups')
         .select('members')
@@ -537,7 +533,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (getGroupError) throw getGroupError;
       
-      // Now update the group with incremented member count
       const newMemberCount = (groupData?.members || 1) + 1;
       
       const { error: updateError } = await supabase
@@ -547,7 +542,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (updateError) throw updateError;
       
-      // Update local state
       setGroups(prevGroups => 
         prevGroups.map(group => 
           group.id === groupId 
@@ -630,8 +624,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       console.log("Message sent successfully:", data);
       
-      // The real-time subscription will handle adding this to the UI,
-      // but we'll also add it to the local state for immediate feedback
       const transformedMessage: Message = {
         id: data.id,
         content: data.content,
@@ -762,6 +754,75 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       console.error("Error approving booking:", err);
       throw new Error(err.message || 'Failed to approve booking');
     }
+  };
+  
+  const createEvent = async (eventData: any): Promise<Event> => {
+    if (!currentUser) throw new Error('You must be logged in to create an event');
+    
+    try {
+      const eventPrivacy = eventData.privacy as EventPrivacy;
+      
+      const newEvent: Event = {
+        id: Date.now().toString(),
+        title: eventData.title,
+        description: eventData.description,
+        location: eventData.location,
+        date: eventData.date,
+        image: eventData.image || null,
+        privacy: eventPrivacy,
+        price: eventData.price || null,
+        attendees: [currentUser.id],
+        createdAt: new Date(),
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role
+      };
+      
+      setEvents(prev => [newEvent, ...prev]);
+      
+      toast({
+        title: "Event created",
+        description: "Your event has been created successfully",
+      });
+      
+      return newEvent;
+    } catch (error: any) {
+      console.error("Error creating event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error creating event",
+        description: error.message || "Failed to create event"
+      });
+      throw error;
+    }
+  };
+  
+  const joinEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const leaveEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const requestToJoinEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const rejectEventRequest = async (requestId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
+    return [];
+  };
+  
+  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    throw new Error('Not implemented');
   };
   
   const createService = async (serviceData: any): Promise<Service> => {
@@ -909,7 +970,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           userRole: msg.user_role as UserRole,
           userProfileImage: msg.user_profile_image,
           createdAt: new Date(msg.created_at),
-          groupId: null, // Service messages don't have a group ID
+          groupId: null,
           serviceId: msg.service_id
         }));
         
@@ -980,7 +1041,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       addComment: async () => { throw new Error('Not implemented'); },
       updateComment: async () => { throw new Error('Not implemented'); },
       deleteComment: async () => { throw new Error('Not implemented'); },
-      createEvent: async () => { throw new Error('Not implemented'); },
+      createEvent,
       joinEvent: async () => { throw new Error('Not implemented'); },
       leaveEvent: async () => { throw new Error('Not implemented'); },
       requestToJoinEvent: async () => { throw new Error('Not implemented'); },

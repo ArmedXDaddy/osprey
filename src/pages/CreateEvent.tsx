@@ -123,8 +123,19 @@ const CreateEvent = () => {
         formData.price = 10; // Default price of $10
       }
       
+      // Ensure all required fields are present
+      const eventToCreate = {
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        date: formData.date,
+        privacy: formData.privacy as EventPrivacy,
+        price: formData.price,
+        image: formData.image,
+      };
+      
       // Pass the data to createEvent
-      const newEvent = await createEvent(formData);
+      const newEvent = await createEvent(eventToCreate);
       
       // Redirect to the event detail page
       toast({
