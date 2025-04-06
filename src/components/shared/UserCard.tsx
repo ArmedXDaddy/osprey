@@ -50,6 +50,12 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
       .substring(0, 2);
   };
   
+  // Log user data for debugging
+  console.log('UserCard rendering for:', user.id, user.name);
+  console.log('User image:', userImage);
+  console.log('User bio:', user.bio);
+  console.log('User full data:', user);
+  
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <div className="aspect-[3/1] bg-gradient-to-r from-indigo-500 to-purple-600" />

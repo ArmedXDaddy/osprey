@@ -31,7 +31,12 @@ const AvatarImage = React.forwardRef<
   // Use fallbackSrc if the original image fails to load
   const src = error && fallbackSrc ? fallbackSrc : props.src;
   
+  // Log for debugging
   React.useEffect(() => {
+    if (error) {
+      console.log('Image loading error, using fallback:', fallbackSrc);
+    }
+    
     if (error && fallbackSrc && onFallbackLoad) {
       onFallbackLoad();
     }
@@ -41,7 +46,10 @@ const AvatarImage = React.forwardRef<
     <AvatarPrimitive.Image
       ref={ref}
       className={cn("aspect-square h-full w-full object-cover", className)}
-      onError={() => setError(true)}
+      onError={() => {
+        console.log('Image failed to load:', props.src);
+        setError(true);
+      }}
       alt={alt}
       src={src}
       {...props}

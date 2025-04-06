@@ -141,6 +141,7 @@ const Profile = () => {
           .single();
         
         if (error) {
+          console.error('Error details from Supabase:', error);
           throw new Error(`Error fetching profile: ${error.message}`);
         }
         
@@ -197,6 +198,10 @@ const Profile = () => {
   }, [id, currentUser, toast]);
 
   const userToShow = isOwnProfile ? currentUser : profileUser;
+  console.log('Current user to show in profile:', userToShow);
+  console.log('Is own profile?', isOwnProfile);
+  console.log('User has profile image?', !!userToShow?.profileImage);
+  console.log('User has bio?', !!userToShow?.bio);
 
   const fetchProfileImages = async () => {
     if (!currentUser) return;

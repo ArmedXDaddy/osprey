@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -59,7 +60,7 @@ const Networking = () => {
         }
         
         const data = await response.json();
-        console.log('Profiles data:', data);
+        console.log('Profiles data from API:', data);
         
         if (!data || data.length === 0) {
           setUsers([]);

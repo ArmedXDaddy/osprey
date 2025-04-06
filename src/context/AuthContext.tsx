@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -28,20 +29,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         if (session?.user) {
           setTimeout(async () => {
-            const userData: User = {
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.user_metadata.name || 'User',
-              role: session.user.user_metadata.role || 'user',
-              profileImage: session.user.user_metadata.profileImage,
-              coverImage: session.user.user_metadata.coverImage,
-              bio: session.user.user_metadata.bio,
-              location: session.user.user_metadata.location,
-              socialLinks: session.user.user_metadata.socialLinks,
-              createdAt: new Date(session.user.created_at)
-            };
-            
-            setCurrentUser(userData);
+            try {
+              // Try to get profile data from the profiles table
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+                
+              console.log("Fetched profile data:", profileData);
+              
+              let socialLinks = {};
+              if (profileData?.social_links) {
+                try {
+                  if (typeof profileData.social_links === 'string') {
+                    socialLinks = JSON.parse(profileData.social_links);
+                  } else if (typeof profileData.social_links === 'object') {
+                    socialLinks = profileData.social_links;
+                  }
+                } catch (e) {
+                  console.error("Error parsing social links:", e);
+                }
+              }
+                
+              const userData: User = {
+                id: session.user.id,
+                email: session.user.email!,
+                name: profileData?.name || session.user.user_metadata.name || 'User',
+                role: profileData?.role || session.user.user_metadata.role || 'user',
+                profileImage: profileData?.profile_image || session.user.user_metadata.profileImage,
+                coverImage: session.user.user_metadata.coverImage,
+                bio: profileData?.bio || session.user.user_metadata.bio || '',
+                location: profileData?.location || session.user.user_metadata.location || '',
+                socialLinks: socialLinks,
+                createdAt: new Date(session.user.created_at)
+              };
+              
+              console.log("Setting current user with data:", userData);
+              setCurrentUser(userData);
+            } catch (error) {
+              console.error("Error fetching profile data:", error);
+              
+              // Fallback to user metadata
+              const userData: User = {
+                id: session.user.id,
+                email: session.user.email!,
+                name: session.user.user_metadata.name || 'User',
+                role: session.user.user_metadata.role || 'user',
+                profileImage: session.user.user_metadata.profileImage,
+                coverImage: session.user.user_metadata.coverImage,
+                bio: session.user.user_metadata.bio || '',
+                location: session.user.user_metadata.location || '',
+                socialLinks: session.user.user_metadata.socialLinks || {},
+                createdAt: new Date(session.user.created_at)
+              };
+              
+              setCurrentUser(userData);
+            }
           }, 0);
         } else {
           setCurrentUser(null);
@@ -54,23 +98,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSupabaseSession(session);
       
       if (session?.user) {
-        const userData: User = {
-          id: session.user.id,
-          email: session.user.email!,
-          name: session.user.user_metadata.name || 'User',
-          role: session.user.user_metadata.role || 'user',
-          profileImage: session.user.user_metadata.profileImage,
-          coverImage: session.user.user_metadata.coverImage,
-          bio: session.user.user_metadata.bio,
-          location: session.user.user_metadata.location,
-          socialLinks: session.user.user_metadata.socialLinks,
-          createdAt: new Date(session.user.created_at)
-        };
-        
-        setCurrentUser(userData);
+        // Try to get profile data
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          .then(({ data: profileData, error: profileError }) => {
+            console.log("Profile data on init:", profileData);
+            
+            let socialLinks = {};
+            if (profileData?.social_links) {
+              try {
+                if (typeof profileData.social_links === 'string') {
+                  socialLinks = JSON.parse(profileData.social_links);
+                } else if (typeof profileData.social_links === 'object') {
+                  socialLinks = profileData.social_links;
+                }
+              } catch (e) {
+                console.error("Error parsing social links:", e);
+              }
+            }
+              
+            const userData: User = {
+              id: session.user.id,
+              email: session.user.email!,
+              name: profileData?.name || session.user.user_metadata.name || 'User',
+              role: profileData?.role || session.user.user_metadata.role || 'user',
+              profileImage: profileData?.profile_image || session.user.user_metadata.profileImage,
+              coverImage: session.user.user_metadata.coverImage,
+              bio: profileData?.bio || session.user.user_metadata.bio || '',
+              location: profileData?.location || session.user.user_metadata.location || '',
+              socialLinks: socialLinks,
+              createdAt: new Date(session.user.created_at)
+            };
+            
+            setCurrentUser(userData);
+            setIsLoading(false);
+          })
+          .catch((error) => {
+            console.error("Error fetching profile data on init:", error);
+            
+            // Fallback to user metadata
+            const userData: User = {
+              id: session.user.id,
+              email: session.user.email!,
+              name: session.user.user_metadata.name || 'User',
+              role: session.user.user_metadata.role || 'user',
+              profileImage: session.user.user_metadata.profileImage,
+              coverImage: session.user.user_metadata.coverImage,
+              bio: session.user.user_metadata.bio || '',
+              location: session.user.user_metadata.location || '',
+              socialLinks: session.user.user_metadata.socialLinks || {},
+              createdAt: new Date(session.user.created_at)
+            };
+            
+            setCurrentUser(userData);
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     });
 
     return () => {
@@ -179,6 +267,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Update profile in the profiles table
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
