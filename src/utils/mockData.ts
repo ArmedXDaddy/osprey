@@ -102,7 +102,7 @@ export const generateMockProfiles = (): User[] => {
       email: 'olivia@example.com',
       role: 'coach',
       profileImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-      bio: 'Nutrition coach and personal trainer. Specializing in women's health and postpartum fitness.',
+      bio: 'Nutrition coach and personal trainer. Specializing in women\'s health and postpartum fitness.',
       location: 'Seattle, WA',
       followers: 3250,
       verified: true,
@@ -138,7 +138,7 @@ export const generateMockServices = (): Service[] => {
     {
       id: 'mock-service-1',
       title: 'Personal Training Session',
-      description: 'One-on-one fitness coaching tailored to your specific goals and fitness level. Whether you're just starting out or looking to break through a plateau, these personalized sessions will help you achieve results faster.',
+      description: 'One-on-one fitness coaching tailored to your specific goals and fitness level. Whether you\'re just starting out or looking to break through a plateau, these personalized sessions will help you achieve results faster.',
       providerId: 'mock-coach-1',
       providerName: 'Michael Davis',
       price: 50,
@@ -155,7 +155,7 @@ export const generateMockServices = (): Service[] => {
     {
       id: 'mock-service-2', 
       title: 'Online Nutrition Consultation',
-      description: 'Personalized nutrition advice to complement your fitness routine. Get a customized meal plan and practical tips to optimize your diet for your specific goals, whether it's weight loss, muscle gain, or improved athletic performance.',
+      description: 'Personalized nutrition advice to complement your fitness routine. Get a customized meal plan and practical tips to optimize your diet for your specific goals, whether it\'s weight loss, muscle gain, or improved athletic performance.',
       providerId: 'mock-coach-2',
       providerName: 'Olivia Martinez',
       price: 75,
@@ -404,7 +404,7 @@ export const generateMockPosts = (): Post[] => {
       userName: 'Michael Davis',
       userRole: 'coach',
       userProfileImage: 'https://images.unsplash.com/photo-1568602471122-7832951cc4c5?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-      content: 'Tip of the day: Progressive overload is essential for building strength. Gradually increase weight, frequency, or reps to keep challenging your muscles and avoid plateaus. What's your favorite strength training exercise?',
+      content: 'Tip of the day: Progressive overload is essential for building strength. Gradually increase weight, frequency, or reps to keep challenging your muscles and avoid plateaus. What\'s your favorite strength training exercise?',
       image: null,
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
       likesCount: 92,
@@ -428,7 +428,7 @@ export const generateMockPosts = (): Post[] => {
       userName: 'Alex Johnson',
       userRole: 'user',
       userProfileImage: 'https://images.unsplash.com/photo-1607746882042-944635dfe10e?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-      content: 'Hit a new personal record today - 5K in 23 minutes! Been following Coach Michael's training plan for 6 weeks and seeing great results. Never thought I'd enjoy running this much!',
+      content: 'Hit a new personal record today - 5K in 23 minutes! Been following Coach Michael\'s training plan for 6 weeks and seeing great results. Never thought I\'d enjoy running this much!',
       image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
       likesCount: 34,
@@ -440,7 +440,7 @@ export const generateMockPosts = (): Post[] => {
       userName: 'Olivia Martinez',
       userRole: 'coach',
       userProfileImage: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?ixlib=rb-1.2.1&auto=format&fit=crop&w=200&q=80',
-      content: 'Nutrition myth busting: Carbs are NOT the enemy! They're essential for energy, especially if you're active. Focus on whole grains, fruits, and vegetables for quality carbohydrates that fuel your workouts and recovery.',
+      content: 'Nutrition myth busting: Carbs are NOT the enemy! They\'re essential for energy, especially if you\'re active. Focus on whole grains, fruits, and vegetables for quality carbohydrates that fuel your workouts and recovery.',
       image: 'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
       likesCount: 187,
