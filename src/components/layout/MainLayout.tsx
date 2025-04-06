@@ -1,102 +1,277 @@
 
 import React from 'react';
-import { Outlet, Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MoonIcon, SunIcon, HomeIcon, UsersIcon, CalendarIcon, BookOpenIcon, SettingsIcon, MessageSquareIcon, UserIcon, LogOutIcon } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
+import { 
+  Home, 
+  Search, 
+  Calendar, 
+  Users, 
+  Bell, 
+  PlusCircle, 
+  LogOut, 
+  Settings,
+  User,
+  Menu,
+  X,
+  NetworkIcon,
+  Briefcase,
+  DollarSign,
+  GraduationCap,
+  Building,
+  Package2
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { toast } from '@/components/ui/use-toast';
+import { useTheme } from '@/pages/Settings';
 
-const MainLayout = () => {
-  const { currentUser, logout } = useAuth();
-  const { toast } = useToast();
+interface MainLayoutProps {
+  children: React.ReactNode;
+}
+
+const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+  const { currentUser, isLoading, logout } = useAuth();
+  const location = useLocation();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const { isDarkTheme } = useTheme();
+  
+  React.useEffect(() => {
+    if (!isLoading && !currentUser && !location.pathname.startsWith('/auth')) {
+      navigate('/auth/login');
+    }
+  }, [currentUser, isLoading, location.pathname, navigate]);
+
+  React.useEffect(() => {
+    // Apply dark theme class to body when component mounts or theme changes
+    if (isDarkTheme) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkTheme]);
 
   const handleLogout = async () => {
     try {
+      setIsLoggingOut(true);
       await logout();
-      toast({
-        title: 'Logged out',
-        description: 'You have been successfully logged out',
-      });
-      navigate('/login');
+      navigate('/auth/login');
     } catch (error) {
-      console.error('Logout error:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to log out',
-        variant: 'destructive',
-      });
+      console.error('Logout failed:', error);
+      navigate('/auth/login');
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <Link to="/" className="text-xl font-bold">CommunityHub</Link>
-          
-          <div className="flex items-center space-x-4">
-            {currentUser ? (
-              <>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
-                  <LogOutIcon className="h-4 w-4 mr-2" />
-                  Logout
-                </Button>
-                
-                <Link to="/profile">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={currentUser.profileImage} />
-                    <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                </Link>
-              </>
-            ) : (
-              <Link to="/login">
-                <Button>Login</Button>
-              </Link>
+  if (location.pathname.startsWith('/auth')) {
+    return <>{children}</>;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="space-y-4 w-full max-w-md p-4">
+          <Skeleton className="h-10 w-full rounded-lg" />
+          <Skeleton className="h-[80vh] w-full rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  const isCompany = currentUser?.role === 'company';
+
+  const NavigationLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
+    <NavLink 
+      to={to} 
+      onClick={() => isMobile && setMobileMenuOpen(false)}
+      className={({ isActive }) => 
+        `flex items-center gap-2 py-2 px-3 rounded-md transition-colors ${
+          isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
+        }`
+      }
+    >
+      {icon}
+      <span className="text-sm font-medium">{label}</span>
+    </NavLink>
+  );
+
+  const MobileMenu = () => (
+    <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+      <SheetContent side="left" className="w-[75%] sm:w-[350px] p-0 dark:bg-gray-900 dark:text-white">
+        <div className="flex flex-col h-full">
+          <div className="p-4 border-b dark:border-gray-800">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold gradient-text">Osprey</h2>
+              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                <X size={18} />
+              </Button>
+            </div>
+            
+            {currentUser && (
+              <div className="flex items-center gap-3 py-2">
+                <img 
+                  src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                  alt={currentUser.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+                <div>
+                  <p className="font-medium text-sm">{currentUser.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{currentUser.role}</p>
+                </div>
+              </div>
             )}
           </div>
+          
+          <div className="flex-1 overflow-auto p-4">
+            <nav className="space-y-1">
+              <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+              <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+              <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
+              <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
+              <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+              <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+              <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+              <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+              <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+              
+              {isCompany && (
+                <>
+                  <div className="mt-4 mb-2 px-3">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Management</h3>
+                  </div>
+                  <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+                  <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+                  <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+                </>
+              )}
+              
+              <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+              <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
+              {currentUser?.role === 'admin' && (
+                <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
+              )}
+            </nav>
+            
+            <div className="mt-6">
+              <RoleBasedActionButton />
+            </div>
+          </div>
+          
+          <div className="p-4 border-t dark:border-gray-800">
+            <Button 
+              variant="outline" 
+              className="w-full justify-start gap-2 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800" 
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+            >
+              <LogOut size={16} />
+              <span>{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
+            </Button>
+          </div>
         </div>
-      </header>
-      
-      <div className="flex-1 flex">
-        <aside className="hidden md:block w-64 border-r p-4">
-          <nav className="space-y-2">
-            <Link to="/" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <HomeIcon className="h-5 w-5" />
-              <span>Home</span>
-            </Link>
-            <Link to="/explore" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <BookOpenIcon className="h-5 w-5" />
-              <span>Explore</span>
-            </Link>
-            <Link to="/events" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <CalendarIcon className="h-5 w-5" />
-              <span>Events</span>
-            </Link>
-            <Link to="/groups" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <UsersIcon className="h-5 w-5" />
-              <span>Groups</span>
-            </Link>
-            <Link to="/services" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <MessageSquareIcon className="h-5 w-5" />
-              <span>Services</span>
-            </Link>
-            <Link to="/profile" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <UserIcon className="h-5 w-5" />
-              <span>Profile</span>
-            </Link>
-            <Link to="/settings" className="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100">
-              <SettingsIcon className="h-5 w-5" />
-              <span>Settings</span>
-            </Link>
+      </SheetContent>
+    </Sheet>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-white flex">
+      <div className="hidden md:flex flex-col w-56 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 h-screen sticky top-0 shrink-0">
+        <div className="p-4 flex flex-col h-full">
+          <h1 className="text-xl font-semibold mb-8 gradient-text">Osprey</h1>
+          
+          <nav className="space-y-1 flex-1">
+            <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+            <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+            <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
+            <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
+            <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+            <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+            <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+            <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+            <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+            
+            <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+            <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
+            {currentUser?.role === 'admin' && (
+              <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
+            )}
           </nav>
-        </aside>
+          
+          <div className="mt-4">
+            <RoleBasedActionButton />
+          </div>
+          
+          {currentUser && (
+            <div className="flex items-center gap-2 mb-4">
+              <img 
+                src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                alt={currentUser.name}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{currentUser.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{currentUser.role}</p>
+              </div>
+            </div>
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="w-full justify-start gap-2 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800" 
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut size={16} />
+            <span className="text-sm">{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
+          </Button>
+        </div>
+      </div>
+      
+      <div className="flex flex-col flex-1">
+        <header className="md:hidden bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-3 sticky top-0 z-10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)} className="dark:text-gray-300">
+              <Menu size={18} />
+            </Button>
+            <h1 className="text-lg font-semibold gradient-text">Osprey</h1>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="dark:text-gray-300">
+              <Bell size={18} />
+            </Button>
+            {currentUser && (
+              <img 
+                src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                alt={currentUser.name}
+                className="w-7 h-7 rounded-full object-cover"
+              />
+            )}
+          </div>
+        </header>
         
-        <main className="flex-1 p-4">
-          <Outlet />
+        <main className="flex-1">
+          <div className="max-w-5xl mx-auto py-4 px-3 sm:px-4 md:py-5">
+            {children}
+          </div>
         </main>
+      </div>
+      
+      {isMobile && <MobileMenu />}
+      
+      <div className="md:hidden fixed bottom-5 right-5 rounded-full shadow-lg z-10">
+        <Button variant="default" size="icon" className="h-12 w-12 rounded-full bg-primary shadow-md">
+          <PlusCircle size={20} />
+        </Button>
       </div>
     </div>
   );

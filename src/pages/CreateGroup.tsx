@@ -130,11 +130,10 @@ const CreateGroup = () => {
 
     try {
       const groupData = {
-        name: formData.name,
-        description: formData.description,
-        privacy: formData.privacy,
-        price: formData.price,
-        image: formData.image || undefined
+        ...formData,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role,
       };
 
       const newGroup = await createGroup(groupData);

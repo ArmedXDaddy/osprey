@@ -1,11 +1,10 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy 
+  Booking, ServiceType, Comment 
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -18,11 +17,10 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
-// Remove custom interface since we're using the one from @/types
-// interface GroupPrivacy {
-//   private: boolean;
-//   public: boolean;
-// }
+interface GroupPrivacy {
+  private: boolean;
+  public: boolean;
+}
 
 interface DataContextType {
   posts: Post[];
@@ -50,13 +48,7 @@ interface DataContextType {
   rejectEventRequest: (requestId: string) => Promise<void>;
   getEventRequests: (eventId: string) => Promise<JoinRequest[]>;
   handleEventJoinRequest: (eventId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
-  createGroup: (groupData: {
-    name: string;
-    description: string;
-    privacy: GroupPrivacy;
-    price?: number;
-    image?: string;
-  }) => Promise<Group>;
+  createGroup: (groupData: any) => Promise<Group>;
   joinGroup: (groupId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
   requestToJoinGroup: (groupId: string) => Promise<void>;
@@ -1038,39 +1030,28 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     throw new Error('Not implemented');
   };
   
-  const createGroup = async (groupData: {
-    name: string;
-    description: string;
-    privacy: GroupPrivacy;
-    price?: number;
-    image?: string;
-  }): Promise<Group> => {
+  const createGroup = async (groupData: any): Promise<Group> => {
+    if (!currentUser) throw new Error('You must be logged in to create a group');
+    
     try {
-      setLoading(true);
-      
-      if (!currentUser) {
-        throw new Error('You must be logged in to create a group');
-      }
-      
-      // Convert the string to GroupPrivacy type explicitly through unknown
-      const privacyValue = groupData.privacy as unknown as string;
-      
-      const groupToInsert = {
-        name: groupData.name,
-        description: groupData.description,
-        creator_id: currentUser.id,
-        creator_name: currentUser.name,
-        creator_role: currentUser.role,
-        members: 1,
-        privacy: privacyValue,
-        image: groupData.image,
-        price: groupData.privacy === 'paid' ? groupData.price : null,
-        member_ids: [currentUser.id], // Initialize with creator
-      };
+      const { name, description, image, privacy, price, memberLimit, rules } = groupData;
       
       const { data, error } = await supabase
         .from('groups')
-        .insert(groupToInsert)
+        .insert({
+          name,
+          description,
+          image,
+          privacy,
+          price: privacy === 'paid' ? price : null,
+          member_limit: memberLimit,
+          rules,
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          creator_role: currentUser.role as string,
+          members: 1,
+          pending_requests: 0
+        })
         .select()
         .single();
       
@@ -1078,7 +1059,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       if (!data) throw new Error('Failed to create group');
       
-      const transformedGroup: Group = {
+      const newGroup: Group = {
         id: data.id,
         name: data.name,
         description: data.description,
@@ -1088,22 +1069,21 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         image: data.image,
         members: data.members,
         memberLimit: data.member_limit,
-        privacy: data.privacy as unknown as GroupPrivacy, // Cast through unknown
+        privacy: data.privacy as GroupPrivacy,
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
-        createdAt: new Date(data.created_at),
-        memberIds: data.member_ids || [] // Initialize with data from DB or empty array
+        createdAt: new Date(data.created_at)
       };
       
-      setGroups(prev => [transformedGroup, ...prev]);
+      setGroups(prev => [newGroup, ...prev]);
       
       toast({
         title: "Group created",
         description: "Your group has been created successfully",
       });
       
-      return transformedGroup;
+      return newGroup;
     } catch (error: any) {
       console.error("Error creating group:", error);
       toast({
@@ -1112,8 +1092,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         variant: "destructive",
       });
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -1236,6 +1214,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a group');
     
     try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the groups array
       setGroups(prev => prev.filter(group => group.id !== groupId));
       
       toast({
@@ -1252,6 +1232,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the events array
       setEvents(prev => prev.filter(event => event.id !== eventId));
       
       toast({

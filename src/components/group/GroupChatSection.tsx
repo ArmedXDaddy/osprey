@@ -8,9 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { Send } from 'lucide-react';
-import { Group, Message, UserRole } from '@/types';
+import { Group, Message } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
 
 interface GroupChatSectionProps {
   group: Group;
@@ -26,9 +25,6 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
 
   // Fetch group messages on component mount
   useEffect(() => {
-    // Clear old messages when group changes
-    setChatMessages([]);
-    
     const fetchGroupMessages = async () => {
       try {
         const { data, error } = await supabase
@@ -45,7 +41,7 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
             groupId: msg.group_id,
             userId: msg.user_id,
             userName: msg.user_name,
-            userRole: msg.user_role as UserRole,
+            userRole: msg.user_role,
             userProfileImage: msg.user_profile_image,
             content: msg.content,
             createdAt: new Date(msg.created_at)
@@ -55,46 +51,37 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
         }
       } catch (error) {
         console.error("Error fetching group messages:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load messages. Please try again later.",
-          variant: "destructive"
-        });
       }
     };
     
-    if (group && group.id) {
-      fetchGroupMessages();
+    fetchGroupMessages();
+    
+    // Set up real-time updates for messages
+    const channel = supabase
+      .channel('public:messages')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `group_id=eq.${group.id}` },
+        (payload) => {
+          const newMsg = payload.new as any;
+          const message: Message = {
+            id: newMsg.id,
+            groupId: newMsg.group_id,
+            userId: newMsg.user_id,
+            userName: newMsg.user_name,
+            userRole: newMsg.user_role,
+            userProfileImage: newMsg.user_profile_image,
+            content: newMsg.content,
+            createdAt: new Date(newMsg.created_at)
+          };
+          
+          setChatMessages(prev => [...prev, message]);
+        }
+      )
+      .subscribe();
       
-      // Set up real-time updates for messages
-      const channel = supabase
-        .channel(`messages-${group.id}`)
-        .on('postgres_changes', 
-          { event: 'INSERT', schema: 'public', table: 'messages', filter: `group_id=eq.${group.id}` },
-          (payload) => {
-            console.log("New message received:", payload);
-            const newMsg = payload.new as any;
-            const message: Message = {
-              id: newMsg.id,
-              groupId: newMsg.group_id,
-              userId: newMsg.user_id,
-              userName: newMsg.user_name,
-              userRole: newMsg.user_role as UserRole,
-              userProfileImage: newMsg.user_profile_image,
-              content: newMsg.content,
-              createdAt: new Date(newMsg.created_at)
-            };
-            
-            setChatMessages(prev => [...prev, message]);
-          }
-        )
-        .subscribe();
-        
-      return () => {
-        console.log(`Unsubscribing from channel messages-${group.id}`);
-        supabase.removeChannel(channel);
-      };
-    }
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [group.id]);
 
   // Scroll to bottom on new messages
@@ -119,11 +106,6 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
       setNewMessage('');
     } catch (error) {
       console.error("Failed to send message:", error);
-      toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive"
-      });
     } finally {
       setIsSubmitting(false);
     }
