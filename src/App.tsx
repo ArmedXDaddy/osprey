@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   createBrowserRouter,
   RouterProvider,
@@ -12,6 +12,8 @@ import Index from '@/pages/Index';
 import Profile from '@/pages/Profile';
 import Services from '@/pages/Services';
 import ServiceDetail from '@/pages/ServiceDetail';
+import Workshops from '@/pages/Workshops';
+import WorkshopDetail from '@/pages/WorkshopDetail';
 import { Toaster } from "@/components/ui/toaster";
 
 // A wrapper for routes that require authentication
@@ -19,7 +21,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { currentUser, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!currentUser && !isLoading) {
       navigate('/profile');
     }
