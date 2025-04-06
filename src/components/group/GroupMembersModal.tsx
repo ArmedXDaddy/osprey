@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useData } from '@/context/DataContext';
+import { useAuth } from '@/context/AuthContext';
 
 interface GroupMember {
   id: string;
@@ -29,8 +30,10 @@ interface GroupMembersModalProps {
 const GroupMembersModal: React.FC<GroupMembersModalProps> = ({ groupId, creatorId, open, onClose }) => {
   const { toast } = useToast();
   const { removeGroupMember } = useData();
+  const { currentUser } = useAuth();
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -108,7 +111,18 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({ groupId, creatorI
   };
 
   const handleRemoveMember = async (userId: string) => {
+    // Make sure the current user is the creator
+    if (!currentUser || currentUser.id !== creatorId) {
+      toast({
+        title: "Permission denied",
+        description: "Only the group creator can remove members",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
+      setProcessing(true);
       await removeGroupMember(groupId, userId);
       
       // Update the local state
@@ -118,13 +132,15 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({ groupId, creatorI
         title: "Member removed",
         description: "The member has been removed from the group",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error removing member:', error);
       toast({
         title: "Error",
-        description: "Failed to remove member",
+        description: error.message || "Failed to remove member",
         variant: "destructive"
       });
+    } finally {
+      setProcessing(false);
     }
   };
 
@@ -196,6 +212,7 @@ const GroupMembersModal: React.FC<GroupMembersModalProps> = ({ groupId, creatorI
                         variant="ghost" 
                         size="sm" 
                         onClick={() => handleRemoveMember(member.userId)}
+                        disabled={processing}
                         className="text-red-500 hover:text-red-700 hover:bg-red-50"
                       >
                         <UserX className="h-4 w-4 mr-1" />
