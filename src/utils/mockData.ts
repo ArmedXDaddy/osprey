@@ -94,13 +94,72 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Get stored sponsorships from localStorage or return an empty array
+// Get stored sponsorships from localStorage or return sample data if none exist
 export const generateMockSponsorships = (): Sponsorship[] => {
   try {
     const storedSponsorships = localStorage.getItem('mock_sponsorships');
-    return storedSponsorships ? JSON.parse(storedSponsorships) : [];
+    if (storedSponsorships) {
+      // Parse stored data and ensure dates are properly converted from strings back to Date objects
+      const parsedSponsorships = JSON.parse(storedSponsorships);
+      return parsedSponsorships.map((sponsorship: any) => ({
+        ...sponsorship,
+        createdAt: new Date(sponsorship.createdAt),
+        deadline: sponsorship.deadline ? new Date(sponsorship.deadline) : undefined
+      }));
+    }
+    
+    // If no stored sponsorships, return sample data
+    const sampleSponsorships: Sponsorship[] = [
+      {
+        id: 'sponsorship-1',
+        title: 'Fitness Brand Ambassador',
+        description: 'Looking for fitness enthusiasts to represent our new line of workout gear.',
+        companyId: 'company-1',
+        companyName: 'FitLife Apparel',
+        companyLogo: '/placeholder.svg',
+        requirements: [
+          'At least 1000 followers on Instagram',
+          'Regular fitness content creator',
+          'Located in the United States'
+        ],
+        benefits: [
+          'Free products monthly',
+          'Commission on sales with your code',
+          'Featured on our social media'
+        ],
+        compensation: '$500 per month',
+        status: 'active' as SponsorshipStatus,
+        tags: ['fitness', 'health', 'apparel'],
+        createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 days ago
+      },
+      {
+        id: 'sponsorship-2',
+        title: 'Tech Reviewer Partnership',
+        description: 'Seeking tech reviewers for our new smartphone accessories.',
+        companyId: 'company-2',
+        companyName: 'TechGadget Co',
+        companyLogo: '/placeholder.svg',
+        requirements: [
+          'Technology-focused content creator',
+          'Experience with product reviews',
+          'At least 5K subscribers on YouTube'
+        ],
+        benefits: [
+          'Keep all products you review',
+          'Early access to new releases',
+          'Affiliate partnership opportunity'
+        ],
+        status: 'active' as SponsorshipStatus,
+        tags: ['technology', 'gadgets', 'reviews'],
+        createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
+      }
+    ];
+    
+    // Store the sample data in localStorage
+    localStorage.setItem('mock_sponsorships', JSON.stringify(sampleSponsorships));
+    return sampleSponsorships;
   } catch (error) {
-    console.error('Error retrieving sponsorships from localStorage:', error);
+    console.error('Error with sponsorships in localStorage:', error);
     return [];
   }
 };
