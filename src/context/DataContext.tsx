@@ -119,7 +119,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const { currentUser } = useAuth();
   
   React.useEffect(() => {
-    const loadMockData = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
         
@@ -196,7 +196,83 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           setGroups(generateMockGroups());
         }
         
-        setEvents(generateMockEvents());
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (eventsError) {
+          console.error("Error fetching events:", eventsError);
+          setEvents(generateMockEvents());
+        } else if (eventsData && eventsData.length > 0) {
+          const transformedEvents: Event[] = eventsData.map((event: any) => ({
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            location: event.location,
+            date: new Date(event.date),
+            image: event.image,
+            privacy: event.privacy as EventPrivacy,
+            price: event.price,
+            attendees: event.attendees || [],
+            createdAt: new Date(event.created_at),
+            creatorId: event.creator_id,
+            creatorName: event.creator_name,
+            creatorRole: event.creator_role,
+            pendingRequests: event.pending_requests || 0
+          }));
+          
+          setEvents(transformedEvents);
+          
+          const { data: completedEventsData, error: completedError } = await supabase
+            .from('completed_events')
+            .select('*')
+            .order('completed_at', { ascending: false });
+            
+          if (!completedError && completedEventsData && completedEventsData.length > 0) {
+            const transformedCompletedEvents: Event[] = completedEventsData.map((event: any) => ({
+              id: event.id,
+              title: event.title,
+              description: event.description,
+              location: event.location,
+              date: new Date(event.date),
+              image: event.image,
+              privacy: event.privacy as EventPrivacy,
+              price: event.price,
+              attendees: event.attendees || [],
+              createdAt: new Date(event.created_at),
+              creatorId: event.creator_id,
+              creatorName: event.creator_name,
+              creatorRole: event.creator_role,
+              pendingRequests: 0
+            }));
+            
+            setCompletedEvents(transformedCompletedEvents);
+          }
+        } else {
+          setEvents(generateMockEvents());
+        }
+        
+        const { data: announcementsData, error: announcementsError } = await supabase
+          .from('announcements')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (!announcementsError && announcementsData && announcementsData.length > 0) {
+          const transformedAnnouncements: Announcement[] = announcementsData.map((announcement: any) => ({
+            id: announcement.id,
+            eventId: announcement.event_id,
+            creatorId: announcement.creator_id,
+            creatorName: announcement.creator_name,
+            content: announcement.content,
+            createdAt: new Date(announcement.created_at)
+          }));
+          
+          setAnnouncements(transformedAnnouncements);
+        } else {
+          setAnnouncements([]);
+        }
+        
         setSessions(generateMockSessions());
         setSessionEnrollments(generateMockSessionEnrollments());
         setMessages(generateMockMessages());
@@ -207,11 +283,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         setLoading(false);
       }
     };
-    loadMockData();
+    loadData();
     
     const postsChannel = supabase.channel('public:posts');
     const commentsChannel = supabase.channel('public:comments');
     const likesChannel = supabase.channel('public:post_likes');
+    const eventsChannel = supabase.channel('public:events');
+    const announcementsChannel = supabase.channel('public:announcements');
     
     postsChannel
       .on('postgres_changes', 
@@ -259,6 +337,90 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       )
       .subscribe();
       
+    eventsChannel
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('New event:', payload);
+          const newEvent = payload.new as any;
+          
+          const event: Event = {
+            id: newEvent.id,
+            title: newEvent.title,
+            description: newEvent.description,
+            location: newEvent.location,
+            date: new Date(newEvent.date),
+            image: newEvent.image,
+            privacy: newEvent.privacy as EventPrivacy,
+            price: newEvent.price,
+            attendees: newEvent.attendees || [],
+            createdAt: new Date(newEvent.created_at),
+            creatorId: newEvent.creator_id,
+            creatorName: newEvent.creator_name,
+            creatorRole: newEvent.creator_role,
+            pendingRequests: newEvent.pending_requests || 0
+          };
+          
+          setEvents(prevEvents => [event, ...prevEvents]);
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('Updated event:', payload);
+          const updatedEvent = payload.new as any;
+          
+          setEvents(prevEvents => prevEvents.map(event => {
+            if (event.id === updatedEvent.id) {
+              return {
+                ...event,
+                title: updatedEvent.title,
+                description: updatedEvent.description,
+                location: updatedEvent.location,
+                date: new Date(updatedEvent.date),
+                image: updatedEvent.image,
+                privacy: updatedEvent.privacy,
+                price: updatedEvent.price,
+                attendees: updatedEvent.attendees || event.attendees,
+                pendingRequests: updatedEvent.pending_requests || event.pendingRequests
+              };
+            }
+            return event;
+          }));
+        }
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('Deleted event:', payload);
+          const deletedEvent = payload.old as any;
+          
+          setEvents(prevEvents => prevEvents.filter(event => event.id !== deletedEvent.id));
+        }
+      )
+      .subscribe();
+      
+    announcementsChannel
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'announcements' },
+        (payload) => {
+          console.log('New announcement:', payload);
+          const newAnnouncement = payload.new as any;
+          
+          const announcement: Announcement = {
+            id: newAnnouncement.id,
+            eventId: newAnnouncement.event_id,
+            creatorId: newAnnouncement.creator_id,
+            creatorName: newAnnouncement.creator_name,
+            content: newAnnouncement.content,
+            createdAt: new Date(newAnnouncement.created_at)
+          };
+          
+          setAnnouncements(prevAnnouncements => [announcement, ...prevAnnouncements]);
+        }
+      )
+      .subscribe();
+      
     commentsChannel
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'comments' },
@@ -289,7 +451,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           setPosts(prevPosts => 
             prevPosts.map(post => 
               post.id === comment.postId 
-                ? { ...post, comments: post.comments + 1 } 
+                ? { ...post, comments: (post.comments || 0) + 1 } 
                 : post
             )
           );
@@ -312,7 +474,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                   return {
                     ...post,
                     userLikes: [...userLikes, newLike.user_id],
-                    likes: post.likes + 1
+                    likes: (post.likes || 0) + 1
                   };
                 }
               }
@@ -334,7 +496,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                 return {
                   ...post,
                   userLikes: userLikes.filter(id => id !== deletedLike.user_id),
-                  likes: Math.max(0, post.likes - 1)
+                  likes: Math.max(0, (post.likes || 0) - 1)
                 };
               }
               return post;
@@ -348,6 +510,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(likesChannel);
+      supabase.removeChannel(eventsChannel);
+      supabase.removeChannel(announcementsChannel);
     };
   }, []);
   
@@ -713,655 +877,3 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         description: data.description,
         providerId: data.coach_id,
         providerName: data.coach_name,
-        price: data.price,
-        duration: data.duration,
-        available: data.is_active,
-        createdAt: new Date(data.created_at),
-        isOnline: data.is_online,
-        location: data.location,
-        capacity: data.capacity,
-        serviceType: data.service_type as ServiceType,
-        coverImage: data.cover_image,
-        meetingUrl: data.meeting_url
-      };
-    } catch (err) {
-      console.error("Error fetching service:", err);
-      return null;
-    }
-  };
-  
-  const bookService = async (serviceId: string, paymentStatus?: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to book a service');
-    
-    try {
-      const status = paymentStatus === 'paid' ? 'approved' : 'pending';
-      
-      await createServiceBooking(
-        serviceId,
-        currentUser.id,
-        undefined,
-        paymentStatus as any,
-        status as any
-      );
-      
-      toast({
-        title: "Service booked successfully",
-        description: paymentStatus === 'paid' 
-          ? "Your booking has been confirmed" 
-          : "Your booking request has been submitted"
-      });
-    } catch (err: any) {
-      console.error("Error booking service:", err);
-      toast({
-        variant: "destructive",
-        title: "Booking failed",
-        description: err.message || "Failed to book service"
-      });
-      throw new Error(err.message || 'Failed to book service');
-    }
-  };
-  
-  const getUserBookingsImpl = async (userId: string): Promise<Booking[]> => {
-    try {
-      return await getUserBookings(userId);
-    } catch (err: any) {
-      console.error("Error fetching user bookings:", err);
-      return [];
-    }
-  };
-  
-  const getServiceBookingsImpl = async (serviceId: string): Promise<Booking[]> => {
-    try {
-      return await getServiceBookings(serviceId);
-    } catch (err: any) {
-      console.error("Error fetching service bookings:", err);
-      return [];
-    }
-  };
-  
-  const getUserBookingForServiceImpl = async (serviceId: string, userId: string): Promise<Booking | null> => {
-    try {
-      return await getUserBookingForService(serviceId, userId);
-    } catch (err: any) {
-      console.error("Error fetching user booking for service:", err);
-      return null;
-    }
-  };
-  
-  const cancelBookingImpl = async (bookingId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to cancel a booking');
-    
-    try {
-      await cancelBooking(bookingId);
-    } catch (err: any) {
-      console.error("Error cancelling booking:", err);
-      throw new Error(err.message || 'Failed to cancel booking');
-    }
-  };
-  
-  const approveBookingImpl = async (bookingId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to approve a booking');
-    
-    try {
-      await approveBooking(bookingId);
-    } catch (err: any) {
-      console.error("Error approving booking:", err);
-      throw new Error(err.message || 'Failed to approve booking');
-    }
-  };
-  
-  const createEvent = async (eventData: any): Promise<Event> => {
-    if (!currentUser) throw new Error('You must be logged in to create an event');
-    
-    try {
-      const eventPrivacy = eventData.privacy as EventPrivacy;
-      
-      const newEvent: Event = {
-        id: Date.now().toString(),
-        title: eventData.title,
-        description: eventData.description,
-        location: eventData.location,
-        date: eventData.date,
-        image: eventData.image || null,
-        privacy: eventPrivacy,
-        price: eventData.price || null,
-        attendees: [currentUser.id],
-        createdAt: new Date(),
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role
-      };
-      
-      setEvents(prev => [newEvent, ...prev]);
-      
-      toast({
-        title: "Event created",
-        description: "Your event has been created successfully",
-      });
-      
-      return newEvent;
-    } catch (error: any) {
-      console.error("Error creating event:", error);
-      toast({
-        variant: "destructive",
-        title: "Error creating event",
-        description: error.message || "Failed to create event"
-      });
-      throw error;
-    }
-  };
-  
-  const joinEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to join an event');
-    
-    try {
-      const eventToUpdate = events.find(e => e.id === eventId);
-      if (!eventToUpdate) throw new Error('Event not found');
-      
-      // Check if user is already attending
-      if (eventToUpdate.attendees && eventToUpdate.attendees.includes(currentUser.id)) {
-        return; // User is already attending
-      }
-      
-      // Update attendees list
-      const updatedAttendees = eventToUpdate.attendees ? [...eventToUpdate.attendees, currentUser.id] : [currentUser.id];
-      
-      // Update the events state
-      setEvents(prev => prev.map(e => 
-        e.id === eventId 
-          ? { ...e, attendees: updatedAttendees } 
-          : e
-      ));
-      
-    } catch (error: any) {
-      console.error("Error joining event:", error);
-      throw new Error(error.message || 'Failed to join event');
-    }
-  };
-  
-  const leaveEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to leave an event');
-    
-    try {
-      const eventToUpdate = events.find(e => e.id === eventId);
-      if (!eventToUpdate) throw new Error('Event not found');
-      
-      // Remove user from attendees list
-      const updatedAttendees = eventToUpdate.attendees 
-        ? eventToUpdate.attendees.filter(id => id !== currentUser.id)
-        : [];
-      
-      // Update the events state
-      setEvents(prev => prev.map(e => 
-        e.id === eventId 
-          ? { ...e, attendees: updatedAttendees } 
-          : e
-      ));
-      
-    } catch (error: any) {
-      console.error("Error leaving event:", error);
-      throw new Error(error.message || 'Failed to leave event');
-    }
-  };
-  
-  const deleteEvent = async (eventId: string, reason: 'cancelled' | 'completed' = 'cancelled') => {
-    if (!currentUser) throw new Error('You must be logged in to delete an event');
-    
-    try {
-      const eventToDelete = events.find(e => e.id === eventId);
-      if (!eventToDelete) throw new Error('Event not found');
-      
-      // Verify the user is the creator of the event
-      if (eventToDelete.creatorId !== currentUser.id) {
-        throw new Error('Only the event creator can delete this event');
-      }
-      
-      // Remove the event from the state
-      setEvents(prev => prev.filter(e => e.id !== eventId));
-      
-      // If the event was marked as completed, add it to completedEvents
-      if (reason === 'completed') {
-        const eventToComplete = events.find(e => e.id === eventId);
-        if (eventToComplete) {
-          setCompletedEvents(prev => [...prev, eventToComplete]);
-        }
-      }
-      
-      // Here you would typically also delete from the database
-      // For now we just log the reason
-      console.log(`Event ${eventId} has been ${reason} by creator ${currentUser.id}`);
-      
-    } catch (error: any) {
-      console.error(`Error ${reason} event:`, error);
-      throw new Error(error.message || `Failed to ${reason} event`);
-    }
-  };
-  
-  const requestToJoinEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const rejectEventRequest = async (requestId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    return [];
-  };
-  
-  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    
-    try {
-      console.log("Creating group with data:", groupData);
-      
-      const { data, error } = await supabase
-        .from('groups')
-        .insert({
-          name: groupData.name,
-          description: groupData.description,
-          creator_id: currentUser.id,
-          creator_name: currentUser.name,
-          creator_role: currentUser.role,
-          image: groupData.image,
-          privacy: groupData.privacy,
-          price: groupData.privacy === 'paid' ? groupData.price : null,
-          rules: groupData.rules || [],
-          member_limit: groupData.memberLimit || 100
-        })
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      const newGroup: Group = {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        creatorId: data.creator_id,
-        creatorName: data.creator_name,
-        creatorRole: data.creator_role as UserRole,
-        members: 1, // Creator is the first member
-        memberIds: [currentUser.id],
-        image: data.image,
-        privacy: data.privacy as GroupPrivacy,
-        price: data.price,
-        createdAt: new Date(data.created_at),
-        pendingRequests: 0,
-        rules: data.rules || [],
-        memberLimit: data.member_limit
-      };
-      
-      // Add to local state
-      setGroups(prev => [newGroup, ...prev]);
-      
-      toast({
-        title: "Group created",
-        description: `Your group "${newGroup.name}" has been created successfully`
-      });
-      
-      return newGroup;
-    } catch (err: any) {
-      console.error("Error creating group:", err);
-      toast({
-        title: "Error creating group",
-        description: err.message || "Failed to create group",
-        variant: "destructive"
-      });
-      throw new Error(err.message || 'Failed to create group');
-    }
-  };
-  
-  const createService = async (serviceData: any): Promise<Service> => {
-    if (!currentUser) throw new Error('You must be logged in to create a service');
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .insert({
-          title: serviceData.title,
-          description: serviceData.description,
-          coach_id: currentUser.id,
-          coach_name: currentUser.name,
-          price: serviceData.price || 0,
-          duration: serviceData.duration,
-          is_active: serviceData.available !== undefined ? serviceData.available : true,
-          is_online: serviceData.isOnline || false,
-          location: serviceData.location,
-          capacity: serviceData.capacity,
-          service_type: serviceData.serviceType,
-          cover_image: serviceData.coverImage,
-          meeting_url: serviceData.meetingUrl
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      const newService: Service = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        providerId: data.coach_id,
-        providerName: data.coach_name,
-        price: data.price,
-        duration: data.duration,
-        available: data.is_active,
-        createdAt: new Date(data.created_at),
-        isOnline: data.is_online,
-        location: data.location,
-        capacity: data.capacity,
-        serviceType: data.service_type as ServiceType,
-        coverImage: data.cover_image,
-        meetingUrl: data.meeting_url
-      };
-      
-      // Update the services state
-      setServices(prevServices => [newService, ...prevServices]);
-      
-      return newService;
-    } catch (err: any) {
-      console.error("Error creating service:", err);
-      setError(err);
-      throw err;
-    }
-  };
-  
-  const updateService = async (serviceId: string, updates: any): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to update a service');
-    
-    try {
-      const { error } = await supabase
-        .from('services')
-        .update({
-          title: updates.title,
-          description: updates.description,
-          price: updates.price,
-          duration: updates.duration,
-          is_active: updates.available,
-          is_online: updates.isOnline,
-          location: updates.location,
-          capacity: updates.capacity,
-          service_type: updates.serviceType,
-          cover_image: updates.coverImage,
-          meeting_url: updates.meetingUrl,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', serviceId)
-        .eq('coach_id', currentUser.id);
-      
-      if (error) throw error;
-      
-      setServices(prev => 
-        prev.map(service => 
-          service.id === serviceId 
-            ? { 
-                ...service, 
-                title: updates.title,
-                description: updates.description,
-                price: updates.price,
-                duration: updates.duration,
-                available: updates.available,
-                isOnline: updates.isOnline,
-                location: updates.location,
-                capacity: updates.capacity,
-                serviceType: updates.serviceType,
-                coverImage: updates.coverImage,
-                meetingUrl: updates.meetingUrl
-              } 
-            : service
-        )
-      );
-      
-    } catch (err: any) {
-      console.error("Error updating service:", err);
-      throw new Error(err.message || 'Failed to update service');
-    }
-  };
-  
-  const deleteService = async (serviceId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to delete a service');
-  };
-  
-  const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to send a service message');
-    
-    try {
-      console.log("Sending service message:", messageData);
-      
-      const { data, error } = await supabase.rpc('send_service_chat_message', {
-        p_service_id: messageData.serviceId,
-        p_user_id: currentUser.id,
-        p_content: messageData.content
-      });
-      
-      if (error) throw error;
-      
-      console.log("Message sent successfully:", data);
-    } catch (err: any) {
-      console.error("Error sending service message:", err);
-      throw new Error(err.message || 'Failed to send message');
-    }
-  };
-  
-  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
-    try {
-      console.log("Fetching messages for service:", serviceId);
-      
-      const { data, error } = await supabase.rpc('get_service_chat_messages', {
-        p_service_id: serviceId
-      });
-      
-      if (error) throw error;
-      
-      if (data) {
-        const transformedMessages: Message[] = data.map((msg: any) => ({
-          id: msg.id,
-          content: msg.content,
-          userId: msg.user_id,
-          userName: msg.user_name,
-          userRole: msg.user_role as UserRole,
-          userProfileImage: msg.user_profile_image,
-          createdAt: new Date(msg.created_at),
-          groupId: null,
-          serviceId: msg.service_id
-        }));
-        
-        return transformedMessages;
-      }
-      
-      return [];
-    } catch (error: any) {
-      console.error("Error fetching service messages:", error);
-      throw new Error(error.message || 'Failed to fetch service messages');
-    }
-  };
-  
-  const fetchUserServices = async (userId: string): Promise<Service[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('coach_id', userId)
-        .order('created_at', { ascending: false });
-        
-      if (error) throw error;
-      
-      if (data) {
-        return data.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          providerId: item.coach_id,
-          providerName: item.coach_name,
-          price: item.price,
-          duration: item.duration,
-          available: item.is_active,
-          createdAt: new Date(item.created_at),
-          isOnline: item.is_online,
-          location: item.location,
-          capacity: item.capacity,
-          serviceType: item.service_type as ServiceType,
-          coverImage: item.cover_image,
-          meetingUrl: item.meeting_url
-        }));
-      }
-      
-      return [];
-    } catch (error: any) {
-      console.error("Error fetching user services:", error);
-      return [];
-    }
-  };
-  
-  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to post an announcement');
-    
-    try {
-      // Find the event to ensure it exists
-      const event = events.find(e => e.id === eventId);
-      if (!event) throw new Error('Event not found');
-      
-      // Ensure user is the creator of the event
-      if (event.creatorId !== currentUser.id) {
-        throw new Error('Only the event creator can post announcements');
-      }
-      
-      // Create the announcement
-      const newAnnouncement: Announcement = {
-        id: Date.now().toString(),
-        eventId,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        content,
-        createdAt: new Date()
-      };
-      
-      // Add to announcements state
-      setAnnouncements(prev => [newAnnouncement, ...prev]);
-      
-      // In a real app, you would save this to the database
-      console.log('Posted announcement:', newAnnouncement);
-      
-      toast({
-        title: "Announcement posted",
-        description: "Your announcement has been shared with all participants"
-      });
-    } catch (error: any) {
-      console.error("Error posting announcement:", error);
-      toast({
-        title: "Error posting announcement",
-        description: error.message || "Failed to post announcement",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  };
-  
-  const deleteGroup = async (groupId: string) => {
-    try {
-      // Delete the group from the database
-      const { error } = await supabase
-        .from('groups')
-        .delete()
-        .eq('id', groupId);
-      
-      if (error) throw error;
-      
-      // Then update the local state
-      const updatedGroups = groups.filter(group => group.id !== groupId);
-      setGroups(updatedGroups);
-      
-      toast({
-        title: "Group deleted",
-        description: "The group has been successfully deleted.",
-      });
-    } catch (error) {
-      console.error("Error deleting group:", error);
-      toast({
-        title: "Error",
-        description: "There was an error deleting the group. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  return (
-    <DataContext.Provider value={{
-      posts,
-      events,
-      groups,
-      services,
-      sessions,
-      sessionEnrollments,
-      messages,
-      setMessages,
-      joinRequests,
-      loading,
-      error,
-      postComments,
-      completedEvents,
-      announcements,
-      postAnnouncement,
-      createPost: async () => { throw new Error('Not implemented'); },
-      likePost: async () => { throw new Error('Not implemented'); },
-      unlikePost: async () => { throw new Error('Not implemented'); },
-      addComment: async () => { throw new Error('Not implemented'); },
-      updateComment: async () => { throw new Error('Not implemented'); },
-      deleteComment: async () => { throw new Error('Not implemented'); },
-      createEvent,
-      joinEvent,
-      leaveEvent,
-      deleteEvent,
-      requestToJoinEvent: async () => { throw new Error('Not implemented'); },
-      approveEventRequest: async () => { throw new Error('Not implemented'); },
-      rejectEventRequest: async () => { throw new Error('Not implemented'); },
-      getEventRequests: async () => { return []; },
-      handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
-      createGroup,
-      joinGroup,
-      leaveGroup,
-      requestToJoinGroup,
-      approveGroupRequest,
-      rejectGroupRequest,
-      getGroupRequests,
-      handleJoinRequest,
-      removeGroupMember,
-      updateGroupDetails,
-      deleteGroup,
-      createSession,
-      enrollInSession,
-      cancelEnrollment,
-      approveEnrollment,
-      rejectEnrollment,
-      getUserSessions,
-      getCoachSessions,
-      getUserEnrollments,
-      updateSession,
-      updateEnrollmentStatus,
-      sendMessage,
-      getServiceById,
-      bookService,
-      cancelBooking: cancelBookingImpl,
-      getUserBookings: getUserBookingsImpl,
-      getServiceBookings: getServiceBookingsImpl,
-      createService,
-      updateService,
-      deleteService,
-      approveBooking: approveBookingImpl,
-      sendServiceMessage,
-      getServiceMessages,
-      getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices
-    }}>
-      {children}
-    </DataContext.Provider>
-  );
-}

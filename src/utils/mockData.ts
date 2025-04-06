@@ -98,9 +98,42 @@ export const generateMockGroups = (): Group[] => {
   ];
 };
 
-// Add other mock data generation functions to return actual arrays instead of empty arrays
+// Generate mock events
 export const generateMockEvents = (): Event[] => {
-  return [];
+  return [
+    {
+      id: 'mock-event-1',
+      title: 'Summer Fitness Bootcamp',
+      description: 'Join us for an intensive outdoor fitness bootcamp',
+      creatorId: 'coach-1',
+      creatorName: 'John Fitness',
+      creatorRole: 'coach',
+      date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days in future
+      location: 'Central Park, New York',
+      image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
+      privacy: 'public',
+      price: 25,
+      attendees: [],
+      createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+      pendingRequests: 3
+    },
+    {
+      id: 'mock-event-2',
+      title: 'Nutrition Workshop',
+      description: 'Learn about balanced nutrition and meal prep',
+      creatorId: 'coach-2',
+      creatorName: 'Nutrition Expert',
+      creatorRole: 'coach',
+      date: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days in future
+      location: 'Community Center, Seattle',
+      image: 'https://images.unsplash.com/photo-1490818387583-1baba5e638af?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
+      privacy: 'private',
+      price: 15,
+      attendees: [],
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      pendingRequests: 7
+    }
+  ];
 };
 
 export const generateMockSessions = (): Session[] => {
