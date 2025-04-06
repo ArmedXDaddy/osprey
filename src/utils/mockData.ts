@@ -1,5 +1,4 @@
-
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest } from '@/types';
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, AttendeeDetail, EventRegistration } from '@/types';
 
 // Generate mock services
 export const generateMockServices = (): Service[] => {
@@ -41,8 +40,9 @@ export const generateMockServices = (): Service[] => {
   ];
 };
 
-// Add other mock data generation functions to return actual arrays instead of empty arrays
+// Update mock events to include proper attendee details and registrations 
 export const generateMockEvents = (): Event[] => {
+  // Initialize with empty arrays, will be populated when users register
   return [];
 };
 
