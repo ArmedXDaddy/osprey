@@ -1,7 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,15 +9,79 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Event, UserRole, EventPrivacy } from '@/types';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { events } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
+  const [event, setEvent] = useState<Event | null>(null);
+  const [loading, setLoading] = useState(true);
   
-  const event = events.find(e => e.id === id);
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        
+        if (!id) return;
+        
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching event:', error);
+          return;
+        }
+        
+        if (data) {
+          // Format the event data to match our Event type
+          const formattedEvent: Event = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            creatorId: data.creator_id,
+            creatorName: data.creator_name,
+            creatorRole: data.creator_role as UserRole,
+            location: data.location,
+            date: new Date(data.date),
+            image: data.image,
+            attendees: data.attendees || [],
+            privacy: data.privacy as EventPrivacy,
+            price: data.price,
+            pendingRequests: data.pending_requests,
+            createdAt: new Date(data.created_at)
+          };
+          
+          setEvent(formattedEvent);
+          
+          // Check if current user is attending
+          if (currentUser && Array.isArray(data.attendees)) {
+            setIsAttending(data.attendees.includes(currentUser.id));
+          }
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchEvent();
+  }, [id, currentUser]);
+  
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
+        <div className="h-8 w-40 bg-gray-200 animate-pulse rounded"></div>
+        <div className="h-4 w-64 bg-gray-200 animate-pulse rounded"></div>
+      </div>
+    );
+  }
   
   if (!event) {
     return (
@@ -33,18 +96,60 @@ const EventDetail = () => {
     );
   }
   
-  const handleAttendEvent = () => {
-    setIsAttending(!isAttending);
-    
-    if (!isAttending) {
+  const handleAttendEvent = async () => {
+    if (!currentUser) {
       toast({
-        title: "You're attending this event!",
-        description: "You've been added to the attendee list."
+        title: "Login required",
+        description: "Please log in to attend events",
+        variant: "destructive"
       });
-    } else {
+      return;
+    }
+    
+    try {
+      let updatedAttendees = [...event.attendees];
+      
+      if (isAttending) {
+        // Remove user from attendees
+        updatedAttendees = updatedAttendees.filter(id => id !== currentUser.id);
+      } else {
+        // Add user to attendees
+        updatedAttendees.push(currentUser.id);
+      }
+      
+      // Update event in Supabase
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees: updatedAttendees })
+        .eq('id', event.id);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setEvent({
+        ...event,
+        attendees: updatedAttendees
+      });
+      
+      setIsAttending(!isAttending);
+      
+      if (!isAttending) {
+        toast({
+          title: "You're attending this event!",
+          description: "You've been added to the attendee list."
+        });
+      } else {
+        toast({
+          title: "You're no longer attending",
+          description: "You've been removed from the attendee list."
+        });
+      }
+    } catch (error) {
+      console.error('Error updating attendance:', error);
       toast({
-        title: "You're no longer attending",
-        description: "You've been removed from the attendee list."
+        title: "Error",
+        description: "There was a problem updating your attendance status.",
+        variant: "destructive"
       });
     }
   };
