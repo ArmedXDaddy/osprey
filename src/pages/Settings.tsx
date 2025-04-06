@@ -121,35 +121,26 @@ const Settings = () => {
     try {
       setIsDeleting(true);
       
-      const { error } = await supabase.from('profiles')
-        .delete()
-        .eq('id', currentUser.id);
+      const { error } = await supabase.rpc('delete_user', {
+        p_user_id: currentUser.id
+      });
       
       if (error) throw error;
-      
-      const { error: authError } = await supabase.auth.admin.deleteUser(
-        currentUser.id
-      );
-      
-      if (authError) {
-        console.error('Auth deletion error:', authError);
-      }
-      
-      await logout();
       
       toast({
         title: "Account deleted",
         description: "Your account has been deleted successfully",
       });
       
+      await logout();
       navigate('/auth/login');
     } catch (error) {
+      console.error('Account deletion error:', error);
       toast({
         title: "Deletion failed",
         description: "There was a problem deleting your account",
         variant: "destructive",
       });
-      console.error('Account deletion error:', error);
     } finally {
       setIsDeleting(false);
     }
