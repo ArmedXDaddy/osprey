@@ -1,10 +1,11 @@
+
 import React, { useRef, useState } from 'react';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
-import { Button } from '../../components/ui/button';
-import { useToast } from '../../hooks/use-toast';
-import { cn } from '../../lib/utils';
-import ImageCropper from '../shared/ImageCropper';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import ImageCropper from '@/components/shared/ImageCropper';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface GroupImageGalleryProps {
   selectedImage: string;
