@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy
+  Booking, ServiceType, Comment, GroupPrivacy, Announcement
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -30,7 +30,9 @@ interface DataContextType {
   loading: boolean;
   error: Error | null;
   postComments: Record<string, Comment[]>;
-  completedEvents: Event[]; // Adding the completedEvents property
+  completedEvents: Event[];
+  announcements: Announcement[];
+  postAnnouncement: (eventId: string, content: string) => Promise<void>;
   createPost: (content: string, imageFile?: File | null) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
   unlikePost: (postId: string) => Promise<void>;
@@ -110,6 +112,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [mockServices, setMockServices] = useState<Service[]>([]);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
@@ -1102,6 +1105,50 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    try {
+      // Find the event to ensure it exists
+      const event = events.find(e => e.id === eventId);
+      if (!event) throw new Error('Event not found');
+      
+      // Ensure user is the creator of the event
+      if (event.creatorId !== currentUser.id) {
+        throw new Error('Only the event creator can post announcements');
+      }
+      
+      // Create the announcement
+      const newAnnouncement: Announcement = {
+        id: Date.now().toString(),
+        eventId,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        content,
+        createdAt: new Date()
+      };
+      
+      // Add to announcements state
+      setAnnouncements(prev => [newAnnouncement, ...prev]);
+      
+      // In a real app, you would save this to the database
+      console.log('Posted announcement:', newAnnouncement);
+      
+      toast({
+        title: "Announcement posted",
+        description: "Your announcement has been shared with all participants"
+      });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({
+        title: "Error posting announcement",
+        description: error.message || "Failed to post announcement",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+  
   return (
     <DataContext.Provider value={{
       posts,
@@ -1117,6 +1164,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       error,
       postComments,
       completedEvents,
+      announcements,
+      postAnnouncement,
       createPost: async () => { throw new Error('Not implemented'); },
       likePost: async () => { throw new Error('Not implemented'); },
       unlikePost: async () => { throw new Error('Not implemented'); },

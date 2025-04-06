@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -10,10 +9,11 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import EventAnnouncements from '@/components/events/EventAnnouncements';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { events, joinEvent, leaveEvent, deleteEvent } = useData();
+  const { events, joinEvent, leaveEvent, deleteEvent, announcements, postAnnouncement } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
@@ -33,7 +33,6 @@ const EventDetail = () => {
     );
   }
   
-  // Check if current user is attending the event
   React.useEffect(() => {
     if (currentUser && event.attendees) {
       const isUserAttending = event.attendees.includes(currentUser.id);
@@ -82,10 +81,8 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
-      // Navigate before deleting to prevent white page
       navigate('/events');
       
-      // Then delete the event
       await deleteEvent(event.id, 'cancelled');
       toast({
         title: "Event cancelled",
@@ -104,10 +101,8 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
-      // Navigate before deleting to prevent white page
       navigate('/events');
       
-      // Then mark the event as done
       await deleteEvent(event.id, 'completed');
       toast({
         title: "Event completed",
@@ -134,7 +129,6 @@ const EventDetail = () => {
   
   return (
     <div className="space-y-6">
-      {/* Back navigation */}
       <div>
         <Button variant="ghost" onClick={() => navigate('/events')} className="pl-0">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -142,7 +136,6 @@ const EventDetail = () => {
         </Button>
       </div>
       
-      {/* Event header */}
       <div className="relative rounded-xl overflow-hidden">
         <div className="absolute inset-0 bg-black/60 z-10"></div>
         <img 
@@ -172,7 +165,6 @@ const EventDetail = () => {
       </div>
       
       <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8">
-        {/* Event details */}
         <div className="md:col-span-2 space-y-6">
           <div>
             <h2 className="text-xl font-semibold mb-3">About this Event</h2>
@@ -215,7 +207,6 @@ const EventDetail = () => {
           </div>
         </div>
         
-        {/* Sidebar */}
         <div className="space-y-6">
           <div className="bg-gray-50 rounded-xl p-5 space-y-4">
             <div className="flex items-start gap-3">
@@ -298,6 +289,17 @@ const EventDetail = () => {
           </div>
         </div>
       </div>
+      
+      {event && (
+        <div className="mt-8">
+          <EventAnnouncements
+            announcements={announcements.filter(a => a.eventId === event.id)}
+            eventId={event.id}
+            isCreator={currentUser?.id === event.creatorId}
+            onPostAnnouncement={postAnnouncement}
+          />
+        </div>
+      )}
     </div>
   );
 };

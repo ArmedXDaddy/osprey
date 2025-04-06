@@ -1,4 +1,3 @@
-
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -257,4 +256,13 @@ export interface JobPosting {
   company_description?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface Announcement {
+  id: string;
+  eventId: string;
+  creatorId: string;
+  creatorName: string;
+  content: string;
+  createdAt: Date;
 }

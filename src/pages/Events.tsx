@@ -3,9 +3,10 @@ import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, List, Search, Filter, CheckSquare } from 'lucide-react';
+import { CalendarDays, List, Search, Filter, CheckSquare, Megaphone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import EventAnnouncements from '@/components/events/EventAnnouncements';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Events = () => {
-  const { events, completedEvents = [], loading } = useData();
+  const { events, completedEvents = [], loading, announcements = [], postAnnouncement } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
@@ -32,7 +33,6 @@ const Events = () => {
     );
   }
 
-  // Filter events based on search term
   const filteredEvents = events.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,7 +40,6 @@ const Events = () => {
     event.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
-  // Filter completed events based on search term
   const filteredCompletedEvents = completedEvents.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -48,7 +47,6 @@ const Events = () => {
     event.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort events based on selected option
   const sortedEvents = [...filteredEvents].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
@@ -62,7 +60,6 @@ const Events = () => {
     }
   });
   
-  // Sort completed events based on selected option
   const sortedCompletedEvents = [...filteredCompletedEvents].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
@@ -76,14 +73,23 @@ const Events = () => {
     }
   });
 
-  // Get user's events (events created by the current user)
   const userEvents = currentUser ? events.filter(event => event.creatorId === currentUser?.id) : [];
 
-  // Get upcoming events
   const upcomingEvents = sortedEvents.filter(event => new Date(event.date) > new Date());
 
-  // Get past events
   const pastEvents = sortedEvents.filter(event => new Date(event.date) < new Date());
+
+  const eventAnnouncements = currentUser ? announcements.filter(a => 
+    events.some(e => e.id === a.eventId && e.attendees && e.attendees.includes(currentUser.id))
+  ) : [];
+
+  const announcementsByEvent = eventAnnouncements.reduce((acc, announcement) => {
+    if (!acc[announcement.eventId]) {
+      acc[announcement.eventId] = [];
+    }
+    acc[announcement.eventId].push(announcement);
+    return acc;
+  }, {} as Record<string, typeof announcements>);
 
   return (
     <div className="space-y-6">
@@ -116,6 +122,10 @@ const Events = () => {
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="past">Past</TabsTrigger>
           <TabsTrigger value="concluded">Concluded</TabsTrigger>
+          <TabsTrigger value="announcements">
+            <Megaphone className="h-4 w-4 mr-1" />
+            Announcements
+          </TabsTrigger>
           {currentUser && <TabsTrigger value="my">My Events</TabsTrigger>}
         </TabsList>
         
@@ -226,6 +236,49 @@ const Events = () => {
               </div>
             )}
           </div>
+        </TabsContent>
+        
+        <TabsContent value="announcements" className="space-y-6">
+          {currentUser ? (
+            <>
+              {Object.keys(announcementsByEvent).length > 0 ? (
+                Object.entries(announcementsByEvent).map(([eventId, eventAnnouncements]) => {
+                  const event = events.find(e => e.id === eventId);
+                  if (!event) return null;
+                  
+                  return (
+                    <div key={eventId} className="border rounded-lg p-4 space-y-4 bg-card">
+                      <Link to={`/events/${eventId}`} className="block hover:underline">
+                        <h3 className="text-xl font-semibold">{event.title}</h3>
+                      </Link>
+                      <EventAnnouncements 
+                        announcements={eventAnnouncements}
+                        eventId={eventId}
+                        isCreator={event.creatorId === currentUser.id}
+                        onPostAnnouncement={postAnnouncement}
+                      />
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-12">
+                  <Megaphone className="h-12 w-12 mx-auto text-gray-300" />
+                  <h3 className="mt-4 text-lg font-medium">No announcements</h3>
+                  <p className="text-gray-500">
+                    There are no announcements for the events you've joined
+                  </p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <Megaphone className="h-12 w-12 mx-auto text-gray-300" />
+              <h3 className="mt-4 text-lg font-medium">Login to see announcements</h3>
+              <p className="text-gray-500">
+                You need to be logged in to view event announcements
+              </p>
+            </div>
+          )}
         </TabsContent>
         
         {currentUser && (
