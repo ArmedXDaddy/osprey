@@ -39,6 +39,10 @@ export interface User {
   followers?: number;
   following?: string[];
   createdAt?: Date;
+  interests?: string[];
+  socialLinks?: Record<string, string>;
+  verified?: boolean;
+  coverImage?: string;
 }
 
 export interface Post {
@@ -102,7 +106,7 @@ export interface Event {
   createdAt: Date;
 }
 
-export type ServiceType = 'one_on_one' | 'group' | 'consultation' | 'program';
+export type ServiceType = 'one_on_one' | 'group' | 'consultation' | 'program' | 'webinar' | 'course';
 
 export interface Service {
   id: string;
@@ -124,7 +128,7 @@ export interface Service {
 
 export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
-export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'approved' | 'rejected';
 
 export interface Booking {
   id: string;
@@ -137,6 +141,8 @@ export interface Booking {
   notes?: string;
   createdAt: Date;
   scheduledTime?: Date;
+  preferredTime?: Date;
+  userEmail?: string;
 }
 
 export interface Session {
@@ -165,7 +171,7 @@ export interface SessionEnrollment {
   userName: string;
   userEmail?: string;
   userProfileImage?: string;
-  status: BookingStatus;
+  status: BookingStatus | SessionStatus;
   paymentStatus: PaymentStatus;
   notes?: string;
   createdAt: Date;
