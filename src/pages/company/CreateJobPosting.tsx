@@ -13,6 +13,7 @@ import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { JobPosting } from '@/types';
 
 const jobSchema = z.object({
   title: z.string().min(5, 'Job title must be at least 5 characters'),
@@ -61,7 +62,7 @@ const CreateJobPosting = () => {
   
   const onSubmit = async (data: JobFormValues) => {
     try {
-      // Save to Supabase
+      // Save to Supabase with type assertion to address TypeScript issues
       const { error } = await supabase.from('job_postings').insert({
         title: data.title,
         description: data.description,
@@ -75,7 +76,7 @@ const CreateJobPosting = () => {
         company_id: currentUser?.id,
         company_name: currentUser?.name,
         company_logo: currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Company')}&background=random`
-      });
+      } as any);
       
       if (error) throw error;
       

@@ -151,6 +151,72 @@ export type Database = {
         }
         Relationships: []
       }
+      job_postings: {
+        Row: {
+          application_deadline: string | null
+          application_email: string | null
+          application_url: string | null
+          benefits: string[] | null
+          company_description: string | null
+          company_id: string
+          company_logo: string | null
+          company_name: string
+          created_at: string
+          description: string
+          id: string
+          job_type: string
+          location: string | null
+          requirements: string[] | null
+          responsibilities: string[] | null
+          salary_range: string | null
+          skills: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          application_deadline?: string | null
+          application_email?: string | null
+          application_url?: string | null
+          benefits?: string[] | null
+          company_description?: string | null
+          company_id: string
+          company_logo?: string | null
+          company_name: string
+          created_at?: string
+          description: string
+          id?: string
+          job_type?: string
+          location?: string | null
+          requirements?: string[] | null
+          responsibilities?: string[] | null
+          salary_range?: string | null
+          skills?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          application_deadline?: string | null
+          application_email?: string | null
+          application_url?: string | null
+          benefits?: string[] | null
+          company_description?: string | null
+          company_id?: string
+          company_logo?: string | null
+          company_name?: string
+          created_at?: string
+          description?: string
+          id?: string
+          job_type?: string
+          location?: string | null
+          requirements?: string[] | null
+          responsibilities?: string[] | null
+          salary_range?: string | null
+          skills?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       join_requests: {
         Row: {
           created_at: string

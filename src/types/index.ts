@@ -235,3 +235,25 @@ export interface Workshop {
     avatar: string;
   }[];
 }
+
+export interface JobPosting {
+  id: string;
+  title: string;
+  description: string;
+  company_id: string;
+  company_name: string;
+  company_logo?: string;
+  location?: string;
+  job_type: string;
+  salary_range?: string;
+  skills?: string[];
+  application_url?: string;
+  application_email?: string;
+  application_deadline?: string;
+  responsibilities?: string[];
+  requirements?: string[];
+  benefits?: string[];
+  company_description?: string;
+  created_at: string;
+  updated_at: string;
+}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,9 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { JobPosting } from '@/types';
 
-// Define the JobPosting type
-interface JobPosting {
+interface JobPostingDisplay {
   id: string;
   title: string;
   company: string;
@@ -33,7 +32,7 @@ const JobPostings = () => {
   const isCompany = currentUser?.role === 'company';
   const isCompanyRoute = location.pathname.startsWith('/company');
   
-  const [jobs, setJobs] = useState<JobPosting[]>([]);
+  const [jobs, setJobs] = useState<JobPostingDisplay[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -41,16 +40,14 @@ const JobPostings = () => {
       try {
         setLoading(true);
         
-        // Fetch job postings from Supabase
         const { data, error } = await supabase
           .from('job_postings')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false }) as { data: JobPosting[] | null, error: any };
           
         if (error) throw error;
         
-        // If on company route and user is a company, filter to only show their jobs
-        const formattedJobs = data.map(job => ({
+        const formattedJobs = data?.map(job => ({
           id: job.id,
           title: job.title,
           company: job.company_name || 'Unknown Company',
@@ -59,10 +56,10 @@ const JobPostings = () => {
           type: job.job_type || 'Full-time',
           salary: job.salary_range || 'Not specified',
           description: job.description || 'No description provided',
-          skills: job.skills ? (typeof job.skills === 'string' ? job.skills.split(',').map(s => s.trim()) : job.skills) : [],
+          skills: job.skills ? (Array.isArray(job.skills) ? job.skills : job.skills.toString().split(',').map(s => s.trim())) : [],
           postedDate: job.created_at,
           companyId: job.company_id
-        }));
+        })) || [];
         
         const filteredJobs = isCompanyRoute && isCompany && currentUser?.id
           ? formattedJobs.filter(job => job.companyId === currentUser.id)
@@ -143,7 +140,7 @@ const JobPostings = () => {
   );
 };
 
-const JobCard = ({ job, onClick }: { job: JobPosting, onClick: () => void }) => {
+const JobCard = ({ job, onClick }: { job: JobPostingDisplay, onClick: () => void }) => {
   const formattedDate = new Date(job.postedDate).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',

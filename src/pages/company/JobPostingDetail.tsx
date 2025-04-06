@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
+import { JobPosting } from '@/types';
 
 const JobPostingDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -25,7 +26,7 @@ const JobPostingDetail = () => {
           .from('job_postings')
           .select('*')
           .eq('id', id)
-          .single();
+          .single() as { data: JobPosting | null, error: any };
           
         if (error) throw error;
         
