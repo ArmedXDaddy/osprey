@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,6 +32,23 @@ const CreateSponsorship = () => {
   const { createSponsorship } = useData();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect non-company users to the home page
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'company') {
+      navigate('/');
+      toast({
+        variant: 'destructive',
+        title: 'Permission denied',
+        description: 'Only companies can create sponsorship opportunities',
+      });
+    }
+  }, [currentUser, navigate]);
+
+  // If user is not logged in or is not a company, show access denied
+  if (!currentUser || currentUser.role !== 'company') {
+    return null; // Return null while redirecting
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -104,18 +122,6 @@ const CreateSponsorship = () => {
       setIsSubmitting(false);
     }
   };
-
-  if (!currentUser || currentUser.role !== 'company') {
-    return (
-      <div className="container py-8">
-        <h1 className="text-2xl font-bold mb-4">Access Denied</h1>
-        <p>Only companies can create sponsorship opportunities.</p>
-        <Button className="mt-4" onClick={() => navigate('/sponsorships')}>
-          Back to Sponsorships
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="container py-8">

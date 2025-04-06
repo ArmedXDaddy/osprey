@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import SponsorshipCard from '@/components/shared/SponsorshipCard';
+import { UserRole } from '@/types';
 
 const Sponsorships = () => {
   const { currentUser } = useAuth();
@@ -15,6 +16,21 @@ const Sponsorships = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+
+  // Only allow certain roles to access this page
+  const allowedRoles: UserRole[] = ['company', 'coach', 'influencer'];
+  
+  // Check if user has permission to access this page
+  useEffect(() => {
+    if (currentUser && !allowedRoles.includes(currentUser.role)) {
+      navigate('/');
+    }
+  }, [currentUser, navigate]);
+
+  // If user is not logged in or doesn't have correct role, redirect
+  if (!currentUser || !allowedRoles.includes(currentUser.role)) {
+    return null; // Return null while redirecting
+  }
 
   const isCompany = currentUser?.role === 'company';
 
@@ -42,6 +58,12 @@ const Sponsorships = () => {
             Find brands looking for ambassadors and collaboration opportunities
           </p>
         </div>
+        
+        {isCompany && (
+          <Button onClick={handleCreateSponsorship} className="mt-4 md:mt-0">
+            Create Opportunity
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
