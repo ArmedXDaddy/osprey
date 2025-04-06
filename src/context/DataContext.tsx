@@ -876,7 +876,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         createdAt: new Date(),
         creatorId: currentUser.id,
         creatorName: currentUser.name,
-        creatorRole: currentUser.role
+        creatorRole: currentUser.role as UserRole
       };
       
       setEvents(prev => [newEvent, ...prev]);
@@ -891,11 +891,12 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     if (!currentUser) throw new Error('You must be logged in to create a post');
     
     try {
+      const imagePath = imageFile ? 'posts' : undefined;
       const { data, error } = await supabase
         .from('posts')
         .insert({
           content,
-          image: imageFile ? await uploadImage(imageFile) : null,
+          image: imageFile ? await uploadImage(imageFile, imagePath) : null,
           user_id: currentUser.id,
           user_name: currentUser.name,
           user_role: currentUser.role,
@@ -909,7 +910,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         id: data[0].id,
         userId: data[0].user_id,
         userName: data[0].user_name,
-        userRole: data[0].user_role,
+        userRole: data[0].user_role as UserRole,
         userProfileImage: data[0].user_profile_image,
         content: data[0].content,
         image: data[0].image,
@@ -1008,28 +1009,22 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     }
   };
 
-  const updateComment = async (commentId: string, content: string): Promise<void> => {
+  const updateCommentImpl = async (commentId: string, content: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update a comment');
     
     try {
-      await supabase
-        .from('comments')
-        .update({ content })
-        .eq('id', commentId);
+      await updateComment(commentId, content);
     } catch (error: any) {
       console.error('Error updating comment:', error);
       throw error;
     }
   };
 
-  const deleteComment = async (commentId: string): Promise<void> => {
+  const deleteCommentImpl = async (commentId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to delete a comment');
     
     try {
-      await supabase
-        .from('comments')
-        .delete()
-        .eq('id', commentId);
+      await deleteComment(commentId);
     } catch (error: any) {
       console.error('Error deleting comment:', error);
       throw error;
@@ -1040,11 +1035,15 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     if (!currentUser) throw new Error('You must be logged in to join an event');
     
     try {
+      // Instead of using event_attendees, use join_requests table with proper status
       const { error } = await supabase
-        .from('event_attendees')
+        .from('join_requests')
         .insert({
           event_id: eventId,
-          user_id: currentUser.id
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_profile_image: currentUser.profileImage,
+          status: 'approved'
         });
         
       if (error) throw error;
@@ -1066,8 +1065,9 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     if (!currentUser) throw new Error('You must be logged in to leave an event');
     
     try {
+      // Instead of using event_attendees, use join_requests table
       const { error } = await supabase
-        .from('event_attendees')
+        .from('join_requests')
         .delete()
         .eq('event_id', eventId)
         .eq('user_id', currentUser.id);
@@ -1098,9 +1098,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         
       if (error) throw error;
       
-      setEvents(prev => 
-        prev.filter(event => event.id !== eventId)
-      );
+      setEvents(prev => prev.filter(event => event.id !== eventId));
     } catch (error: any) {
       console.error('Error deleting event:', error);
       throw error;
@@ -1112,10 +1110,13 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     
     try {
       const { error } = await supabase
-        .from('event_requests')
+        .from('join_requests')
         .insert({
           event_id: eventId,
-          user_id: currentUser.id
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_profile_image: currentUser.profileImage,
+          status: 'pending'
         });
         
       if (error) throw error;
@@ -1130,7 +1131,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     
     try {
       const { error } = await supabase
-        .from('event_requests')
+        .from('join_requests')
         .update({ status: 'approved' })
         .eq('id', requestId);
         
@@ -1154,7 +1155,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     
     try {
       const { error } = await supabase
-        .from('event_requests')
+        .from('join_requests')
         .delete()
         .eq('id', requestId);
         
@@ -1166,7 +1167,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
   };
 
   const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    return [];
+    return []; // Implementation needed
   };
 
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
@@ -1183,11 +1184,11 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         description: groupData.description,
         creatorId: currentUser.id,
         creatorName: currentUser.name,
-        creatorRole: currentUser.role,
-        members: [currentUser.id],
+        creatorRole: currentUser.role as UserRole,
+        members: 1, // Initialize with 1 member (creator)
         memberIds: [currentUser.id],
         image: groupData.image,
-        privacy: groupData.privacy,
+        privacy: groupData.privacy as GroupPrivacy,
         price: groupData.price,
         createdAt: new Date(),
         pendingRequests: 0,
@@ -1220,7 +1221,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         isOnline: serviceData.isOnline,
         location: serviceData.location,
         capacity: serviceData.capacity,
-        serviceType: serviceData.serviceType,
+        serviceType: serviceData.serviceType as ServiceType,
         coverImage: serviceData.coverImage,
         meetingUrl: serviceData.meetingUrl
       };
@@ -1269,7 +1270,6 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         service_id: messageData.serviceId,
         user_id: currentUser.id,
         user_name: currentUser.name,
-        user_role: currentUser.role,
         user_profile_image: currentUser.profileImage,
         content: messageData.content
       };
@@ -1289,10 +1289,10 @@ export const DataProvider = ({ children }: DataProviderProps) => {
         content: data.content,
         userId: data.user_id,
         userName: data.user_name,
-        userRole: data.user_role as UserRole,
+        userRole: currentUser.role as UserRole, // Add missing user_role
         userProfileImage: data.user_profile_image,
         createdAt: new Date(data.created_at),
-        groupId: data.group_id
+        serviceId: data.service_id // Use serviceId instead of groupId
       };
       
       setMessages(prev => [...prev, transformedMessage]);
@@ -1306,37 +1306,91 @@ export const DataProvider = ({ children }: DataProviderProps) => {
     return [];
   };
 
-  const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
-    return null;
-  };
-
   const fetchUserServices = async (userId: string): Promise<Service[]> => {
     return [];
   };
 
-  const getSponsorships = () => {
-    return [];
+  const getSponsorships = (): Sponsorship[] => {
+    return sponsorships;
   };
 
   const getSponsorshipById = (id: string): Sponsorship => {
-    return { id, name: 'Mock Sponsorship', description: 'Mock Sponsorship Description', createdAt: new Date() };
+    const sponsorship = sponsorships.find(s => s.id === id);
+    if (!sponsorship) {
+      throw new Error(`Sponsorship with ID ${id} not found`);
+    }
+    return sponsorship;
   };
 
   const createSponsorship = async (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>): Promise<Sponsorship> => {
-    return { id: Date.now().toString(), name: sponsorshipData.name, description: sponsorshipData.description, createdAt: new Date() };
+    if (!currentUser) throw new Error('You must be logged in to create a sponsorship');
+    
+    const newSponsorship: Sponsorship = {
+      id: Date.now().toString(),
+      title: sponsorshipData.title,
+      description: sponsorshipData.description,
+      companyId: sponsorshipData.companyId || currentUser.id,
+      companyName: sponsorshipData.companyName || currentUser.name,
+      companyLogo: sponsorshipData.companyLogo,
+      requirements: sponsorshipData.requirements || [],
+      benefits: sponsorshipData.benefits || [],
+      compensation: sponsorshipData.compensation,
+      deadline: sponsorshipData.deadline,
+      status: sponsorshipData.status || 'active' as SponsorshipStatus,
+      tags: sponsorshipData.tags || [],
+      createdAt: new Date()
+    };
+    
+    setSponsorships(prev => [...prev, newSponsorship]);
+    
+    // Store in localStorage for persistence
+    try {
+      const storedSponsorships = localStorage.getItem('user_sponsorships');
+      const parsedSponsorships = storedSponsorships ? JSON.parse(storedSponsorships) : [];
+      localStorage.setItem('user_sponsorships', JSON.stringify([...parsedSponsorships, newSponsorship]));
+    } catch (err) {
+      console.error("Error storing sponsorship in localStorage:", err);
+    }
+    
+    return newSponsorship;
   };
 
   const updateSponsorship = (id: string, updatedData: Partial<Sponsorship>): Sponsorship => {
-    return { id, name: updatedData.name || 'Mock Sponsorship', description: updatedData.description || 'Mock Sponsorship Description', createdAt: new Date() };
+    const updatedSponsorships = sponsorships.map(sponsorship => 
+      sponsorship.id === id ? { ...sponsorship, ...updatedData } : sponsorship
+    );
+    
+    setSponsorships(updatedSponsorships);
+    
+    // Update in localStorage
+    try {
+      localStorage.setItem('user_sponsorships', JSON.stringify(updatedSponsorships));
+    } catch (err) {
+      console.error("Error updating sponsorship in localStorage:", err);
+    }
+    
+    return getSponsorshipById(id);
   };
 
-  const deleteSponsorship = (id: string): void => {};
+  const deleteSponsorship = (id: string): void => {
+    const filteredSponsorships = sponsorships.filter(sponsorship => sponsorship.id !== id);
+    setSponsorships(filteredSponsorships);
+    
+    // Update in localStorage
+    try {
+      localStorage.setItem('user_sponsorships', JSON.stringify(filteredSponsorships));
+    } catch (err) {
+      console.error("Error removing sponsorship from localStorage:", err);
+    }
+  };
 
   const getSponsorshipApplications = (sponsorshipId: string): SponsorshipApplication[] => {
+    // Mock implementation - would typically fetch from API/database
     return [];
   };
 
   const getUserApplicationForSponsorship = (sponsorshipId: string, userId: string): SponsorshipApplication | null => {
+    // Mock implementation - would typically fetch from API/database
     return null;
   };
 
@@ -1351,11 +1405,50 @@ export const DataProvider = ({ children }: DataProviderProps) => {
       website?: string;
     };
   }): Promise<SponsorshipApplication> => {
-    return { id: Date.now().toString(), sponsorshipId, userId, motivation, experience, status: 'pending' };
+    if (!currentUser) throw new Error('You must be logged in to apply for a sponsorship');
+    
+    const newApplication: SponsorshipApplication = {
+      id: Date.now().toString(),
+      sponsorshipId: applicationData.sponsorshipId,
+      userId: applicationData.userId,
+      userName: currentUser.name,
+      userEmail: currentUser.email || '',
+      userProfileImage: currentUser.profileImage,
+      motivation: applicationData.motivation,
+      experience: applicationData.experience,
+      socialLinks: applicationData.socialLinks,
+      status: 'pending' as ApplicationStatus,
+      createdAt: new Date()
+    };
+    
+    // In a real implementation, would save to database
+    return newApplication;
   };
 
   const updateApplicationStatus = (applicationId: string, status: ApplicationStatus): { success: boolean } => {
+    // Mock implementation - would typically update in database
     return { success: true };
+  };
+  
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    const newAnnouncement: Announcement = {
+      id: Date.now().toString(),
+      eventId,
+      creatorId: currentUser.id,
+      creatorName: currentUser.name,
+      content,
+      createdAt: new Date()
+    };
+    
+    setAnnouncements(prev => [...prev, newAnnouncement]);
+  };
+  
+  const deleteGroupImplementation = async (groupId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a group');
+    
+    setGroups(prev => prev.filter(group => group.id !== groupId));
   };
 
   return (
@@ -1379,8 +1472,8 @@ export const DataProvider = ({ children }: DataProviderProps) => {
       likePost,
       unlikePost,
       addComment,
-      updateComment,
-      deleteComment,
+      updateComment: updateCommentImpl,
+      deleteComment: deleteCommentImpl,
       createEvent,
       joinEvent,
       leaveEvent,
@@ -1400,7 +1493,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
       handleJoinRequest,
       removeGroupMember,
       updateGroupDetails,
-      deleteGroup,
+      deleteGroup: deleteGroupImplementation,
       createSession,
       enrollInSession,
       cancelEnrollment,
@@ -1423,7 +1516,7 @@ export const DataProvider = ({ children }: DataProviderProps) => {
       approveBooking: approveBookingImpl,
       sendServiceMessage,
       getServiceMessages,
-      getUserBookingForService,
+      getUserBookingForService: getUserBookingForServiceImpl,
       fetchUserServices,
       sponsorships,
       getSponsorships,
