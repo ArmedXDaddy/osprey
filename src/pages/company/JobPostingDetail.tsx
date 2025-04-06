@@ -1,57 +1,41 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Briefcase, Building, MapPin, Clock, DollarSign, Calendar, ExternalLink } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { runQuery } from '@/integrations/supabase/client';
+import { ArrowLeft, Building, MapPin, Clock, DollarSign, Calendar } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { JobPosting } from '@/types';
 
 const JobPostingDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    const fetchJobDetails = async () => {
-      if (!id) return;
-      
+    const loadJob = async () => {
       try {
         setLoading(true);
-        const query = `SELECT * FROM job_postings WHERE id = '${id}'`;
-        const { data, error } = await runQuery(query);
-          
+        
+        const { data, error } = await supabase
+          .from('job_postings')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
         if (error) throw error;
-        if (!data || data.length === 0) throw new Error('Job not found');
         
-        const jobData = data[0] as JobPosting;
-        
-        setJob({
-          id: jobData.id,
-          title: jobData.title,
-          company: jobData.company_name,
-          companyLogo: jobData.company_logo,
-          location: jobData.location,
-          type: jobData.job_type,
-          salary: jobData.salary_range,
-          description: jobData.description,
-          responsibilities: jobData.responsibilities || [],
-          requirements: jobData.requirements || [],
-          benefits: jobData.benefits || [],
-          skills: jobData.skills || [],
-          postedDate: jobData.created_at,
-          applicationUrl: jobData.application_url,
-          applicationDeadline: jobData.application_deadline,
-          companyDescription: jobData.company_description || 'No company description available.'
-        });
+        setJob(data);
       } catch (error) {
-        console.error('Error fetching job details:', error);
+        console.error('Error loading job:', error);
         toast({
-          title: 'Failed to load job details',
+          title: 'Failed to load job posting',
           description: 'Please try again later',
           variant: 'destructive',
         });
@@ -60,131 +44,136 @@ const JobPostingDetail = () => {
       }
     };
     
-    fetchJobDetails();
+    if (id) {
+      loadJob();
+    }
   }, [id, toast]);
+  
+  const handleBack = () => {
+    navigate(-1);
+  };
+  
+  const isOwner = currentUser?.id === job?.company_id;
+  
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'No deadline';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
   
   if (loading) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
-        <Card className="animate-pulse">
-          <CardHeader className="pb-3">
-            <div className="h-8 bg-gray-200 rounded mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-4 bg-gray-200 rounded w-full"></div>
-            ))}
-          </CardContent>
-        </Card>
+      <div className="py-8">
+        <div className="h-6 w-24 bg-gray-200 rounded-md animate-pulse mb-4"></div>
+        <div className="h-10 bg-gray-200 rounded-md animate-pulse mb-6"></div>
+        <div className="h-64 bg-gray-200 rounded-md animate-pulse"></div>
       </div>
     );
   }
   
   if (!job) {
     return (
-      <div className="text-center py-12">
-        <Briefcase className="h-12 w-12 mx-auto text-gray-400" />
-        <h3 className="mt-4 text-lg font-medium">Job not found</h3>
-        <p className="text-gray-500 mt-2">The job posting you're looking for doesn't exist or has been removed.</p>
+      <div className="py-8 text-center">
+        <h2 className="text-xl font-semibold mb-2">Job Not Found</h2>
+        <p className="text-gray-500 mb-6">The job posting you're looking for doesn't exist or has been removed.</p>
+        <Button onClick={handleBack}>Go Back</Button>
       </div>
     );
   }
   
-  const formattedDate = new Date(job.postedDate).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
-  
-  const formattedDeadline = job.applicationDeadline 
-    ? new Date(job.applicationDeadline).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
-    : null;
-  
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-start gap-4">
-            <div className="h-16 w-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center border">
-              <img src={job.companyLogo} alt={job.company} className="h-full w-full object-cover" />
-            </div>
-            <div className="space-y-1 flex-1">
-              <CardTitle className="text-2xl">{job.title}</CardTitle>
-              <div className="flex items-center text-gray-500">
-                <Building className="h-4 w-4 mr-1" />
-                <span>{job.company}</span>
-              </div>
-              <div className="flex flex-wrap gap-3 mt-2">
-                <div className="flex items-center text-gray-600 text-sm">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span>{job.location}</span>
-                </div>
-                <div className="flex items-center text-gray-600 text-sm">
-                  <Clock className="h-4 w-4 mr-1" />
-                  <span>{job.type}</span>
-                </div>
-                <div className="flex items-center text-gray-600 text-sm">
-                  <DollarSign className="h-4 w-4 mr-1" />
-                  <span>{job.salary}</span>
-                </div>
-                <div className="flex items-center text-gray-600 text-sm">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  <span>Posted: {formattedDate}</span>
-                </div>
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={handleBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+      </div>
+      
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{job.title}</h1>
+          <div className="flex items-center gap-2 text-gray-500 mt-1">
+            <Building className="h-4 w-4" />
+            <span>{job.company_name}</span>
+            {job.location && (
+              <>
+                <span className="mx-1">•</span>
+                <MapPin className="h-4 w-4" />
+                <span>{job.location}</span>
+              </>
+            )}
           </div>
+        </div>
+        
+        {!isOwner && (
+          <div className="flex gap-2">
+            {job.application_url && (
+              <Button 
+                onClick={() => window.open(job.application_url, '_blank')}
+              >
+                Apply Now
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Employment Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gray-400" />
+              <span>{job.job_type}</span>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Salary Range</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-gray-400" />
+              <span>{job.salary_range || 'Not specified'}</span>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Application Deadline</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <span>{formatDate(job.application_deadline)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle>Job Description</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div>
-            <h3 className="text-lg font-medium mb-2">Job Description</h3>
-            <p className="text-gray-700 whitespace-pre-line">{job.description}</p>
+            <p className="whitespace-pre-line">{job.description}</p>
           </div>
-          
-          <Separator />
-          
-          {job.responsibilities && job.responsibilities.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium mb-2">Key Responsibilities</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                {job.responsibilities.map((item: string, i: number) => (
-                  <li key={i} className="text-gray-700">{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {job.requirements && job.requirements.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium mb-2">Requirements</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                {job.requirements.map((item: string, i: number) => (
-                  <li key={i} className="text-gray-700">{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {job.benefits && job.benefits.length > 0 && (
-            <div>
-              <h3 className="text-lg font-medium mb-2">Benefits & Perks</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                {job.benefits.map((item: string, i: number) => (
-                  <li key={i} className="text-gray-700">{item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
           
           {job.skills && job.skills.length > 0 && (
             <div>
-              <h3 className="text-lg font-medium mb-2">Skills</h3>
-              <div className="flex flex-wrap gap-2">
+              <h3 className="font-semibold mb-2">Skills</h3>
+              <div className="flex flex-wrap gap-1">
                 {job.skills.map((skill: string, i: number) => (
                   <Badge key={i} variant="secondary">{skill}</Badge>
                 ))}
@@ -192,28 +181,72 @@ const JobPostingDetail = () => {
             </div>
           )}
           
-          {formattedDeadline && (
+          {job.responsibilities && job.responsibilities.length > 0 && (
             <div>
-              <h3 className="text-lg font-medium mb-2">Application Deadline</h3>
-              <p className="text-gray-700">{formattedDeadline}</p>
+              <h3 className="font-semibold mb-2">Responsibilities</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                {job.responsibilities.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
             </div>
           )}
           
-          <Separator />
+          {job.requirements && job.requirements.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2">Requirements</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                {job.requirements.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           
-          <div>
-            <h3 className="text-lg font-medium mb-2">About {job.company}</h3>
-            <p className="text-gray-700">{job.companyDescription}</p>
-          </div>
+          {job.benefits && job.benefits.length > 0 && (
+            <div>
+              <h3 className="font-semibold mb-2">Benefits</h3>
+              <ul className="list-disc pl-5 space-y-1">
+                {job.benefits.map((item: string, i: number) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           
-          <div className="pt-4">
-            <Button size="lg" className="w-full md:w-auto" onClick={() => window.open(job.applicationUrl, "_blank")}>
-              Apply for this position
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
+          {job.company_description && (
+            <div>
+              <h3 className="font-semibold mb-2">About the Company</h3>
+              <p>{job.company_description}</p>
+            </div>
+          )}
         </CardContent>
       </Card>
+      
+      {job.application_email && (
+        <Card>
+          <CardHeader>
+            <CardTitle>How to Apply</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>
+              Please send your resume and cover letter to <a href={`mailto:${job.application_email}`} className="text-blue-600 hover:underline">{job.application_email}</a>
+              {job.application_deadline && ` before ${formatDate(job.application_deadline)}`}.
+            </p>
+            
+            {job.application_url && (
+              <div className="mt-4">
+                <Button 
+                  onClick={() => window.open(job.application_url, '_blank')}
+                  className="w-full md:w-auto"
+                >
+                  Apply on Company Website
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

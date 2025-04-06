@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,10 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { runQuery } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 
 const jobSchema = z.object({
   title: z.string().min(5, 'Job title must be at least 5 characters'),
@@ -31,6 +30,7 @@ type JobFormValues = z.infer<typeof jobSchema>;
 const CreateJobPosting = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
   // Redirect if not a company
   React.useEffect(() => {
@@ -42,7 +42,7 @@ const CreateJobPosting = () => {
         variant: 'destructive'
       });
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, navigate, toast]);
   
   const form = useForm<JobFormValues>({
     resolver: zodResolver(jobSchema),
@@ -61,55 +61,46 @@ const CreateJobPosting = () => {
   
   const onSubmit = async (data: JobFormValues) => {
     try {
+      if (!currentUser?.id) {
+        throw new Error('You must be logged in to post jobs');
+      }
+      
       // Convert skills to array
       const skillsArray = data.skills.split(',').map(skill => skill.trim());
       
-      // Build the insert query
-      const query = `
-        INSERT INTO job_postings (
-          title, 
-          description, 
-          location, 
-          job_type, 
-          salary_range, 
-          skills, 
-          application_url, 
-          application_email, 
-          application_deadline, 
-          company_id, 
-          company_name, 
-          company_logo
-        ) VALUES (
-          '${data.title.replace(/'/g, "''")}', 
-          '${data.description.replace(/'/g, "''")}', 
-          '${data.location.replace(/'/g, "''")}', 
-          '${data.type}', 
-          '${data.salaryRange.replace(/'/g, "''")}', 
-          ARRAY[${skillsArray.map(skill => `'${skill.replace(/'/g, "''")}'`).join(', ')}], 
-          '${data.applicationUrl}', 
-          '${data.applicationEmail}', 
-          '${data.applicationDeadline}', 
-          '${currentUser?.id}', 
-          '${currentUser?.name.replace(/'/g, "''")}', 
-          '${currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Company')}&background=random`}'
-        ) RETURNING id
-      `;
-      
-      const { data: result, error } = await runQuery(query);
+      // Use direct insert method instead of raw SQL
+      const { data: result, error } = await supabase
+        .from('job_postings')
+        .insert({
+          title: data.title,
+          description: data.description,
+          location: data.location,
+          job_type: data.type,
+          salary_range: data.salaryRange,
+          skills: skillsArray,
+          application_url: data.applicationUrl,
+          application_email: data.applicationEmail,
+          application_deadline: data.applicationDeadline,
+          company_id: currentUser.id,
+          company_name: currentUser.name || 'Unknown Company',
+          company_logo: currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name || 'Company')}&background=random`
+        })
+        .select();
       
       if (error) throw error;
       
       toast({
         title: 'Job Posted Successfully',
-        description: 'Your job posting has been published.'
+        description: 'Your job posting has been published.',
+        variant: 'success'
       });
       
       navigate('/company/jobs');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating job posting:', error);
       toast({
         title: 'Failed to Create Job',
-        description: 'There was an error posting your job. Please try again.',
+        description: error.message || 'There was an error posting your job. Please try again.',
         variant: 'destructive'
       });
     }

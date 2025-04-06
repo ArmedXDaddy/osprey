@@ -7,7 +7,7 @@ import { PlusCircle, Briefcase, Building, MapPin, Clock, DollarSign } from 'luci
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { supabase, runQuery } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { JobPosting } from '@/types';
 
@@ -41,17 +41,17 @@ const JobPostings = () => {
       try {
         setLoading(true);
         
-        let query = `SELECT * FROM job_postings ORDER BY created_at DESC`;
+        let query = supabase.from('job_postings').select('*').order('created_at', { ascending: false });
         
         if (isCompanyRoute && isCompany && currentUser?.id) {
-          query = `SELECT * FROM job_postings WHERE company_id = '${currentUser.id}' ORDER BY created_at DESC`;
+          query = query.eq('company_id', currentUser.id);
         }
         
-        const { data, error } = await runQuery(query);
+        const { data, error } = await query;
         
         if (error) throw error;
         
-        const formattedJobs = data?.map((job: JobPosting) => ({
+        const formattedJobs = data?.map((job: any) => ({
           id: job.id,
           title: job.title,
           company: job.company_name || 'Unknown Company',
