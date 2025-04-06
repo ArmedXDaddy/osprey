@@ -35,14 +35,33 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
   // Use profileImage if available, fall back to image
   const userImage = user.profileImage || user.image;
   
+  // Generate fallback avatar URL based on user name
+  const getFallbackAvatarUrl = (name: string) => {
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+  };
+  
+  // Get user initials for the fallback
+  const getUserInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
+  
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <div className="aspect-[3/1] bg-gradient-to-r from-indigo-500 to-purple-600" />
       <div className="relative px-4">
         <Avatar className="h-16 w-16 -mt-8 border-4 border-background">
-          <AvatarImage src={userImage} alt={user.name} />
+          <AvatarImage 
+            src={userImage} 
+            alt={user.name} 
+            fallbackSrc={getFallbackAvatarUrl(user.name)}
+          />
           <AvatarFallback>
-            <UserIcon className="h-8 w-8" />
+            {getUserInitials(user.name)}
           </AvatarFallback>
         </Avatar>
       </div>
