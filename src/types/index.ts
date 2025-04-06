@@ -1,3 +1,4 @@
+
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -66,6 +67,7 @@ export interface Event {
   image?: string;
   attendees: string[]; // Array of user IDs
   attendeeDetails?: AttendeeDetail[]; // Added attendee details property
+  attendeeRegistrations?: EventRegistration[]; // Added registrations property
   privacy: EventPrivacy;
   price?: number;
   pendingRequests?: number;
@@ -75,6 +77,21 @@ export interface Event {
 export interface AttendeeDetail {
   id: string;
   name: string;
+  profileImage?: string;
+}
+
+export interface EventRegistration {
+  userId: string;
+  name: string;
+  email: string;
+  age?: number;
+  gender?: string;
+  phone?: string;
+  emergencyContact?: string;
+  instagram?: string;
+  twitter?: string;
+  additionalInfo?: string;
+  registeredAt: Date;
   profileImage?: string;
 }
 
