@@ -47,12 +47,6 @@ import FollowButton from '@/components/profile/FollowButton';
 import FollowersList from '@/components/profile/FollowersList';
 import { useFollowers } from '@/hooks/useFollowers';
 
-interface SocialLinks {
-  instagram?: string;
-  twitter?: string;
-  website?: string;
-}
-
 const Profile = () => {
   const { id } = useParams();
   const { currentUser, updateProfile } = useAuth();
@@ -133,54 +127,50 @@ const Profile = () => {
       
       setIsLoadingProfile(true);
       try {
-        console.log('Fetching profile for user ID:', id);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', id)
-          .single();
+        const baseUrl = 'https://zovddtldwqxlgjpprddb.supabase.co/rest/v1/profiles';
+        const apiKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvdmRkdGxkd3F4bGdqcHByZGRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDM1NzI3NDQsImV4cCI6MjA1OTE0ODc0NH0.-MSTJqiuR3XdHIVbLKTMsym1_yvZuZEvQSIl_ltwTnQ';
         
-        if (error) {
-          console.error('Error details from Supabase:', error);
-          throw new Error(`Error fetching profile: ${error.message}`);
+        const url = `${baseUrl}?id=eq.${id}&select=*`;
+        
+        console.log('Fetching profile from:', url);
+        
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'apikey': apiKey,
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Error fetching profile: ${response.status} ${response.statusText}`);
         }
         
-        console.log('Profile data from Supabase:', data);
+        const data = await response.json();
+        console.log('Profile data:', data);
         
-        if (!data) {
+        if (!data || data.length === 0) {
           throw new Error('User profile not found');
         }
         
-        let socialLinks: SocialLinks = {};
-        if (data.social_links) {
-          try {
-            if (typeof data.social_links === 'string') {
-              socialLinks = JSON.parse(data.social_links);
-            } else if (typeof data.social_links === 'object') {
-              socialLinks = data.social_links as SocialLinks;
-            }
-          } catch (e) {
-            console.error("Error parsing social links:", e);
-            socialLinks = {};
-          }
-        }
+        const userData = data[0];
         
         const formattedUser: User = {
-          id: data.id,
-          name: data.name || 'Unknown User',
-          email: data.email || '',
-          role: data.role as UserRole,
-          profileImage: data.profile_image || null,
-          bio: data.bio || '',
-          location: data.location || '',
-          interests: data.interests || [],
-          followers: data.followers || 0,
-          verified: data.verified || false,
-          socialLinks: socialLinks,
-          createdAt: new Date(data.created_at)
+          id: userData.id,
+          name: userData.name || 'Unknown User',
+          email: userData.email || '',
+          role: userData.role as UserRole,
+          profileImage: userData.profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(userData.name || 'User')}&background=random`,
+          bio: userData.bio || '',
+          location: userData.location || '',
+          interests: userData.interests || [],
+          followers: userData.followers || 0,
+          verified: userData.verified || false,
+          socialLinks: userData.social_links || {},
+          createdAt: new Date(userData.created_at)
         };
         
-        console.log('Formatted user profile:', formattedUser);
         setProfileUser(formattedUser);
       } catch (error: any) {
         console.error('Error fetching user profile:', error);
@@ -198,10 +188,6 @@ const Profile = () => {
   }, [id, currentUser, toast]);
 
   const userToShow = isOwnProfile ? currentUser : profileUser;
-  console.log('Current user to show in profile:', userToShow);
-  console.log('Is own profile?', isOwnProfile);
-  console.log('User has profile image?', !!userToShow?.profileImage);
-  console.log('User has bio?', !!userToShow?.bio);
 
   const fetchProfileImages = async () => {
     if (!currentUser) return;
@@ -421,25 +407,6 @@ const Profile = () => {
       
       await updateProfile(updatedProfile);
       
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: profileForm.name,
-          bio: profileForm.bio,
-          location: profileForm.location,
-          profile_image: profileForm.profileImage,
-          social_links: {
-            instagram: profileForm.instagram,
-            twitter: profileForm.twitter,
-            website: profileForm.website
-          }
-        })
-        .eq('id', currentUser.id);
-      
-      if (error) {
-        throw new Error(`Error updating public profile: ${error.message}`);
-      }
-      
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",
@@ -553,24 +520,6 @@ const Profile = () => {
   const userServices = userToShow && userToShow.role === 'coach' ? 
     services.filter(service => service.providerId === userToShow.id) : [];
 
-  const getUserInitials = (name: string) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  const getDefaultAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&size=256`;
-  };
-
-  console.log("Rendering profile for user:", userToShow);
-  console.log("User has profile image:", userToShow?.profileImage);
-  console.log("User has bio:", userToShow?.bio);
-  
   return (
     <div className="space-y-8">
       <Card className="overflow-hidden">
@@ -578,7 +527,7 @@ const Profile = () => {
           <div 
             className="h-48 bg-gradient-to-r from-primary to-accent transition-all duration-500"
             style={userToShow?.coverImage ? { backgroundImage: `url(${userToShow.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
-          />
+          ></div>
           {isOwnProfile && (
             <input
               ref={coverImageInputRef}
@@ -598,12 +547,11 @@ const Profile = () => {
                 <Avatar className="h-full w-full">
                   <AvatarImage 
                     src={userToShow?.profileImage} 
-                    alt={userToShow?.name || 'User'} 
-                    fallbackSrc={userToShow?.name ? getDefaultAvatarUrl(userToShow.name) : undefined}
-                    onFallbackLoad={() => console.log('Fallback image loaded for', userToShow?.name)}
+                    alt={userToShow?.name || 'User'}
+                    onError={() => console.log("Profile image failed to load")}
                   />
                   <AvatarFallback>
-                    {userToShow?.name ? getUserInitials(userToShow.name) : 'U'}
+                    {userToShow?.name?.substring(0, 2).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -616,16 +564,6 @@ const Profile = () => {
                   onChange={uploadProfileImage}
                   disabled={uploading}
                 />
-              )}
-              {isOwnProfile && (
-                <Button 
-                  variant="outline"
-                  size="icon"
-                  className="absolute bottom-0 right-0 rounded-full bg-white shadow-sm"
-                  onClick={() => profileImageInputRef.current?.click()}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
               )}
             </div>
             
@@ -698,9 +636,7 @@ const Profile = () => {
                   
                   {userToShow.socialLinks.website && (
                     <a 
-                      href={userToShow.socialLinks.website.startsWith('http') 
-                        ? userToShow.socialLinks.website 
-                        : `https://${userToShow.socialLinks.website}`}
+                      href={`https://${userToShow.socialLinks.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-600 hover:text-primary"

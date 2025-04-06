@@ -21,125 +21,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
 
+  // Initialize and set up auth state listener
   useEffect(() => {
+    // First, set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.id);
         setSupabaseSession(session);
         
         if (session?.user) {
+          // Set a timeout to avoid recursive calls in the auth state change
           setTimeout(async () => {
-            try {
-              // Try to get profile data from the profiles table
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-                
-              console.log("Fetched profile data:", profileData);
-              
-              let socialLinks = {};
-              if (profileData?.social_links) {
-                try {
-                  if (typeof profileData.social_links === 'string') {
-                    socialLinks = JSON.parse(profileData.social_links);
-                  } else if (typeof profileData.social_links === 'object') {
-                    socialLinks = profileData.social_links;
-                  }
-                } catch (e) {
-                  console.error("Error parsing social links:", e);
-                }
-              }
-                
-              const userData: User = {
-                id: session.user.id,
-                email: session.user.email!,
-                name: profileData?.name || session.user.user_metadata.name || 'User',
-                role: profileData?.role || session.user.user_metadata.role || 'user',
-                profileImage: profileData?.profile_image || session.user.user_metadata.profileImage,
-                coverImage: session.user.user_metadata.coverImage,
-                bio: profileData?.bio || session.user.user_metadata.bio || '',
-                location: profileData?.location || session.user.user_metadata.location || '',
-                socialLinks: socialLinks,
-                createdAt: new Date(session.user.created_at)
-              };
-              
-              console.log("Setting current user with data:", userData);
-              setCurrentUser(userData);
-            } catch (error) {
-              console.error("Error fetching profile data:", error);
-              
-              // Fallback to user metadata
-              const userData: User = {
-                id: session.user.id,
-                email: session.user.email!,
-                name: session.user.user_metadata.name || 'User',
-                role: session.user.user_metadata.role || 'user',
-                profileImage: session.user.user_metadata.profileImage,
-                coverImage: session.user.user_metadata.coverImage,
-                bio: session.user.user_metadata.bio || '',
-                location: session.user.user_metadata.location || '',
-                socialLinks: session.user.user_metadata.socialLinks || {},
-                createdAt: new Date(session.user.created_at)
-              };
-              
-              setCurrentUser(userData);
-            }
-          }, 0);
-        } else {
-          setCurrentUser(null);
-        }
-      }
-    );
-    
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Got existing session:", session?.user?.id);
-      setSupabaseSession(session);
-      
-      if (session?.user) {
-        // Try to get profile data
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profileData, error: profileError }) => {
-            console.log("Profile data on init:", profileData);
-            
-            let socialLinks = {};
-            if (profileData?.social_links) {
-              try {
-                if (typeof profileData.social_links === 'string') {
-                  socialLinks = JSON.parse(profileData.social_links);
-                } else if (typeof profileData.social_links === 'object') {
-                  socialLinks = profileData.social_links;
-                }
-              } catch (e) {
-                console.error("Error parsing social links:", e);
-              }
-            }
-              
-            const userData: User = {
-              id: session.user.id,
-              email: session.user.email!,
-              name: profileData?.name || session.user.user_metadata.name || 'User',
-              role: profileData?.role || session.user.user_metadata.role || 'user',
-              profileImage: profileData?.profile_image || session.user.user_metadata.profileImage,
-              coverImage: session.user.user_metadata.coverImage,
-              bio: profileData?.bio || session.user.user_metadata.bio || '',
-              location: profileData?.location || session.user.user_metadata.location || '',
-              socialLinks: socialLinks,
-              createdAt: new Date(session.user.created_at)
-            };
-            
-            setCurrentUser(userData);
-            setIsLoading(false);
-          })
-          .catch((error) => {
-            console.error("Error fetching profile data on init:", error);
-            
-            // Fallback to user metadata
+            // Convert Supabase user to our app's user format
             const userData: User = {
               id: session.user.id,
               email: session.user.email!,
@@ -147,18 +40,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: session.user.user_metadata.role || 'user',
               profileImage: session.user.user_metadata.profileImage,
               coverImage: session.user.user_metadata.coverImage,
-              bio: session.user.user_metadata.bio || '',
-              location: session.user.user_metadata.location || '',
-              socialLinks: session.user.user_metadata.socialLinks || {},
+              bio: session.user.user_metadata.bio,
+              location: session.user.user_metadata.location,
+              socialLinks: session.user.user_metadata.socialLinks,
               createdAt: new Date(session.user.created_at)
             };
             
             setCurrentUser(userData);
-            setIsLoading(false);
-          });
-      } else {
-        setIsLoading(false);
+          }, 0);
+        } else {
+          setCurrentUser(null);
+        }
       }
+    );
+    
+    // Then check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log("Got existing session:", session?.user?.id);
+      setSupabaseSession(session);
+      
+      if (session?.user) {
+        // Convert Supabase user to our app's user format
+        const userData: User = {
+          id: session.user.id,
+          email: session.user.email!,
+          name: session.user.user_metadata.name || 'User',
+          role: session.user.user_metadata.role || 'user',
+          profileImage: session.user.user_metadata.profileImage,
+          coverImage: session.user.user_metadata.coverImage,
+          bio: session.user.user_metadata.bio,
+          location: session.user.user_metadata.location,
+          socialLinks: session.user.user_metadata.socialLinks,
+          createdAt: new Date(session.user.created_at)
+        };
+        
+        setCurrentUser(userData);
+      }
+      
+      setIsLoading(false);
     });
 
     return () => {
@@ -175,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       
       if (error) throw error;
-      return !!data.session;
+      return !!data.session; // Return true if session exists
     } catch (error) {
       console.error('Login error:', error);
       throw error;
@@ -200,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Authentication is handled by the onAuthStateChange listener
     } catch (error) {
       console.error('Registration error:', error);
       throw error;
@@ -211,12 +131,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     setIsLoading(true);
     try {
+      // Clear local user state first
       setCurrentUser(null);
       
+      // Then attempt to sign out from Supabase
       const { error } = await supabase.auth.signOut({ scope: 'local' });
       
       if (error) {
         console.error('Logout error from Supabase:', error);
+        // Even if there's a Supabase error, we still want to ensure local state is cleared
         toast({
           title: "Signed out",
           description: "You have been signed out locally."
@@ -230,12 +153,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (error) {
       console.error('Logout error:', error);
+      // Still clear local state if an exception occurs
       toast({
         title: "Error during logout",
         description: "Signed out locally, but there was an issue with the server.",
         variant: "destructive"
       });
     } finally {
+      // Clear any remaining session state
       setSupabaseSession(null);
       setIsLoading(false);
     }
@@ -248,10 +173,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user logged in');
       }
       
+      // Update user metadata in Supabase
       const { data, error } = await supabase.auth.updateUser({
         data: {
           name: userData.name || currentUser.name,
+          // Only update role if provided and user is allowed to change it
           ...(userData.role && { role: userData.role }),
+          // Add support for profile image and cover image
           ...(userData.profileImage && { profileImage: userData.profileImage }),
           ...(userData.coverImage && { coverImage: userData.coverImage }),
           ...(userData.bio && { bio: userData.bio }),
@@ -267,28 +195,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
-      // Update profile in the profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: userData.name || currentUser.name,
-          profile_image: userData.profileImage || currentUser.profileImage,
-          bio: userData.bio || currentUser.bio,
-          location: userData.location || currentUser.location,
-          social_links: userData.socialLinks ? {
-            ...(currentUser.socialLinks || {}),
-            ...userData.socialLinks
-          } : currentUser.socialLinks
-        })
-        .eq('id', currentUser.id);
-      
-      if (profileError) {
-        console.error('Error updating public profile:', profileError);
-      }
-      
+      // Update local state immediately to reflect changes
       const updatedUser = { 
         ...currentUser, 
         ...userData,
+        // Ensure these fields are properly transferred
         profileImage: userData.profileImage || currentUser.profileImage,
         coverImage: userData.coverImage || currentUser.coverImage,
       };

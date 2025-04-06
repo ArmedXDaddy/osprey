@@ -1,12 +1,11 @@
 
 import React from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User as UserIcon, MapPin } from 'lucide-react';
+import { User as UserIcon, UserPlus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import FollowButton from '@/components/profile/FollowButton';
 
 interface UserCardProps {
   user: {
@@ -16,7 +15,6 @@ interface UserCardProps {
     followers?: number;
     location?: string;
     image?: string;
-    profileImage?: string; // Support both image and profileImage
     bio?: string;
   };
 }
@@ -32,42 +30,14 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
     admin: 'bg-red-100 text-red-800'
   };
   
-  // Use profileImage if available, fall back to image
-  const userImage = user.profileImage || user.image;
-  
-  // Generate fallback avatar URL based on user name
-  const getFallbackAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=256`;
-  };
-  
-  // Get user initials for the fallback
-  const getUserInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-  
-  // Log user data for debugging
-  console.log('UserCard rendering for:', user.id, user.name);
-  console.log('User image:', userImage);
-  console.log('User bio:', user.bio);
-  console.log('User full data:', user);
-  
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
+    <Card className="overflow-hidden">
       <div className="aspect-[3/1] bg-gradient-to-r from-indigo-500 to-purple-600" />
       <div className="relative px-4">
         <Avatar className="h-16 w-16 -mt-8 border-4 border-background">
-          <AvatarImage 
-            src={userImage} 
-            alt={user.name} 
-            fallbackSrc={getFallbackAvatarUrl(user.name)}
-          />
+          <AvatarImage src={user.image} alt={user.name} />
           <AvatarFallback>
-            {getUserInitials(user.name)}
+            <UserIcon className="h-8 w-8" />
           </AvatarFallback>
         </Avatar>
       </div>
@@ -76,10 +46,10 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           <div>
             <h3 className="font-semibold">{user.name}</h3>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary" className={roleColors[user.role] || roleColors.user}>
+              <Badge variant="secondary" className={roleColors[user.role]}>
                 {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </Badge>
-              {user.followers !== undefined && (
+              {user.followers && (
                 <span className="text-xs text-muted-foreground">
                   {user.followers.toLocaleString()} followers
                 </span>
@@ -88,13 +58,10 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           </div>
         </div>
         {user.location && (
-          <p className="text-xs text-muted-foreground mt-1 flex items-center">
-            <MapPin className="h-3 w-3 mr-1" />
-            {user.location}
-          </p>
+          <p className="text-xs text-muted-foreground mt-1">{user.location}</p>
         )}
         {user.bio && (
-          <p className="text-sm mt-2 line-clamp-2 text-gray-700">{user.bio}</p>
+          <p className="text-sm mt-2 line-clamp-2">{user.bio}</p>
         )}
       </CardContent>
       <CardFooter className="flex justify-between">
@@ -105,7 +72,10 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
         >
           View Profile
         </Button>
-        <FollowButton targetUserId={user.id} />
+        <Button variant="default" size="sm">
+          <UserPlus className="h-4 w-4 mr-1" />
+          Follow
+        </Button>
       </CardFooter>
     </Card>
   );
