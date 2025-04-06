@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -8,17 +8,32 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check } from 'lucide-react';
+import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, Trash2, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { events } = useData();
+  const { events, joinEvent, leaveEvent, deleteEvent } = useData();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [isAttending, setIsAttending] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   
   const event = events.find(e => e.id === id);
+  
+  // Determine if user is attending based on the event's attendees array
+  const isAttending = event && currentUser && Array.isArray(event.attendees) 
+    ? event.attendees.includes(currentUser.id)
+    : false;
   
   if (!event) {
     return (
@@ -33,19 +48,24 @@ const EventDetail = () => {
     );
   }
   
-  const handleAttendEvent = () => {
-    setIsAttending(!isAttending);
-    
-    if (!isAttending) {
-      toast({
-        title: "You're attending this event!",
-        description: "You've been added to the attendee list."
-      });
-    } else {
-      toast({
-        title: "You're no longer attending",
-        description: "You've been removed from the attendee list."
-      });
+  const handleAttendEvent = async () => {
+    try {
+      if (isAttending) {
+        await leaveEvent(event.id);
+      } else {
+        await joinEvent(event.id);
+      }
+    } catch (error) {
+      console.error("Error toggling attendance:", error);
+    }
+  };
+  
+  const handleDeleteEvent = async () => {
+    try {
+      await deleteEvent(event.id);
+      navigate('/events');
+    } catch (error) {
+      console.error("Error deleting event:", error);
     }
   };
   
@@ -57,6 +77,7 @@ const EventDetail = () => {
     });
   };
   
+  const isCreator = currentUser && event.creatorId === currentUser.id;
   const attendeesCount = Array.isArray(event.attendees) ? event.attendees.length : 0;
   
   return (
@@ -126,19 +147,23 @@ const EventDetail = () => {
           
           <div>
             <h2 className="text-xl font-semibold mb-3">Attendees</h2>
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: Math.min(8, attendeesCount) }).map((_, i) => (
-                <Avatar key={i} className="h-10 w-10">
-                  <AvatarImage src={`https://i.pravatar.cc/150?img=${i + 10}`} />
-                  <AvatarFallback>U{i}</AvatarFallback>
-                </Avatar>
-              ))}
-              {attendeesCount > 8 && (
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm">
-                  +{attendeesCount - 8}
-                </div>
-              )}
-            </div>
+            {attendeesCount > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: Math.min(8, attendeesCount) }).map((_, i) => (
+                  <Avatar key={i} className="h-10 w-10">
+                    <AvatarImage src={`https://i.pravatar.cc/150?img=${i + 10}`} />
+                    <AvatarFallback>U{i}</AvatarFallback>
+                  </Avatar>
+                ))}
+                {attendeesCount > 8 && (
+                  <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm">
+                    +{attendeesCount - 8}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No attendees yet. Be the first to join!</p>
+            )}
           </div>
         </div>
         
@@ -170,7 +195,7 @@ const EventDetail = () => {
               <Users className="h-5 w-5 text-gray-500 mt-0.5" />
               <div>
                 <p className="font-medium">Attendees</p>
-                <p className="text-gray-600">{attendeesCount} people attending</p>
+                <p className="text-gray-600">{attendeesCount} {attendeesCount === 1 ? 'person' : 'people'} attending</p>
               </div>
             </div>
             
@@ -186,19 +211,29 @@ const EventDetail = () => {
           </div>
           
           <div className="flex flex-col gap-3">
-            <Button 
-              onClick={handleAttendEvent}
-              className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
-            >
-              {isAttending ? (
-                <>
-                  <Check className="mr-2 h-4 w-4" />
-                  Attending
-                </>
-              ) : (
-                "Attend Event"
-              )}
-            </Button>
+            {!isCreator ? (
+              <Button 
+                onClick={handleAttendEvent}
+                className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
+              >
+                {isAttending ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Attending
+                  </>
+                ) : (
+                  "Attend Event"
+                )}
+              </Button>
+            ) : (
+              <Button 
+                variant="destructive" 
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Event
+              </Button>
+            )}
             
             <Button variant="outline" onClick={handleShareEvent}>
               <Share2 className="mr-2 h-4 w-4" />
@@ -207,6 +242,27 @@ const EventDetail = () => {
           </div>
         </div>
       </div>
+      
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Event</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this event? This action cannot be undone and all attendees will be notified.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteEvent}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

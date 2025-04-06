@@ -39,6 +39,7 @@ interface DataContextType {
   createEvent: (eventData: any) => Promise<Event>;
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
+  deleteEvent: (eventId: string) => Promise<void>;
   requestToJoinEvent: (eventId: string) => Promise<void>;
   approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
   rejectEventRequest: (requestId: string) => Promise<void>;
@@ -638,7 +639,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       setMessages(prev => [...prev, transformedMessage]);
     } catch (error: any) {
       console.error("Error sending message:", error);
-      throw error;
+      throw new Error(error.message || 'Failed to send message');
     }
   };
   
@@ -798,11 +799,123 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to join an event');
+    
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) {
+        throw new Error('Event not found');
+      }
+      
+      const isAttending = Array.isArray(event.attendees) && event.attendees.includes(currentUser.id);
+      if (isAttending) {
+        toast({
+          title: "Already attending",
+          description: "You are already attending this event"
+        });
+        return;
+      }
+      
+      const updatedAttendees = Array.isArray(event.attendees) 
+        ? [...event.attendees, currentUser.id]
+        : [currentUser.id];
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId 
+            ? { ...e, attendees: updatedAttendees } 
+            : e
+        )
+      );
+      
+      toast({
+        title: "Event joined",
+        description: "You are now attending this event"
+      });
+    } catch (error: any) {
+      console.error("Error joining event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join event",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   const leaveEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to leave an event');
+    
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) {
+        throw new Error('Event not found');
+      }
+      
+      const isAttending = Array.isArray(event.attendees) && event.attendees.includes(currentUser.id);
+      if (!isAttending) {
+        toast({
+          title: "Not attending",
+          description: "You are not attending this event"
+        });
+        return;
+      }
+      
+      const updatedAttendees = Array.isArray(event.attendees) 
+        ? event.attendees.filter(id => id !== currentUser.id)
+        : [];
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId 
+            ? { ...e, attendees: updatedAttendees } 
+            : e
+        )
+      );
+      
+      toast({
+        title: "Event left",
+        description: "You are no longer attending this event"
+      });
+    } catch (error: any) {
+      console.error("Error leaving event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave event",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+  
+  const deleteEvent = async (eventId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete an event');
+    
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) {
+        throw new Error('Event not found');
+      }
+      
+      if (event.creatorId !== currentUser.id) {
+        throw new Error('You can only delete events that you created');
+      }
+      
+      setEvents(prevEvents => prevEvents.filter(e => e.id !== eventId));
+      
+      toast({
+        title: "Event deleted",
+        description: "Your event has been deleted successfully"
+      });
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
@@ -1042,8 +1155,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       updateComment: async () => { throw new Error('Not implemented'); },
       deleteComment: async () => { throw new Error('Not implemented'); },
       createEvent,
-      joinEvent: async () => { throw new Error('Not implemented'); },
-      leaveEvent: async () => { throw new Error('Not implemented'); },
+      joinEvent,
+      leaveEvent,
+      deleteEvent,
       requestToJoinEvent: async () => { throw new Error('Not implemented'); },
       approveEventRequest: async () => { throw new Error('Not implemented'); },
       rejectEventRequest: async () => { throw new Error('Not implemented'); },
