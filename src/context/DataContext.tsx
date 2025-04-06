@@ -864,7 +864,66 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const createEvent = async (eventData: any): Promise<Event> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to create an event');
+    
+    try {
+      const newEventData = {
+        title: eventData.title,
+        description: eventData.description,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        creator_role: currentUser.role,
+        location: eventData.location,
+        date: eventData.date,
+        image: eventData.image || null,
+        privacy: eventData.privacy,
+        price: eventData.privacy === 'paid' ? eventData.price : null,
+        attendees: [currentUser.id],
+        pending_requests: 0
+      };
+      
+      const { data, error } = await supabase
+        .from('events')
+        .insert(newEventData)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      const newEvent: Event = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role,
+        location: data.location,
+        date: new Date(data.date),
+        image: data.image,
+        attendees: data.attendees || [currentUser.id],
+        privacy: data.privacy,
+        price: data.price,
+        pendingRequests: data.pending_requests || 0,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setEvents(prev => [newEvent, ...prev]);
+      
+      toast({
+        title: "Event created",
+        description: "Your event has been created successfully",
+      });
+      
+      return newEvent;
+    } catch (error: any) {
+      console.error("Error creating event:", error);
+      toast({
+        title: "Creation failed",
+        description: error.message || "There was a problem creating your event",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
@@ -941,15 +1000,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       await updateComment(commentId, content);
       
-      // Update the comment in the local state
       setPostComments(prev => {
         const updatedComments = { ...prev };
         
-        // Find which post contains this comment
         for (const postId in updatedComments) {
           const commentIndex = updatedComments[postId].findIndex(c => c.id === commentId);
           if (commentIndex !== -1) {
-            // Update the comment
             updatedComments[postId] = [
               ...updatedComments[postId].slice(0, commentIndex),
               { ...updatedComments[postId][commentIndex], content },
@@ -978,16 +1034,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       await deleteComment(commentId);
       
-      // Remove the comment from the local state
       setPostComments(prev => {
         const updatedComments = { ...prev };
         let postId: string | null = null;
         
-        // Find which post contains this comment
         for (const pid in updatedComments) {
           const commentIndex = updatedComments[pid].findIndex(c => c.id === commentId);
           if (commentIndex !== -1) {
-            // Remove the comment
             updatedComments[pid] = [
               ...updatedComments[pid].slice(0, commentIndex),
               ...updatedComments[pid].slice(commentIndex + 1)
@@ -997,7 +1050,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           }
         }
         
-        // Update the post's comment count in the posts state if we found the post
         if (postId) {
           setPosts(prevPosts => 
             prevPosts.map(post => 

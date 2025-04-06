@@ -54,32 +54,26 @@ const CreateEvent = () => {
     },
   });
 
-  const handleSubmit = async (formData) => {
+  const handleSubmit = async (formData: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
       
-      // Remove any properties that shouldn't be passed to createEvent
-      // The createEvent function expects data WITHOUT creatorId, creatorName, etc.
-      const { 
-        ...eventData
-      } = formData;
+      // Pass the data to createEvent
+      const newEvent = await createEvent(formData);
       
-      // Pass the filtered data to createEvent
-      const newEvent = await createEvent(eventData);
-      
-      // Redirect or show success
+      // Redirect to the event detail page
       toast({
         title: "Event created successfully!",
         description: "Your event has been created.",
       });
       
       navigate(`/events/${newEvent.id}`);
-    } catch (err) {
+    } catch (err: any) {
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
-        description: "Failed to create event. Please try again.",
-      })
+        description: err.message || "Failed to create event. Please try again.",
+      });
     } finally {
       setIsSubmitting(false);
     }
