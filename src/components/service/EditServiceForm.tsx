@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -28,6 +29,7 @@ import { supabase } from '@/integrations/supabase/client';
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
+// Define the interface for component props
 interface EditServiceFormProps {
   service?: Service;
   onSave?: (service: Service) => void;
@@ -96,6 +98,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
     if (service?.coverImage) {
       setCoverImageUrl(service.coverImage);
       
+      // Extract the file path from the URL for later deletion if needed
       try {
         const url = new URL(service.coverImage);
         const pathMatch = url.pathname.match(/\/covers\/(.+)$/);
@@ -145,6 +148,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
     }
 
     try {
+      // Delete the previous image if it exists and we're in edit mode
       if (isEditMode && previousImagePath) {
         try {
           const { error: deleteError } = await supabase.storage
@@ -161,6 +165,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
         }
       }
 
+      // Upload the new image
       const fileExt = file.name.split('.').pop();
       const fileName = `${currentUser.id}/${Date.now()}.${fileExt}`;
       const filePath = `services/${fileName}`;
@@ -176,6 +181,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
 
       const { data: { publicUrl } } = supabase.storage.from('covers').getPublicUrl(filePath);
       
+      // Update the previous image path for potential future updates
       setPreviousImagePath(filePath);
       
       return publicUrl;
@@ -242,7 +248,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
         
         if (onSave) onSave(serviceData);
       } else {
-        const newService = await createService({
+        serviceData = await createService({
           title: data.title,
           description: data.description,
           price: Number(data.price),
@@ -256,7 +262,7 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           coverImage: uploadedCoverImageUrl || coverImageUrl,
         });
         
-        if (onSave) onSave(newService);
+        if (onSave) onSave(serviceData);
         navigate('/services');
       }
 

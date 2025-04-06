@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Post, Event, Group, Service, Session, Message, JoinRequest, Comment, Product, Workshop, JobPosting, Announcement, EventRegistration, Booking, SessionEnrollment } from '@/types';
+import { Post, Event, Group, Service, Session, Message, JoinRequest, Comment, Product, Workshop, JobPosting, Announcement, EventRegistration } from '@/types';
 import { 
   generateMockEvents, 
   generateMockGroups, 
@@ -24,102 +24,58 @@ interface DataContextProps {
   workshops: Workshop[];
   jobPostings: JobPosting[];
   announcements: Announcement[];
-  completedEvents: Event[];
-  sessionEnrollments: SessionEnrollment[];
-  loading: boolean;
   
-  // Post related functions
-  createPost: (postData: Omit<Post, 'id' | 'createdAt'>) => Promise<Post>;
+  createPost: (postData: Omit<Post, 'id' | 'createdAt'>) => Promise<void>;
   updatePost: (postId: string, postData: Partial<Post>) => Promise<void>;
   deletePost: (postId: string) => Promise<void>;
-  likePost: (postId: string) => Promise<void>;
-  unlikePost: (postId: string) => Promise<void>;
   
-  // Comment related functions
   createComment: (commentData: Omit<Comment, 'id' | 'createdAt'>) => Promise<void>;
   updateComment: (commentId: string, commentData: Partial<Comment>) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
-  addComment: (postId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => Promise<void>;
-  postComments: (postId: string) => Comment[];
   
-  // Event related functions
-  createEvent: (eventData: Omit<Event, 'id' | 'attendees' | 'createdAt'>) => Promise<Event>;
+  createEvent: (eventData: Omit<Event, 'id' | 'attendees' | 'createdAt'>) => Promise<void>;
   updateEvent: (eventId: string, eventData: Partial<Event>) => Promise<void>;
-  joinEvent: (eventId: string, registrationData?: EventRegistration) => Promise<void>;
-  leaveEvent: (eventId: string) => Promise<void>;
-  deleteEvent: (eventId: string, reason: 'cancelled' | 'completed') => Promise<void>;
-  postAnnouncement: (eventId: string, content: string) => Promise<void>;
-  approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
-  rejectEventRequest: (requestId: string) => Promise<void>;
   
-  // Group related functions
-  createGroup: (groupData: Omit<Group, 'id' | 'members' | 'createdAt'>) => Promise<Group>;
+  createGroup: (groupData: Omit<Group, 'id' | 'members' | 'createdAt'>) => Promise<void>;
   updateGroup: (groupId: string, groupData: Partial<Group>) => Promise<void>;
   deleteGroup: (groupId: string) => Promise<void>;
-  joinGroup: (groupId: string) => Promise<void>;
-  leaveGroup: (groupId: string) => Promise<void>;
-  requestToJoinGroup: (groupId: string) => Promise<void>;
-  removeGroupMember: (groupId: string, memberId: string) => Promise<void>;
-  updateGroupDetails: (groupId: string, groupData: Partial<Group>) => Promise<void>;
-  getGroupRequests: (groupId: string) => Promise<JoinRequest[]>;
-  handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
-  sendMessage: (messageData: { groupId: string, content: string }) => Promise<void>;
-  setMessages: (messages: Message[]) => void;
   
-  // Service related functions
-  createService: (serviceData: Omit<Service, 'id' | 'createdAt' | 'providerId' | 'providerName'>) => Promise<Service>;
+  createService: (serviceData: Omit<Service, 'id' | 'createdAt'>) => Promise<void>;
   updateService: (serviceId: string, serviceData: Partial<Service>) => Promise<void>;
   deleteService: (serviceId: string) => Promise<void>;
-  getServiceById: (serviceId: string) => Promise<Service>;
-  getUserBookings: (userId: string) => Promise<Booking[]>;
-  getUserBookingForService: (serviceId: string, userId: string) => Promise<Booking | null>;
-  bookService: (serviceId: string, paymentStatus?: string) => Promise<void>;
-  cancelBooking: (bookingId: string) => Promise<void>;
-  getServiceBookings: (serviceId: string) => Promise<Booking[]>;
-  approveBooking: (bookingId: string) => Promise<void>;
-  sendServiceMessage: (serviceId: string, content: string) => Promise<void>;
-  getServiceMessages: (serviceId: string) => Promise<Message[]>;
   
-  // Session related functions
-  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
+  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateSession: (sessionId: string, sessionData: Partial<Session>) => Promise<void>;
   deleteSession: (sessionId: string) => Promise<void>;
-  getUserSessions: (userId: string) => Promise<Session[]>;
-  getCoachSessions: (coachId: string) => Promise<Session[]>;
-  getUserEnrollments: (userId: string) => Promise<SessionEnrollment[]>;
-  enrollInSession: (sessionId: string) => Promise<void>;
-  cancelEnrollment: (sessionId: string) => Promise<void>;
-  updateEnrollmentStatus: (enrollmentId: string, status: string) => Promise<void>;
   
-  // Message related functions
   createMessage: (messageData: Omit<Message, 'id' | 'createdAt'>) => Promise<void>;
   updateMessage: (messageId: string, messageData: Partial<Message>) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
   
-  // Join Request related functions
   createJoinRequest: (joinRequestData: Omit<JoinRequest, 'id' | 'createdAt'>) => Promise<void>;
   updateJoinRequest: (joinRequestId: string, joinRequestData: Partial<JoinRequest>) => Promise<void>;
   deleteJoinRequest: (joinRequestId: string) => Promise<void>;
   
-  // Product related functions
   createProduct: (productData: Omit<Product, 'id' | 'createdAt'>) => Promise<void>;
   updateProduct: (productId: string, productData: Partial<Product>) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
   
-  // Workshop related functions
   createWorkshop: (workshopData: Omit<Workshop, 'id' | 'createdAt'>) => Promise<void>;
   updateWorkshop: (workshopId: string, workshopData: Partial<Workshop>) => Promise<void>;
   deleteWorkshop: (workshopId: string) => Promise<void>;
   
-  // Job Posting related functions
   createJobPosting: (jobPostingData: Omit<JobPosting, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
   updateJobPosting: (jobPostingId: string, jobPostingData: Partial<JobPosting>) => Promise<void>;
   deleteJobPosting: (jobPostingId: string) => Promise<void>;
   
-  // Announcement related functions
   createAnnouncement: (announcementData: Omit<Announcement, 'id' | 'createdAt'>) => Promise<void>;
   updateAnnouncement: (announcementId: string, announcementData: Partial<Announcement>) => Promise<void>;
   deleteAnnouncement: (announcementId: string) => Promise<void>;
+  
+  // Event functions
+  joinEvent: (eventId: string, registrationData?: EventRegistration) => Promise<void>;
+  leaveEvent: (eventId: string) => Promise<void>;
+  deleteEvent: (eventId: string, reason: 'cancelled' | 'completed') => Promise<void>;
 }
 
 const DataContext = createContext<DataContextProps>(null!);
@@ -139,9 +95,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [jobPostings, setJobPostings] = useState<JobPosting[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [completedEvents] = useState<Event[]>([]);
-  const [sessionEnrollments] = useState<SessionEnrollment[]>([]);
-  const [loading, setLoading] = useState(false);
   
   const { currentUser } = useAuth();
   
@@ -167,7 +120,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       createdAt: new Date(),
     };
     setPosts([...posts, newPost]);
-    return newPost;
   };
   
   const updatePost = async (postId: string, postData: Partial<Post>) => {
@@ -176,14 +128,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   const deletePost = async (postId: string) => {
     setPosts(posts.filter(post => post.id !== postId));
-  };
-
-  const likePost = async (postId: string) => {
-    // Implementation
-  };
-
-  const unlikePost = async (postId: string) => {
-    // Implementation
   };
   
   // Comment functions
@@ -203,32 +147,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const deleteComment = async (commentId: string) => {
     setComments(comments.filter(comment => comment.id !== commentId));
   };
-
-  const addComment = async (postId: string, comment: Omit<Comment, 'id' | 'createdAt'>) => {
-    // Implementation
-  };
-
-  const postComments = (postId: string) => {
-    return comments.filter(comment => comment.postId === postId);
-  };
   
   // Event functions
   const createEvent = async (eventData: Omit<Event, 'id' | 'attendees' | 'createdAt'>) => {
-    if (!currentUser) throw new Error("Authentication required");
-    
     const newEvent: Event = {
       id: Math.random().toString(),
       attendees: [],
       attendeeDetails: [],
       attendeeRegistrations: [],
-      creatorId: currentUser.id,
-      creatorName: currentUser.name,
-      creatorRole: currentUser.role,
       ...eventData,
       createdAt: new Date(),
     };
     setEvents([...events, newEvent]);
-    return newEvent;
   };
   
   const joinEvent = async (eventId: string, registrationData?: EventRegistration) => {
@@ -316,30 +246,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       prevEvents.map(event => (event.id === eventId ? { ...event, ...eventData } : event))
     );
   };
-
-  // Implementation of postAnnouncement for EventAnnouncements component
-  const postAnnouncement = async (eventId: string, content: string) => {
-    if (!currentUser) return;
-    
-    const announcementData: Omit<Announcement, 'id' | 'createdAt' | 'creatorId' | 'creatorName'> = {
-      eventId,
-      content
-    };
-    
-    await createAnnouncement({
-      ...announcementData,
-      creatorId: currentUser.id,
-      creatorName: currentUser.name
-    });
-  };
-
-  const approveEventRequest = async (requestId: string, eventId: string, userId: string) => {
-    // Implementation
-  };
-
-  const rejectEventRequest = async (requestId: string) => {
-    // Implementation
-  };
   
   // Group functions
   const createGroup = async (groupData: Omit<Group, 'id' | 'members' | 'createdAt'>) => {
@@ -350,7 +256,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       createdAt: new Date(),
     };
     setGroups([...groups, newGroup]);
-    return newGroup;
   };
   
   const updateGroup = async (groupId: string, groupData: Partial<Group>) => {
@@ -360,67 +265,15 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const deleteGroup = async (groupId: string) => {
     setGroups(groups.filter(group => group.id !== groupId));
   };
-
-  const joinGroup = async (groupId: string) => {
-    // Implementation
-  };
-
-  const leaveGroup = async (groupId: string) => {
-    // Implementation
-  };
-
-  const requestToJoinGroup = async (groupId: string) => {
-    // Implementation
-  };
-
-  const removeGroupMember = async (groupId: string, memberId: string) => {
-    // Implementation
-  };
-
-  const updateGroupDetails = async (groupId: string, groupData: Partial<Group>) => {
-    // Implementation
-  };
-
-  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
-    return joinRequests.filter(request => request.groupId === groupId);
-  };
-
-  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected') => {
-    // Implementation
-    console.log(`Handling join request for group ${groupId}, user ${userId}, status: ${status}`);
-  };
-
-  // Group message functions
-  const sendMessage = async (messageData: { groupId: string, content: string }) => {
-    if (!currentUser) return;
-    
-    const newMessage: Message = {
-      id: Math.random().toString(),
-      groupId: messageData.groupId,
-      content: messageData.content,
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userRole: currentUser.role,
-      userProfileImage: currentUser.profileImage,
-      createdAt: new Date()
-    };
-    
-    setMessages(prev => [...prev, newMessage]);
-  };
   
   // Service functions
-  const createService = async (serviceData: Omit<Service, 'id' | 'createdAt' | 'providerId' | 'providerName'>) => {
-    if (!currentUser) throw new Error("Authentication required");
-    
+  const createService = async (serviceData: Omit<Service, 'id' | 'createdAt'>) => {
     const newService: Service = {
       id: Math.random().toString(),
-      providerId: currentUser.id,
-      providerName: currentUser.name,
       ...serviceData,
       createdAt: new Date(),
     };
     setServices([...services, newService]);
-    return newService;
   };
   
   const updateService = async (serviceId: string, serviceData: Partial<Service>) => {
@@ -429,52 +282,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   const deleteService = async (serviceId: string) => {
     setServices(services.filter(service => service.id !== serviceId));
-  };
-
-  const getServiceById = async (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (!service) throw new Error("Service not found");
-    return service;
-  };
-
-  const getUserBookings = async (userId: string) => {
-    // Implementation
-    return [];
-  };
-
-  const getUserBookingForService = async (serviceId: string, userId: string) => {
-    // Implementation
-    return null;
-  };
-
-  const bookService = async (serviceId: string, paymentStatus?: string) => {
-    // Implementation
-  };
-
-  const cancelBooking = async (bookingId: string) => {
-    // Implementation
-  };
-
-  const getServiceBookings = async (serviceId: string) => {
-    // Implementation
-    return [];
-  };
-
-  const approveBooking = async (bookingId: string) => {
-    // Implementation
-  };
-
-  // Service message functions
-  const sendServiceMessage = async (serviceId: string, content: string) => {
-    if (!currentUser) return;
-    
-    // Implementation similar to sendMessage but for services
-    console.log(`Sending service message to ${serviceId}: ${content}`);
-  };
-
-  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
-    // Mock implementation
-    return messages.filter(msg => msg.serviceId === serviceId);
   };
   
   // Session functions
@@ -486,7 +293,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       updatedAt: new Date(),
     };
     setSessions([...sessions, newSession]);
-    return newSession;
   };
   
   const updateSession = async (sessionId: string, sessionData: Partial<Session>) => {
@@ -495,33 +301,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   
   const deleteSession = async (sessionId: string) => {
     setSessions(sessions.filter(session => session.id !== sessionId));
-  };
-
-  const getUserSessions = async (userId: string) => {
-    // Implementation
-    return [];
-  };
-
-  const getCoachSessions = async (coachId: string) => {
-    // Implementation
-    return [];
-  };
-
-  const getUserEnrollments = async (userId: string) => {
-    // Implementation
-    return [];
-  };
-
-  const enrollInSession = async (sessionId: string) => {
-    // Implementation
-  };
-
-  const cancelEnrollment = async (sessionId: string) => {
-    // Implementation
-  };
-
-  const updateEnrollmentStatus = async (enrollmentId: string, status: string) => {
-    // Implementation
   };
   
   // Message functions
@@ -655,66 +434,30 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       workshops,
       jobPostings,
       announcements,
-      completedEvents,
-      sessionEnrollments,
-      loading,
       
       createPost,
       updatePost,
       deletePost,
-      likePost,
-      unlikePost,
       
       createComment,
       updateComment,
       deleteComment,
-      addComment,
-      postComments,
       
       createEvent,
       updateEvent,
-      joinEvent,
-      leaveEvent,
       deleteEvent,
-      postAnnouncement,
-      approveEventRequest,
-      rejectEventRequest,
       
       createGroup,
       updateGroup,
       deleteGroup,
-      joinGroup,
-      leaveGroup,
-      requestToJoinGroup,
-      removeGroupMember,
-      updateGroupDetails,
-      getGroupRequests,
-      handleJoinRequest,
-      sendMessage,
-      setMessages,
       
       createService,
       updateService,
       deleteService,
-      getServiceById,
-      getUserBookings,
-      getUserBookingForService,
-      bookService,
-      cancelBooking,
-      getServiceBookings,
-      approveBooking,
-      sendServiceMessage,
-      getServiceMessages,
       
       createSession,
       updateSession,
       deleteSession,
-      getUserSessions,
-      getCoachSessions,
-      getUserEnrollments,
-      enrollInSession,
-      cancelEnrollment,
-      updateEnrollmentStatus,
       
       createMessage,
       updateMessage,
@@ -739,6 +482,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       createAnnouncement,
       updateAnnouncement,
       deleteAnnouncement,
+      
+      // Event functions
+      joinEvent,
+      leaveEvent,
+      deleteEvent,
     }}>
       {children}
     </DataContext.Provider>
