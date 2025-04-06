@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Heart, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
 import { formatDistance } from 'date-fns';
 import { Link } from 'react-router-dom';
-import { Post } from '@/types';
+import { Post, Comment } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import CommentSection from './CommentSection';
 import { useData } from '@/context/DataContext';
@@ -29,9 +28,10 @@ import { toast } from '@/hooks/use-toast';
 
 interface PostCardProps {
   post: Post;
+  comments?: Comment[];
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, comments = [] }) => {
   const { currentUser } = useAuth();
   const { likePost, unlikePost, deletePost } = useData();
   const [showComments, setShowComments] = useState(false);
@@ -159,7 +159,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       </CardFooter>
       
       {showComments && (
-        <CommentSection postId={post.id} />
+        <CommentSection postId={post.id} comments={comments} />
       )}
       
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
