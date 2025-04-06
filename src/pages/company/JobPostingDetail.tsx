@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Building, MapPin, Clock, DollarSign, Calendar } from 'lucide-react';
+import { ArrowLeft, Building, MapPin, Clock, DollarSign, Calendar, ExternalLink } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -110,17 +110,26 @@ const JobPostingDetail = () => {
           </div>
         </div>
         
-        {!isOwner && (
-          <div className="flex gap-2">
-            {job.application_url && (
-              <Button 
-                onClick={() => window.open(job.application_url, '_blank')}
-              >
-                Apply Now
-              </Button>
-            )}
-          </div>
-        )}
+        <div className="flex gap-2">
+          {job.application_url && (
+            <Button 
+              onClick={() => window.open(job.application_url, '_blank')}
+              className="flex items-center gap-2"
+            >
+              Apply Now
+              <ExternalLink size={16} />
+            </Button>
+          )}
+          
+          {job.application_url && job.company_id === currentUser?.id && (
+            <Button 
+              variant="outline"
+              onClick={() => navigate(`/company/jobs/edit/${job.id}`)}
+            >
+              Edit Job
+            </Button>
+          )}
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -223,27 +232,64 @@ const JobPostingDetail = () => {
         </CardContent>
       </Card>
       
-      {job.application_email && (
+      {(job.application_email || job.application_url) && (
         <Card>
           <CardHeader>
             <CardTitle>How to Apply</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>
-              Please send your resume and cover letter to <a href={`mailto:${job.application_email}`} className="text-blue-600 hover:underline">{job.application_email}</a>
-              {job.application_deadline && ` before ${formatDate(job.application_deadline)}`}.
-            </p>
+            {job.application_email && (
+              <p>
+                Please send your resume and cover letter to <a href={`mailto:${job.application_email}`} className="text-blue-600 hover:underline">{job.application_email}</a>
+                {job.application_deadline && ` before ${formatDate(job.application_deadline)}`}.
+              </p>
+            )}
             
             {job.application_url && (
               <div className="mt-4">
                 <Button 
                   onClick={() => window.open(job.application_url, '_blank')}
-                  className="w-full md:w-auto"
+                  className="w-full md:w-auto flex items-center gap-2"
                 >
                   Apply on Company Website
+                  <ExternalLink size={16} />
                 </Button>
               </div>
             )}
+            
+            {/* Add LinkedIn or professional networks sharing links */}
+            <div className="mt-6">
+              <h4 className="text-sm font-medium mb-2">Share this job</h4>
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, '_blank')}
+                >
+                  LinkedIn
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => window.open(`https://twitter.com/intent/tweet?text=Check out this job: ${job.title} at ${job.company_name}&url=${encodeURIComponent(window.location.href)}`, '_blank')}
+                >
+                  Twitter
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast({
+                      title: "Link copied",
+                      description: "Job posting link has been copied to clipboard",
+                    });
+                  }}
+                >
+                  Copy Link
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

@@ -19,7 +19,8 @@ import {
   Briefcase,
   DollarSign,
   GraduationCap,
-  Building
+  Building,
+  Package2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -127,12 +128,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
               <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
               <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+              <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+              <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+              <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
               
               {isCompany && (
                 <>
-                  <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Job Postings" />
-                  <NavigationLink to="/company/products" icon={<DollarSign size={18} />} label="Products" />
-                  <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+                  <div className="mt-4 mb-2 px-3">
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Dashboard</h3>
+                  </div>
+                  <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Manage Jobs" />
+                  <NavigationLink to="/company/products" icon={<Package2 size={18} />} label="Manage Products" />
+                  <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Manage Workshops" />
                 </>
               )}
               
@@ -176,12 +183,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
             <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
             <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+            <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+            <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+            <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
             
             {isCompany && (
               <>
-                <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Job Postings" />
-                <NavigationLink to="/company/products" icon={<DollarSign size={18} />} label="Products" />
-                <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+                <div className="mt-4 mb-2 px-3">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Dashboard</h3>
+                </div>
+                <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Manage Jobs" />
+                <NavigationLink to="/company/products" icon={<Package2 size={18} />} label="Manage Products" />
+                <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Manage Workshops" />
               </>
             )}
             

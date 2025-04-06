@@ -1,222 +1,398 @@
 
-import React from 'react';
-import { useParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Calendar, Clock, MapPin, Users, Building, Tag, CheckCircle, ExternalLink } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  ArrowLeft, 
+  Calendar, 
+  Clock, 
+  MapPin, 
+  Video, 
+  Users, 
+  Info,
+  Book,
+  Award,
+  CheckCircle,
+  Tag
+} from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
+import { format } from 'date-fns';
+import WorkshopRegistration from '@/components/workshop/WorkshopRegistration';
 
 const WorkshopDetail = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { toast } = useToast();
+  const [workshop, setWorkshop] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [showRegistrations, setShowRegistrations] = useState(false);
   
-  // In a real implementation, we would fetch the workshop details by ID
-  // For now, using placeholder data
-  const workshop = {
-    id: id,
-    title: 'Advanced React Patterns for Enterprise Applications',
-    company: 'React Masters',
-    companyLogo: 'https://ui-avatars.com/api/?name=React+Masters&background=random',
-    date: '2025-06-15',
-    startTime: '09:00',
-    endTime: '17:00',
-    location: 'Online (Zoom)',
-    capacity: 50,
-    enrolledCount: 32,
-    price: '$199',
-    description: 'A comprehensive workshop covering advanced React patterns and techniques for building scalable enterprise applications.',
-    longDescription: 'Join us for an intensive one-day workshop where you\'ll learn how to implement advanced React patterns that solve complex UI challenges in enterprise applications. Our expert instructors will guide you through practical exercises and real-world examples that you can apply immediately to your projects.',
-    topics: [
-      'Component composition strategies',
-      'State management beyond Redux',
-      'Performance optimization techniques',
-      'Custom hooks for reusable logic',
-      'Render props and higher-order components',
-      'Suspense and concurrent mode',
-      'Testing strategies for complex components',
-      'TypeScript best practices with React'
-    ],
-    prerequisites: [
-      'Solid understanding of React fundamentals',
-      'Experience with hooks and functional components',
-      'Basic knowledge of TypeScript',
-      'Familiarity with modern JavaScript (ES6+)'
-    ],
-    instructors: [
-      {
-        name: 'Sarah Johnson',
-        role: 'Senior React Engineer',
-        bio: 'Sarah has 8+ years of experience building React applications at scale and is a frequent conference speaker.',
-        avatar: 'https://ui-avatars.com/api/?name=Sarah+Johnson'
-      },
-      {
-        name: 'Michael Chen',
-        role: 'Frontend Architect',
-        bio: 'Michael specializes in performance optimization and has contributed to several popular React libraries.',
-        avatar: 'https://ui-avatars.com/api/?name=Michael+Chen'
+  useEffect(() => {
+    const loadWorkshop = async () => {
+      try {
+        setLoading(true);
+        
+        const { data, error } = await supabase
+          .from('workshops')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) throw error;
+        
+        setWorkshop(data);
+        
+        // If user is the creator, load workshop registrations
+        if (currentUser?.id === data.company_id) {
+          loadRegistrations();
+        }
+      } catch (error) {
+        console.error('Error loading workshop:', error);
+        toast({
+          title: 'Failed to load workshop',
+          description: 'Please try again later',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
       }
-    ],
-    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=1200&auto=format&fit=crop&q=80&ixlib=rb-4.0.3',
-    tags: ['React', 'Advanced', 'Enterprise', 'Patterns', 'Frontend'],
-    includes: [
-      'Full day of live instruction',
-      'Workshop materials and slides',
-      'Code repository access',
-      '30 days of recording access',
-      'Certificate of completion',
-      'Community access for questions'
-    ],
-    registrationUrl: 'https://example.com/register'
+    };
+    
+    const loadRegistrations = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('workshop_registrations')
+          .select('*')
+          .eq('workshop_id', id)
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        
+        setRegistrations(data || []);
+      } catch (error) {
+        console.error('Error loading registrations:', error);
+      }
+    };
+    
+    if (id) {
+      loadWorkshop();
+    }
+  }, [id, currentUser, toast]);
+  
+  const handleBack = () => {
+    navigate(-1);
   };
   
-  const formattedDate = new Date(workshop.date).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  });
+  const isCreator = currentUser?.id === workshop?.company_id;
   
-  const enrollmentPercentage = (workshop.enrolledCount / workshop.capacity) * 100;
-  const spotsRemaining = workshop.capacity - workshop.enrolledCount;
+  if (loading) {
+    return (
+      <div className="py-8">
+        <div className="h-6 w-24 bg-gray-200 rounded-md animate-pulse mb-4"></div>
+        <div className="h-10 bg-gray-200 rounded-md animate-pulse mb-6"></div>
+        <div className="h-64 bg-gray-200 rounded-md animate-pulse"></div>
+      </div>
+    );
+  }
+  
+  if (!workshop) {
+    return (
+      <div className="py-8 text-center">
+        <h2 className="text-xl font-semibold mb-2">Workshop Not Found</h2>
+        <p className="text-gray-500 mb-6">The workshop you're looking for doesn't exist or has been removed.</p>
+        <Button onClick={handleBack}>Go Back</Button>
+      </div>
+    );
+  }
+  
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'Date not specified';
+    const date = new Date(dateString);
+    return format(date, 'MMMM d, yyyy');
+  };
   
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <Card className="overflow-hidden">
-        <div className="w-full h-64 overflow-hidden bg-gray-100">
-          <img src={workshop.image} alt={workshop.title} className="w-full h-full object-cover object-center" />
-        </div>
-        <CardHeader className="pb-3">
-          <div className="flex items-start gap-4">
-            <div className="h-16 w-16 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center border">
-              <img src={workshop.companyLogo} alt={workshop.company} className="h-full w-full object-cover" />
-            </div>
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-2xl">{workshop.title}</CardTitle>
-                <Badge variant="secondary">{workshop.price}</Badge>
-              </div>
-              <div className="flex items-center text-gray-500">
-                <Building className="h-4 w-4 mr-1" />
-                <span>{workshop.company}</span>
-              </div>
-            </div>
+    <div className="space-y-6">
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={handleBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back
+        </Button>
+      </div>
+      
+      <div>
+        {workshop.image && (
+          <div className="w-full aspect-video rounded-lg overflow-hidden bg-gray-100 mb-6">
+            <img src={workshop.image} alt={workshop.title} className="w-full h-full object-cover" />
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-muted p-4 rounded-lg">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span>{formattedDate}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span>{workshop.startTime} - {workshop.endTime}</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <span>{workshop.location}</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-gray-500" />
-                  <span>{workshop.enrolledCount} enrolled (Capacity: {workshop.capacity})</span>
-                </div>
-                <span className="text-xs">{spotsRemaining} spots left</span>
-              </div>
-              <Progress value={enrollmentPercentage} className="h-2" />
-              <div className="flex items-center gap-2 text-sm">
-                <Tag className="h-4 w-4 text-gray-500" />
-                <span>Registration: {workshop.price}</span>
-              </div>
-            </div>
-          </div>
-          
+        )}
+        
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
-            <h3 className="text-lg font-medium mb-2">About This Workshop</h3>
-            <p className="text-gray-700 mb-3">{workshop.description}</p>
-            <p className="text-gray-700">{workshop.longDescription}</p>
+            <h1 className="text-2xl font-bold">{workshop.title}</h1>
+            <div className="flex items-center gap-2 text-gray-500 mt-1">
+              <img 
+                src={workshop.company_logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(workshop.company_name)}&background=random`} 
+                alt={workshop.company_name} 
+                className="h-5 w-5 rounded-full"
+              />
+              <span>{workshop.company_name}</span>
+              {workshop.category && (
+                <>
+                  <span className="mx-1">•</span>
+                  <Badge variant="outline">{workshop.category}</Badge>
+                </>
+              )}
+            </div>
           </div>
           
-          <Separator />
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {!isCreator && (
+            <div className="flex gap-2">
+              <WorkshopRegistration workshop={workshop} />
+            </div>
+          )}
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Date</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-gray-400" />
+              <span>{formatDate(workshop.date)}</span>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Duration</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-gray-400" />
+              <span>{workshop.duration}</span>
+            </div>
+            {workshop.start_time && workshop.end_time && (
+              <div className="text-sm text-gray-500 mt-1">
+                {workshop.start_time} to {workshop.end_time}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-gray-500">Location</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-2">
+              {workshop.is_online ? (
+                <>
+                  <Video className="h-4 w-4 text-gray-400" />
+                  <span>Online</span>
+                </>
+              ) : (
+                <>
+                  <MapPin className="h-4 w-4 text-gray-400" />
+                  <span>{workshop.location || 'Location not specified'}</span>
+                </>
+              )}
+            </div>
+            {workshop.is_online && workshop.meeting_url && isCreator && (
+              <div className="text-sm text-blue-500 hover:underline mt-1">
+                <a href={workshop.meeting_url} target="_blank" rel="noopener noreferrer">
+                  Meeting link
+                </a>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="grid grid-cols-1 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Workshop Details</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div>
-              <h3 className="text-lg font-medium mb-2">What You'll Learn</h3>
-              <ul className="space-y-1">
-                {workshop.topics.map((topic, i) => (
-                  <li key={i} className="flex items-start">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{topic}</span>
-                  </li>
-                ))}
-              </ul>
+              <h3 className="font-semibold mb-2 flex items-center">
+                <Info className="h-4 w-4 mr-2" />
+                Description
+              </h3>
+              {workshop.long_description ? (
+                <p className="whitespace-pre-line">{workshop.long_description}</p>
+              ) : (
+                <p className="whitespace-pre-line">{workshop.description}</p>
+              )}
             </div>
             
-            <div>
-              <h3 className="text-lg font-medium mb-2">Prerequisites</h3>
-              <ul className="list-disc pl-5 space-y-1">
-                {workshop.prerequisites.map((prerequisite, i) => (
-                  <li key={i} className="text-gray-700">{prerequisite}</li>
-                ))}
-              </ul>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {workshop.topics && workshop.topics.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center">
+                    <Book className="h-4 w-4 mr-2" />
+                    Topics Covered
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {workshop.topics.map((topic: string, i: number) => (
+                      <li key={i}>{topic}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               
-              <h3 className="text-lg font-medium mt-6 mb-2">What's Included</h3>
-              <ul className="space-y-1">
-                {workshop.includes.map((item, i) => (
-                  <li key={i} className="flex items-start">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{item}</span>
-                  </li>
-                ))}
-              </ul>
+              {workshop.prerequisites && workshop.prerequisites.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center">
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Prerequisites
+                  </h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    {workshop.prerequisites.map((prerequisite: string, i: number) => (
+                      <li key={i}>{prerequisite}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-          </div>
-          
-          <Separator />
-          
-          <div>
-            <h3 className="text-lg font-medium mb-4">Meet Your Instructors</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {workshop.instructors.map((instructor, i) => (
-                <Card key={i} className="border">
-                  <CardHeader className="pb-2 flex flex-row items-center space-y-0 gap-3">
-                    <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                      <img src={instructor.avatar} alt={instructor.name} className="h-full w-full object-cover" />
+            
+            {workshop.includes && workshop.includes.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2 flex items-center">
+                  <Award className="h-4 w-4 mr-2" />
+                  What's Included
+                </h3>
+                <ul className="list-disc pl-5 space-y-1">
+                  {workshop.includes.map((item: string, i: number) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {workshop.instructors && workshop.instructors.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2">Instructors</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {workshop.instructors.map((instructor: any, i: number) => (
+                    <div key={i} className="flex items-start gap-3 p-3 bg-gray-50 rounded-md">
+                      <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200">
+                        <img 
+                          src={instructor.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor.name)}&background=random`} 
+                          alt={instructor.name} 
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">{instructor.name}</h4>
+                        <p className="text-sm text-gray-600">{instructor.role || 'Instructor'}</p>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-base">{instructor.name}</CardTitle>
-                      <CardDescription>{instructor.role}</CardDescription>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600">{instructor.bio}</p>
-                  </CardContent>
-                </Card>
-              ))}
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {workshop.tags && workshop.tags.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2 flex items-center">
+                  <Tag className="h-4 w-4 mr-2" />
+                  Tags
+                </h3>
+                <div className="flex flex-wrap gap-1">
+                  {workshop.tags.map((tag: string, i: number) => (
+                    <Badge key={i} variant="secondary">{tag}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-0 flex flex-row items-center justify-between">
+            <CardTitle>Registration</CardTitle>
+            <div className="font-bold text-xl text-primary">
+              {workshop.price === 0 ? 'Free' : `$${typeof workshop.price === 'number' ? workshop.price.toFixed(2) : workshop.price}`}
             </div>
-          </div>
-          
-          <div>
-            <h3 className="text-lg font-medium mb-2">Tags</h3>
-            <div className="flex flex-wrap gap-2">
-              {workshop.tags.map((tag, i) => (
-                <Badge key={i} variant="outline">{tag}</Badge>
-              ))}
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-400" />
+                <span>
+                  {workshop.capacity 
+                    ? `Capacity: ${workshop.capacity} participants` 
+                    : 'Unlimited capacity'}
+                </span>
+              </div>
+              
+              {!isCreator && (
+                <WorkshopRegistration workshop={workshop} />
+              )}
             </div>
-          </div>
-          
-          <div className="pt-4">
-            <Button size="lg" className="w-full" onClick={() => window.open(workshop.registrationUrl, "_blank")}>
-              Register Now ({spotsRemaining} spots remaining)
-              <ExternalLink className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+        
+        {isCreator && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>
+                Registrations 
+                <Badge variant="outline" className="ml-2">{registrations.length}</Badge>
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowRegistrations(!showRegistrations)}
+              >
+                {showRegistrations ? 'Hide' : 'Show'}
+              </Button>
+            </CardHeader>
+            
+            {showRegistrations && (
+              <CardContent>
+                {registrations.length === 0 ? (
+                  <p className="text-center py-4 text-gray-500">No registrations yet</p>
+                ) : (
+                  <div className="space-y-4">
+                    {registrations.map((registration: any) => (
+                      <div key={registration.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
+                        <div className="h-10 w-10 rounded-full overflow-hidden bg-gray-200">
+                          <img 
+                            src={registration.user_profile_image || `https://ui-avatars.com/api/?name=${encodeURIComponent(registration.user_name)}&background=random`} 
+                            alt={registration.user_name} 
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium">{registration.user_name}</h4>
+                          <p className="text-sm text-gray-600">{registration.user_email}</p>
+                        </div>
+                        <Badge variant="outline">
+                          {registration.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            )}
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
