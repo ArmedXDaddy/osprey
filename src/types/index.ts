@@ -1,4 +1,3 @@
-
 export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
 export type GroupPrivacy = 'public' | 'private' | 'paid';
@@ -257,4 +256,12 @@ export interface JobPosting {
   company_description?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface DataContextType {
+  events: Event[];
+  createEvent: (eventData: any) => Promise<Event>;
+  joinEvent: (eventId: string) => Promise<void>;
+  leaveEvent: (eventId: string) => Promise<void>;
+  deleteEvent: (eventId: string) => Promise<void>;
 }
