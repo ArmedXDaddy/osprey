@@ -1,101 +1,105 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
-import { useAuth } from '@/context/AuthContext';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Link } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
-
-const formSchema = z.object({
-  email: z.string().email({ message: "Invalid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
-});
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
 
 const Login = () => {
-  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-  });
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const handleLogin = async (formData: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
-    setError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all fields',
+        variant: 'destructive',
+      });
+      return;
+    }
     
     try {
-      await login(formData.email, formData.password);
+      setLoading(true);
+      await login(email, password);
+      toast({
+        title: 'Success',
+        description: 'You have successfully logged in',
+      });
       navigate('/');
     } catch (error: any) {
       console.error('Login error:', error);
-      setError(error.message || 'Failed to login');
       toast({
-        title: "Login failed",
-        description: error.message || 'Failed to login',
-        variant: "destructive",
+        title: 'Login failed',
+        description: error.message || 'Invalid email or password',
+        variant: 'destructive',
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
-      <Card className="w-full max-w-md p-4">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-center">Login</CardTitle>
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold">Login</CardTitle>
+          <CardDescription>Enter your credentials to access your account</CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit(handleLogin)} className="space-y-4">
-            <div>
+        
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input 
-                type="email" 
                 id="email" 
-                placeholder="Email" 
-                {...register("email")} 
-                className="w-full"
+                type="email" 
+                placeholder="your@email.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
-              {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-              )}
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
+            
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <Input 
-                type="password" 
                 id="password" 
-                placeholder="Password" 
-                {...register("password")} 
-                className="w-full"
+                type="password" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
               />
-              {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
-              )}
             </div>
-            {error && (
-              <div className="text-red-500 text-sm">{error}</div>
-            )}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
+          </CardContent>
+          
+          <CardFooter className="flex flex-col space-y-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
             </Button>
-          </form>
-          <div className="mt-4 text-sm text-center">
-            Don't have an account? <Link to="/auth/register" className="text-primary">Register</Link>
-          </div>
-        </CardContent>
+            
+            <p className="text-center text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-blue-600 hover:underline">
+                Register
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

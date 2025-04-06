@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           following: data.following || [],
           followers: data.followers || 0,
           verified: data.verified || false,
-          socialLinks: data.social_links || undefined,
+          socialLinks: data.social_links as any || undefined,
           createdAt: new Date(data.created_at),
         };
         

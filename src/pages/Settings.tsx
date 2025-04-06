@@ -1,440 +1,154 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
+
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, User, Shield, Trash2, Save, AlertTriangle } from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { toast } from '@/hooks/use-toast';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { supabase } from '@/integrations/supabase/client';
-
-const ThemeContext = React.createContext<{
-  isDarkTheme: boolean;
-  toggleTheme: () => void;
-}>({
-  isDarkTheme: false,
-  toggleTheme: () => {},
-});
-
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [isDarkTheme, setIsDarkTheme] = useState(() => {
-    const savedTheme = localStorage.getItem('theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    return savedTheme ? savedTheme === 'dark' : systemPrefersDark;
-  });
-
-  React.useEffect(() => {
-    if (isDarkTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDarkTheme]);
-
-  const toggleTheme = () => {
-    setIsDarkTheme(!isDarkTheme);
-  };
-
-  return (
-    <ThemeContext.Provider value={{ isDarkTheme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
-};
-
-export const useTheme = () => {
-  const context = React.useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
-};
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/context/AuthContext';
+import { ChevronLeft, Save, LogOut } from 'lucide-react';
 
 const Settings = () => {
-  const { currentUser, isLoading, logout } = useAuth();
+  const { currentUser, updateProfile, logout } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const { isDarkTheme, toggleTheme } = useTheme();
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    marketingEmails: false,
+  
+  const [formData, setFormData] = useState({
+    name: currentUser?.name || '',
+    bio: currentUser?.bio || '',
+    location: currentUser?.location || '',
+    email: currentUser?.email || '',
   });
-  const [privacy, setPrivacy] = useState({
-    profileVisibility: true,
-    activityVisibility: true,
-  });
-  const [appearance, setAppearance] = useState({
-    reducedMotion: false,
-    compactView: false,
-  });
-
-  useEffect(() => {
-    if (appearance.reducedMotion) {
-      document.documentElement.classList.add('reduced-motion');
-    } else {
-      document.documentElement.classList.remove('reduced-motion');
-    }
-
-    if (appearance.compactView) {
-      document.documentElement.classList.add('compact-view');
-    } else {
-      document.documentElement.classList.remove('compact-view');
-    }
-  }, [appearance.reducedMotion, appearance.compactView]);
-
-  const handleSaveAppearanceSettings = () => {
-    toast({ 
-      title: "Appearance Settings Saved", 
-      description: `Reduced Motion: ${appearance.reducedMotion ? 'On' : 'Off'}, Compact View: ${appearance.compactView ? 'On' : 'Off'}` 
-    });
-    
-    localStorage.setItem('appearance-settings', JSON.stringify(appearance));
+  
+  const [saving, setSaving] = useState(false);
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
-
-  const handleDeleteAccount = async () => {
-    if (!currentUser) return;
-    
+  
+  const handleSave = async () => {
     try {
-      setIsDeleting(true);
+      setSaving(true);
       
-      const { error } = await supabase.rpc('delete_user', {
-        p_user_id: currentUser.id
+      await updateProfile({
+        name: formData.name,
+        bio: formData.bio,
+        location: formData.location,
       });
-      
-      if (error) throw error;
       
       toast({
-        title: "Account deleted",
-        description: "Your account has been deleted successfully",
+        title: 'Settings updated',
+        description: 'Your profile settings have been updated successfully',
       });
-      
-      await logout();
-      navigate('/auth/login');
     } catch (error) {
-      console.error('Account deletion error:', error);
+      console.error('Error updating settings:', error);
       toast({
-        title: "Deletion failed",
-        description: "There was a problem deleting your account",
-        variant: "destructive",
+        title: 'Update failed',
+        description: 'Failed to update settings. Please try again.',
+        variant: 'destructive',
       });
     } finally {
-      setIsDeleting(false);
+      setSaving(false);
+    }
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: 'Logged out',
+        description: 'You have been successfully logged out',
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to log out',
+        variant: 'destructive',
+      });
     }
   };
 
-  if (isLoading || !currentUser) {
-    return (
-      <div className="flex justify-center items-center h-[80vh]">
-        <div className="animate-pulse text-lg">Loading settings...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="container max-w-4xl mx-auto py-6">
-      <h1 className="text-2xl font-semibold mb-6">Settings</h1>
+    <div className="container mx-auto py-6 max-w-2xl">
+      <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
+        <ChevronLeft className="h-4 w-4 mr-2" />
+        Back
+      </Button>
       
-      <Tabs defaultValue="appearance">
-        <TabsList className="grid grid-cols-3 mb-8">
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
-            {isDarkTheme ? <Moon size={16} /> : <Sun size={16} />}
-            <span>Appearance</span>
-          </TabsTrigger>
-          <TabsTrigger value="account" className="flex items-center gap-2">
-            <User size={16} />
-            <span>Account</span>
-          </TabsTrigger>
-          <TabsTrigger value="privacy" className="flex items-center gap-2">
-            <Shield size={16} />
-            <span>Privacy</span>
-          </TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <CardTitle>Settings</CardTitle>
+          <CardDescription>Manage your account settings and profile information</CardDescription>
+        </CardHeader>
         
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Appearance</CardTitle>
-              <CardDescription>
-                Customize how Osprey looks and feels
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="dark-mode">Dark Mode</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Switch between light and dark themes
-                  </p>
-                </div>
-                <Switch 
-                  id="dark-mode" 
-                  checked={isDarkTheme}
-                  onCheckedChange={toggleTheme} 
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="reduced-motion">Reduce Motion</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Minimize animations throughout the application
-                  </p>
-                </div>
-                <Switch 
-                  id="reduced-motion" 
-                  checked={appearance.reducedMotion}
-                  onCheckedChange={(checked) => 
-                    setAppearance({...appearance, reducedMotion: checked})
-                  } 
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="compact-view">Compact View</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Use a more compact layout for content
-                  </p>
-                </div>
-                <Switch 
-                  id="compact-view" 
-                  checked={appearance.compactView}
-                  onCheckedChange={(checked) => 
-                    setAppearance({...appearance, compactView: checked})
-                  } 
-                />
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={handleSaveAppearanceSettings}
-              >
-                Save Appearance Settings
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="account">
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Settings</CardTitle>
-              <CardDescription>
-                Manage your account information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <p className="text-base font-medium">{currentUser.email}</p>
-                <p className="text-xs text-muted-foreground">
-                  Email cannot be changed directly. Please contact support.
-                </p>
-              </div>
-              
-              <Separator className="my-4" />
-              
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Notifications</h3>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="email-notifications">Email Notifications</Label>
-                  <Switch 
-                    id="email-notifications" 
-                    checked={notifications.emailNotifications}
-                    onCheckedChange={(checked) => setNotifications({...notifications, emailNotifications: checked})}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="push-notifications">Push Notifications</Label>
-                  <Switch 
-                    id="push-notifications" 
-                    checked={notifications.pushNotifications}
-                    onCheckedChange={(checked) => setNotifications({...notifications, pushNotifications: checked})}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="marketing-emails">Marketing Emails</Label>
-                  <Switch 
-                    id="marketing-emails" 
-                    checked={notifications.marketingEmails}
-                    onCheckedChange={(checked) => setNotifications({...notifications, marketingEmails: checked})}
-                  />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={() => 
-                  toast({ 
-                    title: "Account settings saved", 
-                    description: "Your preferences have been updated" 
-                  })
-                }
-              >
-                Save Account Settings
-              </Button>
-            </CardFooter>
-          </Card>
-          
-          <div className="mt-8">
-            <Card className="border-destructive/50">
-              <CardHeader>
-                <CardTitle className="text-destructive flex items-center gap-2">
-                  <Trash2 size={18} />
-                  Delete Account
-                </CardTitle>
-                <CardDescription>
-                  Permanently delete your account and all associated data
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  This action cannot be undone. Once you delete your account, all of your data will be permanently removed.
-                </p>
-              </CardContent>
-              <CardFooter>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" className="flex items-center gap-2">
-                      <Trash2 size={16} />
-                      Delete Account
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle className="flex items-center gap-2">
-                        <AlertTriangle size={18} className="text-destructive" />
-                        Are you absolutely sure?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will permanently delete your
-                        account and remove all your data from our servers.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={handleDeleteAccount}
-                        disabled={isDeleting}
-                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      >
-                        {isDeleting ? 'Deleting...' : 'Yes, delete my account'}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </CardFooter>
-            </Card>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Name</Label>
+            <Input 
+              id="name" 
+              name="name" 
+              value={formData.name} 
+              onChange={handleChange} 
+            />
           </div>
-        </TabsContent>
+          
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input 
+              id="email" 
+              name="email" 
+              value={formData.email} 
+              disabled 
+              className="bg-gray-100"
+            />
+            <p className="text-sm text-gray-500">Email cannot be changed</p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="bio">Bio</Label>
+            <Textarea 
+              id="bio" 
+              name="bio" 
+              value={formData.bio} 
+              onChange={handleChange} 
+              placeholder="Tell others about yourself"
+              rows={4}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="location">Location</Label>
+            <Input 
+              id="location" 
+              name="location" 
+              value={formData.location} 
+              onChange={handleChange} 
+              placeholder="City, Country"
+            />
+          </div>
+        </CardContent>
         
-        <TabsContent value="privacy">
-          <Card>
-            <CardHeader>
-              <CardTitle>Privacy Settings</CardTitle>
-              <CardDescription>
-                Control what information is visible to others
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="profile-visibility">Profile Visibility</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow others to view your profile
-                  </p>
-                </div>
-                <Switch 
-                  id="profile-visibility" 
-                  checked={privacy.profileVisibility}
-                  onCheckedChange={(checked) => setPrivacy({...privacy, profileVisibility: checked})}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="activity-visibility">Activity Visibility</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow others to see your activity and interactions
-                  </p>
-                </div>
-                <Switch 
-                  id="activity-visibility" 
-                  checked={privacy.activityVisibility}
-                  onCheckedChange={(checked) => setPrivacy({...privacy, activityVisibility: checked})}
-                />
-              </div>
-              
-              <Separator />
-              
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Data Usage</h3>
-                <p className="text-sm text-muted-foreground">
-                  Control how we use your data to improve our services
-                </p>
-                
-                <div className="flex items-center justify-between mt-2">
-                  <Label htmlFor="analytics">Analytics & Improvements</Label>
-                  <Switch id="analytics" defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="personalization">Personalization</Label>
-                  <Switch id="personalization" defaultChecked />
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                className="w-full" 
-                onClick={() => 
-                  toast({ 
-                    title: "Privacy settings saved",
-                    description: "Your privacy preferences have been updated" 
-                  })
-                }
-              >
-                Save Privacy Settings
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
+        <CardFooter className="flex justify-between">
+          <Button variant="destructive" onClick={handleLogout}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
+          
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save changes
+              </>
+            )}
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 };

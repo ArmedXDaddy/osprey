@@ -1,506 +1,234 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Edit, MapPin, Calendar, Link as LinkIcon, Instagram, Twitter, Globe, Upload, X } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { User, UserRole } from '@/types';
+import { Edit, Settings, CalendarIcon, UsersIcon, MessageSquare } from 'lucide-react';
+import { Post, Service, Event, Group } from '@/types';
 import PostCard from '@/components/post/PostCard';
 import ServiceCard from '@/components/service/ServiceCard';
 import EventCard from '@/components/event/EventCard';
 import GroupCard from '@/components/group/GroupCard';
-import { uploadImage } from '@/integrations/supabase/helpers';
-import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const Profile = () => {
-  const { id } = useParams<{ id: string }>();
+  const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { currentUser, updateProfile } = useAuth();
-  const { posts, services, events, groups, fetchUserServices } = useData();
+  const { fetchUserServices } = useData();
   const { toast } = useToast();
   
-  const [isEditing, setIsEditing] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [profileData, setProfileData] = useState<Partial<User>>({});
-  const [profileImage, setProfileImage] = useState<File | null>(null);
-  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [userProfile, setUserProfile] = useState<any | null>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [userServices, setUserServices] = useState<Service[]>([]);
+  const [userEvents, setUserEvents] = useState<Event[]>([]);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('posts');
   
-  const isOwnProfile = currentUser && (!id || id === currentUser.id);
-  const displayUser = isOwnProfile ? currentUser : null; // In a real app, fetch the user by ID
+  const isCurrentUser = currentUser && (!userId || userId === currentUser.id);
+  const displayUserId = userId || currentUser?.id;
   
-  const userPosts = posts.filter(post => post.userId === (id || currentUser?.id));
-  const userServices = services.filter(service => service.providerId === (id || currentUser?.id));
-  const userEvents = events.filter(event => event.creatorId === (id || currentUser?.id));
-  const userGroups = groups.filter(group => group.creatorId === (id || currentUser?.id));
-  
-  React.useEffect(() => {
-    if (displayUser) {
-      setProfileData({
-        name: displayUser.name,
-        bio: displayUser.bio || '',
-        location: displayUser.location || '',
-        interests: displayUser.interests || [],
-        socialLinks: {
-          instagram: displayUser.socialLinks?.instagram || '',
-          twitter: displayUser.socialLinks?.twitter || '',
-          website: displayUser.socialLinks?.website || '',
-        }
-      });
+  useEffect(() => {
+    if (!displayUserId) {
+      navigate('/login');
+      return;
     }
-  }, [displayUser]);
-  
-  React.useEffect(() => {
-    if (id || currentUser?.id) {
-      fetchUserServices(id || currentUser?.id || '');
-    }
-  }, [id, currentUser?.id, fetchUserServices]);
-  
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
     
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setProfileData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent as keyof typeof prev],
-          [child]: value
-        }
-      }));
-    } else {
-      setProfileData(prev => ({ ...prev, [name]: value }));
-    }
-  };
-  
-  const handleInterestsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const interests = e.target.value.split(',').map(item => item.trim());
-    setProfileData(prev => ({ ...prev, interests }));
-  };
-  
-  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setProfileImage(e.target.files[0]);
-    }
-  };
-  
-  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setCoverImage(e.target.files[0]);
-    }
-  };
-  
-  const handleRemoveProfileImage = () => {
-    setProfileImage(null);
-  };
-  
-  const handleRemoveCoverImage = () => {
-    setCoverImage(null);
-  };
-  
-  const handleUpdateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!currentUser) return;
-    
-    try {
-      setIsUpdating(true);
-      
-      let profileImageUrl = currentUser.profileImage;
-      let coverImageUrl = currentUser.coverImage;
-      
-      if (profileImage) {
-        profileImageUrl = await uploadImage(profileImage, 'profiles');
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', displayUserId)
+          .single();
+          
+        if (profileError) throw profileError;
+        setUserProfile(profileData);
+        
+        // Fetch user posts
+        const { data: postsData, error: postsError } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('user_id', displayUserId)
+          .order('created_at', { ascending: false });
+          
+        if (postsError) throw postsError;
+        setUserPosts(postsData.map((post: any) => ({
+          ...post,
+          id: post.id,
+          userId: post.user_id,
+          userName: post.user_name,
+          userProfileImage: post.user_profile_image,
+          createdAt: new Date(post.created_at),
+          likes: post.likes_count || 0,
+          comments: post.comments_count || 0,
+          userLikes: []
+        })));
+        
+        // Fetch services created by user
+        const services = await fetchUserServices(displayUserId);
+        setUserServices(services);
+        
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load user data',
+          variant: 'destructive'
+        });
+      } finally {
+        setLoading(false);
       }
-      
-      if (coverImage) {
-        coverImageUrl = await uploadImage(coverImage, 'covers');
-      }
-      
-      const updatedProfile = {
-        ...profileData,
-        profileImage: profileImageUrl,
-        coverImage: coverImageUrl
-      };
-      
-      await updateProfile(updatedProfile);
-      
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully",
-      });
-      
-      setIsEditing(false);
-    } catch (error) {
-      console.error("Error updating profile:", error);
-      toast({
-        title: "Update failed",
-        description: "There was a problem updating your profile",
-        variant: "destructive",
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+    };
+    
+    fetchUserData();
+  }, [displayUserId, navigate, toast, fetchUserServices]);
   
-  if (!displayUser) {
-    return <div className="p-8 text-center">User not found</div>;
-  }
+  if (!displayUserId) return null;
   
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Cover Image */}
-      <div className="relative h-48 md:h-64 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
-        {displayUser.coverImage && (
-          <img 
-            src={displayUser.coverImage} 
-            alt="Cover" 
-            className="w-full h-full object-cover"
-          />
-        )}
-        
-        {isEditing && (
-          <div className="absolute top-4 right-4 flex space-x-2">
-            <label className="cursor-pointer bg-white dark:bg-gray-800 p-2 rounded-full shadow">
-              <input 
-                type="file" 
-                accept="image/*" 
-                className="hidden" 
-                onChange={handleCoverImageChange}
-              />
-              <Upload className="h-5 w-5 text-gray-600 dark:text-gray-300" />
-            </label>
-            
-            {coverImage && (
-              <button 
-                onClick={handleRemoveCoverImage}
-                className="bg-white dark:bg-gray-800 p-2 rounded-full shadow"
-              >
-                <X className="h-5 w-5 text-red-500" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-      
-      {/* Profile Header */}
-      <div className="relative -mt-16 px-4">
-        <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-4">
-          <div className="relative">
-            <Avatar className="h-32 w-32 border-4 border-white dark:border-gray-900 shadow-lg">
-              <AvatarImage src={displayUser.profileImage} />
-              <AvatarFallback>{displayUser.name.charAt(0)}</AvatarFallback>
-            </Avatar>
-            
-            {isEditing && (
-              <div className="absolute bottom-0 right-0 flex space-x-1">
-                <label className="cursor-pointer bg-white dark:bg-gray-800 p-1.5 rounded-full shadow">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleProfileImageChange}
-                  />
-                  <Upload className="h-4 w-4 text-gray-600 dark:text-gray-300" />
-                </label>
+    <div className="container mx-auto py-6 max-w-5xl">
+      {loading ? (
+        <div className="text-center py-10">Loading profile...</div>
+      ) : (
+        <>
+          {userProfile && (
+            <Card className="mb-6">
+              <CardContent className="p-0">
+                <div className="relative">
+                  <div className="h-48 bg-gray-200">
+                    {userProfile.cover_image && (
+                      <img 
+                        src={userProfile.cover_image} 
+                        alt="Cover" 
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  
+                  <div className="absolute bottom-0 left-6 transform translate-y-1/2">
+                    <Avatar className="h-24 w-24 border-4 border-white">
+                      <AvatarImage src={userProfile.profile_image} />
+                      <AvatarFallback>{userProfile.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </div>
+                  
+                  {isCurrentUser && (
+                    <div className="absolute top-4 right-4 flex space-x-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="bg-white"
+                        onClick={() => navigate('/settings')}
+                      >
+                        <Settings className="h-4 w-4 mr-2" />
+                        Settings
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        className="bg-white"
+                        onClick={() => {/* Open edit modal */}}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 
-                {profileImage && (
-                  <button 
-                    onClick={handleRemoveProfileImage}
-                    className="bg-white dark:bg-gray-800 p-1.5 rounded-full shadow"
-                  >
-                    <X className="h-4 w-4 text-red-500" />
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+                <div className="pt-16 pb-6 px-6">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                    <div>
+                      <h1 className="text-2xl font-bold">{userProfile.name}</h1>
+                      <p className="text-gray-500">{userProfile.role}</p>
+                    </div>
+                    
+                    {!isCurrentUser && (
+                      <div className="mt-4 md:mt-0 flex space-x-2">
+                        <Button variant="outline">Follow</Button>
+                        <Button>Message</Button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <p className="mb-4">{userProfile.bio}</p>
+                  
+                  <div className="flex flex-wrap gap-4">
+                    {userProfile.location && (
+                      <div className="flex items-center text-gray-500">
+                        <span>{userProfile.location}</span>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center text-gray-500">
+                      <span>{userProfile.followers || 0} followers</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
-          <div className="flex-1 text-center md:text-left">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">{displayUser.name}</h1>
-                <div className="flex items-center justify-center md:justify-start space-x-2 mt-1">
-                  <Badge variant="outline" className="capitalize">
-                    {displayUser.role}
-                  </Badge>
-                  
-                  {displayUser.verified && (
-                    <Badge className="bg-blue-500">Verified</Badge>
-                  )}
-                </div>
-              </div>
-              
-              {isOwnProfile && (
-                <div className="mt-4 md:mt-0">
-                  {isEditing ? (
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => setIsEditing(false)}
-                        disabled={isUpdating}
-                      >
-                        Cancel
-                      </Button>
-                      <Button 
-                        onClick={handleUpdateProfile}
-                        disabled={isUpdating}
-                      >
-                        {isUpdating ? "Saving..." : "Save Changes"}
-                      </Button>
-                    </div>
-                  ) : (
-                    <Button onClick={() => setIsEditing(true)}>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Edit Profile
-                    </Button>
-                  )}
-                </div>
-              )}
-            </div>
-            
-            <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-500 dark:text-gray-400">
-              {displayUser.location && (
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  <span>{displayUser.location}</span>
-                </div>
-              )}
-              
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
-                <span>Joined {formatDistanceToNow(displayUser.createdAt, { addSuffix: true })}</span>
-              </div>
-              
-              {displayUser.followers !== undefined && (
-                <div>
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">{displayUser.followers}</span> followers
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Profile Content */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        {/* Sidebar */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">About</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isEditing ? (
-                <form className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Name</label>
-                    <Input 
-                      name="name"
-                      value={profileData.name || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Bio</label>
-                    <Textarea 
-                      name="bio"
-                      value={profileData.bio || ''}
-                      onChange={handleInputChange}
-                      rows={4}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Location</label>
-                    <Input 
-                      name="location"
-                      value={profileData.location || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Interests (comma separated)</label>
-                    <Input 
-                      name="interests"
-                      value={profileData.interests?.join(', ') || ''}
-                      onChange={handleInterestsChange}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Instagram</label>
-                    <Input 
-                      name="socialLinks.instagram"
-                      value={profileData.socialLinks?.instagram || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Twitter</label>
-                    <Input 
-                      name="socialLinks.twitter"
-                      value={profileData.socialLinks?.twitter || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Website</label>
-                    <Input 
-                      name="socialLinks.website"
-                      value={profileData.socialLinks?.website || ''}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  {displayUser.bio ? (
-                    <p className="text-sm">{displayUser.bio}</p>
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">No bio provided</p>
-                  )}
-                  
-                  {displayUser.interests && displayUser.interests.length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Interests</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {displayUser.interests.map((interest, index) => (
-                          <Badge key={index} variant="secondary">{interest}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {displayUser.socialLinks && (
-                    <div>
-                      <h3 className="text-sm font-medium mb-2">Social Links</h3>
-                      <div className="space-y-2">
-                        {displayUser.socialLinks.instagram && (
-                          <a 
-                            href={`https://instagram.com/${displayUser.socialLinks.instagram}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-sm hover:underline"
-                          >
-                            <Instagram className="h-4 w-4 mr-2" />
-                            {displayUser.socialLinks.instagram}
-                          </a>
-                        )}
-                        
-                        {displayUser.socialLinks.twitter && (
-                          <a 
-                            href={`https://twitter.com/${displayUser.socialLinks.twitter}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-sm hover:underline"
-                          >
-                            <Twitter className="h-4 w-4 mr-2" />
-                            {displayUser.socialLinks.twitter}
-                          </a>
-                        )}
-                        
-                        {displayUser.socialLinks.website && (
-                          <a 
-                            href={displayUser.socialLinks.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center text-sm hover:underline"
-                          >
-                            <Globe className="h-4 w-4 mr-2" />
-                            {displayUser.socialLinks.website}
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Main Content */}
-        <div className="md:col-span-2">
-          <Tabs defaultValue="posts">
-            <TabsList className="w-full">
-              <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
-              {displayUser.role === 'coach' && (
-                <TabsTrigger value="services" className="flex-1">Services</TabsTrigger>
-              )}
-              <TabsTrigger value="events" className="flex-1">Events</TabsTrigger>
-              <TabsTrigger value="groups" className="flex-1">Groups</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+            <TabsList className="grid grid-cols-4">
+              <TabsTrigger value="posts">Posts</TabsTrigger>
+              <TabsTrigger value="services">Services</TabsTrigger>
+              <TabsTrigger value="events">Events</TabsTrigger>
+              <TabsTrigger value="groups">Groups</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="posts" className="mt-4 space-y-4">
+            <TabsContent value="posts" className="space-y-4">
               {userPosts.length > 0 ? (
                 userPosts.map(post => (
                   <PostCard key={post.id} post={post} />
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No posts yet
-                </div>
+                <p className="text-center py-10 text-gray-500">No posts yet</p>
               )}
             </TabsContent>
             
-            {displayUser.role === 'coach' && (
-              <TabsContent value="services" className="mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {userServices.length > 0 ? (
-                    userServices.map(service => (
-                      <ServiceCard key={service.id} service={service} />
-                    ))
-                  ) : (
-                    <div className="col-span-2 text-center py-8 text-gray-500">
-                      No services yet
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-            )}
-            
-            <TabsContent value="events" className="mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {userEvents.length > 0 ? (
-                  userEvents.map(event => (
-                    <EventCard key={event.id} event={event} />
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-8 text-gray-500">
-                    No events yet
-                  </div>
-                )}
-              </div>
+            <TabsContent value="services" className="space-y-4">
+              {userServices.length > 0 ? (
+                userServices.map(service => (
+                  <ServiceCard key={service.id} service={service} />
+                ))
+              ) : (
+                <p className="text-center py-10 text-gray-500">No services yet</p>
+              )}
             </TabsContent>
             
-            <TabsContent value="groups" className="mt-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {userGroups.length > 0 ? (
-                  userGroups.map(group => (
-                    <GroupCard key={group.id} group={group} />
-                  ))
-                ) : (
-                  <div className="col-span-2 text-center py-8 text-gray-500">
-                    No groups yet
-                  </div>
-                )}
-              </div>
+            <TabsContent value="events" className="space-y-4">
+              {userEvents.length > 0 ? (
+                userEvents.map(event => (
+                  <EventCard key={event.id} event={event} />
+                ))
+              ) : (
+                <p className="text-center py-10 text-gray-500">No events yet</p>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="groups" className="space-y-4">
+              {userGroups.length > 0 ? (
+                userGroups.map(group => (
+                  <GroupCard key={group.id} group={group} />
+                ))
+              ) : (
+                <p className="text-center py-10 text-gray-500">No groups yet</p>
+              )}
             </TabsContent>
           </Tabs>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };

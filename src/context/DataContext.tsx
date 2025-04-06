@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -16,6 +17,12 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
   generateMockMessages, generateMockJoinRequests 
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
+
+// Remove custom interface since we're using the one from @/types
+// interface GroupPrivacy {
+//   private: boolean;
+//   public: boolean;
+// }
 
 interface DataContextType {
   posts: Post[];
@@ -1045,6 +1052,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         throw new Error('You must be logged in to create a group');
       }
       
+      // Convert the string to GroupPrivacy type explicitly through unknown
       const privacyValue = groupData.privacy as unknown as string;
       
       const groupToInsert = {
@@ -1056,8 +1064,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         members: 1,
         privacy: privacyValue,
         image: groupData.image,
-        price: privacyValue === 'paid' ? groupData.price : null,
-        member_ids: [currentUser.id],
+        price: groupData.privacy === 'paid' ? groupData.price : null,
+        member_ids: [currentUser.id], // Initialize with creator
       };
       
       const { data, error } = await supabase
@@ -1070,7 +1078,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       if (!data) throw new Error('Failed to create group');
       
-      const createdGroup: Group = {
+      const transformedGroup: Group = {
         id: data.id,
         name: data.name,
         description: data.description,
@@ -1080,22 +1088,22 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         image: data.image,
         members: data.members,
         memberLimit: data.member_limit,
-        privacy: data.privacy as unknown as GroupPrivacy,
+        privacy: data.privacy as unknown as GroupPrivacy, // Cast through unknown
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
         createdAt: new Date(data.created_at),
-        memberIds: data.member_ids || []
+        memberIds: data.member_ids || [] // Initialize with data from DB or empty array
       };
       
-      setGroups(prev => [createdGroup, ...prev]);
+      setGroups(prev => [transformedGroup, ...prev]);
       
       toast({
         title: "Group created",
         description: "Your group has been created successfully",
       });
       
-      return createdGroup;
+      return transformedGroup;
     } catch (error: any) {
       console.error("Error creating group:", error);
       toast({

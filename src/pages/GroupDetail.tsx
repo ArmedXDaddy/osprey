@@ -1,3 +1,4 @@
+
 // Import only what's needed to fix the type issues
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
@@ -40,7 +41,7 @@ const GroupDetail = () => {
             pendingRequests: data.pending_requests,
             rules: data.rules || [],
             createdAt: new Date(data.created_at),
-            memberIds: data.member_ids || [] // Handle possible undefined
+            memberIds: data.member_ids || [] // Initialize with empty array if undefined
           };
           
           setGroup(transformedGroup);
