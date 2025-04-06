@@ -548,11 +548,14 @@ const Profile = () => {
                   <AvatarImage 
                     src={userToShow?.profileImage} 
                     alt={userToShow?.name || 'User'}
-                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-                      console.log("Profile image failed to load:", e);
+                    onError={() => {
+                      console.log("Profile image failed to load");
                       if (userToShow?.name) {
-                        const imgElement = e.target as HTMLImageElement;
-                        imgElement.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userToShow.name)}&background=random`;
+                        const fallbackSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(userToShow.name)}&background=random`;
+                        const imgElements = document.querySelectorAll(`img[alt="${userToShow.name || 'User'}"]`);
+                        imgElements.forEach(img => {
+                          img.src = fallbackSrc;
+                        });
                       }
                     }}
                   />
