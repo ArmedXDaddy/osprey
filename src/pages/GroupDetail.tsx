@@ -15,7 +15,7 @@ import GroupChatSection from '@/components/group/GroupChatSection';
 import GroupMembersSection from '@/components/group/GroupMembersSection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Group } from '@/types';
+import { Group, GroupPrivacy, UserRole } from '@/types';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -50,11 +50,11 @@ const GroupDetail = () => {
               description: data.description,
               creatorId: data.creator_id,
               creatorName: data.creator_name,
-              creatorRole: data.creator_role,
+              creatorRole: data.creator_role as UserRole,
               members: data.members,
-              memberIds: data.member_ids,
+              memberIds: data.member_ids || [],
               image: data.image,
-              privacy: data.privacy,
+              privacy: data.privacy as GroupPrivacy,
               price: data.price,
               pendingRequests: data.pending_requests,
               rules: data.rules || [],
@@ -223,8 +223,8 @@ const GroupDetail = () => {
         {/* Cover image */}
         <div className="h-48 md:h-64 rounded-t-lg overflow-hidden">
           <img 
-            src={group.image || 'https://images.unsplash.com/photo-1596920566403-2072ed71e29b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'} 
-            alt={group.name} 
+            src={group?.image || 'https://images.unsplash.com/photo-1596920566403-2072ed71e29b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'} 
+            alt={group?.name} 
             className="w-full h-full object-cover"
           />
         </div>
@@ -233,30 +233,31 @@ const GroupDetail = () => {
         <div className="bg-white shadow-md rounded-b-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-2xl font-bold">{group.name}</h1>
+              <h1 className="text-2xl font-bold">{group?.name}</h1>
               <div className="flex items-center gap-2 my-1">
                 <Badge className="flex items-center">
                   {getPrivacyIcon()}
-                  {getPrivacyLabel()}
+                  {group?.privacy === 'private' ? 'Private' : 
+                   group?.privacy === 'paid' ? `Paid ($${group?.price}/month)` : 'Public'}
                 </Badge>
                 <Badge variant="outline" className="flex items-center">
                   <Users className="h-3 w-3 mr-1" />
-                  {group.members} members
+                  {group?.members} members
                 </Badge>
                 <Badge variant="outline" className="flex items-center">
                   <Calendar className="h-3 w-3 mr-1" />
-                  Created {format(new Date(group.createdAt), 'MMM d, yyyy')}
+                  {group?.createdAt && `Created ${format(new Date(group.createdAt), 'MMM d, yyyy')}`}
                 </Badge>
               </div>
               <div className="flex items-center gap-2 mt-2">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={`https://ui-avatars.com/api/?name=${group.creatorName}&background=random`} />
-                  <AvatarFallback>{group.creatorName.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={`https://ui-avatars.com/api/?name=${group?.creatorName}&background=random`} />
+                  <AvatarFallback>{group?.creatorName?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <span className="text-sm text-gray-600">
-                  Created by <span className="font-medium">{group.creatorName}</span> 
+                  Created by <span className="font-medium">{group?.creatorName}</span> 
                   <span className="ml-1 px-2 py-0.5 text-xs rounded-full capitalize bg-gray-100">
-                    {group.creatorRole}
+                    {group?.creatorRole}
                   </span>
                 </span>
               </div>
@@ -304,7 +305,7 @@ const GroupDetail = () => {
         </TabsList>
         
         <TabsContent value="chat" className="mt-4">
-          {currentUser && isUserMember ? (
+          {currentUser && isUserMember && group ? (
             <Card>
               <CardContent className="p-0">
                 <GroupChatSection group={group} />

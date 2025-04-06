@@ -1,320 +1,184 @@
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { User } from '@/types';
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { User, UserRole } from '@/types';
-import { supabase } from "@/integrations/supabase/client";
-import { Session } from '@supabase/supabase-js';
-import { toast } from "@/hooks/use-toast";
-
-interface AuthContextType {
+interface AuthContextProps {
   currentUser: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  register: (email: string, password: string, name: string, role: UserRole) => Promise<void>;
+  setCurrentUser: (user: User | null) => void;
+  loading: boolean;
+  login: (email: string) => Promise<void>;
+  register: (email: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (userData: Partial<User>) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextProps>({
+  currentUser: null,
+  setCurrentUser: () => {},
+  loading: true,
+  login: async () => {},
+  register: async () => {},
+  logout: async () => {},
+});
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface AuthProviderProps {
+  children: React.ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [supabaseSession, setSupabaseSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  const login = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ email });
+      if (error) throw error;
+      alert('Check your email for the login link!');
+    } catch (error) {
+      console.error("Login error:", error);
+      alert(error);
+    }
+  };
+  
+  const register = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.signUp({ email, options: { emailRedirectTo: `${window.location.origin}/profile` } });
+      if (error) throw error;
+      alert('Check your email to confirm your registration!');
+    } catch (error) {
+      console.error("Registration error:", error);
+      alert(error);
+    }
+  };
+  
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setCurrentUser(null);
+    } catch (error) {
+      console.error("Logout error:", error);
+      alert(error);
+    }
+  };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log("Auth state changed:", event, session?.user?.id);
-        setSupabaseSession(session);
+    // Check for existing session
+    const checkSession = async () => {
+      try {
+        setLoading(true);
+        const { data: sessionData, error } = await supabase.auth.getSession();
         
-        if (session?.user) {
-          setTimeout(async () => {
-            try {
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .maybeSingle();
-                
-              console.log("Fetched profile data:", profileData);
-              
-              let socialLinks = {};
-              if (profileData?.social_links) {
-                try {
-                  if (typeof profileData.social_links === 'string') {
-                    socialLinks = JSON.parse(profileData.social_links);
-                  } else if (typeof profileData.social_links === 'object') {
-                    socialLinks = profileData.social_links;
-                  }
-                } catch (e) {
-                  console.error("Error parsing social links:", e);
-                }
-              }
-              
-              const userData: User = {
-                id: session.user.id,
-                email: session.user.email!,
-                name: profileData?.name || session.user.user_metadata.name || 'User',
-                role: profileData?.role || session.user.user_metadata.role || 'user',
-                profileImage: profileData?.profile_image || session.user.user_metadata.profileImage,
-                coverImage: session.user.user_metadata.coverImage,
-                bio: profileData?.bio || session.user.user_metadata.bio || '',
-                location: profileData?.location || session.user.user_metadata.location || '',
-                socialLinks: socialLinks,
-                createdAt: new Date(session.user.created_at)
-              };
-              
-              console.log("Setting current user with data:", userData);
-              setCurrentUser(userData);
-            } catch (error) {
-              console.error("Error fetching profile data:", error);
-              
-              const userData: User = {
-                id: session.user.id,
-                email: session.user.email!,
-                name: session.user.user_metadata.name || 'User',
-                role: session.user.user_metadata.role || 'user',
-                profileImage: session.user.user_metadata.profileImage,
-                coverImage: session.user.user_metadata.coverImage,
-                bio: session.user.user_metadata.bio || '',
-                location: session.user.user_metadata.location || '',
-                socialLinks: session.user.user_metadata.socialLinks || {},
-                createdAt: new Date(session.user.created_at)
-              };
-              
-              setCurrentUser(userData);
-            }
-          }, 0);
-        } else {
+        if (error) {
+          throw error;
+        }
+        
+        if (sessionData?.session) {
+          // User is authenticated
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', sessionData.session.user.id)
+            .single();
+            
+          if (userError) {
+            throw userError;
+          }
+          
+          if (userData) {
+            setCurrentUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+              profileImage: userData.profile_image,
+              coverImage: userData.cover_image,
+              bio: userData.bio,
+              location: userData.location,
+              interests: userData.interests,
+              following: userData.following,
+              followers: userData.followers,
+              verified: userData.verified,
+              socialLinks: userData.social_links,
+              createdAt: new Date(userData.created_at)
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkSession().catch(error => {
+      console.error("Failed to check session:", error);
+      setLoading(false);
+    });
+    
+    // Listen for auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          // User signed in
+          const { data: userData, error: userError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (userError) {
+            console.error('Error fetching user data:', userError);
+            return;
+          }
+          
+          if (userData) {
+            setCurrentUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              role: userData.role,
+              profileImage: userData.profile_image,
+              coverImage: userData.cover_image,
+              bio: userData.bio,
+              location: userData.location,
+              interests: userData.interests,
+              following: userData.following,
+              followers: userData.followers,
+              verified: userData.verified,
+              socialLinks: userData.social_links,
+              createdAt: new Date(userData.created_at)
+            });
+          }
+        } else if (event === 'SIGNED_OUT') {
+          // User signed out
           setCurrentUser(null);
         }
       }
     );
     
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log("Got existing session:", session?.user?.id);
-      setSupabaseSession(session);
-      
-      if (session?.user) {
-        // Fix: Corrected Promise handling for proper error handling
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle()
-          .then(({ data: profileData, error: profileError }) => {
-            console.log("Profile data on init:", profileData);
-            
-            let socialLinks = {};
-            if (profileData?.social_links) {
-              try {
-                if (typeof profileData.social_links === 'string') {
-                  socialLinks = JSON.parse(profileData.social_links);
-                } else if (typeof profileData.social_links === 'object') {
-                  socialLinks = profileData.social_links;
-                }
-              } catch (e) {
-                console.error("Error parsing social links:", e);
-              }
-            }
-              
-            const userData: User = {
-              id: session.user.id,
-              email: session.user.email!,
-              name: profileData?.name || session.user.user_metadata.name || 'User',
-              role: profileData?.role || session.user.user_metadata.role || 'user',
-              profileImage: profileData?.profile_image || session.user.user_metadata.profileImage,
-              coverImage: session.user.user_metadata.coverImage,
-              bio: profileData?.bio || session.user.user_metadata.bio || '',
-              location: profileData?.location || session.user.user_metadata.location || '',
-              socialLinks: socialLinks,
-              createdAt: new Date(session.user.created_at)
-            };
-            
-            setCurrentUser(userData);
-            setIsLoading(false);
-          })
-          .catch((error) => {
-            console.error("Error fetching profile data on init:", error);
-            
-            const userData: User = {
-              id: session.user.id,
-              email: session.user.email!,
-              name: session.user.user_metadata.name || 'User',
-              role: session.user.user_metadata.role || 'user',
-              profileImage: session.user.user_metadata.profileImage,
-              coverImage: session.user.user_metadata.coverImage,
-              bio: session.user.user_metadata.bio || '',
-              location: session.user.user_metadata.location || '',
-              socialLinks: session.user.user_metadata.socialLinks || {},
-              createdAt: new Date(session.user.created_at)
-            };
-            
-            setCurrentUser(userData);
-            setIsLoading(false);
-          });
-      } else {
-        setIsLoading(false);
-      }
-    });
-
     return () => {
-      subscription.unsubscribe();
+      if (authListener && authListener.subscription) {
+        authListener.subscription.unsubscribe();
+      }
     };
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (error) throw error;
-      return !!data.session;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const register = async (email: string, password: string, name: string, role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-            role
-          }
-        }
-      });
-      
-      if (error) throw error;
-      
-    } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      setCurrentUser(null);
-      
-      const { error } = await supabase.auth.signOut({ scope: 'local' });
-      
-      if (error) {
-        console.error('Logout error from Supabase:', error);
-        toast({
-          title: "Signed out",
-          description: "You have been signed out locally."
-        });
-      } else {
-        console.log("Successfully logged out");
-        toast({
-          title: "Signed out",
-          description: "You have been signed out successfully."
-        });
-      }
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast({
-        title: "Error during logout",
-        description: "Signed out locally, but there was an issue with the server.",
-        variant: "destructive"
-      });
-    } finally {
-      setSupabaseSession(null);
-      setIsLoading(false);
-    }
-  };
-
-  const updateProfile = async (userData: Partial<User>) => {
-    setIsLoading(true);
-    try {
-      if (!currentUser) {
-        throw new Error('No user logged in');
-      }
-      
-      const { data, error } = await supabase.auth.updateUser({
-        data: {
-          name: userData.name || currentUser.name,
-          ...(userData.role && { role: userData.role }),
-          ...(userData.profileImage && { profileImage: userData.profileImage }),
-          ...(userData.coverImage && { coverImage: userData.coverImage }),
-          ...(userData.bio && { bio: userData.bio }),
-          ...(userData.location && { location: userData.location }),
-          ...(userData.socialLinks && { 
-            socialLinks: {
-              ...(currentUser.socialLinks || {}),
-              ...userData.socialLinks
-            }
-          }),
-        }
-      });
-      
-      if (error) throw error;
-      
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: userData.name || currentUser.name,
-          profile_image: userData.profileImage || currentUser.profileImage,
-          bio: userData.bio || currentUser.bio,
-          location: userData.location || currentUser.location,
-          social_links: userData.socialLinks ? {
-            ...(currentUser.socialLinks || {}),
-            ...userData.socialLinks
-          } : currentUser.socialLinks
-        })
-        .eq('id', currentUser.id);
-      
-      if (profileError) {
-        console.error('Error updating public profile:', profileError);
-      }
-      
-      const updatedUser = { 
-        ...currentUser, 
-        ...userData,
-        profileImage: userData.profileImage || currentUser.profileImage,
-        coverImage: userData.coverImage || currentUser.coverImage,
-      };
-      
-      console.log("Profile updated with:", updatedUser);
-      setCurrentUser(updatedUser);
-    } catch (error) {
-      console.error('Update profile error:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const value = {
+  const value: AuthContextProps = {
     currentUser,
-    isLoading,
+    setCurrentUser,
+    loading,
     login,
     register,
     logout,
-    updateProfile
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };
