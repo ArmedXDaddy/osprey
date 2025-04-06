@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment 
+  Booking, ServiceType, Comment, GroupPrivacy 
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -16,11 +16,6 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
   generateMockMessages, generateMockJoinRequests 
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
-
-interface GroupPrivacy {
-  private: boolean;
-  public: boolean;
-}
 
 interface DataContextType {
   posts: Post[];
@@ -1042,18 +1037,17 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     privacy: GroupPrivacy;
     price?: number;
     image?: string;
-  }) => {
+  }): Promise<Group> => {
     try {
-      setIsLoading(true);
+      setLoading(true);
       
       if (!currentUser) {
         throw new Error('You must be logged in to create a group');
       }
       
-      // Convert the string to GroupPrivacy type explicitly
-      const privacyValue = groupData.privacy as GroupPrivacy;
+      const privacyValue = groupData.privacy as unknown as string;
       
-      const newGroup = {
+      const groupToInsert = {
         name: groupData.name,
         description: groupData.description,
         creator_id: currentUser.id,
@@ -1062,13 +1056,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         members: 1,
         privacy: privacyValue,
         image: groupData.image,
-        price: groupData.privacy === 'paid' ? groupData.price : null,
-        member_ids: [currentUser.id], // Initialize with creator
+        price: privacyValue === 'paid' ? groupData.price : null,
+        member_ids: [currentUser.id],
       };
       
       const { data, error } = await supabase
         .from('groups')
-        .insert(newGroup)
+        .insert(groupToInsert)
         .select()
         .single();
       
@@ -1076,7 +1070,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       if (!data) throw new Error('Failed to create group');
       
-      const newGroup: Group = {
+      const createdGroup: Group = {
         id: data.id,
         name: data.name,
         description: data.description,
@@ -1086,23 +1080,23 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         image: data.image,
         members: data.members,
         memberLimit: data.member_limit,
-        privacy: data.privacy as GroupPrivacy,
+        privacy: data.privacy as unknown as GroupPrivacy,
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
         createdAt: new Date(data.created_at),
-        memberIds: [] // Initialize with empty array
+        memberIds: data.member_ids || []
       };
       
-      setGroups(prev => [newGroup, ...prev]);
+      setGroups(prev => [createdGroup, ...prev]);
       
       toast({
         title: "Group created",
         description: "Your group has been created successfully",
       });
       
-      return newGroup;
-    } catch (error) {
+      return createdGroup;
+    } catch (error: any) {
       console.error("Error creating group:", error);
       toast({
         title: "Creation failed",
@@ -1111,7 +1105,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       });
       throw error;
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
   
@@ -1234,8 +1228,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a group');
     
     try {
-      // In a real implementation, we would delete from the database
-      // For the mock implementation, we just filter the groups array
       setGroups(prev => prev.filter(group => group.id !== groupId));
       
       toast({
@@ -1252,8 +1244,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
-      // In a real implementation, we would delete from the database
-      // For the mock implementation, we just filter the events array
       setEvents(prev => prev.filter(event => event.id !== eventId));
       
       toast({

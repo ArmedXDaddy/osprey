@@ -1,420 +1,148 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Link, useParams } from 'react-router-dom';
-import { 
-  Instagram, 
-  Twitter, 
-  Globe, 
-  MapPin, 
-  Edit, 
-  UserCheck, 
-  Users, 
-  X,
-  Camera,
-  ImageIcon,
-  UserPlus
-} from 'lucide-react';
-import PostCard from '@/components/shared/PostCard';
-import EventCard from '@/components/shared/EventCard';
-import GroupCard from '@/components/shared/GroupCard';
-import ServiceCard from '@/components/shared/ServiceCard';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { supabase } from '@/integrations/supabase/client';
-import ImageGallery from '@/components/profile/ImageGallery';
-import ImageCropper from '@/components/shared/ImageCropper';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { Edit, MapPin, Calendar, Link as LinkIcon, Instagram, Twitter, Globe, Upload, X } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { User, UserRole } from '@/types';
-import FollowButton from '@/components/profile/FollowButton';
-import FollowersList from '@/components/profile/FollowersList';
-import { useFollowers } from '@/hooks/useFollowers';
-
-interface SocialLinks {
-  instagram?: string;
-  twitter?: string;
-  website?: string;
-}
+import PostCard from '@/components/post/PostCard';
+import ServiceCard from '@/components/service/ServiceCard';
+import EventCard from '@/components/event/EventCard';
+import GroupCard from '@/components/group/GroupCard';
+import { uploadImage } from '@/integrations/supabase/helpers';
+import { useToast } from '@/hooks/use-toast';
 
 const Profile = () => {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { currentUser, updateProfile } = useAuth();
-  const { posts, events, groups, services, loading } = useData();
+  const { posts, services, events, groups, fetchUserServices } = useData();
   const { toast } = useToast();
-  const [profileUser, setProfileUser] = useState<User | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(false);
   
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [isFollowersDialogOpen, setIsFollowersDialogOpen] = useState(false);
-  const [isFollowingDialogOpen, setIsFollowingDialogOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({
-    name: '',
-    bio: '',
-    location: '',
-    profileImage: '',
-    coverImage: '',
-    instagram: '',
-    twitter: '',
-    website: ''
-  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [profileData, setProfileData] = useState<Partial<User>>({});
+  const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [coverImage, setCoverImage] = useState<File | null>(null);
   
-  const profileImageInputRef = useRef<HTMLInputElement>(null);
-  const coverImageInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
+  const isOwnProfile = currentUser && (!id || id === currentUser.id);
+  const displayUser = isOwnProfile ? currentUser : null; // In a real app, fetch the user by ID
   
-  const [profileImages, setProfileImages] = useState<{ name: string; url: string }[]>([]);
-  const [coverImages, setCoverImages] = useState<{ name: string; url: string }[]>([]);
-
-  const [isCropDialogOpen, setIsCropDialogOpen] = useState(false);
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
-  const [cropImageType, setCropImageType] = useState<'profile' | 'cover'>('profile');
-  const [cropAspectRatio, setCropAspectRatio] = useState(1);
-  const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false);
-  const [galleryType, setGalleryType] = useState<'profile' | 'cover'>('profile');
+  const userPosts = posts.filter(post => post.userId === (id || currentUser?.id));
+  const userServices = services.filter(service => service.providerId === (id || currentUser?.id));
+  const userEvents = events.filter(event => event.creatorId === (id || currentUser?.id));
+  const userGroups = groups.filter(group => group.creatorId === (id || currentUser?.id));
   
-  const isOwnProfile = !id || (currentUser && id === currentUser.id);
-  
-  const { 
-    followers, 
-    following, 
-    followerCount, 
-    followingCount, 
-    loading: loadingFollowers,
-    refresh: refreshFollowers
-  } = useFollowers(
-    isOwnProfile ? currentUser?.id : id,
-    currentUser?.id
-  );
-  
-  useEffect(() => {
-    if (currentUser && isOwnProfile) {
-      setProfileForm({
-        name: currentUser.name || '',
-        bio: currentUser.bio || '',
-        location: currentUser.location || '',
-        profileImage: currentUser.profileImage || '',
-        coverImage: currentUser.coverImage || '',
-        instagram: currentUser.socialLinks?.instagram || '',
-        twitter: currentUser.socialLinks?.twitter || '',
-        website: currentUser.socialLinks?.website || ''
-      });
-    }
-  }, [currentUser, isOwnProfile]);
-  
-  useEffect(() => {
-    if (currentUser && isOwnProfile) {
-      fetchProfileImages();
-      fetchCoverImages();
-    }
-  }, [currentUser, isOwnProfile]);
-  
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!id || (currentUser && id === currentUser.id)) {
-        return;
-      }
-      
-      setIsLoadingProfile(true);
-      try {
-        console.log('Fetching profile for user ID:', id);
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', id)
-          .single();
-        
-        if (error) {
-          console.error('Error details from Supabase:', error);
-          throw new Error(`Error fetching profile: ${error.message}`);
+  React.useEffect(() => {
+    if (displayUser) {
+      setProfileData({
+        name: displayUser.name,
+        bio: displayUser.bio || '',
+        location: displayUser.location || '',
+        interests: displayUser.interests || [],
+        socialLinks: {
+          instagram: displayUser.socialLinks?.instagram || '',
+          twitter: displayUser.socialLinks?.twitter || '',
+          website: displayUser.socialLinks?.website || '',
         }
-        
-        console.log('Profile data from Supabase:', data);
-        
-        if (!data) {
-          throw new Error('User profile not found');
-        }
-        
-        let socialLinks: SocialLinks = {};
-        if (data.social_links) {
-          try {
-            if (typeof data.social_links === 'string') {
-              socialLinks = JSON.parse(data.social_links);
-            } else if (typeof data.social_links === 'object') {
-              socialLinks = data.social_links as SocialLinks;
-            }
-          } catch (e) {
-            console.error("Error parsing social links:", e);
-            socialLinks = {};
-          }
-        }
-        
-        const formattedUser: User = {
-          id: data.id,
-          name: data.name || 'Unknown User',
-          email: data.email || '',
-          role: data.role as UserRole,
-          profileImage: data.profile_image || null,
-          bio: data.bio || '',
-          location: data.location || '',
-          interests: data.interests || [],
-          followers: data.followers || 0,
-          verified: data.verified || false,
-          socialLinks: socialLinks,
-          createdAt: new Date(data.created_at)
-        };
-        
-        console.log('Formatted user profile:', formattedUser);
-        setProfileUser(formattedUser);
-      } catch (error: any) {
-        console.error('Error fetching user profile:', error);
-        toast({
-          title: "Error fetching profile",
-          description: error.message,
-          variant: "destructive"
-        });
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
-
-    fetchUserProfile();
-  }, [id, currentUser, toast]);
-
-  const userToShow = isOwnProfile ? currentUser : profileUser;
-  console.log('Current user to show in profile:', userToShow);
-  console.log('Is own profile?', isOwnProfile);
-  console.log('User has profile image?', !!userToShow?.profileImage);
-  console.log('User has bio?', !!userToShow?.bio);
-
-  const fetchProfileImages = async () => {
-    if (!currentUser) return;
-    
-    try {
-      const { data, error } = await supabase.storage
-        .from('profiles')
-        .list(currentUser.id, {
-          sortBy: { column: 'created_at', order: 'desc' },
-        });
-      
-      if (error) {
-        console.error('Error listing profile images:', error);
-        return;
-      }
-      
-      if (data) {
-        const imageUrls = await Promise.all(
-          data.map(async (file) => {
-            const { data: urlData } = await supabase.storage
-              .from('profiles')
-              .getPublicUrl(`${currentUser.id}/${file.name}`);
-            
-            return {
-              name: file.name,
-              url: urlData.publicUrl
-            };
-          })
-        );
-        setProfileImages(imageUrls);
-      }
-    } catch (error) {
-      console.error('Error fetching profile images:', error);
-    }
-  };
-  
-  const fetchCoverImages = async () => {
-    if (!currentUser) return;
-    
-    try {
-      const { data, error } = await supabase.storage
-        .from('covers')
-        .list(currentUser.id, {
-          sortBy: { column: 'created_at', order: 'desc' },
-        });
-      
-      if (error) {
-        console.error('Error listing cover images:', error);
-        return;
-      }
-      
-      if (data) {
-        const imageUrls = await Promise.all(
-          data.map(async (file) => {
-            const { data: urlData } = await supabase.storage
-              .from('covers')
-              .getPublicUrl(`${currentUser.id}/${file.name}`);
-            
-            return {
-              name: file.name,
-              url: urlData.publicUrl
-            };
-          })
-        );
-        setCoverImages(imageUrls);
-      }
-    } catch (error) {
-      console.error('Error fetching cover images:', error);
-    }
-  };
-  
-  const handleCrop = (imageUrl: string, type: 'profile' | 'cover') => {
-    setCropImageSrc(imageUrl);
-    setCropImageType(type);
-    setCropAspectRatio(type === 'profile' ? 1 : 2.5);
-    setIsCropDialogOpen(true);
-  };
-  
-  const handleCropComplete = async (croppedImageUrl: string) => {
-    try {
-      setUploading(true);
-      
-      if (!currentUser) return;
-      
-      const response = await fetch(croppedImageUrl);
-      const blob = await response.blob();
-      
-      const fileExt = 'jpg';
-      const fileName = `cropped_${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const file = new File([blob], fileName, { type: 'image/jpeg' });
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('You must be logged in to upload images');
-      }
-      
-      const bucket = cropImageType === 'profile' ? 'profiles' : 'covers';
-      const filePath = `${currentUser.id}/${fileName}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file);
-      
-      if (uploadError) {
-        console.error('Upload error details:', uploadError);
-        throw uploadError;
-      }
-      
-      const { data: urlData } = await supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-      
-      setProfileForm(prev => ({
-        ...prev,
-        [cropImageType === 'profile' ? 'profileImage' : 'coverImage']: urlData.publicUrl
-      }));
-      
-      if (cropImageType === 'profile') {
-        await fetchProfileImages();
-      } else {
-        await fetchCoverImages();
-      }
-      
-      toast({
-        title: "Crop and upload successful",
-        description: `Your ${cropImageType} image has been cropped and uploaded`,
-      });
-    } catch (error: any) {
-      console.error('Error cropping and uploading image:', error);
-      toast({
-        title: "Upload failed",
-        description: error.message || `There was an error uploading your ${cropImageType} image`,
-        variant: "destructive"
-      });
-    } finally {
-      setUploading(false);
-      setIsCropDialogOpen(false);
-      setCropImageSrc(null);
-    }
-  };
-  
-  const uploadProfileImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !currentUser) {
-      return;
-    }
-    
-    try {
-      const file = event.target.files[0];
-      
-      const previewUrl = URL.createObjectURL(file);
-      
-      handleCrop(previewUrl, 'profile');
-    } catch (error: any) {
-      console.error('Error processing image:', error);
-      toast({
-        title: "Image processing failed",
-        description: error.message || "There was an error processing your profile image",
-        variant: "destructive"
       });
     }
-  };
+  }, [displayUser]);
   
-  const uploadCoverImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !currentUser) {
-      return;
+  React.useEffect(() => {
+    if (id || currentUser?.id) {
+      fetchUserServices(id || currentUser?.id || '');
     }
-    
-    try {
-      const file = event.target.files[0];
-      
-      const previewUrl = URL.createObjectURL(file);
-      
-      handleCrop(previewUrl, 'cover');
-    } catch (error: any) {
-      console.error('Error processing image:', error);
-      toast({
-        title: "Image processing failed",
-        description: error.message || "There was an error processing your cover image",
-        variant: "destructive"
-      });
-    }
-  };
+  }, [id, currentUser?.id, fetchUserServices]);
   
-  const selectProfileImage = (url: string) => {
-    handleCrop(url, 'profile');
-  };
-  
-  const selectCoverImage = (url: string) => {
-    handleCrop(url, 'cover');
-  };
-  
-  const handleProfileFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setProfileForm(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setProfileData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent as keyof typeof prev],
+          [child]: value
+        }
+      }));
+    } else {
+      setProfileData(prev => ({ ...prev, [name]: value }));
+    }
   };
   
-  const handleProfileUpdate = async (updatedData: Partial<User>) => {
-    setIsUpdating(true);
+  const handleInterestsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const interests = e.target.value.split(',').map(item => item.trim());
+    setProfileData(prev => ({ ...prev, interests }));
+  };
+  
+  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setProfileImage(e.target.files[0]);
+    }
+  };
+  
+  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setCoverImage(e.target.files[0]);
+    }
+  };
+  
+  const handleRemoveProfileImage = () => {
+    setProfileImage(null);
+  };
+  
+  const handleRemoveCoverImage = () => {
+    setCoverImage(null);
+  };
+  
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!currentUser) return;
+    
     try {
-      await updateProfile(updatedData);
+      setIsUpdating(true);
+      
+      let profileImageUrl = currentUser.profileImage;
+      let coverImageUrl = currentUser.coverImage;
+      
+      if (profileImage) {
+        profileImageUrl = await uploadImage(profileImage, 'profiles');
+      }
+      
+      if (coverImage) {
+        coverImageUrl = await uploadImage(coverImage, 'covers');
+      }
+      
+      const updatedProfile = {
+        ...profileData,
+        profileImage: profileImageUrl,
+        coverImage: coverImageUrl
+      };
+      
+      await updateProfile(updatedProfile);
+      
       toast({
         title: "Profile updated",
-        description: "Your profile has been successfully updated.",
+        description: "Your profile has been updated successfully",
       });
+      
       setIsEditing(false);
     } catch (error) {
-      console.error('Profile update error:', error);
+      console.error("Error updating profile:", error);
       toast({
         title: "Update failed",
-        description: "There was a problem updating your profile.",
+        description: "There was a problem updating your profile",
         variant: "destructive",
       });
     } finally {
@@ -422,621 +150,357 @@ const Profile = () => {
     }
   };
   
-  const renderRoleContent = () => {
-    if (!userToShow) return null;
-    
-    switch (userToShow.role) {
-      case 'influencer':
-        return (
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Badge variant="outline" className="bg-red-50">Fitness Influencer</Badge>
-            <Badge variant="outline" className="bg-red-50">Content Creator</Badge>
-          </div>
-        );
-      
-      case 'coach':
-        return (
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Badge variant="outline" className="bg-teal-50">Certified Coach</Badge>
-            <Badge variant="outline" className="bg-teal-50">Fitness Expert</Badge>
-          </div>
-        );
-      
-      case 'company':
-        return (
-          <div className="flex flex-wrap gap-2 mt-2">
-            <Badge variant="outline" className="bg-blue-50">Verified Business</Badge>
-            <Badge variant="outline" className="bg-blue-50">Brand Partner</Badge>
-          </div>
-        );
-        
-      default:
-        return null;
-    }
-  };
-
-  const renderFollowerItems = (items: any[], onClose: () => void) => {
-    return (
-      <FollowersList 
-        users={items} 
-        isOwnProfile={isOwnProfile}
-        onClose={onClose}
-        emptyMessage={items === followers ? "No followers yet" : "Not following anyone yet"}
-      />
-    );
-  };
-  
-  if ((isOwnProfile && !currentUser) || (!isOwnProfile && !profileUser)) {
-    if (loading || isLoadingProfile) {
-      return (
-        <div className="space-y-4">
-          <Skeleton className="h-64 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
-      );
-    }
-    
-    if (!isLoadingProfile) {
-      return (
-        <div className="text-center py-16">
-          <h2 className="text-2xl font-bold mb-4">Profile not found</h2>
-          <p className="text-gray-500 mb-6">The user profile you're looking for doesn't exist or you don't have permission to view it.</p>
-          <Link to="/networking">
-            <Button>Discover Users</Button>
-          </Link>
-        </div>
-      );
-    }
+  if (!displayUser) {
+    return <div className="p-8 text-center">User not found</div>;
   }
-
-  const userPosts = userToShow ? posts.filter(post => post.userId === userToShow.id) : [];
-  
-  const userEvents = userToShow ? events.filter(event => 
-    event.creatorId === userToShow.id || event.attendees.includes(userToShow.id)
-  ) : [];
-  
-  const userCreatedEvents = userToShow ? events.filter(event => 
-    event.creatorId === userToShow.id
-  ) : [];
-  
-  const joinedEvents = userToShow ? events.filter(event => 
-    event.creatorId !== userToShow.id && event.attendees.includes(userToShow.id)
-  ) : [];
-
-  const userGroups = userToShow ? groups.filter(group => 
-    group.creatorId === userToShow.id || (group.memberIds && group.memberIds.includes(userToShow.id))
-  ) : [];
-  
-  const userCreatedGroups = userToShow ? groups.filter(group => 
-    group.creatorId === userToShow.id
-  ) : [];
-  
-  const joinedGroups = userToShow ? groups.filter(group => 
-    group.creatorId !== userToShow.id && group.memberIds && group.memberIds.includes(userToShow.id)
-  ) : [];
-
-  const userServices = userToShow && userToShow.role === 'coach' ? 
-    services.filter(service => service.providerId === userToShow.id) : [];
-
-  const getUserInitials = (name: string) => {
-    if (!name) return 'U';
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  const getDefaultAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&size=256`;
-  };
-
-  console.log("Rendering profile for user:", userToShow);
-  console.log("User has profile image:", userToShow?.profileImage);
-  console.log("User has bio:", userToShow?.bio);
   
   return (
-    <div className="space-y-8">
-      <Card className="overflow-hidden">
-        <div className="relative">
-          <div 
-            className="h-48 bg-gradient-to-r from-primary to-accent transition-all duration-500"
-            style={userToShow?.coverImage ? { backgroundImage: `url(${userToShow.coverImage})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
+    <div className="container mx-auto py-6 space-y-6">
+      {/* Cover Image */}
+      <div className="relative h-48 md:h-64 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
+        {displayUser.coverImage && (
+          <img 
+            src={displayUser.coverImage} 
+            alt="Cover" 
+            className="w-full h-full object-cover"
           />
-          {isOwnProfile && (
-            <input
-              ref={coverImageInputRef}
-              type="file"
-              className="hidden"
-              accept="image/*"
-              onChange={uploadCoverImage}
-              disabled={uploading}
-            />
-          )}
-        </div>
+        )}
         
-        <div className="px-6 pb-6">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="-mt-12 shrink-0 relative">
-              <div className="h-32 w-32 rounded-full border-4 border-white overflow-hidden shadow-md bg-white">
-                <Avatar className="h-full w-full">
-                  <AvatarImage 
-                    src={userToShow?.profileImage} 
-                    alt={userToShow?.name || 'User'} 
-                    fallbackSrc={userToShow?.name ? getDefaultAvatarUrl(userToShow.name) : undefined}
-                    onFallbackLoad={() => console.log('Fallback image loaded for', userToShow?.name)}
+        {isEditing && (
+          <div className="absolute top-4 right-4 flex space-x-2">
+            <label className="cursor-pointer bg-white dark:bg-gray-800 p-2 rounded-full shadow">
+              <input 
+                type="file" 
+                accept="image/*" 
+                className="hidden" 
+                onChange={handleCoverImageChange}
+              />
+              <Upload className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+            </label>
+            
+            {coverImage && (
+              <button 
+                onClick={handleRemoveCoverImage}
+                className="bg-white dark:bg-gray-800 p-2 rounded-full shadow"
+              >
+                <X className="h-5 w-5 text-red-500" />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Profile Header */}
+      <div className="relative -mt-16 px-4">
+        <div className="flex flex-col md:flex-row items-center md:items-end space-y-4 md:space-y-0 md:space-x-4">
+          <div className="relative">
+            <Avatar className="h-32 w-32 border-4 border-white dark:border-gray-900 shadow-lg">
+              <AvatarImage src={displayUser.profileImage} />
+              <AvatarFallback>{displayUser.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            
+            {isEditing && (
+              <div className="absolute bottom-0 right-0 flex space-x-1">
+                <label className="cursor-pointer bg-white dark:bg-gray-800 p-1.5 rounded-full shadow">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleProfileImageChange}
                   />
-                  <AvatarFallback>
-                    {userToShow?.name ? getUserInitials(userToShow.name) : 'U'}
-                  </AvatarFallback>
-                </Avatar>
+                  <Upload className="h-4 w-4 text-gray-600 dark:text-gray-300" />
+                </label>
+                
+                {profileImage && (
+                  <button 
+                    onClick={handleRemoveProfileImage}
+                    className="bg-white dark:bg-gray-800 p-1.5 rounded-full shadow"
+                  >
+                    <X className="h-4 w-4 text-red-500" />
+                  </button>
+                )}
               </div>
+            )}
+          </div>
+          
+          <div className="flex-1 text-center md:text-left">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold">{displayUser.name}</h1>
+                <div className="flex items-center justify-center md:justify-start space-x-2 mt-1">
+                  <Badge variant="outline" className="capitalize">
+                    {displayUser.role}
+                  </Badge>
+                  
+                  {displayUser.verified && (
+                    <Badge className="bg-blue-500">Verified</Badge>
+                  )}
+                </div>
+              </div>
+              
               {isOwnProfile && (
-                <input
-                  ref={profileImageInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={uploadProfileImage}
-                  disabled={uploading}
-                />
-              )}
-              {isOwnProfile && (
-                <Button 
-                  variant="outline"
-                  size="icon"
-                  className="absolute bottom-0 right-0 rounded-full bg-white shadow-sm"
-                  onClick={() => profileImageInputRef.current?.click()}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
+                <div className="mt-4 md:mt-0">
+                  {isEditing ? (
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => setIsEditing(false)}
+                        disabled={isUpdating}
+                      >
+                        Cancel
+                      </Button>
+                      <Button 
+                        onClick={handleUpdateProfile}
+                        disabled={isUpdating}
+                      >
+                        {isUpdating ? "Saving..." : "Save Changes"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button onClick={() => setIsEditing(true)}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Profile
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
             
-            <div className="flex-1 pt-2 md:pt-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="mt-4 flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm text-gray-500 dark:text-gray-400">
+              {displayUser.location && (
+                <div className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  <span>{displayUser.location}</span>
+                </div>
+              )}
+              
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>Joined {formatDistanceToNow(displayUser.createdAt, { addSuffix: true })}</span>
+              </div>
+              
+              {displayUser.followers !== undefined && (
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-bold">{userToShow?.name}</h1>
-                    {userToShow?.verified && (
-                      <UserCheck className="h-5 w-5 text-success" />
-                    )}
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">{displayUser.followers}</span> followers
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Profile Content */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        {/* Sidebar */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">About</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isEditing ? (
+                <form className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Name</label>
+                    <Input 
+                      name="name"
+                      value={profileData.name || ''}
+                      onChange={handleInputChange}
+                    />
                   </div>
                   
-                  <p className="text-gray-500 capitalize">{userToShow?.role}</p>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Bio</label>
+                    <Textarea 
+                      name="bio"
+                      value={profileData.bio || ''}
+                      onChange={handleInputChange}
+                      rows={4}
+                    />
+                  </div>
                   
-                  {userToShow?.location && (
-                    <div className="flex items-center gap-1 text-gray-500 mt-1">
-                      <MapPin className="h-4 w-4" />
-                      <span>{userToShow.location}</span>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Location</label>
+                    <Input 
+                      name="location"
+                      value={profileData.location || ''}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Interests (comma separated)</label>
+                    <Input 
+                      name="interests"
+                      value={profileData.interests?.join(', ') || ''}
+                      onChange={handleInterestsChange}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Instagram</label>
+                    <Input 
+                      name="socialLinks.instagram"
+                      value={profileData.socialLinks?.instagram || ''}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Twitter</label>
+                    <Input 
+                      name="socialLinks.twitter"
+                      value={profileData.socialLinks?.twitter || ''}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Website</label>
+                    <Input 
+                      name="socialLinks.website"
+                      value={profileData.socialLinks?.website || ''}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  {displayUser.bio ? (
+                    <p className="text-sm">{displayUser.bio}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">No bio provided</p>
+                  )}
+                  
+                  {displayUser.interests && displayUser.interests.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Interests</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {displayUser.interests.map((interest, index) => (
+                          <Badge key={index} variant="secondary">{interest}</Badge>
+                        ))}
+                      </div>
                     </div>
                   )}
                   
-                  {userToShow && renderRoleContent()}
-                </div>
-                
-                <div className="flex gap-2">
-                  {isOwnProfile ? (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="gap-1"
-                      onClick={() => setIsEditDialogOpen(true)}
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span>Edit Profile</span>
-                    </Button>
-                  ) : (
-                    <FollowButton targetUserId={id || ''} />
-                  )}
-                </div>
-              </div>
-              
-              {userToShow?.bio && (
-                <p className="mt-4 text-gray-700">{userToShow.bio}</p>
-              )}
-              
-              {userToShow?.socialLinks && (
-                <div className="flex gap-3 mt-4">
-                  {userToShow.socialLinks.instagram && (
-                    <a 
-                      href={`https://instagram.com/${userToShow.socialLinks.instagram.replace('@', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-600 hover:text-pink-600"
-                    >
-                      <Instagram className="h-5 w-5" />
-                    </a>
-                  )}
-                  
-                  {userToShow.socialLinks.twitter && (
-                    <a 
-                      href={`https://twitter.com/${userToShow.socialLinks.twitter.replace('@', '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-600 hover:text-blue-400"
-                    >
-                      <Twitter className="h-5 w-5" />
-                    </a>
-                  )}
-                  
-                  {userToShow.socialLinks.website && (
-                    <a 
-                      href={userToShow.socialLinks.website.startsWith('http') 
-                        ? userToShow.socialLinks.website 
-                        : `https://${userToShow.socialLinks.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-gray-600 hover:text-primary"
-                    >
-                      <Globe className="h-5 w-5" />
-                    </a>
+                  {displayUser.socialLinks && (
+                    <div>
+                      <h3 className="text-sm font-medium mb-2">Social Links</h3>
+                      <div className="space-y-2">
+                        {displayUser.socialLinks.instagram && (
+                          <a 
+                            href={`https://instagram.com/${displayUser.socialLinks.instagram}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-sm hover:underline"
+                          >
+                            <Instagram className="h-4 w-4 mr-2" />
+                            {displayUser.socialLinks.instagram}
+                          </a>
+                        )}
+                        
+                        {displayUser.socialLinks.twitter && (
+                          <a 
+                            href={`https://twitter.com/${displayUser.socialLinks.twitter}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-sm hover:underline"
+                          >
+                            <Twitter className="h-4 w-4 mr-2" />
+                            {displayUser.socialLinks.twitter}
+                          </a>
+                        )}
+                        
+                        {displayUser.socialLinks.website && (
+                          <a 
+                            href={displayUser.socialLinks.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center text-sm hover:underline"
+                          >
+                            <Globe className="h-4 w-4 mr-2" />
+                            {displayUser.socialLinks.website}
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
-            </div>
-          </div>
-          
-          <Dialog open={isFollowersDialogOpen} onOpenChange={setIsFollowersDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Followers</DialogTitle>
-                <DialogDescription>
-                  People who follow {isOwnProfile ? "you" : userToShow?.name}
-                </DialogDescription>
-              </DialogHeader>
-              {renderFollowerItems(followers, () => setIsFollowersDialogOpen(false))}
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isFollowingDialogOpen} onOpenChange={setIsFollowingDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Following</DialogTitle>
-                <DialogDescription>
-                  People {isOwnProfile ? "you" : userToShow?.name} follows
-                </DialogDescription>
-              </DialogHeader>
-              {renderFollowerItems(following, () => setIsFollowingDialogOpen(false))}
-            </DialogContent>
-          </Dialog>
-          
-          <div className="grid grid-cols-3 gap-4 mt-6 text-center">
-            <div 
-              className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              onClick={() => setIsFollowersDialogOpen(true)}
-            >
-              <div className="text-2xl font-bold">{loadingFollowers ? '...' : followerCount}</div>
-              <div className="text-gray-500 text-sm">Followers</div>
-            </div>
-            
-            <div 
-              className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors"
-              onClick={() => setIsFollowingDialogOpen(true)}
-            >
-              <div className="text-2xl font-bold">{loadingFollowers ? '...' : followingCount}</div>
-              <div className="text-gray-500 text-sm">Following</div>
-            </div>
-            
-            <div>
-              <div className="text-2xl font-bold">{userPosts.length}</div>
-              <div className="text-gray-500 text-sm">Posts</div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
-      </Card>
-      
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Profile</DialogTitle>
-            <DialogDescription>
-              Update your profile information
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label htmlFor="name" className="text-sm font-medium">Name</label>
-                <Input
-                  id="name"
-                  name="name"
-                  placeholder="Your name"
-                  value={profileForm.name}
-                  onChange={handleProfileFormChange}
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="bio" className="text-sm font-medium">Bio</label>
-                <Textarea
-                  id="bio"
-                  name="bio"
-                  placeholder="Tell us about yourself"
-                  value={profileForm.bio}
-                  onChange={handleProfileFormChange}
-                  rows={3}
-                />
-              </div>
-              
-              <div>
-                <label htmlFor="location" className="text-sm font-medium">Location</label>
-                <Input
-                  id="location"
-                  name="location"
-                  placeholder="Your location"
-                  value={profileForm.location}
-                  onChange={handleProfileFormChange}
-                />
-              </div>
-            </div>
+        
+        {/* Main Content */}
+        <div className="md:col-span-2">
+          <Tabs defaultValue="posts">
+            <TabsList className="w-full">
+              <TabsTrigger value="posts" className="flex-1">Posts</TabsTrigger>
+              {displayUser.role === 'coach' && (
+                <TabsTrigger value="services" className="flex-1">Services</TabsTrigger>
+              )}
+              <TabsTrigger value="events" className="flex-1">Events</TabsTrigger>
+              <TabsTrigger value="groups" className="flex-1">Groups</TabsTrigger>
+            </TabsList>
             
-            <Separator />
+            <TabsContent value="posts" className="mt-4 space-y-4">
+              {userPosts.length > 0 ? (
+                userPosts.map(post => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No posts yet
+                </div>
+              )}
+            </TabsContent>
             
-            <div>
-              <h3 className="text-sm font-medium mb-2">Profile Image</h3>
-              <div className="flex items-center gap-4">
-                <div className="h-16 w-16 rounded-full overflow-hidden bg-gray-100">
-                  {profileForm.profileImage ? (
-                    <img src={profileForm.profileImage} alt="Profile" className="h-full w-full object-cover" />
+            {displayUser.role === 'coach' && (
+              <TabsContent value="services" className="mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {userServices.length > 0 ? (
+                    userServices.map(service => (
+                      <ServiceCard key={service.id} service={service} />
+                    ))
                   ) : (
-                    <div className="h-full w-full flex items-center justify-center bg-gray-200">
-                      <ImageIcon className="h-6 w-6 text-gray-400" />
+                    <div className="col-span-2 text-center py-8 text-gray-500">
+                      No services yet
                     </div>
                   )}
                 </div>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => profileImageInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4" />
-                    <span>Upload</span>
-                  </Button>
-                  
-                  {profileImages.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setGalleryType('profile');
-                        setIsGalleryDialogOpen(true);
-                      }}
-                    >
-                      Gallery
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
+              </TabsContent>
+            )}
             
-            <div>
-              <h3 className="text-sm font-medium mb-2">Cover Image</h3>
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-24 rounded overflow-hidden bg-gray-100">
-                  {profileForm.coverImage ? (
-                    <img src={profileForm.coverImage} alt="Cover" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="h-full w-full flex items-center justify-center bg-gray-200">
-                      <ImageIcon className="h-6 w-6 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-                
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    size="sm"
-                    className="gap-1"
-                    onClick={() => coverImageInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4" />
-                    <span>Upload</span>
-                  </Button>
-                  
-                  {coverImages.length > 0 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setGalleryType('cover');
-                        setIsGalleryDialogOpen(true);
-                      }}
-                    >
-                      Gallery
-                    </Button>
-                  )}
-                </div>
+            <TabsContent value="events" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {userEvents.length > 0 ? (
+                  userEvents.map(event => (
+                    <EventCard key={event.id} event={event} />
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-8 text-gray-500">
+                    No events yet
+                  </div>
+                )}
               </div>
-            </div>
+            </TabsContent>
             
-            <Separator />
-            
-            <div>
-              <h3 className="text-sm font-medium mb-2">Social Links</h3>
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center gap-2">
-                  <Instagram className="h-4 w-4 text-gray-500" />
-                  <Input
-                    name="instagram"
-                    placeholder="Instagram username"
-                    value={profileForm.instagram}
-                    onChange={handleProfileFormChange}
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Twitter className="h-4 w-4 text-gray-500" />
-                  <Input
-                    name="twitter"
-                    placeholder="Twitter username"
-                    value={profileForm.twitter}
-                    onChange={handleProfileFormChange}
-                  />
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-gray-500" />
-                  <Input
-                    name="website"
-                    placeholder="Website"
-                    value={profileForm.website}
-                    onChange={handleProfileFormChange}
-                  />
-                </div>
+            <TabsContent value="groups" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {userGroups.length > 0 ? (
+                  userGroups.map(group => (
+                    <GroupCard key={group.id} group={group} />
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-8 text-gray-500">
+                    No groups yet
+                  </div>
+                )}
               </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setIsEditDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleProfileUpdate}
-              disabled={uploading}
-            >
-              {uploading ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isCropDialogOpen} onOpenChange={setIsCropDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Crop Image</DialogTitle>
-            <DialogDescription>
-              Adjust your {cropImageType} image
-            </DialogDescription>
-          </DialogHeader>
-          
-          {cropImageSrc && (
-            <ImageCropper
-              imageSrc={cropImageSrc}
-              aspectRatio={cropAspectRatio}
-              onCropComplete={handleCropComplete}
-              onCancel={() => {
-                setIsCropDialogOpen(false);
-                setCropImageSrc(null);
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Select Image</DialogTitle>
-            <DialogDescription>
-              Choose from your saved images
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ImageGallery
-            images={galleryType === 'profile' ? profileImages : coverImages}
-            onSelectImage={galleryType === 'profile' ? selectProfileImage : selectCoverImage}
-            onClose={() => setIsGalleryDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
-          <TabsTrigger value="groups">Groups</TabsTrigger>
-          {userToShow?.role === 'coach' && (
-            <TabsTrigger value="services">Services</TabsTrigger>
-          )}
-        </TabsList>
-        
-        <TabsContent value="posts" className="mt-6">
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : userPosts.length > 0 ? (
-            <div className="space-y-4">
-              {userPosts.map(post => (
-                <PostCard key={post.id} post={post} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="events" className="mt-6">
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : userEvents.length > 0 ? (
-            <div className="space-y-4">
-              {userEvents.map(event => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} participated in any events yet.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="groups" className="mt-6">
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : userGroups.length > 0 ? (
-            <div className="space-y-4">
-              {userGroups.map(group => (
-                <GroupCard key={group.id} group={group} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="services" className="mt-6">
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : userServices.length > 0 ? (
-            <div className="space-y-4">
-              {userServices.map(service => (
-                <ServiceCard key={service.id} service={service} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any services yet.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
     </div>
   );
 };
