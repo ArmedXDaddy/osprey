@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -17,7 +16,6 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
   generateMockMessages, generateMockJoinRequests 
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
-import { toast } from "@/components/ui/use-toast";
 
 interface DataContextType {
   posts: Post[];
