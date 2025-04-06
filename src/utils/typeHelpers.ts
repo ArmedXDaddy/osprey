@@ -1,5 +1,5 @@
 
-import { UserRole, BookingStatus, PaymentStatus, SessionStatus } from '@/types';
+import { UserRole, BookingStatus, PaymentStatus, SessionStatus, ServiceType, GroupPrivacy } from '@/types';
 
 /**
  * Helper function to convert string to UserRole type
@@ -42,6 +42,26 @@ export const asSessionStatus = (status: string): SessionStatus => {
 };
 
 /**
+ * Helper function to convert string to ServiceType type
+ */
+export const asServiceType = (type: string): ServiceType => {
+  if (['one_on_one', 'group', 'consultation', 'program', 'webinar', 'course'].includes(type)) {
+    return type as ServiceType;
+  }
+  return 'one_on_one'; // Default fallback
+};
+
+/**
+ * Helper function to convert string to GroupPrivacy type
+ */
+export const asGroupPrivacy = (privacy: string): GroupPrivacy => {
+  if (['public', 'private', 'paid'].includes(privacy)) {
+    return privacy as GroupPrivacy;
+  }
+  return 'public'; // Default fallback
+};
+
+/**
  * Helper function to convert string to number safely
  */
 export const safeNumberConversion = (value: string | number): number => {
@@ -49,3 +69,4 @@ export const safeNumberConversion = (value: string | number): number => {
   const parsed = parseFloat(value);
   return isNaN(parsed) ? 0 : parsed;
 };
+

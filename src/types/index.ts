@@ -1,4 +1,3 @@
-
 // Export any necessary types from the existing types file
 export * from './badge.d';
 
@@ -171,7 +170,7 @@ export interface SessionEnrollment {
   userName: string;
   userEmail?: string;
   userProfileImage?: string;
-  status: BookingStatus | SessionStatus;
+  status: SessionStatus;
   paymentStatus: PaymentStatus;
   notes?: string;
   createdAt: Date;
