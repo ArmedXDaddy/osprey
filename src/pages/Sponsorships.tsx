@@ -108,12 +108,6 @@ const Sponsorships = () => {
               ? "No sponsorships match your search criteria. Try adjusting your filters."
               : "There are no sponsorship opportunities available yet."}
           </p>
-          {isCompany && (
-            <Button onClick={handleCreateSponsorship} className="flex items-center gap-2">
-              <PlusCircle className="h-4 w-4" />
-              Create Your First Opportunity
-            </Button>
-          )}
         </div>
       )}
     </div>
