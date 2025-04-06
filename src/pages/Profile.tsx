@@ -554,7 +554,7 @@ const Profile = () => {
                         const fallbackSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(userToShow.name)}&background=random`;
                         const imgElements = document.querySelectorAll(`img[alt="${userToShow.name || 'User'}"]`);
                         imgElements.forEach(img => {
-                          img.src = fallbackSrc;
+                          (img as HTMLImageElement).src = fallbackSrc;
                         });
                       }
                     }}
