@@ -260,6 +260,8 @@ const EditServiceForm: React.FC<EditServiceFormProps> = ({ service, onSave }) =>
           capacity: data.serviceType !== 'one_on_one' ? Number(data.capacity) : 1,
           available: data.available,
           coverImage: uploadedCoverImageUrl || coverImageUrl,
+          providerId: currentUser.id,
+          providerName: currentUser.name
         });
         
         if (onSave) onSave(serviceData);

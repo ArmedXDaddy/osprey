@@ -40,6 +40,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
   const [expiryDate, setExpiryDate] = useState('');
   const [cvv, setCvv] = useState('');
   const [cardName, setCardName] = useState('');
+  const [notes, setNotes] = useState('');
 
   const isFreeService = service.price === 0;
 
@@ -68,7 +69,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
 
       // For paid services, mark as 'paid' in the database
       // Using String 'paid' rather than an enum type as per the function implementation
-      await bookService(service.id, isFreeService ? undefined : 'paid');
+      await bookService(service.id, isFreeService ? undefined : 'paid', notes);
 
       toast({
         title: "Booking successful!",
@@ -105,7 +106,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
       setIsProcessing(true);
 
       // For free services, we pass undefined to use the default payment status
-      await bookService(service.id);
+      await bookService(service.id, undefined, notes);
 
       toast({
         title: "Request submitted!",
@@ -160,6 +161,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
               </div>
             </CardContent>
           </Card>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Input 
+              id="notes" 
+              placeholder="Any special requests or information for the provider" 
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
 
           {!isFreeService && (
             <div className="space-y-4">

@@ -94,7 +94,38 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Return empty sponsorships array as they should only be created by companies
+// Generate mock sponsorships using the format matching the database
 export const generateMockSponsorships = (): Sponsorship[] => {
-  return [];
+  return [
+    {
+      id: 'sponsorship-1',
+      title: 'Fitness Product Campaign',
+      description: 'Looking for fitness influencers to promote our new line of home workout equipment',
+      companyId: 'company-1',
+      companyName: 'FitGear Pro',
+      companyLogo: '/logos/fitgear.svg',
+      requirements: ['Minimum 1000 followers', 'Fitness-focused content', 'Previous product promotion experience'],
+      benefits: ['Free workout equipment', 'Commission on sales', 'Long-term partnership possibility'],
+      compensation: '$500 per sponsored post',
+      deadline: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+      status: 'active' as SponsorshipStatus,
+      tags: ['fitness', 'workout', 'equipment'],
+      createdAt: new Date()
+    },
+    {
+      id: 'sponsorship-2',
+      title: 'Health Food Brand Ambassador',
+      description: 'Seeking influencers to become brand ambassadors for our organic food products',
+      companyId: 'company-2',
+      companyName: 'Organic Eats',
+      companyLogo: '/logos/organic-eats.svg',
+      requirements: ['Healthy lifestyle content', 'Engaging audience', 'Passion for organic food'],
+      benefits: ['Monthly product shipments', 'Featured on our website', 'Exclusive events access'],
+      compensation: 'Products + $300 monthly retainer',
+      deadline: new Date(new Date().setMonth(new Date().getMonth() + 2)),
+      status: 'active' as SponsorshipStatus,
+      tags: ['food', 'organic', 'health'],
+      createdAt: new Date()
+    }
+  ];
 };
