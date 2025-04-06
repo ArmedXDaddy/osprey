@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useData } from '@/context/DataContext';
+import { useAuth } from '@/context/AuthContext'; // Add this import
 import { EventPrivacy } from '@/types';
 import {
   Form,
@@ -45,6 +46,7 @@ const formSchema = z.object({
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { createEvent } = useData();
+  const { currentUser } = useAuth(); // Add this line
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -118,13 +120,22 @@ const CreateEvent = () => {
     try {
       setIsSubmitting(true);
       
+      if (!currentUser) {
+        toast({
+          variant: "destructive",
+          title: "Authentication required",
+          description: "You must be logged in to create an event.",
+        });
+        return;
+      }
+      
       // If event is paid but no price is set, set a default price
       if (formData.privacy === 'paid' && (!formData.price || formData.price <= 0)) {
         formData.price = 10; // Default price of $10
       }
       
-      // Ensure all required fields are present
-      const eventToCreate = {
+      // Create the event with creator info
+      const newEvent = await createEvent({
         title: formData.title,
         description: formData.description,
         location: formData.location,
@@ -132,10 +143,7 @@ const CreateEvent = () => {
         privacy: formData.privacy as EventPrivacy,
         price: formData.price,
         image: formData.image,
-      };
-      
-      // Pass the data to createEvent
-      const newEvent = await createEvent(eventToCreate);
+      });
       
       // Redirect to the event detail page
       toast({

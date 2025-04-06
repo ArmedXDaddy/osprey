@@ -1,19 +1,13 @@
-
 import React, { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
+import { useAuth } from '@/context/AuthContext';
+import { Comment } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
-import { Comment } from '@/types';
-import { MoreHorizontal, Pencil, Trash2, X, Check } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Edit, Trash, Send } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface CommentSectionProps {
   postId: string;
@@ -22,64 +16,96 @@ interface CommentSectionProps {
 
 const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => {
   const { currentUser } = useAuth();
-  const { addComment, deleteComment, updateComment } = useData();
-  const [commentText, setCommentText] = useState('');
+  const { addComment, updateComment, deleteComment } = useData();
+  const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showAllComments, setShowAllComments] = useState(false);
-  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
-  const [editedCommentText, setEditedCommentText] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
 
-  if (!currentUser) return null;
-
-  const handleSubmit = async () => {
-    if (!commentText.trim()) return;
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    setIsSubmitting(true);
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to comment.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!newComment.trim()) return;
+    
     try {
-      await addComment(postId, commentText);
-      setCommentText('');
-    } catch (error) {
-      console.error('Error adding comment:', error);
+      setIsSubmitting(true);
+      
+      await addComment(postId, {
+        postId,
+        content: newComment,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userRole: currentUser.role,
+        userProfileImage: currentUser.profileImage
+      });
+      
+      setNewComment('');
+      toast({
+        title: "Comment posted",
+        description: "Your comment has been posted successfully."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to post comment",
+        variant: "destructive"
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleStartEdit = (comment: Comment) => {
-    setEditingCommentId(comment.id);
-    setEditedCommentText(comment.content);
+  const handleEdit = (comment: Comment) => {
+    setEditingId(comment.id);
+    setEditText(comment.content);
   };
 
-  const handleCancelEdit = () => {
-    setEditingCommentId(null);
-    setEditedCommentText('');
-  };
-
-  const handleSaveEdit = async (commentId: string) => {
-    if (!editedCommentText.trim()) return;
+  const submitEdit = async (id: string) => {
+    if (!editText.trim()) return;
     
     try {
-      await updateComment(commentId, editedCommentText);
-      setEditingCommentId(null);
-    } catch (error) {
-      console.error('Error updating comment:', error);
+      await updateComment(id, { content: editText });
+      setEditingId(null);
+      toast({
+        title: "Comment updated",
+        description: "Your comment has been updated successfully."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update comment",
+        variant: "destructive"
+      });
     }
   };
 
-  const handleDelete = async (commentId: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      await deleteComment(commentId);
-    } catch (error) {
-      console.error('Error deleting comment:', error);
+      await deleteComment(id);
+      toast({
+        title: "Comment deleted",
+        description: "Your comment has been deleted successfully."
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete comment",
+        variant: "destructive"
+      });
     }
   };
-
-  const displayedComments = showAllComments ? comments : comments.slice(0, 3);
-  const hasMoreComments = comments.length > 3 && !showAllComments;
 
   return (
     <div className="pt-3 space-y-4">
-      {/* Comment input */}
       <div className="flex gap-2">
         <Avatar className="h-8 w-8">
           <AvatarImage 
@@ -93,8 +119,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
           <Textarea
             placeholder="Write a comment..."
             className="min-h-[40px] resize-none"
-            value={commentText}
-            onChange={(e) => setCommentText(e.target.value)}
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -105,17 +131,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
           <Button 
             size="sm" 
             onClick={handleSubmit}
-            disabled={isSubmitting || !commentText.trim()}
+            disabled={isSubmitting || !newComment.trim()}
           >
             {isSubmitting ? 'Posting...' : 'Post'}
           </Button>
         </div>
       </div>
       
-      {/* Comments list */}
-      {displayedComments.length > 0 && (
+      {comments.length > 0 && (
         <div className="space-y-3 pl-2">
-          {displayedComments.map((comment) => (
+          {comments.map((comment) => (
             <div key={comment.id} className="flex gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage 
@@ -142,15 +167,15 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleStartEdit(comment)}>
-                              <Pencil className="mr-2 h-4 w-4" />
+                            <DropdownMenuItem onClick={() => handleEdit(comment)}>
+                              <Edit className="mr-2 h-4 w-4" />
                               <span>Edit</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               onClick={() => handleDelete(comment.id)}
                               className="text-destructive focus:text-destructive"
                             >
-                              <Trash2 className="mr-2 h-4 w-4" />
+                              <Trash className="mr-2 h-4 w-4" />
                               <span>Delete</span>
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -159,11 +184,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
                     </div>
                   </div>
                   
-                  {editingCommentId === comment.id ? (
+                  {editingId === comment.id ? (
                     <div className="mt-2 space-y-2">
                       <Textarea
-                        value={editedCommentText}
-                        onChange={(e) => setEditedCommentText(e.target.value)}
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
                         className="min-h-[60px] resize-none text-sm"
                         autoFocus
                       />
@@ -171,7 +196,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
                         <Button 
                           variant="outline" 
                           size="sm"
-                          onClick={handleCancelEdit}
+                          onClick={() => setEditingId(null)}
                           className="h-7 px-2"
                         >
                           <X className="h-4 w-4 mr-1" />
@@ -179,11 +204,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
                         </Button>
                         <Button 
                           size="sm"
-                          onClick={() => handleSaveEdit(comment.id)}
+                          onClick={() => submitEdit(comment.id)}
                           className="h-7 px-2"
-                          disabled={!editedCommentText.trim() || editedCommentText === comment.content}
+                          disabled={!editText.trim() || editText === comment.content}
                         >
-                          <Check className="h-4 w-4 mr-1" />
+                          <Send className="h-4 w-4 mr-1" />
                           Save
                         </Button>
                       </div>
@@ -195,17 +220,6 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
               </div>
             </div>
           ))}
-          
-          {hasMoreComments && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setShowAllComments(true)}
-              className="text-primary mx-auto block"
-            >
-              View all {comments.length} comments
-            </Button>
-          )}
         </div>
       )}
     </div>
