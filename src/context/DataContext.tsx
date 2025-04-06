@@ -957,6 +957,69 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     throw new Error('Not implemented');
   };
   
+  const createGroup = async (groupData: any): Promise<Group> => {
+    if (!currentUser) throw new Error('You must be logged in to create a group');
+    
+    try {
+      console.log("Creating group with data:", groupData);
+      
+      const { data, error } = await supabase
+        .from('groups')
+        .insert({
+          name: groupData.name,
+          description: groupData.description,
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          creator_role: currentUser.role,
+          image: groupData.image,
+          privacy: groupData.privacy,
+          price: groupData.privacy === 'paid' ? groupData.price : null,
+          rules: groupData.rules || [],
+          member_limit: groupData.memberLimit || 100
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newGroup: Group = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role as UserRole,
+        members: 1, // Creator is the first member
+        memberIds: [currentUser.id],
+        image: data.image,
+        privacy: data.privacy as GroupPrivacy,
+        price: data.price,
+        createdAt: new Date(data.created_at),
+        pendingRequests: 0,
+        rules: data.rules || [],
+        memberLimit: data.member_limit
+      };
+      
+      // Add to local state
+      setGroups(prev => [newGroup, ...prev]);
+      
+      toast({
+        title: "Group created",
+        description: `Your group "${newGroup.name}" has been created successfully`
+      });
+      
+      return newGroup;
+    } catch (err: any) {
+      console.error("Error creating group:", err);
+      toast({
+        title: "Error creating group",
+        description: err.message || "Failed to create group",
+        variant: "destructive"
+      });
+      throw new Error(err.message || 'Failed to create group');
+    }
+  };
+  
   const createService = async (serviceData: any): Promise<Service> => {
     if (!currentUser) throw new Error('You must be logged in to create a service');
     try {
