@@ -19,8 +19,7 @@ import {
   DollarSign,
   GraduationCap,
   Building,
-  Package2,
-  LayoutDashboard
+  Package2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -54,7 +53,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       navigate('/auth/login');
     } catch (error) {
       console.error('Logout failed:', error);
-      // Still redirect to login page even if there was an error
       navigate('/auth/login');
     } finally {
       setIsLoggingOut(false);
@@ -172,7 +170,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     </Sheet>
   );
 
-  // Desktop sidebar navigation
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <div className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 h-screen sticky top-0 shrink-0">
@@ -190,19 +187,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
             <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
             
-            {isCompany && (
-              <>
-                <div className="mt-4 mb-2 px-3">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Dashboard</h3>
-                </div>
-                <NavigationLink 
-                  to="/company/dashboard" 
-                  icon={<LayoutDashboard size={18} />} 
-                  label="Company Dashboard" 
-                />
-              </>
-            )}
-            
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
             {currentUser?.role === 'admin' && (
               <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
@@ -213,32 +197,30 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <RoleBasedActionButton />
           </div>
           
-          <div className="mt-auto pt-4 border-t border-gray-100">
-            {currentUser && (
-              <div className="flex items-center gap-2 mb-4">
-                <img 
-                  src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
-                  alt={currentUser.name}
-                  className="w-8 h-8 rounded-full object-cover"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{currentUser.name}</p>
-                  <p className="text-xs text-gray-500 truncate capitalize">{currentUser.role}</p>
-                </div>
+          {currentUser && (
+            <div className="flex items-center gap-2 mb-4">
+              <img 
+                src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                alt={currentUser.name}
+                className="w-8 h-8 rounded-full object-cover"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm truncate">{currentUser.name}</p>
+                <p className="text-xs text-gray-500 truncate capitalize">{currentUser.role}</p>
               </div>
-            )}
-            
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="w-full justify-start gap-2" 
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-            >
-              <LogOut size={16} />
-              <span className="text-sm">{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
-            </Button>
-          </div>
+            </div>
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            className="w-full justify-start gap-2" 
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
+            <LogOut size={16} />
+            <span className="text-sm">{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
+          </Button>
         </div>
       </div>
       
