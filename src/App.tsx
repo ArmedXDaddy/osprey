@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import {
   createBrowserRouter,
@@ -5,7 +6,7 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import MainLayout from '@/layouts/MainLayout';
+import MainLayout from '@/components/layout/MainLayout';
 import Index from '@/pages/Index';
 import Profile from '@/pages/Profile';
 import Services from '@/pages/Services';
@@ -29,14 +30,14 @@ import EditWorkshop from '@/pages/company/EditWorkshop';
 
 // A wrapper for routes that require authentication
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, isLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!currentUser && !loading) {
+    if (!currentUser && !isLoading) {
       navigate('/profile');
     }
-  }, [currentUser, loading, navigate]);
+  }, [currentUser, isLoading, navigate]);
 
   return currentUser ? <>{children}</> : null;
 };
