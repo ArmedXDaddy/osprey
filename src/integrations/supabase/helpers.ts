@@ -507,21 +507,21 @@ export const fetchProducts = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.long_description,
+      longDescription: item.long_description || null, // Handle possible undefined value
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
       price: item.price,
       category: item.category,
-      tags: item.tags,
+      tags: item.tags || [],
       image: item.image,
       websiteUrl: item.website_url,
       demoUrl: item.demo_url,
       releaseDate: new Date(item.release_date),
       createdAt: new Date(item.created_at),
-      features: item.features,
-      useCases: item.use_cases,
-      pricingTiers: item.pricing_tiers
+      features: item.features || [], // Handle possible undefined value
+      useCases: item.use_cases || [], // Handle possible undefined value
+      pricingTiers: item.pricing_tiers || [] // Handle possible undefined value
     }));
     
     return mappedProducts as Product[];
@@ -549,14 +549,14 @@ export const fetchWorkshops = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.long_description,
+      longDescription: item.long_description || null, // Handle possible undefined value
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
       price: item.price,
       date: new Date(item.date),
-      startTime: item.start_time,
-      endTime: item.end_time,
+      startTime: item.start_time || null, // Handle possible undefined value
+      endTime: item.end_time || null, // Handle possible undefined value
       duration: item.duration,
       capacity: item.capacity,
       location: item.location,
@@ -565,11 +565,11 @@ export const fetchWorkshops = async () => {
       category: item.category,
       image: item.image,
       createdAt: new Date(item.created_at),
-      topics: item.topics,
-      prerequisites: item.prerequisites,
-      includes: item.includes,
-      tags: item.tags,
-      instructors: item.instructors
+      topics: item.topics || [], // Handle possible undefined value
+      prerequisites: item.prerequisites || [], // Handle possible undefined value
+      includes: item.includes || [], // Handle possible undefined value
+      tags: item.tags || [], // Handle possible undefined value
+      instructors: item.instructors || [] // Handle possible undefined value
     }));
     
     return mappedWorkshops as Workshop[];
