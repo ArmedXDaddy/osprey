@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -46,6 +47,13 @@ import { User, UserRole } from '@/types';
 import FollowButton from '@/components/profile/FollowButton';
 import FollowersList from '@/components/profile/FollowersList';
 import { useFollowers } from '@/hooks/useFollowers';
+
+// Define a type for the social links structure
+interface SocialLinks {
+  instagram?: string;
+  twitter?: string;
+  website?: string;
+}
 
 const Profile = () => {
   const { id } = useParams();
@@ -143,6 +151,24 @@ const Profile = () => {
           throw new Error('User profile not found');
         }
         
+        // Parse social_links - ensure it's properly typed
+        let socialLinks: SocialLinks = {};
+        if (data.social_links) {
+          try {
+            // If it's a string, try to parse it as JSON
+            if (typeof data.social_links === 'string') {
+              socialLinks = JSON.parse(data.social_links);
+            }
+            // If it's already an object, use it directly
+            else if (typeof data.social_links === 'object') {
+              socialLinks = data.social_links as SocialLinks;
+            }
+          } catch (e) {
+            console.error("Error parsing social links:", e);
+            socialLinks = {};
+          }
+        }
+        
         const formattedUser: User = {
           id: data.id,
           name: data.name || 'Unknown User',
@@ -154,7 +180,7 @@ const Profile = () => {
           interests: data.interests || [],
           followers: data.followers || 0,
           verified: data.verified || false,
-          socialLinks: data.social_links || {},
+          socialLinks: socialLinks,
           createdAt: new Date(data.created_at)
         };
         
