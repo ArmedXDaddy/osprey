@@ -227,6 +227,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         setSessionEnrollments(generateMockSessionEnrollments());
         setMessages(generateMockMessages());
         setJoinRequests(generateMockJoinRequests());
+        setSponsorships(generateMockSponsorships());
         setLoading(false);
       } catch (err: any) {
         setError(err);
@@ -375,7 +376,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(likesChannel);
     };
-  }, []);
+  }, [isAuthenticated]);
   
   const fetchCommentsForPosts = async (postIds: string[]) => {
     try {
