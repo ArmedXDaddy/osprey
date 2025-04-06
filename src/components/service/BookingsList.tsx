@@ -5,14 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { CalendarIcon, Clock, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface BookingsListProps {
   bookings: Booking[];
   isLoading: boolean;
   serviceId: string;
+  onApprove?: (bookingId: string) => void;
+  onReject?: (bookingId: string) => void;
 }
 
-const BookingsList = ({ bookings, isLoading, serviceId }: BookingsListProps) => {
+const BookingsList = ({ bookings, isLoading, serviceId, onApprove, onReject }: BookingsListProps) => {
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -74,7 +77,7 @@ const BookingsList = ({ bookings, isLoading, serviceId }: BookingsListProps) => 
                   )}
                 </div>
                 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-2">
                   <Badge variant={
                     booking.status === 'approved' ? 'default' :
                     booking.status === 'completed' ? 'success' :
@@ -83,6 +86,26 @@ const BookingsList = ({ bookings, isLoading, serviceId }: BookingsListProps) => 
                   }>
                     {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                   </Badge>
+                  
+                  {booking.status === 'pending' && onApprove && onReject && (
+                    <div className="flex gap-2 mt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        onClick={() => onApprove(booking.id)}
+                      >
+                        Approve
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="text-destructive border-destructive hover:bg-destructive/10" 
+                        onClick={() => onReject(booking.id)}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
