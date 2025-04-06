@@ -1,5 +1,5 @@
 
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, Sponsorship, SponsorshipStatus } from '@/types';
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User, Sponsorship, SponsorshipStatus } from '@/types';
 
 // Generate mock services
 export const generateMockServices = (): Service[] => {
@@ -42,10 +42,6 @@ export const generateMockServices = (): Service[] => {
 };
 
 // Add other mock data generation functions to return actual arrays instead of empty arrays
-export const generateMockPosts = (): Post[] => {
-  return [];
-};
-
 export const generateMockEvents = (): Event[] => {
   return [];
 };
@@ -70,38 +66,36 @@ export const generateMockJoinRequests = (): JoinRequest[] => {
   return [];
 };
 
-// Generate mock sponsorships
+export const generateMockPosts = (): Post[] => {
+  return [];
+};
+
+// Add mock users for application and sponsorship functionality
+export const mockUsers: User[] = [
+  {
+    id: 'user-1',
+    name: 'John Doe',
+    email: 'john@example.com',
+    role: 'influencer',
+    profileImage: '/placeholder.svg',
+    bio: 'Content creator and influencer',
+    followers: 1200,
+    createdAt: new Date()
+  },
+  {
+    id: 'user-2',
+    name: 'Jane Smith',
+    email: 'jane@example.com',
+    role: 'influencer',
+    profileImage: '/placeholder.svg',
+    bio: 'Lifestyle blogger',
+    followers: 850,
+    createdAt: new Date()
+  }
+];
+
+// We no longer need this function since data is stored in the database
+// It's kept for backward compatibility but doesn't fetch from localStorage anymore
 export const generateMockSponsorships = (): Sponsorship[] => {
-  return [
-    {
-      id: 'mock-sponsorship-1',
-      title: 'Brand Ambassador Program',
-      description: 'Represent our fitness brand on social media',
-      companyId: 'company-1',
-      companyName: 'FitLife Inc',
-      companyLogo: '/placeholder.svg',
-      requirements: ['Minimum 1000 followers', 'Post at least twice weekly'],
-      benefits: ['Free products', 'Commissions on sales'],
-      compensation: '$500 per month',
-      deadline: new Date(new Date().setMonth(new Date().getMonth() + 1)),
-      tags: ['fitness', 'lifestyle'],
-      status: 'active' as SponsorshipStatus,
-      createdAt: new Date()
-    },
-    {
-      id: 'mock-sponsorship-2',
-      title: 'Product Review Partnership',
-      description: 'Review our new line of protein supplements',
-      companyId: 'company-2',
-      companyName: 'NutriBoost',
-      companyLogo: '/placeholder.svg',
-      requirements: ['Experience with nutrition products', 'Detailed reviews'],
-      benefits: ['Free products for 6 months', 'Exclusive discounts'],
-      compensation: 'Free products + affiliate commissions',
-      deadline: undefined,
-      tags: ['nutrition', 'health'],
-      status: 'active' as SponsorshipStatus,
-      createdAt: new Date()
-    }
-  ];
+  return [];
 };
