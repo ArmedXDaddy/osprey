@@ -2,8 +2,9 @@
 import React from 'react';
 import { Workshop } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { CalendarIcon, Clock, Users, MapPin, Video } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Laptop } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface WorkshopGridProps {
@@ -18,6 +19,14 @@ const WorkshopGrid: React.FC<WorkshopGridProps> = ({ workshops }) => {
       </div>
     );
   }
+
+  const formatDate = (date: Date) => {
+    try {
+      return format(date, 'MMM d, yyyy');
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -35,37 +44,46 @@ const WorkshopGrid: React.FC<WorkshopGridProps> = ({ workshops }) => {
                 <span className="text-gray-400">No image</span>
               </div>
             )}
+            <Badge 
+              className="absolute top-2 right-2"
+              variant={workshop.isFree ? "outline" : "secondary"}
+            >
+              {workshop.isFree ? 'Free' : `$${workshop.price?.toFixed(2)}`}
+            </Badge>
           </div>
           <CardContent className="p-4">
             <h3 className="text-lg font-semibold mb-1">{workshop.title}</h3>
-            <p className="text-sm text-gray-600 line-clamp-2 mb-2">{workshop.description}</p>
+            <p className="text-sm text-gray-600 line-clamp-2 mb-3">{workshop.description}</p>
             
-            <div className="space-y-2 mt-3">
-              <div className="flex items-center text-sm text-gray-500">
-                <Calendar className="h-4 w-4 mr-2" />
-                <span>{format(new Date(workshop.date), 'MMM d, yyyy')}</span>
+            <div className="flex flex-col space-y-2 text-sm text-gray-600">
+              <div className="flex items-center">
+                <CalendarIcon className="h-4 w-4 mr-2" />
+                <span>{formatDate(workshop.date)}</span>
               </div>
               
-              <div className="flex items-center text-sm text-gray-500">
+              <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-2" />
-                <span>{workshop.duration}</span>
+                <span>{workshop.startTime} - {workshop.endTime}</span>
               </div>
               
-              {workshop.isOnline ? (
-                <div className="flex items-center text-sm text-gray-500">
-                  <Laptop className="h-4 w-4 mr-2" />
-                  <span>Online</span>
-                </div>
-              ) : workshop.location ? (
-                <div className="flex items-center text-sm text-gray-500">
+              <div className="flex items-center">
+                {workshop.isOnline ? (
+                  <Video className="h-4 w-4 mr-2" />
+                ) : (
                   <MapPin className="h-4 w-4 mr-2" />
-                  <span>{workshop.location}</span>
-                </div>
-              ) : null}
+                )}
+                <span className="line-clamp-1">
+                  {workshop.isOnline ? 'Online' : workshop.location}
+                </span>
+              </div>
+              
+              <div className="flex items-center">
+                <Users className="h-4 w-4 mr-2" />
+                <span>{workshop.capacity} seats</span>
+              </div>
             </div>
             
-            <div className="flex justify-between items-center mt-4">
-              <span className="font-medium">{workshop.price > 0 ? `$${workshop.price}` : 'Free'}</span>
+            <div className="flex justify-end mt-4">
               <Link 
                 to={`/company/workshops/${workshop.id}`}
                 className="text-blue-500 hover:text-blue-700 text-sm"

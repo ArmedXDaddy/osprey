@@ -19,33 +19,48 @@ const privacyIcons: Record<GroupPrivacyTypes, LucideIcon> = {
 interface GroupCardProps {
   group: Group;
   isJoined?: boolean;
+  onClick?: (groupId: string) => void;
   onJoin?: (groupId: string) => void;
   onRequestJoin?: (groupId: string) => void;
   onLeave?: (groupId: string) => void;
+  onDelete?: () => void;
+  compact?: boolean;
 }
 
 const GroupCard: React.FC<GroupCardProps> = ({
   group,
   isJoined = false,
+  onClick,
   onJoin,
   onRequestJoin,
   onLeave,
+  onDelete,
+  compact = false,
 }) => {
   const { id, name, description, image, privacy, members, price } = group;
-  const PrivacyIcon = privacyIcons[privacy as GroupPrivacyTypes] || UsersRound;
+  const privacyType = privacy as GroupPrivacyTypes;
+  const PrivacyIcon = privacyIcons[privacyType] || UsersRound;
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick(id);
+    }
+  };
 
   return (
     <Card className="overflow-hidden">
-      <div className="aspect-video relative">
-        {image ? (
-          <img src={image} alt={name} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-            <span className="text-gray-400">No image</span>
-          </div>
-        )}
-      </div>
-      <CardContent className="p-4">
+      {!compact && (
+        <div className="aspect-video relative">
+          {image ? (
+            <img src={image} alt={name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+              <span className="text-gray-400">No image</span>
+            </div>
+          )}
+        </div>
+      )}
+      <CardContent className={`p-4 ${compact ? 'pt-4' : ''}`}>
         <div className="flex justify-between items-start mb-2">
           <h3 className="text-lg font-semibold">{name}</h3>
           <Badge
@@ -69,30 +84,50 @@ const GroupCard: React.FC<GroupCardProps> = ({
       </CardContent>
       
       <CardFooter className="p-4 pt-0 flex justify-between">
-        <Button
-          variant={isJoined ? "outline" : "default"}
-          size="sm"
-          onClick={() => {
-            if (isJoined && onLeave) {
-              onLeave(id);
-            } else if (privacy === 'public' && onJoin) {
-              onJoin(id);
-            } else if (onRequestJoin) {
-              onRequestJoin(id);
-            }
-          }}
-        >
-          {isJoined 
-            ? 'Leave' 
-            : privacy === 'public' 
-              ? 'Join' 
-              : privacy === 'private' 
-                ? 'Request to Join' 
-                : 'Subscribe'}
-        </Button>
+        {onDelete && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onDelete}
+          >
+            Delete
+          </Button>
+        )}
+        {(onJoin || onRequestJoin || onLeave) && (
+          <Button
+            variant={isJoined ? "outline" : "default"}
+            size="sm"
+            onClick={() => {
+              if (isJoined && onLeave) {
+                onLeave(id);
+              } else if (privacy === 'public' && onJoin) {
+                onJoin(id);
+              } else if (onRequestJoin) {
+                onRequestJoin(id);
+              }
+            }}
+          >
+            {isJoined 
+              ? 'Leave' 
+              : privacy === 'public' 
+                ? 'Join' 
+                : privacy === 'private' 
+                  ? 'Request to Join' 
+                  : 'Subscribe'}
+          </Button>
+        )}
         
-        <Button variant="ghost" size="sm" asChild>
-          <Link to={`/groups/${id}`}>View</Link>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleClick}
+          asChild={!onClick}
+        >
+          {onClick ? (
+            <span>View</span>
+          ) : (
+            <Link to={`/groups/${id}`}>View</Link>
+          )}
         </Button>
       </CardFooter>
     </Card>

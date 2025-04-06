@@ -8,16 +8,23 @@ import {
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
-  getUserBookingForService, cancelBooking, approveBooking, 
-  uploadImage, updateComment, deleteComment 
+  getUserBookingForService, cancelBooking, approveBooking,
+  updateComment, deleteComment,
+  createComment, createEvent, createGroup, createJoinRequest, 
+  createMessage, createPost, createProduct, createService, 
+  createWorkshop, deleteEvent, deleteGroup, deleteMessage, 
+  deletePost, getEvents, getGroups, getJoinRequests, 
+  getMessages, getPosts, getProducts, getServices, 
+  getWorkshops, updateEvent, updateGroup, updateJoinRequest, 
+  updateMessage, updatePost, uploadImage
 } from '@/integrations/supabase/helpers';
-import { generateMockServices, generateMockPosts, generateMockEvents, 
+import { 
+  generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
   generateMockMessages, generateMockJoinRequests 
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
-
-import { createComment, createEvent, createGroup, createJoinRequest, createMessage, createPost, createProduct, createService, createWorkshop, deleteEvent, deleteGroup, deleteMessage, deletePost, getEvents, getGroups, getJoinRequests, getMessages, getPosts, getProducts, getServices, getWorkshops, updateEvent, updateGroup, updateJoinRequest, updateMessage, updatePost, uploadImage } from '@/integrations/supabase/helpers';
+import { asGroupPrivacy } from '@/utils/typeHelpers';
 
 interface GroupPrivacy {
   private: boolean;
@@ -666,13 +673,13 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const isPaid = notes === 'paid';
       const status = isPaid ? 'approved' : 'pending';
       
-      await createServiceBooking(
+      await createServiceBooking({
         serviceId,
-        currentUser.id,
+        userId: currentUser.id,
         notes,
-        isPaid ? 'paid' : 'unpaid',
+        paymentStatus: isPaid ? 'paid' : 'unpaid',
         status
-      );
+      });
     } catch (err: any) {
       console.error("Error booking service:", err);
       throw new Error(err.message || 'Failed to book service');
@@ -1269,7 +1276,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         image: data.image,
         members: data.members,
         memberLimit: data.member_limit,
-        privacy: data.privacy as GroupPrivacy,
+        privacy: data.privacy,
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],

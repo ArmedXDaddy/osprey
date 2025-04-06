@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -8,16 +9,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Group, GroupPrivacy } from '@/types';
-import GroupCard from '@/components/group/GroupCard';
+import { Group } from '@/types';
+import GroupCard from '@/components/shared/GroupCard';
 import CreateGroup from '@/components/group/CreateGroup';
 import { Search, Plus, Users } from 'lucide-react';
-import { asGroupPrivacy } from '@/utils/typeHelpers';
 
 const Groups = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { groups, createGroup, updateGroup, deleteGroup } = useData();
+  const { groups, createGroup, deleteGroup } = useData();
   const [searchQuery, setSearchQuery] = useState('');
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinedGroups, setJoinedGroups] = useState<Group[]>([]);

@@ -1,56 +1,54 @@
-
 import { supabase } from './client';
 import { generateId } from '@/utils';
-import { Service, Booking, Session, SessionEnrollment, Message, UserRole, BookingStatus, PaymentStatus, GroupPrivacy, Product, Workshop, Group } from '@/types';
-import { mapDbProductToProduct, mapDbWorkshopToWorkshop, toUserRole, toSessionStatus, mapDbMessageToMessage } from '@/utils/typeMappers';
+import { ServiceType, UserRole } from '@/types';
 
-/**
- * Function to upload an image to Supabase storage
- * @param file The file to upload
- * @param filePath The path where the file should be stored
- * @returns The public URL of the uploaded image
- */
-export const uploadImage = async (file: File, filePath: string): Promise<string> => {
-  // Extract bucket name from filePath (usually the first segment)
-  const bucketName = filePath.split('/')[0] || 'covers';
-
-  // Upload the file to Supabase storage
-  const { data, error } = await supabase.storage
-    .from(bucketName)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: true
-    });
-
-  if (error) {
-    console.error('Error uploading image:', error);
-    throw error;
-  }
-
-  // Get the public URL for the uploaded file
-  const { data: urlData } = supabase.storage
-    .from(bucketName)
-    .getPublicUrl(data.path);
-
-  return urlData.publicUrl;
-};
-
-export const createUserProfile = async (user: any) => {
-  const { data, error } = await supabase
-    .from('profiles')
-    .insert({
-      id: user.id,
-      email: user.email,
-      name: user.name || 'New User',
-      role: user.role || 'user'
-    });
-
+// Function to create a user profile
+export const createUserProfile = async (userId: string, email: string, name: string, role: string) => {
+  const { data, error } = await supabase.from('profiles').insert([
+    {
+      id: userId,
+      email,
+      name,
+      role
+    }
+  ]).select();
+  
   if (error) {
     console.error('Error creating user profile:', error);
     throw error;
   }
-
   return data;
+};
+
+/**
+ * Function to upload an image to Supabase storage
+ * @param file The file to upload
+ * @param bucket The bucket where the file should be stored
+ * @returns The public URL of the uploaded image
+ */
+export const uploadImage = async (file: File, bucket: string): Promise<string> => {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${bucket}/${fileName}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file);
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return data.publicUrl;
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    throw error;
+  }
 };
 
 export const getUserProfile = async (userId: string) => {
@@ -711,7 +709,7 @@ export const getUserBookings = async (userId: string) => {
   }
 };
 
-export const getUserBookingForService = async (serviceId: string, userId: string) => {
+export const getUserBookingForService = async (serviceId: string, userId: string): Promise<any | null> => {
   try {
     const { data, error } = await supabase.rpc('get_user_booking_for_service', {
       p_service_id: serviceId,
@@ -738,8 +736,7 @@ export const getUserBookingForService = async (serviceId: string, userId: string
       status: bookingData.status as BookingStatus,
       paymentStatus: bookingData.payment_status as PaymentStatus,
       notes: bookingData.notes,
-      createdAt: new Date(bookingData.created_at),
-      preferredTime: bookingData.preferred_time ? new Date(bookingData.preferred_time) : undefined
+      createdAt: new Date(bookingData.created_at)
     };
     
     return booking;
@@ -825,4 +822,90 @@ export const getServiceChatMessages = async (serviceId: string) => {
     console.error('Error in getServiceChatMessages:', error);
     throw error;
   }
+};
+
+export const mapDbServiceToService = (dbService: any) => {
+  return {
+    id: dbService.id,
+    title: dbService.title,
+    description: dbService.description,
+    providerId: dbService.coach_id,
+    providerName: dbService.coach_name,
+    price: dbService.price,
+    duration: dbService.duration,
+    available: dbService.is_active,
+    createdAt: new Date(dbService.created_at),
+    isOnline: dbService.is_online,
+    location: dbService.location,
+    capacity: dbService.capacity,
+    serviceType: dbService.service_type as ServiceType,
+    coverImage: dbService.cover_image,
+    meetingUrl: dbService.meeting_url
+  };
+};
+
+export const mapDbProductToProduct = (dbProduct: any) => {
+  return {
+    id: dbProduct.id,
+    title: dbProduct.title,
+    description: dbProduct.description,
+    price: dbProduct.price,
+    image: dbProduct.image,
+    companyId: dbProduct.company_id,
+    companyName: dbProduct.company_name,
+    companyLogo: dbProduct.company_logo,
+    category: dbProduct.category,
+    features: dbProduct.features || [],
+    releaseDate: new Date(dbProduct.release_date || dbProduct.created_at),
+    createdAt: new Date(dbProduct.created_at),
+    updatedAt: dbProduct.updated_at ? new Date(dbProduct.updated_at) : undefined,
+    website: dbProduct.website_url,
+    demo: dbProduct.demo_url
+  };
+};
+
+export const mapDbWorkshopToWorkshop = (dbWorkshop: any) => {
+  return {
+    id: dbWorkshop.id,
+    title: dbWorkshop.title,
+    description: dbWorkshop.description,
+    companyId: dbWorkshop.company_id,
+    companyName: dbWorkshop.company_name,
+    companyLogo: dbWorkshop.company_logo,
+    date: new Date(dbWorkshop.date),
+    startTime: dbWorkshop.start_time,
+    endTime: dbWorkshop.end_time,
+    location: dbWorkshop.location,
+    isOnline: dbWorkshop.is_online,
+    meetingUrl: dbWorkshop.meeting_url,
+    capacity: dbWorkshop.capacity,
+    price: dbWorkshop.price,
+    isFree: dbWorkshop.is_free,
+    topics: dbWorkshop.topics || [],
+    requirements: dbWorkshop.requirements || [],
+    image: dbWorkshop.image,
+    createdAt: new Date(dbWorkshop.created_at),
+    updatedAt: dbWorkshop.updated_at ? new Date(dbWorkshop.updated_at) : undefined,
+    category: dbWorkshop.category
+  };
+};
+
+export const mapDbGroupToGroup = (dbGroup: any) => {
+  return {
+    id: dbGroup.id,
+    name: dbGroup.name,
+    description: dbGroup.description,
+    creatorId: dbGroup.creator_id,
+    creatorName: dbGroup.creator_name,
+    creatorRole: dbGroup.creator_role as UserRole,
+    image: dbGroup.image,
+    members: dbGroup.members,
+    memberIds: dbGroup.member_ids || [],
+    memberLimit: dbGroup.member_limit,
+    privacy: dbGroup.privacy,
+    price: dbGroup.price,
+    pendingRequests: dbGroup.pending_requests || 0,
+    rules: dbGroup.rules || [],
+    createdAt: new Date(dbGroup.created_at)
+  };
 };
