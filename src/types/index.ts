@@ -264,4 +264,9 @@ export interface DataContextType {
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
   deleteEvent: (eventId: string) => Promise<void>;
+  requestToJoinEvent: (eventId: string) => Promise<void>;
+  approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
+  rejectEventRequest: (requestId: string) => Promise<void>;
+  getEventRequests: (eventId: string) => Promise<JoinRequest[]>;
+  handleEventJoinRequest: (eventId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
 }
