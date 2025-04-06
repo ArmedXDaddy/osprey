@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -20,7 +19,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import ImageGallery from '@/components/profile/ImageGallery';
-import { DialogContent, Dialog, DialogTitle } from '@/components/ui/dialog';
+import { DialogContent, Dialog, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Calendar as CalendarIcon, Clock, Users, MapPin, Video, Image as ImageIcon, Tag, DollarSign, Book, CheckCircle } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -54,17 +53,22 @@ const CreateWorkshop = () => {
   ]);
   const [isLoading, setIsLoading] = useState(false);
   const [coverImage, setCoverImage] = useState('');
-  
-  // Image gallery state
   const [openGallery, setOpenGallery] = useState(false);
   const [images, setImages] = useState<{name: string; url: string}[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
-  // Load user's images when opening the gallery
+  useEffect(() => {
+    if (currentUser) {
+      loadImages();
+    }
+  }, [currentUser]);
+
   const loadImages = async () => {
     if (!currentUser) return;
     
     try {
+      setUploading(true);
       const { data, error } = await supabase
         .storage
         .from('covers')
@@ -74,6 +78,11 @@ const CreateWorkshop = () => {
 
       if (error) {
         console.error('Error loading images:', error);
+        toast({
+          title: "Failed to load images",
+          description: error.message || "There was an error loading your images.",
+          variant: "destructive",
+        });
         return;
       }
 
@@ -93,8 +102,16 @@ const CreateWorkshop = () => {
         });
 
       setImages(imageUrls);
-    } catch (error) {
+      setInitialLoadComplete(true);
+    } catch (error: any) {
       console.error('Error in loadImages:', error);
+      toast({
+        title: "Error loading images",
+        description: error.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -116,11 +133,11 @@ const CreateWorkshop = () => {
         title: "Image uploaded",
         description: "Your image has been uploaded successfully.",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
       toast({
         title: "Upload failed",
-        description: "There was an error uploading your image.",
+        description: error.message || "There was an error uploading your image.",
         variant: "destructive",
       });
     } finally {
@@ -130,6 +147,7 @@ const CreateWorkshop = () => {
 
   const handleSelectImage = (url: string) => {
     setCoverImage(url);
+    setOpenGallery(false);
   };
 
   const updateInstructor = (index: number, field: 'name' | 'role' | 'bio', value: string) => {
@@ -676,12 +694,12 @@ Workshop materials and slides"
         </div>
       </form>
       
-      <Dialog open={openGallery} onOpenChange={(open) => {
-        setOpenGallery(open);
-        if (open) loadImages();
-      }}>
+      <Dialog open={openGallery} onOpenChange={setOpenGallery}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogTitle>Your Image Gallery</DialogTitle>
+          <DialogDescription>
+            Select an image for your workshop or upload a new one.
+          </DialogDescription>
           <ImageGallery
             images={images}
             onSelectImage={handleSelectImage}
