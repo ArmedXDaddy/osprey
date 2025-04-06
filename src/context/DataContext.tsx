@@ -1,10 +1,11 @@
-import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
+import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy, Announcement
+  Booking, ServiceType, Comment, GroupPrivacy, Announcement,
+  Sponsorship, SponsorshipApplication, ApplicationStatus
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -83,6 +84,26 @@ interface DataContextType {
   getServiceMessages: (serviceId: string) => Promise<Message[]>;
   getUserBookingForService: (serviceId: string, userId: string) => Promise<Booking | null>;
   fetchUserServices: (userId: string) => Promise<Service[]>;
+  sponsorships: Sponsorship[];
+  getSponsorships: () => Sponsorship[];
+  getSponsorshipById: (id: string) => Sponsorship;
+  createSponsorship: (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => Sponsorship;
+  updateSponsorship: (id: string, updatedData: Partial<Sponsorship>) => Sponsorship;
+  deleteSponsorship: (id: string) => void;
+  getSponsorshipApplications: (sponsorshipId: string) => SponsorshipApplication[];
+  getUserApplicationForSponsorship: (sponsorshipId: string, userId: string) => SponsorshipApplication | null;
+  applyForSponsorship: (applicationData: {
+    sponsorshipId: string;
+    userId: string;
+    motivation: string;
+    experience: string;
+    socialLinks?: {
+      instagram?: string;
+      twitter?: string;
+      website?: string;
+    };
+  }) => SponsorshipApplication;
+  updateApplicationStatus: (applicationId: string, status: ApplicationStatus) => { success: boolean };
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -114,10 +135,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  
+  const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
+
   const { toast } = useToast();
   const { currentUser } = useAuth();
-  
+
   React.useEffect(() => {
     const loadMockData = async () => {
       try {
@@ -1222,75 +1244,193 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  return (
-    <DataContext.Provider value={{
-      posts,
-      events,
-      groups,
-      services,
-      sessions,
-      sessionEnrollments,
-      messages,
-      setMessages,
-      joinRequests,
-      loading,
-      error,
-      postComments,
-      completedEvents,
-      announcements,
-      postAnnouncement,
-      createPost: async () => { throw new Error('Not implemented'); },
-      likePost: async () => { throw new Error('Not implemented'); },
-      unlikePost: async () => { throw new Error('Not implemented'); },
-      addComment: async () => { throw new Error('Not implemented'); },
-      updateComment: async () => { throw new Error('Not implemented'); },
-      deleteComment: async () => { throw new Error('Not implemented'); },
-      createEvent,
-      joinEvent,
-      leaveEvent,
-      deleteEvent,
-      requestToJoinEvent: async () => { throw new Error('Not implemented'); },
-      approveEventRequest: async () => { throw new Error('Not implemented'); },
-      rejectEventRequest: async () => { throw new Error('Not implemented'); },
-      getEventRequests: async () => { return []; },
-      handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
-      createGroup: async () => { throw new Error('Not implemented'); },
-      joinGroup,
-      leaveGroup,
-      requestToJoinGroup,
-      approveGroupRequest,
-      rejectGroupRequest,
-      getGroupRequests,
-      handleJoinRequest,
-      removeGroupMember,
-      updateGroupDetails,
-      deleteGroup,
-      createSession,
-      enrollInSession,
-      cancelEnrollment,
-      approveEnrollment,
-      rejectEnrollment,
-      getUserSessions,
-      getCoachSessions,
-      getUserEnrollments,
-      updateSession,
-      updateEnrollmentStatus,
-      sendMessage,
-      getServiceById,
-      bookService,
-      cancelBooking: cancelBookingImpl,
-      getUserBookings: getUserBookingsImpl,
-      getServiceBookings: getServiceBookingsImpl,
-      createService,
-      updateService,
-      deleteService,
-      approveBooking: approveBookingImpl,
-      sendServiceMessage,
-      getServiceMessages,
-      getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices
-    }}>
-      {children}
-    </DataContext.Provider>
-  );
+  const getSponsorships = useCallback(() => {
+    console.log("Getting all sponsorships");
+    return sponsorships;
+  }, [sponsorships]);
+
+  const getSponsorshipById = useCallback((id: string) => {
+    console.log(`Getting sponsorship with id: ${id}`);
+    const sponsorship = sponsorships.find(s => s.id === id);
+    
+    if (!sponsorship) {
+      throw new Error('Sponsorship not found');
+    }
+    
+    return sponsorship;
+  }, [sponsorships]);
+
+  const createSponsorship = useCallback((sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => {
+    console.log("Creating sponsorship with data:", sponsorshipData);
+    
+    const newSponsorship: Sponsorship = {
+      id: crypto.randomUUID(),
+      ...sponsorshipData,
+      createdAt: new Date(),
+    };
+    
+    setSponsorships(prev => [...prev, newSponsorship]);
+    return newSponsorship;
+  }, []);
+
+  const updateSponsorship = useCallback((id: string, updatedData: Partial<Sponsorship>) => {
+    console.log(`Updating sponsorship with id: ${id}`, updatedData);
+    
+    setSponsorships(prev => 
+      prev.map(s => (s.id === id ? { ...s, ...updatedData } : s))
+    );
+    
+    return getSponsorshipById(id);
+  }, [getSponsorshipById]);
+
+  const deleteSponsorship = useCallback((id: string) => {
+    console.log(`Deleting sponsorship with id: ${id}`);
+    
+    setSponsorships(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const getSponsorshipApplications = useCallback((sponsorshipId: string) => {
+    console.log(`Getting applications for sponsorship with id: ${sponsorshipId}`);
+    
+    // For simplicity, we'll use mock data here
+    // In a real app, you'd fetch from the backend
+    const mockApplications: SponsorshipApplication[] = [];
+    
+    return mockApplications;
+  }, []);
+
+  const getUserApplicationForSponsorship = useCallback((sponsorshipId: string, userId: string) => {
+    console.log(`Getting user application for sponsorship ${sponsorshipId} and user ${userId}`);
+    
+    // Mock implementation
+    return null;
+  }, []);
+
+  const applyForSponsorship = useCallback((applicationData: {
+    sponsorshipId: string;
+    userId: string;
+    motivation: string;
+    experience: string;
+    socialLinks?: {
+      instagram?: string;
+      twitter?: string;
+      website?: string;
+    };
+  }) => {
+    console.log("Applying for sponsorship with data:", applicationData);
+    
+    const { sponsorshipId, userId } = applicationData;
+    const user = mockUsers.find(u => u.id === userId);
+    
+    if (!user) {
+      throw new Error('User not found');
+    }
+    
+    const newApplication: SponsorshipApplication = {
+      id: crypto.randomUUID(),
+      sponsorshipId,
+      userId,
+      userName: user.name,
+      userEmail: user.email,
+      userProfileImage: user.profileImage,
+      motivation: applicationData.motivation,
+      experience: applicationData.experience,
+      socialLinks: applicationData.socialLinks,
+      status: 'pending',
+      createdAt: new Date(),
+    };
+    
+    // In a real app, you'd save to the backend
+    console.log("Created application:", newApplication);
+    
+    return newApplication;
+  }, []);
+
+  const updateApplicationStatus = useCallback((applicationId: string, status: ApplicationStatus) => {
+    console.log(`Updating application ${applicationId} status to ${status}`);
+    
+    // In a real app, you'd update the backend
+    
+    return { success: true };
+  }, []);
+
+  const value = {
+    posts,
+    events,
+    groups,
+    services,
+    sessions,
+    sessionEnrollments,
+    messages,
+    setMessages,
+    joinRequests,
+    loading,
+    error,
+    postComments,
+    completedEvents,
+    announcements,
+    postAnnouncement,
+    createPost: async () => { throw new Error('Not implemented'); },
+    likePost: async () => { throw new Error('Not implemented'); },
+    unlikePost: async () => { throw new Error('Not implemented'); },
+    addComment: async () => { throw new Error('Not implemented'); },
+    updateComment: async () => { throw new Error('Not implemented'); },
+    deleteComment: async () => { throw new Error('Not implemented'); },
+    createEvent,
+    joinEvent,
+    leaveEvent,
+    deleteEvent,
+    requestToJoinEvent: async () => { throw new Error('Not implemented'); },
+    approveEventRequest: async () => { throw new Error('Not implemented'); },
+    rejectEventRequest: async () => { throw new Error('Not implemented'); },
+    getEventRequests: async () => { return []; },
+    handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
+    createGroup: async () => { throw new Error('Not implemented'); },
+    joinGroup,
+    leaveGroup,
+    requestToJoinGroup,
+    approveGroupRequest,
+    rejectGroupRequest,
+    getGroupRequests,
+    handleJoinRequest,
+    removeGroupMember,
+    updateGroupDetails,
+    deleteGroup,
+    createSession,
+    enrollInSession,
+    cancelEnrollment,
+    approveEnrollment,
+    rejectEnrollment,
+    getUserSessions,
+    getCoachSessions,
+    getUserEnrollments,
+    updateSession,
+    updateEnrollmentStatus,
+    sendMessage,
+    getServiceById,
+    bookService,
+    cancelBooking: cancelBookingImpl,
+    getUserBookings: getUserBookingsImpl,
+    getServiceBookings: getServiceBookingsImpl,
+    createService,
+    updateService,
+    deleteService,
+    approveBooking: approveBookingImpl,
+    sendServiceMessage,
+    getServiceMessages,
+    getUserBookingForService: getUserBookingForServiceImpl,
+    fetchUserServices,
+    sponsorships,
+    getSponsorships,
+    getSponsorshipById,
+    createSponsorship,
+    updateSponsorship,
+    deleteSponsorship,
+    getSponsorshipApplications,
+    getUserApplicationForSponsorship,
+    applyForSponsorship,
+    updateApplicationStatus,
+  };
+
+  return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

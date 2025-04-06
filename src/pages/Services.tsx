@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import ServiceCard from '@/components/shared/ServiceCard';
-import { PlusCircle, Search } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { PlusCircle, Search, Briefcase } from 'lucide-react';
 
 const Services = () => {
   const { currentUser } = useAuth();
@@ -19,6 +20,7 @@ const Services = () => {
   const [localServices, setLocalServices] = useState<Service[]>([]);
 
   const isCoach = currentUser?.role === 'coach';
+  const isCompany = currentUser?.role === 'company';
 
   useEffect(() => {
     // Update localServices whenever the services from context change
@@ -53,12 +55,22 @@ const Services = () => {
             Browse services offered by our coaches
           </p>
         </div>
-        {isCoach && (
-          <Button onClick={handleCreateService} className="mt-4 md:mt-0 gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Create Service
-          </Button>
-        )}
+        <div className="flex flex-col sm:flex-row gap-2 mt-4 md:mt-0">
+          {isCompany && (
+            <Button asChild variant="outline" className="gap-2">
+              <Link to="/sponsorships">
+                <Briefcase className="h-4 w-4" />
+                View Sponsorships
+              </Link>
+            </Button>
+          )}
+          {isCoach && (
+            <Button onClick={handleCreateService} className="gap-2">
+              <PlusCircle className="h-4 w-4" />
+              Create Service
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4 mb-6">

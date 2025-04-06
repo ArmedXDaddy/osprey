@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -31,6 +32,11 @@ import Services from "./pages/Services";
 import CreateService from "./pages/CreateService";
 import ManageService from "./pages/ManageService";
 import Settings from "./pages/Settings";
+
+// Sponsorship Pages
+import Sponsorships from "./pages/Sponsorships";
+import CreateSponsorship from "./pages/CreateSponsorship";
+import SponsorshipDetail from "./pages/SponsorshipDetail";
 
 // Company Pages
 import JobPostings from "./pages/company/JobPostings";
@@ -80,6 +86,12 @@ const App = () => (
                   <Route path="/services/create" element={<CreateService />} />
                   <Route path="/services/:id" element={<ServiceDetail />} />
                   <Route path="/services/:id/manage" element={<ManageService />} />
+                  
+                  {/* Sponsorship Routes */}
+                  <Route path="/sponsorships" element={<Sponsorships />} />
+                  <Route path="/sponsorships/create" element={<CreateSponsorship />} />
+                  <Route path="/sponsorships/:id" element={<SponsorshipDetail />} />
+                  
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/profile/:id" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
