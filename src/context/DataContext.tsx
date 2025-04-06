@@ -15,7 +15,8 @@ import {
 import { 
   generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
-  generateMockMessages, generateMockJoinRequests, mockUsers
+  generateMockMessages, generateMockJoinRequests, mockUsers,
+  generateMockSponsorships
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
@@ -1248,42 +1249,6 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const fetchSponsorships = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('sponsorships')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-      if (error) {
-        console.error("Error fetching sponsorships:", error);
-        return;
-      }
-      
-      if (data) {
-        const transformedSponsorships: Sponsorship[] = data.map((item) => ({
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          requirements: item.requirements,
-          benefits: item.benefits,
-          compensation: item.compensation,
-          deadline: item.deadline ? new Date(item.deadline) : undefined,
-          tags: item.tags,
-          companyId: item.company_id,
-          companyName: item.company_name,
-          companyLogo: item.company_logo,
-          status: item.status as SponsorshipStatus,
-          createdAt: new Date(item.created_at)
-        }));
-        
-        setSponsorships(transformedSponsorships);
-      }
-    } catch (error) {
-      console.error("Error in fetchSponsorships:", error);
-    }
-  };
-
   const getSponsorships = useCallback(() => {
     console.log("Getting all sponsorships");
     return sponsorships;
@@ -1300,214 +1265,86 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     return sponsorship;
   }, [sponsorships]);
 
-  const createSponsorship = useCallback(async (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => {
+  const createSponsorship = useCallback((sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => {
     console.log("Creating sponsorship with data:", sponsorshipData);
     
-    try {
-      const { data, error } = await supabase
-        .from('sponsorships')
-        .insert({
-          title: sponsorshipData.title,
-          description: sponsorshipData.description,
-          requirements: sponsorshipData.requirements,
-          benefits: sponsorshipData.benefits,
-          compensation: sponsorshipData.compensation,
-          deadline: sponsorshipData.deadline,
-          tags: sponsorshipData.tags,
-          company_id: sponsorshipData.companyId,
-          company_name: sponsorshipData.companyName,
-          company_logo: sponsorshipData.companyLogo,
-          status: sponsorshipData.status
-        })
-        .select()
-        .single();
+    const newSponsorship: Sponsorship = {
+      id: crypto.randomUUID(),
+      ...sponsorshipData,
+      createdAt: new Date(),
+    };
+    
+    // Add to state
+    setSponsorships(prev => {
+      const updated = [...prev, newSponsorship];
       
-      if (error) {
-        console.error("Error creating sponsorship:", error);
-        throw new Error(error.message || 'Failed to create sponsorship');
+      // Store in localStorage
+      try {
+        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error storing sponsorships in localStorage:', error);
       }
       
-      // Transform to our app's Sponsorship type
-      const newSponsorship: Sponsorship = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        requirements: data.requirements,
-        benefits: data.benefits,
-        compensation: data.compensation,
-        deadline: data.deadline ? new Date(data.deadline) : undefined,
-        tags: data.tags,
-        companyId: data.company_id,
-        companyName: data.company_name,
-        companyLogo: data.company_logo,
-        status: data.status as SponsorshipStatus,
-        createdAt: new Date(data.created_at)
-      };
-      
-      // Add to local state
-      setSponsorships(prev => [...prev, newSponsorship]);
-      
-      return newSponsorship;
-    } catch (error: any) {
-      console.error("Error in createSponsorship:", error);
-      throw error;
-    }
+      return updated;
+    });
+    
+    return newSponsorship;
   }, []);
 
-  const updateSponsorship = useCallback(async (id: string, updatedData: Partial<Sponsorship>) => {
+  const updateSponsorship = useCallback((id: string, updatedData: Partial<Sponsorship>) => {
     console.log(`Updating sponsorship with id: ${id}`, updatedData);
     
-    try {
-      // Transform to database column names
-      const dbData: any = {};
-      if (updatedData.title) dbData.title = updatedData.title;
-      if (updatedData.description) dbData.description = updatedData.description;
-      if (updatedData.requirements) dbData.requirements = updatedData.requirements;
-      if (updatedData.benefits) dbData.benefits = updatedData.benefits;
-      if (updatedData.compensation !== undefined) dbData.compensation = updatedData.compensation;
-      if (updatedData.deadline) dbData.deadline = updatedData.deadline;
-      if (updatedData.tags) dbData.tags = updatedData.tags;
-      if (updatedData.status) dbData.status = updatedData.status;
+    setSponsorships(prev => {
+      const updated = prev.map(s => (s.id === id ? { ...s, ...updatedData } : s));
       
-      const { data, error } = await supabase
-        .from('sponsorships')
-        .update(dbData)
-        .eq('id', id)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error("Error updating sponsorship:", error);
-        throw new Error(error.message || 'Failed to update sponsorship');
+      // Store in localStorage
+      try {
+        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error storing sponsorships in localStorage:', error);
       }
       
-      // Transform to our app's Sponsorship type
-      const updatedSponsorship: Sponsorship = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        requirements: data.requirements,
-        benefits: data.benefits,
-        compensation: data.compensation,
-        deadline: data.deadline ? new Date(data.deadline) : undefined,
-        tags: data.tags,
-        companyId: data.company_id,
-        companyName: data.company_name,
-        companyLogo: data.company_logo,
-        status: data.status as SponsorshipStatus,
-        createdAt: new Date(data.created_at)
-      };
-      
-      // Update local state
-      setSponsorships(prev => 
-        prev.map(s => s.id === id ? updatedSponsorship : s)
-      );
-      
-      return updatedSponsorship;
-    } catch (error: any) {
-      console.error("Error in updateSponsorship:", error);
-      throw error;
-    }
-  }, []);
+      return updated;
+    });
+    
+    return getSponsorshipById(id);
+  }, [getSponsorshipById]);
 
-  const deleteSponsorship = useCallback(async (id: string) => {
+  const deleteSponsorship = useCallback((id: string) => {
     console.log(`Deleting sponsorship with id: ${id}`);
     
-    try {
-      const { error } = await supabase
-        .from('sponsorships')
-        .delete()
-        .eq('id', id);
+    setSponsorships(prev => {
+      const updated = prev.filter(s => s.id !== id);
       
-      if (error) {
-        console.error("Error deleting sponsorship:", error);
-        throw new Error(error.message || 'Failed to delete sponsorship');
+      // Store in localStorage
+      try {
+        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error storing sponsorships in localStorage:', error);
       }
       
-      // Remove from local state
-      setSponsorships(prev => prev.filter(s => s.id !== id));
-    } catch (error: any) {
-      console.error("Error in deleteSponsorship:", error);
-      throw error;
-    }
+      return updated;
+    });
   }, []);
 
-  const getSponsorshipApplications = useCallback(async (sponsorshipId: string) => {
+  const getSponsorshipApplications = useCallback((sponsorshipId: string) => {
     console.log(`Getting applications for sponsorship with id: ${sponsorshipId}`);
     
-    try {
-      const { data, error } = await supabase
-        .from('sponsorship_applications')
-        .select('*')
-        .eq('sponsorship_id', sponsorshipId)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error("Error fetching sponsorship applications:", error);
-        throw new Error(error.message || 'Failed to fetch applications');
-      }
-      
-      const applications: SponsorshipApplication[] = data.map(item => ({
-        id: item.id,
-        sponsorshipId: item.sponsorship_id,
-        userId: item.user_id,
-        userName: item.user_name,
-        userEmail: item.user_email,
-        userProfileImage: item.user_profile_image,
-        motivation: item.motivation,
-        experience: item.experience,
-        socialLinks: item.social_links,
-        status: item.status as ApplicationStatus,
-        createdAt: new Date(item.created_at)
-      }));
-      
-      return applications;
-    } catch (error) {
-      console.error("Error in getSponsorshipApplications:", error);
-      return [];
-    }
+    // For simplicity, we'll use mock data here
+    // In a real app, you'd fetch from the backend
+    const mockApplications: SponsorshipApplication[] = [];
+    
+    return mockApplications;
   }, []);
 
-  const getUserApplicationForSponsorship = useCallback(async (sponsorshipId: string, userId: string) => {
+  const getUserApplicationForSponsorship = useCallback((sponsorshipId: string, userId: string) => {
     console.log(`Getting user application for sponsorship ${sponsorshipId} and user ${userId}`);
     
-    try {
-      const { data, error } = await supabase
-        .from('sponsorship_applications')
-        .select('*')
-        .eq('sponsorship_id', sponsorshipId)
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (error) {
-        console.error("Error fetching user application:", error);
-        throw new Error(error.message || 'Failed to fetch application');
-      }
-      
-      if (!data) return null;
-      
-      const application: SponsorshipApplication = {
-        id: data.id,
-        sponsorshipId: data.sponsorship_id,
-        userId: data.user_id,
-        userName: data.user_name,
-        userEmail: data.user_email,
-        userProfileImage: data.user_profile_image,
-        motivation: data.motivation,
-        experience: data.experience,
-        socialLinks: data.social_links,
-        status: data.status as ApplicationStatus,
-        createdAt: new Date(data.created_at)
-      };
-      
-      return application;
-    } catch (error) {
-      console.error("Error in getUserApplicationForSponsorship:", error);
-      return null;
-    }
+    // Mock implementation
+    return null;
   }, []);
 
-  const applyForSponsorship = useCallback(async (applicationData: {
+  const applyForSponsorship = useCallback((applicationData: {
     sponsorshipId: string;
     userId: string;
     motivation: string;
@@ -1520,71 +1357,39 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   }) => {
     console.log("Applying for sponsorship with data:", applicationData);
     
-    if (!currentUser) {
-      throw new Error('You must be logged in to apply for a sponsorship');
+    const { sponsorshipId, userId } = applicationData;
+    const user = mockUsers.find(u => u.id === userId);
+    
+    if (!user) {
+      throw new Error('User not found');
     }
     
-    try {
-      const { data, error } = await supabase
-        .from('sponsorship_applications')
-        .insert({
-          sponsorship_id: applicationData.sponsorshipId,
-          user_id: applicationData.userId,
-          user_name: currentUser.name,
-          user_email: currentUser.email,
-          user_profile_image: currentUser.profileImage,
-          motivation: applicationData.motivation,
-          experience: applicationData.experience,
-          social_links: applicationData.socialLinks
-        })
-        .select()
-        .single();
-      
-      if (error) {
-        console.error("Error applying for sponsorship:", error);
-        throw new Error(error.message || 'Failed to submit application');
-      }
-      
-      const newApplication: SponsorshipApplication = {
-        id: data.id,
-        sponsorshipId: data.sponsorship_id,
-        userId: data.user_id,
-        userName: data.user_name,
-        userEmail: data.user_email,
-        userProfileImage: data.user_profile_image,
-        motivation: data.motivation,
-        experience: data.experience,
-        socialLinks: data.social_links,
-        status: data.status as ApplicationStatus,
-        createdAt: new Date(data.created_at)
-      };
-      
-      return newApplication;
-    } catch (error: any) {
-      console.error("Error in applyForSponsorship:", error);
-      throw error;
-    }
-  }, [currentUser]);
+    const newApplication: SponsorshipApplication = {
+      id: crypto.randomUUID(),
+      sponsorshipId,
+      userId,
+      userName: user.name,
+      userEmail: user.email,
+      userProfileImage: user.profileImage,
+      motivation: applicationData.motivation,
+      experience: applicationData.experience,
+      socialLinks: applicationData.socialLinks,
+      status: 'pending',
+      createdAt: new Date(),
+    };
+    
+    // In a real app, you'd save to the backend
+    console.log("Created application:", newApplication);
+    
+    return newApplication;
+  }, []);
 
-  const updateApplicationStatus = useCallback(async (applicationId: string, status: ApplicationStatus) => {
+  const updateApplicationStatus = useCallback((applicationId: string, status: ApplicationStatus) => {
     console.log(`Updating application ${applicationId} status to ${status}`);
     
-    try {
-      const { error } = await supabase
-        .from('sponsorship_applications')
-        .update({ status })
-        .eq('id', applicationId);
-      
-      if (error) {
-        console.error("Error updating application status:", error);
-        throw new Error(error.message || 'Failed to update application status');
-      }
-      
-      return { success: true };
-    } catch (error: any) {
-      console.error("Error in updateApplicationStatus:", error);
-      return { success: false };
-    }
+    // In a real app, you'd update the backend
+    
+    return { success: true };
   }, []);
 
   const value = {
