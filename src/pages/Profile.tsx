@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -953,3 +954,11 @@ const Profile = () => {
             images={galleryType === 'profile' ? profileImages : coverImages}
             onSelectImage={galleryType === 'profile' ? selectProfileImage : selectCoverImage}
             onClose={() => setIsGalleryDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default Profile;
