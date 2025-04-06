@@ -79,11 +79,9 @@ const Events = () => {
 
   const pastEvents = sortedEvents.filter(event => new Date(event.date) < new Date());
 
-  const eventAnnouncements = currentUser && announcements.length > 0
-    ? announcements.filter(a => 
-        events.some(e => e.id === a.eventId && e.attendees && e.attendees.includes(currentUser.id))
-      )
-    : [];
+  const eventAnnouncements = currentUser ? announcements.filter(a => 
+    events.some(e => e.id === a.eventId && e.attendees && e.attendees.includes(currentUser.id))
+  ) : [];
 
   const announcementsByEvent = eventAnnouncements.reduce((acc, announcement) => {
     if (!acc[announcement.eventId]) {
