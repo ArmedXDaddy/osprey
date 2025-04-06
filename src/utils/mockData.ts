@@ -148,7 +148,7 @@ export const generateMockServices = (): Service[] => {
       isOnline: false,
       location: 'Fitness Center, Chicago',
       capacity: 1,
-      serviceType: 'one_on_one' as ServiceType,
+      serviceType: 'one_on_one',
       coverImage: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       meetingUrl: null
     },
@@ -165,7 +165,7 @@ export const generateMockServices = (): Service[] => {
       isOnline: true,
       location: null,
       capacity: 1,
-      serviceType: 'one_on_one' as ServiceType,
+      serviceType: 'one_on_one',
       coverImage: 'https://images.unsplash.com/photo-1490818387583-1baba5e638af?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       meetingUrl: 'https://meet.example.com/nutrition'
     },
@@ -182,7 +182,7 @@ export const generateMockServices = (): Service[] => {
       isOnline: false,
       location: 'City Park, Chicago',
       capacity: 10,
-      serviceType: 'group' as ServiceType,
+      serviceType: 'group',
       coverImage: 'https://images.unsplash.com/photo-1571388208497-71bedc66e932?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       meetingUrl: null
     },
@@ -199,7 +199,7 @@ export const generateMockServices = (): Service[] => {
       isOnline: true,
       location: null,
       capacity: 30,
-      serviceType: 'group' as ServiceType,
+      serviceType: 'group',
       coverImage: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       meetingUrl: 'https://zoom.example.com/yoga-flow'
     }
@@ -395,7 +395,9 @@ export const generateMockPosts = (): Post[] => {
       content: 'Just wrapped up an amazing yoga session with 30 participants! Remember that consistency is key in your practice. Even 10 minutes a day can make a huge difference in your flexibility and mindfulness. #YogaEveryday',
       image: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // 1 day ago
+      likes: 156,
       likesCount: 156,
+      comments: 12,
       commentsCount: 12
     },
     {
@@ -407,7 +409,9 @@ export const generateMockPosts = (): Post[] => {
       content: 'Tip of the day: Progressive overload is essential for building strength. Gradually increase weight, frequency, or reps to keep challenging your muscles and avoid plateaus. What\'s your favorite strength training exercise?',
       image: null,
       createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      likes: 92,
       likesCount: 92,
+      comments: 24,
       commentsCount: 24
     },
     {
@@ -419,7 +423,9 @@ export const generateMockPosts = (): Post[] => {
       content: 'Exciting news! Our new line of sustainable workout gear made from recycled materials is dropping next month. Early access will be available for our community members. Stay tuned! #SustainableFitness',
       image: 'https://images.unsplash.com/photo-1556718232-31d96801b6f6?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000), // 3 days ago
+      likes: 210,
       likesCount: 210,
+      comments: 45,
       commentsCount: 45
     },
     {
@@ -431,7 +437,9 @@ export const generateMockPosts = (): Post[] => {
       content: 'Hit a new personal record today - 5K in 23 minutes! Been following Coach Michael\'s training plan for 6 weeks and seeing great results. Never thought I\'d enjoy running this much!',
       image: 'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4 days ago
+      likes: 34,
       likesCount: 34,
+      comments: 8,
       commentsCount: 8
     },
     {
@@ -443,7 +451,9 @@ export const generateMockPosts = (): Post[] => {
       content: 'Nutrition myth busting: Carbs are NOT the enemy! They\'re essential for energy, especially if you\'re active. Focus on whole grains, fruits, and vegetables for quality carbohydrates that fuel your workouts and recovery.',
       image: 'https://images.unsplash.com/photo-1491528323818-fdd1faba62cc?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+      likes: 187,
       likesCount: 187,
+      comments: 32,
       commentsCount: 32
     },
     {
@@ -455,7 +465,9 @@ export const generateMockPosts = (): Post[] => {
       content: 'Morning routine check! ☀️ 5am wake-up, meditation, 5-mile run, protein smoothie, and now ready to tackle the day. What does your morning routine look like?',
       image: 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=60',
       createdAt: new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000), // 1.5 days ago
+      likes: 342,
       likesCount: 342,
+      comments: 76,
       commentsCount: 76
     }
   ];
@@ -472,7 +484,7 @@ export const generateMockSessions = (): Session[] => {
       title: 'Strength Training Fundamentals',
       description: 'Learn proper techniques for basic strength exercises including squats, deadlifts, and bench press.',
       date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days in future
-      startTime: '10:00 AM',
+      startTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 10 * 60 * 60 * 1000), // 10 AM
       endTime: '11:00 AM',
       location: 'Fitness Center, Chicago',
       isOnline: false,
@@ -481,7 +493,10 @@ export const generateMockSessions = (): Session[] => {
       enrolled: 0,
       price: 50,
       isAvailable: true,
-      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+      isActive: true,
+      createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+      sessionType: 'one_on_one',
+      duration: '1 hour'
     },
     {
       id: 'mock-session-2',
@@ -491,7 +506,7 @@ export const generateMockSessions = (): Session[] => {
       title: 'Personalized Nutrition Planning',
       description: 'One-on-one consultation to create a nutrition plan tailored to your specific goals and dietary requirements.',
       date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days in future
-      startTime: '2:00 PM',
+      startTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 14 * 60 * 60 * 1000), // 2 PM
       endTime: '2:45 PM',
       location: null,
       isOnline: true,
@@ -500,7 +515,10 @@ export const generateMockSessions = (): Session[] => {
       enrolled: 1,
       price: 75,
       isAvailable: false,
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      isActive: true,
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      sessionType: 'one_on_one',
+      duration: '45 minutes'
     },
     {
       id: 'mock-session-3',
@@ -510,7 +528,7 @@ export const generateMockSessions = (): Session[] => {
       title: 'Group HIIT Challenge',
       description: 'High-intensity interval training session designed to burn calories and improve cardiovascular fitness.',
       date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // 1 day in future
-      startTime: '5:30 PM',
+      startTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000 + 17.5 * 60 * 60 * 1000), // 5:30 PM
       endTime: '6:00 PM',
       location: 'City Park, Chicago',
       isOnline: false,
@@ -519,7 +537,10 @@ export const generateMockSessions = (): Session[] => {
       enrolled: 5,
       price: 25,
       isAvailable: true,
-      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+      isActive: true,
+      createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      sessionType: 'group',
+      duration: '30 minutes'
     },
     {
       id: 'mock-session-4',
@@ -529,7 +550,7 @@ export const generateMockSessions = (): Session[] => {
       title: 'Vinyasa Flow Yoga',
       description: 'Dynamic yoga practice connecting breath with movement for improved strength and flexibility.',
       date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000), // 4 days in future
-      startTime: '8:00 AM',
+      startTime: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000), // 8 AM
       endTime: '9:00 AM',
       location: null,
       isOnline: true,
@@ -538,7 +559,10 @@ export const generateMockSessions = (): Session[] => {
       enrolled: 12,
       price: 15,
       isAvailable: true,
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+      isActive: true,
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      sessionType: 'group',
+      duration: '1 hour'
     }
   ];
 };
@@ -552,7 +576,7 @@ export const generateMockSessionEnrollments = (): SessionEnrollment[] => {
       userId: 'mock-user-1',
       userName: 'Alex Johnson',
       userEmail: 'alex@example.com',
-      status: 'confirmed',
+      status: 'approved',
       paymentStatus: 'paid',
       amount: 75,
       createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
@@ -563,7 +587,7 @@ export const generateMockSessionEnrollments = (): SessionEnrollment[] => {
       userId: 'mock-user-1',
       userName: 'Alex Johnson',
       userEmail: 'alex@example.com',
-      status: 'confirmed',
+      status: 'approved',
       paymentStatus: 'paid',
       amount: 25,
       createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
@@ -574,7 +598,7 @@ export const generateMockSessionEnrollments = (): SessionEnrollment[] => {
       userId: 'mock-user-2',
       userName: 'Sam Rodriguez',
       userEmail: 'sam@example.com',
-      status: 'confirmed',
+      status: 'approved',
       paymentStatus: 'paid',
       amount: 25,
       createdAt: new Date(Date.now() - 2.5 * 24 * 60 * 60 * 1000)
