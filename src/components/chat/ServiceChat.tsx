@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, MessageSquare, RefreshCw } from 'lucide-react';
-import { Service, Booking, Message, UserRole } from '@/types';
+import { Service, Booking, Message } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 interface ServiceChatProps {
@@ -80,7 +80,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
             userProfileImage: newMessage.user_profile_image,
             content: newMessage.content,
             createdAt: new Date(newMessage.created_at),
-            userRole: (newMessage.user_role as UserRole) || 'user' // Cast to UserRole type
+            userRole: newMessage.user_role || 'user' // Use provided role or default to 'user'
           };
           
           setMessages((prevMessages) => [...prevMessages, messageWithRole]);

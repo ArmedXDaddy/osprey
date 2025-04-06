@@ -1,30 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Users, Lock, Globe, DollarSign, Calendar, User, Settings, Trash } from 'lucide-react';
-import { useAuth } from '@/context/AuthContext';
+
+import React, { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import { useToast } from '@/hooks/use-toast';
-import { Group, GroupPrivacy, UserRole } from '@/types';
+import { useAuth } from '@/context/AuthContext';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Users, Globe, Lock, DollarSign, Calendar, Info, MessageSquare } from 'lucide-react';
+import { format } from 'date-fns';
 import GroupChatSection from '@/components/group/GroupChatSection';
 import GroupMembersSection from '@/components/group/GroupMembersSection';
-import GroupRequestsSection from '@/components/group/GroupRequestsSection';
-import GroupImageGallery from '@/components/group/GroupImageGallery';
-import EditGroupForm from '@/components/group/EditGroupForm';
 import { supabase } from '@/integrations/supabase/client';
-
-const isPrivacyType = (privacy: GroupPrivacy | string, type: string): boolean => {
-  if (typeof privacy === 'string') {
-    return privacy === type;
-  } else if (privacy && typeof privacy === 'object') {
-    return privacy[type as keyof GroupPrivacy];
-  }
-  return false;
-};
+import { toast } from '@/hooks/use-toast';
+import { Group } from '@/types';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,15 +24,16 @@ const GroupDetail = () => {
   const [group, setGroup] = useState<Group | null>(null);
   const [isUserMember, setIsUserMember] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const navigate = useNavigate();
-
+  
   useEffect(() => {
     const fetchGroupDetails = async () => {
+      // First try to find group in our state
       const foundGroup = groups.find(g => g.id === id);
       
       if (foundGroup) {
         setGroup(foundGroup);
       } else {
+        // If not in state, fetch from API
         try {
           const { data, error } = await supabase
             .from('groups')
@@ -120,6 +112,7 @@ const GroupDetail = () => {
     
     try {
       if (group.privacy === 'private') {
+        // Send join request
         const { error } = await supabase
           .from('join_requests')
           .insert({
@@ -137,11 +130,13 @@ const GroupDetail = () => {
           description: "Your request to join this group has been sent",
         });
       } else if (group.privacy === 'paid') {
+        // Would handle payment here in a real app
         toast({
           title: "Payment required",
           description: `This is a paid group ($${group.price}/month)`,
         });
       } else {
+        // Direct join for public groups
         const { error } = await supabase
           .from('group_members')
           .insert({
@@ -151,6 +146,7 @@ const GroupDetail = () => {
           
         if (error) throw error;
         
+        // Update the members count
         const { error: updateError } = await supabase
           .from('groups')
           .update({ members: (group.members || 0) + 1 })
@@ -224,6 +220,7 @@ const GroupDetail = () => {
       </div>
       
       <div className="relative">
+        {/* Cover image */}
         <div className="h-48 md:h-64 rounded-t-lg overflow-hidden">
           <img 
             src={group.image || 'https://images.unsplash.com/photo-1596920566403-2072ed71e29b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80'} 
@@ -232,6 +229,7 @@ const GroupDetail = () => {
           />
         </div>
         
+        {/* Group info */}
         <div className="bg-white shadow-md rounded-b-lg p-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
@@ -288,6 +286,7 @@ const GroupDetail = () => {
         </div>
       </div>
       
+      {/* Group description and content */}
       <Tabs defaultValue="chat" className="w-full">
         <TabsList>
           <TabsTrigger value="chat" className="flex items-center gap-1">
@@ -301,14 +300,6 @@ const GroupDetail = () => {
           <TabsTrigger value="members" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
             Members
-          </TabsTrigger>
-          <TabsTrigger value="requests" className="flex items-center gap-1">
-            <User className="h-4 w-4" />
-            Requests
-          </TabsTrigger>
-          <TabsTrigger value="gallery" className="flex items-center gap-1">
-            <Settings className="h-4 w-4" />
-            Gallery
           </TabsTrigger>
         </TabsList>
         
@@ -376,28 +367,6 @@ const GroupDetail = () => {
           <Card>
             <CardContent className="py-4">
               <GroupMembersSection 
-                groupId={group.id} 
-                creatorId={group.creatorId} 
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="requests" className="mt-4">
-          <Card>
-            <CardContent className="py-4">
-              <GroupRequestsSection 
-                groupId={group.id} 
-                creatorId={group.creatorId} 
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="gallery" className="mt-4">
-          <Card>
-            <CardContent className="py-4">
-              <GroupImageGallery 
                 groupId={group.id} 
                 creatorId={group.creatorId} 
               />

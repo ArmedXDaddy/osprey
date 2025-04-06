@@ -1,25 +1,28 @@
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { UserProfile, UserRole } from '@/types';
-import { AuthError, Session } from '@supabase/supabase-js';
+import { User, UserCredentials } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
-type AuthCredentials = {
+interface UserProfile {
+  id: string;
   email: string;
-  password: string;
-  confirmPassword?: string;
-  name?: string;
-  role?: UserRole;
-};
+  name: string;
+  role: string;
+  profileImage: string;
+  bio: string;
+  location: string;
+  socialLinks: Record<string, string>;
+  createdAt: Date;
+}
 
 interface AuthContextType {
   currentUser: UserProfile | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (credentials: AuthCredentials) => Promise<{ success: boolean; error: string | null }>;
-  register: (credentials: AuthCredentials) => Promise<{ success: boolean; error: string | null }>;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, name: string, role: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  updateProfile: (profile: Partial<UserProfile>) => Promise<{ success: boolean; error: string | null }>;
-  deleteAccount: () => Promise<{ success: boolean; error: string | null }>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,14 +35,36 @@ export const useAuth = () => {
   return context;
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const setUserFromProfile = (profile: any): UserProfile => {
+    console.log("Setting current user with data:", {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      profileImage: profile.profile_image,
+      bio: profile.bio,
+      location: profile.location,
+      socialLinks: profile.social_links,
+      createdAt: new Date(profile.created_at)
+    });
+    
+    return {
+      id: profile.id,
+      email: profile.email,
+      name: profile.name,
+      role: profile.role,
+      profileImage: profile.profile_image,
+      bio: profile.bio,
+      location: profile.location,
+      socialLinks: profile.social_links || {},
+      createdAt: new Date(profile.created_at)
+    };
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -102,7 +127,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
             setCurrentUser(userData);
             setIsAuthenticated(true);
-            setIsLoading(false);
+            setLoading(false);
           })
           .catch((error) => {
             console.error("Error fetching profile data on init:", error);
@@ -122,10 +147,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             
             setCurrentUser(userData);
             setIsAuthenticated(false);
-            setIsLoading(false);
+            setLoading(false);
           });
       } else {
-        setIsLoading(false);
+        setLoading(false);
       }
     });
 
@@ -134,72 +159,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const login = async (credentials: AuthCredentials) => {
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setLoading(true);
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.email,
-        password: credentials.password,
+        email,
+        password
       });
-
+      
       if (error) throw error;
-
-      return { success: true, error: null };
-    } catch (error: any) {
-      console.error("Login error:", error);
-      return { success: false, error: error.message || "Failed to login" };
+      return !!data.session;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const register = async (credentials: AuthCredentials) => {
-    if (credentials.password !== credentials.confirmPassword) {
-      return { success: false, error: "Passwords do not match" };
-    }
-
+  const register = async (email: string, password: string, name: string, role: string): Promise<boolean> => {
+    setLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
-        email: credentials.email,
-        password: credentials.password,
+        email,
+        password,
         options: {
           data: {
-            name: credentials.name,
-            role: credentials.role || 'user'
+            name,
+            role
           }
         }
       });
-
+      
       if (error) throw error;
-
-      return { success: true, error: null };
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      return { success: false, error: error.message || "Failed to register" };
+      
+      return !!data.session;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setCurrentUser(null);
-      setIsAuthenticated(false);
-    } catch (error: any) {
-      console.error("Logout error:", error);
-      return Promise.reject(error);
-    }
-  };
-
-  const updateProfile = async (profile: Partial<UserProfile>): Promise<{ success: boolean; error: string | null }> => {
+  const updateProfile = async (updates: Partial<UserProfile>): Promise<void> => {
     if (!currentUser) {
       throw new Error("No user is currently logged in");
     }
 
     try {
+      setLoading(true);
+
       const dbUpdates: any = {};
       
-      if (profile.name) dbUpdates.name = profile.name;
-      if (profile.bio) dbUpdates.bio = profile.bio;
-      if (profile.location) dbUpdates.location = profile.location;
-      if (profile.profileImage) dbUpdates.profile_image = profile.profileImage;
-      if (profile.socialLinks) dbUpdates.social_links = profile.socialLinks;
+      if (updates.name) dbUpdates.name = updates.name;
+      if (updates.bio) dbUpdates.bio = updates.bio;
+      if (updates.location) dbUpdates.location = updates.location;
+      if (updates.profileImage) dbUpdates.profile_image = updates.profileImage;
+      if (updates.socialLinks) dbUpdates.social_links = updates.socialLinks;
 
       const { error } = await supabase
         .from('profiles')
@@ -208,40 +225,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) throw error;
 
-      setCurrentUser(prev => prev ? { ...prev, ...profile } : null);
+      setCurrentUser(prev => prev ? { ...prev, ...updates } : null);
       
-      return { success: true, error: null };
+      toast.success("Profile updated successfully");
     } catch (error: any) {
       console.error("Error updating profile:", error.message);
-      return { success: false, error: "Failed to update profile" };
+      toast.error("Failed to update profile");
+      throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteAccount = async (): Promise<{ success: boolean; error: string | null }> => {
+  const logout = async (): Promise<void> => {
     try {
-      await supabase.auth.deleteUser();
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       setCurrentUser(null);
       setIsAuthenticated(false);
-      return { success: true, error: null };
+      
+      toast.success("Logged out successfully");
     } catch (error: any) {
-      console.error("Error deleting account:", error);
-      return { success: false, error: "Failed to delete account" };
+      console.error("Error logging out:", error.message);
+      toast.error("Failed to log out");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const contextValue: AuthContextType = {
+  const value = {
     currentUser,
     isAuthenticated,
-    isLoading,
+    loading,
     login,
     register,
     logout,
-    updateProfile,
-    deleteAccount,
+    updateProfile
   };
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
