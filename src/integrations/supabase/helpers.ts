@@ -995,3 +995,40 @@ export const fetchWorkshops = async (): Promise<Workshop[]> => {
     return [];
   }
 };
+
+export const createProduct = async (productData: any): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{
+        title: productData.title,
+        description: productData.description,
+        long_description: productData.long_description,
+        company_id: productData.company_id,
+        company_name: productData.company_name,
+        company_logo: productData.company_logo,
+        price: productData.price,
+        category: productData.category,
+        tags: productData.tags,
+        image: productData.image,
+        website_url: productData.website_url,
+        demo_url: productData.demo_url,
+        release_date: productData.release_date,
+        features: productData.features,
+        use_cases: productData.use_cases,
+        pricing_tiers: productData.pricing_tiers
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating product:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in createProduct:', error);
+    throw error;
+  }
+};

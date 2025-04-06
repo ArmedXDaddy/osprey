@@ -1,4 +1,3 @@
-
 // Export any necessary types from the existing types file
 export * from './badge.d';
 
@@ -216,7 +215,7 @@ export interface JoinRequest {
 }
 
 // Product structure for company products
-export interface Product {
+export type Product = {
   id: string;
   title: string;
   description: string;
@@ -228,14 +227,15 @@ export interface Product {
   tags?: string[];
   image?: string;
   features?: string[];
+  useCases?: string[];
   demoUrl?: string;
   websiteUrl?: string;
   releaseDate: Date;
   createdAt: Date;
-}
+};
 
 // Workshop structure for company workshops
-export interface Workshop {
+export type Workshop = {
   id: string;
   title: string;
   description: string;
@@ -258,12 +258,12 @@ export interface Workshop {
   isOnline: boolean;
   location?: string;
   meetingUrl?: string;
-  instructors?: any[];
+  instructors?: { name: string; bio: string; image?: string; }[];
   createdAt: Date;
-}
+};
 
 // Job posting structure for company job postings
-export interface JobPosting {
+export type JobPosting = {
   id: string;
   title: string;
   description: string;
@@ -271,16 +271,16 @@ export interface JobPosting {
   companyName: string;
   companyLogo?: string;
   companyDescription?: string;
-  jobType: string;
   location?: string;
+  jobType: string;
   salaryRange?: string;
   skills?: string[];
   requirements?: string[];
   responsibilities?: string[];
   benefits?: string[];
-  applicationDeadline?: Date;
-  applicationEmail?: string;
   applicationUrl?: string;
+  applicationEmail?: string;
+  applicationDeadline?: Date;
   createdAt: Date;
   updatedAt: Date;
-}
+};
