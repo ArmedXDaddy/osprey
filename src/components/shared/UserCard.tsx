@@ -19,7 +19,7 @@ interface UserCardProps {
   };
 }
 
-export const UserCard: React.FC<UserCardProps> = ({ user }) => {
+const UserCard: React.FC<UserCardProps> = ({ user }) => {
   const navigate = useNavigate();
   
   const roleColors: Record<string, string> = {
@@ -80,3 +80,5 @@ export const UserCard: React.FC<UserCardProps> = ({ user }) => {
     </Card>
   );
 };
+
+export default UserCard;

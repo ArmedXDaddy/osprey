@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -5,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Search, Filter, Users, Calendar, User, RefreshCw, Package2, GraduationCap } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { UserCard } from '@/components/shared/UserCard';
+import UserCard from '@/components/shared/UserCard';
 import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import { ProductCard } from '@/components/shared/ProductCard';
