@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -48,25 +47,48 @@ const EventDetail = () => {
       const isUserAttending = event.attendees.includes(currentUser.id);
       setIsAttending(isUserAttending);
       
-      // Use only real attendee data - no mock data
-      const realAttendeeDetails: AttendeeDetail[] = [];
-      const realRegistrations: EventRegistration[] = [];
-      
-      // If we have attendee details and registrations in the event, use those
-      if (event.attendeeDetails && event.attendeeDetails.length > 0) {
-        event.attendeeDetails.forEach(attendee => {
-          realAttendeeDetails.push(attendee);
+      // In a real app, we would fetch real attendee data from the backend
+      // For now, we'll mock this data
+      const mockFetchAttendeeDetails = () => {
+        return event.attendees.map((attendeeId, index) => {
+          // If we have this attendee's details in the event already, use those
+          if (event.attendeeDetails && event.attendeeDetails.find(a => a.id === attendeeId)) {
+            return event.attendeeDetails.find(a => a.id === attendeeId)!;
+          }
+          
+          // Otherwise create a placeholder
+          return {
+            id: attendeeId,
+            name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
+            profileImage: attendeeId === currentUser.id 
+              ? currentUser.profileImage 
+              : undefined
+          };
         });
-      }
+      };
       
-      if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
-        event.attendeeRegistrations.forEach(registration => {
-          realRegistrations.push(registration);
-        });
-      }
+      // Mock registrations data
+      const mockFetchRegistrations = () => {
+        // If we have registration data in the event, use that
+        if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
+          return event.attendeeRegistrations;
+        }
+        
+        // Otherwise generate mock data for existing attendees
+        return event.attendees.map((attendeeId, index) => ({
+          userId: attendeeId,
+          name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
+          email: attendeeId === currentUser.id ? currentUser.email : `attendee${index + 1}@example.com`,
+          phone: index % 2 === 0 ? "+1234567890" : undefined,
+          age: Math.floor(Math.random() * 30) + 18,
+          gender: index % 3 === 0 ? "male" : index % 3 === 1 ? "female" : "prefer-not-to-say",
+          registeredAt: new Date(Date.now() - Math.random() * 1000000000),
+          profileImage: attendeeId === currentUser.id ? currentUser.profileImage : undefined,
+        }));
+      };
       
-      setAttendeeDetails(realAttendeeDetails);
-      setRegistrations(realRegistrations);
+      setAttendeeDetails(mockFetchAttendeeDetails());
+      setRegistrations(mockFetchRegistrations());
     }
   }, [currentUser, event]);
   
@@ -216,8 +238,7 @@ const EventDetail = () => {
     });
   };
   
-  // Use actual attendee count from the available data, not from event.attendees
-  const attendeesCount = attendeeDetails.length;
+  const attendeesCount = Array.isArray(event.attendees) ? event.attendees.length : 0;
   
   return (
     <div className="space-y-6">
