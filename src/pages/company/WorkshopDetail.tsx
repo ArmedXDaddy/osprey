@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -68,10 +67,9 @@ const WorkshopDetail = () => {
     const loadRegistrations = async () => {
       try {
         const { data, error } = await supabase
-          .from('workshop_registrations')
-          .select('*')
-          .eq('workshop_id', id)
-          .order('created_at', { ascending: false });
+          .rpc('get_workshop_registrations', {
+            p_workshop_id: id
+          });
           
         if (error) throw error;
         

@@ -25,10 +25,10 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
       const checkRegistration = async () => {
         // Check if user is already registered
         const { data: registration, error: registrationError } = await supabase
-          .from('workshop_registrations')
-          .select('*')
-          .eq('workshop_id', workshop.id)
-          .eq('user_id', currentUser.id)
+          .rpc('check_workshop_registration', {
+            p_workshop_id: workshop.id,
+            p_user_id: currentUser.id
+          })
           .single();
 
         if (registrationError && registrationError.code !== 'PGRST116') {
@@ -39,9 +39,9 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
 
         // Get count of registrations
         const { count, error: countError } = await supabase
-          .from('workshop_registrations')
-          .select('*', { count: 'exact', head: true })
-          .eq('workshop_id', workshop.id);
+          .rpc('count_workshop_registrations', {
+            p_workshop_id: workshop.id
+          });
 
         if (countError) {
           console.error('Error counting registrations:', countError);
@@ -84,10 +84,10 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
       if (isRegistered) {
         // Unregister
         const { error } = await supabase
-          .from('workshop_registrations')
-          .delete()
-          .eq('workshop_id', workshop.id)
-          .eq('user_id', currentUser.id);
+          .rpc('delete_workshop_registration', {
+            p_workshop_id: workshop.id,
+            p_user_id: currentUser.id
+          });
 
         if (error) throw error;
 
@@ -102,14 +102,12 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
       } else {
         // Register
         const { error } = await supabase
-          .from('workshop_registrations')
-          .insert({
-            workshop_id: workshop.id,
-            user_id: currentUser.id,
-            user_name: currentUser.name,
-            user_email: currentUser.email,
-            user_profile_image: currentUser.profileImage,
-            status: 'confirmed'
+          .rpc('create_workshop_registration', {
+            p_workshop_id: workshop.id,
+            p_user_id: currentUser.id,
+            p_user_name: currentUser.name,
+            p_user_email: currentUser.email,
+            p_user_profile_image: currentUser.profileImage || null
           });
 
         if (error) throw error;

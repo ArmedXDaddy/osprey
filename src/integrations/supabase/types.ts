@@ -682,6 +682,47 @@ export type Database = {
         }
         Relationships: []
       }
+      workshop_registrations: {
+        Row: {
+          created_at: string
+          id: string
+          status: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_profile_image: string | null
+          workshop_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          status?: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_profile_image?: string | null
+          workshop_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          status?: string
+          user_email?: string
+          user_id?: string
+          user_name?: string
+          user_profile_image?: string | null
+          workshop_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_registrations_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workshops: {
         Row: {
           capacity: number | null
