@@ -37,7 +37,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
   
   // Generate fallback avatar URL based on user name
   const getFallbackAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=256`;
   };
   
   // Get user initials for the fallback
@@ -50,6 +50,11 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
       .substring(0, 2);
   };
   
+  // Debug profile image
+  console.log('UserCard - user:', user);
+  console.log('UserCard - userImage:', userImage);
+  console.log('UserCard - fallback avatar URL:', getFallbackAvatarUrl(user.name));
+  
   return (
     <Card className="overflow-hidden transition-all hover:shadow-md">
       <div className="aspect-[3/1] bg-gradient-to-r from-indigo-500 to-purple-600" />
@@ -59,6 +64,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
             src={userImage} 
             alt={user.name} 
             fallbackSrc={getFallbackAvatarUrl(user.name)}
+            onFallbackLoad={() => console.log('Fallback image loaded for', user.name)}
           />
           <AvatarFallback>
             {getUserInitials(user.name)}
