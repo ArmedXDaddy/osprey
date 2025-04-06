@@ -33,7 +33,10 @@ interface EventRegistrationFormProps {
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
-  age: z.string().optional().transform(val => val ? parseInt(val, 10) : undefined),
+  age: z.union([
+    z.string().optional().transform(val => val ? parseInt(val, 10) : undefined),
+    z.number().optional()
+  ]),
   gender: z.string().optional(),
   phone: z.string().optional(),
   emergencyContact: z.string().optional(),
@@ -67,7 +70,7 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
       userId: currentUser.id,
       name: values.name,
       email: values.email,
-      age: values.age,  // The transformation from string to number is now handled by Zod
+      age: values.age,  // Now safely handles both string and number inputs
       gender: values.gender,
       phone: values.phone,
       emergencyContact: values.emergencyContact,
