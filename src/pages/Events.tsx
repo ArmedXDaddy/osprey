@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, List, Search, Filter } from 'lucide-react';
+import { CalendarDays, List, Search, Filter, CheckSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Events = () => {
-  const { events, loading } = useData();
+  const { events, completedEvents, loading } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
@@ -39,9 +40,31 @@ const Events = () => {
     event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  
+  // Filter completed events based on search term
+  const filteredCompletedEvents = completedEvents ? completedEvents.filter(event =>
+    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    event.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
+  ) : [];
 
   // Sort events based on selected option
   const sortedEvents = [...filteredEvents].sort((a, b) => {
+    switch (sortBy) {
+      case 'newest':
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      case 'popular':
+        return (Array.isArray(b.attendees) ? b.attendees.length : 0) - (Array.isArray(a.attendees) ? a.attendees.length : 0);
+      case 'alphabetical':
+        return a.title.localeCompare(b.title);
+      default:
+        return 0;
+    }
+  });
+  
+  // Sort completed events based on selected option
+  const sortedCompletedEvents = [...filteredCompletedEvents].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -93,6 +116,7 @@ const Events = () => {
           <TabsTrigger value="all">All Events</TabsTrigger>
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="past">Past</TabsTrigger>
+          <TabsTrigger value="concluded">Concluded</TabsTrigger>
           {currentUser && <TabsTrigger value="my">My Events</TabsTrigger>}
         </TabsList>
         
@@ -178,6 +202,28 @@ const Events = () => {
                 <CalendarDays className="h-12 w-12 mx-auto text-gray-300" />
                 <h3 className="mt-4 text-lg font-medium">No past events</h3>
                 <p className="text-gray-500">Past events will appear here</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="concluded" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sortedCompletedEvents.length > 0 ? (
+              sortedCompletedEvents.map((event) => (
+                <div key={event.id} className="relative">
+                  <EventCard event={event} />
+                  <div className="absolute top-2 right-2 bg-green-500 text-white px-2 py-1 rounded-md text-xs font-medium flex items-center">
+                    <CheckSquare className="h-3 w-3 mr-1" />
+                    Concluded
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center py-12">
+                <CheckSquare className="h-12 w-12 mx-auto text-gray-300" />
+                <h3 className="mt-4 text-lg font-medium">No concluded events</h3>
+                <p className="text-gray-500">Completed events will appear here</p>
               </div>
             )}
           </div>

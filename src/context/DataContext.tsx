@@ -95,7 +95,7 @@ interface DataProviderProps {
   children: ReactNode;
 }
 
-export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
+export function DataProvider({ children }: { children: React.ReactNode }) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -108,6 +108,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [error, setError] = useState<Error | null>(null);
   const [mockServices, setMockServices] = useState<Service[]>([]);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
+  const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
@@ -851,7 +852,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  const deleteEvent = async (eventId: string, reason: 'cancelled' | 'completed' = 'cancelled'): Promise<void> => {
+  const deleteEvent = async (eventId: string, reason: 'cancelled' | 'completed' = 'cancelled') => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
@@ -865,6 +866,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       // Remove the event from the state
       setEvents(prev => prev.filter(e => e.id !== eventId));
+      
+      // If the event was marked as completed, add it to completedEvents
+      if (reason === 'completed') {
+        const eventToComplete = events.find(e => e.id === eventId);
+        if (eventToComplete) {
+          setCompletedEvents(prev => [...prev, eventToComplete]);
+        }
+      }
       
       // Here you would typically also delete from the database
       // For now we just log the reason
@@ -1106,6 +1115,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       loading,
       error,
       postComments,
+      completedEvents,
+      deleteEvent,
       createPost: async () => { throw new Error('Not implemented'); },
       likePost: async () => { throw new Error('Not implemented'); },
       unlikePost: async () => { throw new Error('Not implemented'); },
@@ -1159,4 +1170,4 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       {children}
     </DataContext.Provider>
   );
-};
+}
