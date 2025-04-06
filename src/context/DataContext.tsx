@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment 
+  Booking, ServiceType, Comment, GroupPrivacy
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -975,7 +975,67 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const createGroup = async (groupData: any): Promise<Group> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to create a group');
+    
+    try {
+      const newGroupData = {
+        name: groupData.name,
+        description: groupData.description,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        creator_role: currentUser.role as string,
+        image: groupData.image || null,
+        privacy: groupData.privacy as GroupPrivacy,
+        price: groupData.privacy === 'paid' ? groupData.price : null,
+        members: 1,
+        member_limit: groupData.memberLimit || 100,
+        rules: groupData.rules || [],
+        pending_requests: 0
+      };
+      
+      const { data, error } = await supabase
+        .from('groups')
+        .insert(newGroupData)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      const newGroup: Group = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role as UserRole,
+        members: data.members,
+        memberIds: [currentUser.id],
+        image: data.image,
+        privacy: data.privacy as GroupPrivacy,
+        price: data.price,
+        createdAt: new Date(data.created_at),
+        pendingRequests: data.pending_requests || 0,
+        rules: data.rules || [],
+        memberLimit: data.member_limit
+      };
+      
+      setGroups(prev => [newGroup, ...prev]);
+      
+      toast({
+        title: "Group created",
+        description: "Your group has been created successfully",
+      });
+      
+      return newGroup;
+    } catch (error: any) {
+      console.error("Error creating group:", error);
+      toast({
+        title: "Creation failed",
+        description: error.message || "There was a problem creating your group",
+        variant: "destructive",
+      });
+      throw error;
+    }
   };
   
   const joinGroup = async (groupId: string): Promise<void> => {
