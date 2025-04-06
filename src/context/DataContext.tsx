@@ -17,6 +17,11 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
+interface GroupPrivacy {
+  private: boolean;
+  public: boolean;
+}
+
 interface DataContextType {
   posts: Post[];
   events: Event[];
@@ -469,6 +474,45 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a message');
+    
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          group_id: messageData.groupId,
+          content: messageData.content,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newMessage: Message = {
+        id: data.id,
+        groupId: data.group_id,
+        content: data.content,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role as UserRole,
+        userProfileImage: data.user_profile_image,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setMessages(prev => [...prev, newMessage]);
+      
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Message failed",
+        description: "There was a problem sending your message",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   const getServiceById = async (serviceId: string): Promise<Service | null> => {
@@ -990,7 +1034,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to create a group');
     
     try {
-      const { name, description, image, privacy, price, memberLimit, rules, creatorId, creatorName, creatorRole } = groupData;
+      const { name, description, image, privacy, price, memberLimit, rules } = groupData;
       
       const { data, error } = await supabase
         .from('groups')
@@ -1004,7 +1048,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           rules,
           creator_id: currentUser.id,
           creator_name: currentUser.name,
-          creator_role: currentUser.role,
+          creator_role: currentUser.role as string,
           members: 1,
           pending_requests: 0
         })
@@ -1021,11 +1065,11 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: data.description,
         creatorId: data.creator_id,
         creatorName: data.creator_name,
-        creatorRole: data.creator_role,
+        creatorRole: data.creator_role as UserRole,
         image: data.image,
         members: data.members,
         memberLimit: data.member_limit,
-        privacy: data.privacy,
+        privacy: data.privacy as GroupPrivacy,
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
