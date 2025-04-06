@@ -64,11 +64,18 @@ export interface Event {
   location: string;
   date: Date;
   image?: string;
-  attendees: string[]; // Changed from number to string[] to support includes()
+  attendees: string[]; // Array of user IDs
+  attendeeDetails?: AttendeeDetail[]; // Added attendee details property
   privacy: EventPrivacy;
   price?: number;
   pendingRequests?: number;
   createdAt: Date;
+}
+
+export interface AttendeeDetail {
+  id: string;
+  name: string;
+  profileImage?: string;
 }
 
 export interface Group {

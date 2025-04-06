@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import EventAnnouncements from '@/components/events/EventAnnouncements';
+import EventAttendees from '@/components/events/EventAttendees';
+import { AttendeeDetail } from '@/types';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +19,7 @@ const EventDetail = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
+  const [attendeeDetails, setAttendeeDetails] = useState<AttendeeDetail[]>([]);
   
   const event = events.find(e => e.id === id);
   
@@ -33,10 +36,22 @@ const EventDetail = () => {
     );
   }
   
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentUser && event.attendees) {
       const isUserAttending = event.attendees.includes(currentUser.id);
       setIsAttending(isUserAttending);
+      
+      const mockFetchAttendeeDetails = () => {
+        return event.attendees.map((attendeeId, index) => ({
+          id: attendeeId,
+          name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
+          profileImage: attendeeId === currentUser.id 
+            ? currentUser.profileImage 
+            : undefined
+        }));
+      };
+      
+      setAttendeeDetails(mockFetchAttendeeDetails());
     }
   }, [currentUser, event]);
   
@@ -56,6 +71,9 @@ const EventDetail = () => {
       if (isAttending) {
         await leaveEvent(event.id);
         setIsAttending(false);
+        setAttendeeDetails(prevDetails => 
+          prevDetails.filter(attendee => attendee.id !== currentUser.id)
+        );
         toast({
           title: "You're no longer attending",
           description: "You've been removed from the attendee list."
@@ -63,6 +81,16 @@ const EventDetail = () => {
       } else {
         await joinEvent(event.id);
         setIsAttending(true);
+        if (currentUser) {
+          setAttendeeDetails(prevDetails => [
+            ...prevDetails, 
+            {
+              id: currentUser.id,
+              name: currentUser.name,
+              profileImage: currentUser.profileImage
+            }
+          ]);
+        }
         toast({
           title: "You're attending this event!",
           description: "You've been added to the attendee list."
@@ -158,7 +186,9 @@ const EventDetail = () => {
             <div className="flex items-center gap-2">
               <p className="text-sm md:text-base">By {event.creatorName}</p>
               <div className="w-1 h-1 rounded-full bg-white/80"></div>
-              <p className="text-sm md:text-base">{attendeesCount} attendees</p>
+              <p className="text-sm md:text-base">
+                {attendeesCount} {attendeesCount === 1 ? 'person' : 'people'} attending
+              </p>
             </div>
           </div>
         </div>
@@ -190,20 +220,13 @@ const EventDetail = () => {
           <Separator />
           
           <div>
-            <h2 className="text-xl font-semibold mb-3">Attendees</h2>
-            <div className="flex flex-wrap gap-2">
-              {Array.from({ length: Math.min(8, attendeesCount) }).map((_, i) => (
-                <Avatar key={i} className="h-10 w-10">
-                  <AvatarImage src={`https://i.pravatar.cc/150?img=${i + 10}`} />
-                  <AvatarFallback>U{i}</AvatarFallback>
-                </Avatar>
-              ))}
-              {attendeesCount > 8 && (
-                <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center text-sm">
-                  +{attendeesCount - 8}
-                </div>
-              )}
-            </div>
+            <h2 className="text-xl font-semibold mb-3">
+              Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
+            </h2>
+            <EventAttendees 
+              attendees={attendeeDetails} 
+              totalCount={attendeesCount} 
+            />
           </div>
         </div>
         
@@ -234,7 +257,9 @@ const EventDetail = () => {
               <Users className="h-5 w-5 text-gray-500 mt-0.5" />
               <div>
                 <p className="font-medium">Attendees</p>
-                <p className="text-gray-600">{attendeesCount} people attending</p>
+                <p className="text-gray-600">
+                  {attendeesCount} {attendeesCount === 1 ? 'person' : 'people'} attending
+                </p>
               </div>
             </div>
             
