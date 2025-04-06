@@ -30,6 +30,7 @@ interface DataContextType {
   loading: boolean;
   error: Error | null;
   postComments: Record<string, Comment[]>;
+  completedEvents: Event[]; // Adding the completedEvents property
   createPost: (content: string, imageFile?: File | null) => Promise<void>;
   likePost: (postId: string) => Promise<void>;
   unlikePost: (postId: string) => Promise<void>;
@@ -1116,7 +1117,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       error,
       postComments,
       completedEvents,
-      deleteEvent,
       createPost: async () => { throw new Error('Not implemented'); },
       likePost: async () => { throw new Error('Not implemented'); },
       unlikePost: async () => { throw new Error('Not implemented'); },

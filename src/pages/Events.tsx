@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
@@ -15,7 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Events = () => {
-  const { events, completedEvents, loading } = useData();
+  const { events, completedEvents = [], loading } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
@@ -42,12 +41,12 @@ const Events = () => {
   );
   
   // Filter completed events based on search term
-  const filteredCompletedEvents = completedEvents ? completedEvents.filter(event =>
+  const filteredCompletedEvents = completedEvents.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
-  ) : [];
+  );
 
   // Sort events based on selected option
   const sortedEvents = [...filteredEvents].sort((a, b) => {
