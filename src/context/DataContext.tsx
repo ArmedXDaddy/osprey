@@ -12,7 +12,10 @@ import {
   Sponsorship, 
   SponsorshipStatus,
   SponsorshipApplication, 
-  ApplicationStatus 
+  ApplicationStatus,
+  Booking,
+  Announcement,
+  Comment
 } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -36,10 +39,12 @@ export interface DataContextType {
   joinRequests: JoinRequest[];
   sponsorships: Sponsorship[];
   sponsorshipApplications: SponsorshipApplication[];
+  announcements: Announcement[];
+  completedEvents: Event[];
   
   // Service functions
   fetchServices: () => Promise<Service[]>;
-  getServiceById: (id: string) => Service | undefined;
+  getServiceById: (id: string) => Promise<Service | undefined>;
   createService: (service: Partial<Service>) => Promise<Service>;
   updateService: (id: string, service: Partial<Service>) => Promise<Service>;
   deleteService: (id: string) => Promise<void>;
@@ -47,7 +52,7 @@ export interface DataContextType {
   // Event functions
   createEvent: (event: Partial<Event>) => Promise<Event>;
   updateEvent: (id: string, updatedEvent: Partial<Event>) => Promise<Event>;
-  deleteEvent: (id: string) => Promise<void>;
+  deleteEvent: (id: string, reason?: string) => Promise<void>;
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
   
@@ -74,10 +79,11 @@ export interface DataContextType {
   addComment: (postId: string, content: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
   updateComment: (commentId: string, content: string) => Promise<void>;
+  postComments: Comment[];
   
   // Sponsorship functions
   fetchSponsorships: () => Promise<Sponsorship[]>;
-  getSponsorshipById: (id: string) => Sponsorship | undefined;
+  getSponsorshipById: (id: string) => Promise<Sponsorship | undefined>;
   createSponsorship: (sponsorship: Partial<Sponsorship>) => Promise<Sponsorship>;
   updateSponsorship: (id: string, sponsorship: Partial<Sponsorship>) => Promise<Sponsorship>;
   deleteSponsorship: (id: string) => Promise<void>;
@@ -92,6 +98,9 @@ export interface DataContextType {
   
   // User bookings functions
   getUserBookingForService: (serviceId: string) => Promise<Booking | null>;
+  
+  // Announcement functions
+  postAnnouncement: (eventId: string, content: string) => Promise<void>;
   
   // Other existing functions that are used in components
   sendServiceMessage: (serviceId: string, content: string) => Promise<void>;
@@ -174,6 +183,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [services, setServices] = useState<Service[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
@@ -181,6 +191,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
   const [sponsorshipApplications, setSponsorshipApplications] = useState<SponsorshipApplication[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [postComments, setPostComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   
   // Load initial data
@@ -370,8 +382,29 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
   
-  const getServiceById = (id: string): Service | undefined => {
-    return services.find(service => service.id === id);
+  const getServiceById = async (id: string): Promise<Service | undefined> => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        // If not found in database, try local state
+        return services.find(service => service.id === id);
+      }
+      
+      if (data) {
+        return convertSnakeToCamel(data);
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error('Error getting service:', error);
+      // Fallback to local state
+      return services.find(service => service.id === id);
+    }
   };
   
   const createService = async (service: Partial<Service>): Promise<Service> => {
@@ -395,7 +428,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return updateItem(events, setEvents, id, updatedEvent, 'events', 'Event updated successfully');
   };
   
-  const deleteEvent = async (id: string): Promise<void> => {
+  const deleteEvent = async (id: string, reason?: string): Promise<void> => {
+    if (reason === 'completed') {
+      // Move to completed events
+      const event = events.find(e => e.id === id);
+      if (event) {
+        setCompletedEvents(prev => [...prev, event]);
+      }
+    }
     return deleteItem(events, setEvents, id, 'events', 'Event deleted successfully');
   };
   
@@ -659,8 +699,43 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
   
-  const getSponsorshipById = (id: string): Sponsorship | undefined => {
-    return sponsorships.find(sponsorship => sponsorship.id === id);
+  const getSponsorshipById = async (id: string): Promise<Sponsorship | undefined> => {
+    try {
+      const { data, error } = await supabase
+        .from('sponsorships')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        // If not found in database, try local state
+        return sponsorships.find(sponsorship => sponsorship.id === id);
+      }
+      
+      if (data) {
+        return {
+          id: data.id,
+          title: data.title,
+          description: data.description,
+          requirements: data.requirements,
+          benefits: data.benefits,
+          compensation: data.compensation,
+          deadline: data.deadline ? new Date(data.deadline) : undefined,
+          tags: data.tags,
+          companyId: data.company_id,
+          companyName: data.company_name,
+          companyLogo: data.company_logo,
+          status: data.status as SponsorshipStatus,
+          createdAt: new Date(data.created_at)
+        };
+      }
+      
+      return undefined;
+    } catch (error) {
+      console.error('Error getting sponsorship:', error);
+      // Fallback to local state
+      return sponsorships.find(sponsorship => sponsorship.id === id);
+    }
   };
   
   const createSponsorship = async (sponsorship: Partial<Sponsorship>): Promise<Sponsorship> => {
@@ -861,23 +936,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       
       if (data) {
-        const camelCaseApplications = data.map(item => ({
-          id: item.id,
-          sponsorshipId: item.sponsorship_id,
-          userId: item.user_id,
-          userName: item.user_name,
-          userEmail: item.user_email,
-          userProfileImage: item.user_profile_image,
-          motivation: item.motivation,
-          experience: item.experience,
-          socialLinks: item.social_links ? {
-            instagram: item.social_links.instagram,
-            twitter: item.social_links.twitter,
-            website: item.social_links.website
-          } : {},
-          status: item.status as ApplicationStatus,
-          createdAt: new Date(item.created_at)
-        } as SponsorshipApplication));
+        const camelCaseApplications = data.map(item => {
+          const socialLinks = typeof item.social_links === 'object' ? item.social_links : {};
+          
+          return {
+            id: item.id,
+            sponsorshipId: item.sponsorship_id,
+            userId: item.user_id,
+            userName: item.user_name,
+            userEmail: item.user_email,
+            userProfileImage: item.user_profile_image,
+            motivation: item.motivation,
+            experience: item.experience,
+            socialLinks: {
+              instagram: socialLinks?.instagram,
+              twitter: socialLinks?.twitter,
+              website: socialLinks?.website
+            },
+            status: item.status as ApplicationStatus,
+            createdAt: new Date(item.created_at)
+          } as SponsorshipApplication;
+        });
         
         setSponsorshipApplications(camelCaseApplications);
         return camelCaseApplications;
@@ -904,23 +983,27 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       
       if (data) {
-        const camelCaseApplications = data.map(item => ({
-          id: item.id,
-          sponsorshipId: item.sponsorship_id,
-          userId: item.user_id,
-          userName: item.user_name,
-          userEmail: item.user_email,
-          userProfileImage: item.user_profile_image,
-          motivation: item.motivation,
-          experience: item.experience,
-          socialLinks: item.social_links ? {
-            instagram: item.social_links.instagram,
-            twitter: item.social_links.twitter,
-            website: item.social_links.website
-          } : {},
-          status: item.status as ApplicationStatus,
-          createdAt: new Date(item.created_at)
-        } as SponsorshipApplication));
+        const camelCaseApplications = data.map(item => {
+          const socialLinks = typeof item.social_links === 'object' ? item.social_links : {};
+          
+          return {
+            id: item.id,
+            sponsorshipId: item.sponsorship_id,
+            userId: item.user_id,
+            userName: item.user_name,
+            userEmail: item.user_email,
+            userProfileImage: item.user_profile_image,
+            motivation: item.motivation,
+            experience: item.experience,
+            socialLinks: {
+              instagram: socialLinks?.instagram,
+              twitter: socialLinks?.twitter,
+              website: socialLinks?.website
+            },
+            status: item.status as ApplicationStatus,
+            createdAt: new Date(item.created_at)
+          } as SponsorshipApplication;
+        });
         
         return camelCaseApplications;
       }
@@ -970,6 +1053,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (data && data[0]) {
         // Format the returned data
+        const socialLinks = typeof data[0].social_links === 'object' ? data[0].social_links : {};
+        
         const newApplication: SponsorshipApplication = {
           id: data[0].id,
           sponsorshipId: data[0].sponsorship_id,
@@ -979,11 +1064,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           userProfileImage: data[0].user_profile_image,
           motivation: data[0].motivation,
           experience: data[0].experience,
-          socialLinks: data[0].social_links ? {
-            instagram: data[0].social_links.instagram,
-            twitter: data[0].social_links.twitter,
-            website: data[0].social_links.website
-          } : {},
+          socialLinks: {
+            instagram: socialLinks?.instagram,
+            twitter: socialLinks?.twitter,
+            website: socialLinks?.website
+          },
           status: data[0].status as ApplicationStatus,
           createdAt: new Date(data[0].created_at)
         };
@@ -1035,6 +1120,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (data && data[0]) {
         // Format the returned data
+        const socialLinks = typeof data[0].social_links === 'object' ? data[0].social_links : {};
+        
         const updatedApplication: SponsorshipApplication = {
           id: data[0].id,
           sponsorshipId: data[0].sponsorship_id,
@@ -1044,11 +1131,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           userProfileImage: data[0].user_profile_image,
           motivation: data[0].motivation,
           experience: data[0].experience,
-          socialLinks: data[0].social_links ? {
-            instagram: data[0].social_links.instagram,
-            twitter: data[0].social_links.twitter,
-            website: data[0].social_links.website
-          } : {},
+          socialLinks: {
+            instagram: socialLinks?.instagram,
+            twitter: socialLinks?.twitter,
+            website: socialLinks?.website
+          },
           status: data[0].status as ApplicationStatus,
           createdAt: new Date(data[0].created_at)
         };
@@ -1134,6 +1221,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       if (data && data[0]) {
         // Format the returned data
+        const socialLinks = typeof data[0].social_links === 'object' ? data[0].social_links : {};
+        
         const updatedApplication: SponsorshipApplication = {
           id: data[0].id,
           sponsorshipId: data[0].sponsorship_id,
@@ -1143,11 +1232,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           userProfileImage: data[0].user_profile_image,
           motivation: data[0].motivation,
           experience: data[0].experience,
-          socialLinks: data[0].social_links ? {
-            instagram: data[0].social_links.instagram,
-            twitter: data[0].social_links.twitter,
-            website: data[0].social_links.website
-          } : {},
+          socialLinks: {
+            instagram: socialLinks?.instagram,
+            twitter: socialLinks?.twitter,
+            website: socialLinks?.website
+          },
           status: data[0].status as ApplicationStatus,
           createdAt: new Date(data[0].created_at)
         };
@@ -1398,6 +1487,33 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
   
+  // Announcement functions
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) {
+      throw new Error('You must be logged in to post an announcement');
+    }
+    
+    try {
+      // Mock implementation
+      const newAnnouncement: Announcement = {
+        id: uuidv4(),
+        eventId,
+        content,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role,
+        creatorProfileImage: currentUser.profileImage,
+        createdAt: new Date()
+      };
+      
+      setAnnouncements(prev => [...prev, newAnnouncement]);
+      sonnerToast.success('Announcement posted successfully');
+    } catch (error) {
+      console.error('Error posting announcement:', error);
+      sonnerToast.error(`Failed to post announcement: ${(error as Error).message}`);
+    }
+  };
+  
   const value: DataContextType = {
     // Data states
     services,
@@ -1410,6 +1526,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     joinRequests,
     sponsorships,
     sponsorshipApplications,
+    completedEvents,
+    announcements,
     
     // Service functions
     fetchServices,
@@ -1448,6 +1566,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     addComment,
     deleteComment,
     updateComment,
+    postComments,
     
     // Sponsorship functions
     fetchSponsorships,
@@ -1463,6 +1582,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateSponsorshipApplication,
     deleteSponsorshipApplication,
     updateApplicationStatus,
+    
+    // Announcement functions
+    postAnnouncement,
     
     // Other existing functions
     sendServiceMessage,

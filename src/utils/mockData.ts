@@ -1,5 +1,5 @@
 
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User, Sponsorship, SponsorshipStatus } from '@/types';
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, Sponsorship, SponsorshipStatus } from '@/types';
 
 // Generate mock services
 export const generateMockServices = (): Service[] => {
@@ -70,31 +70,7 @@ export const generateMockJoinRequests = (): JoinRequest[] => {
   return [];
 };
 
-// Add mock users for application and sponsorship functionality
-export const mockUsers: User[] = [
-  {
-    id: 'user-1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'influencer',
-    profileImage: '/placeholder.svg',
-    bio: 'Content creator and influencer',
-    followers: 1200,
-    createdAt: new Date()
-  },
-  {
-    id: 'user-2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    role: 'influencer',
-    profileImage: '/placeholder.svg',
-    bio: 'Lifestyle blogger',
-    followers: 850,
-    createdAt: new Date()
-  }
-];
-
-// Generate mock sponsorships - this is the function that was missing
+// Generate mock sponsorships
 export const generateMockSponsorships = (): Sponsorship[] => {
   return [
     {
@@ -122,7 +98,7 @@ export const generateMockSponsorships = (): Sponsorship[] => {
       requirements: ['Experience with nutrition products', 'Detailed reviews'],
       benefits: ['Free products for 6 months', 'Exclusive discounts'],
       compensation: 'Free products + affiliate commissions',
-      deadline: null,
+      deadline: undefined,
       tags: ['nutrition', 'health'],
       status: 'active' as SponsorshipStatus,
       createdAt: new Date()

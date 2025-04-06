@@ -1,102 +1,10 @@
-export type UserRole = 'user' | 'influencer' | 'coach' | 'company' | 'admin';
 
-export type GroupPrivacy = 'public' | 'private' | 'paid';
-export type EventPrivacy = 'public' | 'private' | 'paid';
-export type SessionType = 'one_on_one' | 'group';
-export type SessionStatus = 'pending' | 'approved' | 'rejected' | 'completed';
-export type PaymentStatus = 'unpaid' | 'paid';
-export type ServiceType = 'one_on_one' | 'group' | 'webinar' | 'course';
-export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-export type SponsorshipStatus = 'active' | 'closed' | 'draft';
+// Update the existing types file to include the Booking type
+import { type } from "os";
+
+export type ServiceType = 'one_on_one' | 'group' | 'course' | 'webinar';
+export type SponsorshipStatus = 'active' | 'inactive' | 'completed';
 export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
-
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  profileImage?: string;
-  coverImage?: string; 
-  bio?: string;
-  location?: string;
-  interests?: string[];
-  following?: string[];
-  followers?: number;
-  verified?: boolean;
-  socialLinks?: {
-    instagram?: string;
-    twitter?: string;
-    website?: string;
-  };
-  createdAt: Date;
-}
-
-export interface Post {
-  id: string;
-  userId: string;
-  userName: string;
-  userRole: UserRole;
-  userProfileImage?: string;
-  content: string;
-  image?: string;
-  likes: number;
-  comments: number;
-  userLikes?: string[]; // Array of user IDs who liked the post
-  createdAt: Date;
-}
-
-export interface Comment {
-  id: string;
-  postId: string;
-  userId: string;
-  userName: string;
-  userRole: UserRole;
-  userProfileImage?: string;
-  content: string;
-  createdAt: Date;
-}
-
-export interface Event {
-  id: string;
-  title: string;
-  description: string;
-  creatorId: string;
-  creatorName: string;
-  creatorRole: UserRole;
-  location: string;
-  date: Date;
-  image?: string;
-  attendees: string[]; // Array of user IDs
-  attendeeDetails?: AttendeeDetail[]; // Added attendee details property
-  privacy: EventPrivacy;
-  price?: number;
-  pendingRequests?: number;
-  createdAt: Date;
-}
-
-export interface AttendeeDetail {
-  id: string;
-  name: string;
-  profileImage?: string;
-}
-
-export interface Group {
-  id: string;
-  name: string;
-  description: string;
-  creatorId: string;
-  creatorName: string;
-  creatorRole: UserRole;
-  members: number;
-  memberIds?: string[]; // Added memberIds property
-  image?: string;
-  privacy: GroupPrivacy;
-  price?: number;
-  createdAt: Date;
-  pendingRequests?: number;
-  rules?: string[];
-  memberLimit?: number;
-}
 
 export interface Service {
   id: string;
@@ -108,27 +16,55 @@ export interface Service {
   duration: string;
   available: boolean;
   createdAt: Date;
-  isOnline?: boolean;
-  location?: string;
-  capacity?: number;
-  serviceType?: ServiceType;
-  sessionId?: string; // Reference to a session if linked
-  meetingUrl?: string; // Added for online services
-  coverImage?: string; // Added for service image
+  isOnline: boolean;
+  location: string | null;
+  capacity: number | null;
+  serviceType: ServiceType;
+  coverImage?: string;
+  meetingUrl: string | null;
 }
 
-export interface Booking {
+export interface Post {
   id: string;
-  serviceId: string;
   userId: string;
   userName: string;
-  userEmail: string;
-  status: BookingStatus;
-  paymentStatus: PaymentStatus;
-  notes?: string;
-  preferredTime?: Date;
-  scheduledTime?: Date;
-  isPaid: boolean;
+  userRole: string;
+  userProfileImage?: string;
+  content: string;
+  image?: string;
+  likes: number;
+  comments: number;
+  createdAt: Date;
+}
+
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  creatorId: string;
+  creatorName: string;
+  creatorRole: string;
+  location: string;
+  date: Date | string;
+  image?: string;
+  attendees?: string[];
+  price?: number;
+  createdAt: Date;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  description: string;
+  privacy: string;
+  image?: string;
+  creatorId: string;
+  creatorName: string;
+  creatorRole: string;
+  members: number;
+  memberLimit?: number;
+  rules?: string[];
+  price?: number;
   createdAt: Date;
 }
 
@@ -138,17 +74,15 @@ export interface Session {
   description: string;
   coachId: string;
   coachName: string;
-  sessionType: SessionType;
-  capacity?: number;
-  price: number;
-  duration: string;
-  startTime?: Date;
-  location?: string;
+  startTime: Date | string;
+  endTime: Date | string;
   isOnline: boolean;
+  location?: string;
   meetingUrl?: string;
-  isActive: boolean;
+  price: number;
+  capacity: number;
+  enrolled: number;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface SessionEnrollment {
@@ -158,22 +92,21 @@ export interface SessionEnrollment {
   userName: string;
   userEmail: string;
   userProfileImage?: string;
-  status: SessionStatus;
-  paymentStatus: PaymentStatus;
+  status: string;
+  paymentStatus: string;
   createdAt: Date;
 }
 
 export interface Message {
   id: string;
   groupId?: string;
-  serviceId?: string; // Make sure this property exists
   userId: string;
   userName: string;
-  userRole: UserRole;
+  userRole: string;
   userProfileImage?: string;
   content: string;
   mediaUrl?: string;
-  mediaType?: 'image' | 'video' | 'file';
+  mediaType?: string;
   createdAt: Date;
 }
 
@@ -184,95 +117,18 @@ export interface JoinRequest {
   userId: string;
   userName: string;
   userProfileImage?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: string;
   createdAt: Date;
 }
 
-export interface Product {
+export interface User {
   id: string;
-  title: string;
-  description: string;
-  longDescription?: string;
-  companyId: string;
-  companyName: string;
-  companyLogo?: string;
-  price: string;
-  category: string;
-  tags?: string[];
-  image?: string;
-  websiteUrl?: string;
-  demoUrl?: string;
-  releaseDate: Date;
-  createdAt: Date;
-  features?: string[];
-  useCases?: string[];
-  pricingTiers?: {
-    name: string;
-    price: string;
-    features: string[];
-  }[];
-}
-
-export interface Workshop {
-  id: string;
-  title: string;
-  description: string;
-  longDescription?: string;
-  companyId: string;
-  companyName: string;
-  companyLogo?: string;
-  price: number;
-  date: Date;
-  startTime?: string;
-  endTime?: string;
-  duration: string;
-  capacity?: number;
-  location?: string;
-  isOnline: boolean;
-  meetingUrl?: string;
-  category: string;
-  image?: string;
-  createdAt: Date;
-  topics?: string[];
-  prerequisites?: string[];
-  includes?: string[];
-  tags?: string[];
-  instructors?: {
-    name: string;
-    role: string;
-    bio: string;
-    avatar: string;
-  }[];
-}
-
-export interface JobPosting {
-  id: string;
-  title: string;
-  description: string;
-  company_id: string;
-  company_name: string;
-  company_logo?: string;
-  location?: string;
-  job_type: string;
-  salary_range?: string;
-  skills?: string[];
-  application_url?: string;
-  application_email?: string;
-  application_deadline?: string;
-  responsibilities?: string[];
-  requirements?: string[];
-  benefits?: string[];
-  company_description?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Announcement {
-  id: string;
-  eventId: string;
-  creatorId: string;
-  creatorName: string;
-  content: string;
+  name: string;
+  email: string;
+  role: string;
+  profileImage?: string;
+  bio?: string;
+  followers: number;
   createdAt: Date;
 }
 
@@ -285,10 +141,10 @@ export interface Sponsorship {
   companyLogo?: string;
   requirements: string[];
   benefits: string[];
-  compensation?: string;
+  compensation: string;
   deadline?: Date;
-  status: SponsorshipStatus;
   tags?: string[];
+  status: SponsorshipStatus;
   createdAt: Date;
 }
 
@@ -305,7 +161,48 @@ export interface SponsorshipApplication {
     instagram?: string;
     twitter?: string;
     website?: string;
+    [key: string]: string | undefined;
   };
   status: ApplicationStatus;
+  createdAt: Date;
+}
+
+export interface Booking {
+  id: string;
+  serviceId: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  status: string;
+  paymentStatus: string;
+  notes?: string;
+  createdAt: Date;
+  serviceTitle?: string;
+  coachName?: string;
+  price?: number;
+  duration?: string;
+  isOnline?: boolean;
+  serviceType?: string;
+}
+
+export interface Announcement {
+  id: string;
+  eventId: string;
+  content: string;
+  creatorId: string;
+  creatorName: string;
+  creatorRole: string;
+  creatorProfileImage?: string;
+  createdAt: Date;
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  userProfileImage?: string;
+  content: string;
   createdAt: Date;
 }
