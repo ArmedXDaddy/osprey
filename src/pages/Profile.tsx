@@ -548,7 +548,13 @@ const Profile = () => {
                   <AvatarImage 
                     src={userToShow?.profileImage} 
                     alt={userToShow?.name || 'User'}
-                    onError={() => console.log("Profile image failed to load")}
+                    onError={(e) => {
+                      console.log("Profile image failed to load:", e);
+                      if (userToShow?.name) {
+                        const imgElement = e.target as HTMLImageElement;
+                        imgElement.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userToShow.name)}&background=random`;
+                      }
+                    }}
                   />
                   <AvatarFallback>
                     {userToShow?.name?.substring(0, 2).toUpperCase() || 'U'}
@@ -636,7 +642,9 @@ const Profile = () => {
                   
                   {userToShow.socialLinks.website && (
                     <a 
-                      href={`https://${userToShow.socialLinks.website}`}
+                      href={userToShow.socialLinks.website.startsWith('http') 
+                        ? userToShow.socialLinks.website 
+                        : `https://${userToShow.socialLinks.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-gray-600 hover:text-primary"
