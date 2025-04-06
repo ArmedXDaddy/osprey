@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -51,34 +50,41 @@ const EventDetail = () => {
       // In a real app, we would fetch real attendee data from the backend
       // For now, we'll mock this data
       const mockFetchAttendeeDetails = () => {
-        return event.attendees.map((attendeeId, index) => ({
-          id: attendeeId,
-          name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
-          profileImage: attendeeId === currentUser.id 
-            ? currentUser.profileImage 
-            : undefined
-        }));
+        return event.attendees.map((attendeeId, index) => {
+          // If we have this attendee's details in the event already, use those
+          if (event.attendeeDetails && event.attendeeDetails.find(a => a.id === attendeeId)) {
+            return event.attendeeDetails.find(a => a.id === attendeeId)!;
+          }
+          
+          // Otherwise create a placeholder
+          return {
+            id: attendeeId,
+            name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
+            profileImage: attendeeId === currentUser.id 
+              ? currentUser.profileImage 
+              : undefined
+          };
+        });
       };
       
       // Mock registrations data
       const mockFetchRegistrations = () => {
-        // This would be fetched from the backend in a real app
-        if (!event.attendeeRegistrations) {
-          const generatedRegistrations = event.attendees.map((attendeeId, index) => ({
-            userId: attendeeId,
-            name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
-            email: attendeeId === currentUser.id ? currentUser.email : `attendee${index + 1}@example.com`,
-            phone: index % 2 === 0 ? "+1234567890" : undefined,
-            age: Math.floor(Math.random() * 30) + 18,
-            gender: index % 3 === 0 ? "male" : index % 3 === 1 ? "female" : "prefer-not-to-say",
-            registeredAt: new Date(Date.now() - Math.random() * 1000000000),
-            profileImage: attendeeId === currentUser.id ? currentUser.profileImage : undefined,
-          }));
-          
-          return generatedRegistrations;
+        // If we have registration data in the event, use that
+        if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
+          return event.attendeeRegistrations;
         }
         
-        return event.attendeeRegistrations;
+        // Otherwise generate mock data for existing attendees
+        return event.attendees.map((attendeeId, index) => ({
+          userId: attendeeId,
+          name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
+          email: attendeeId === currentUser.id ? currentUser.email : `attendee${index + 1}@example.com`,
+          phone: index % 2 === 0 ? "+1234567890" : undefined,
+          age: Math.floor(Math.random() * 30) + 18,
+          gender: index % 3 === 0 ? "male" : index % 3 === 1 ? "female" : "prefer-not-to-say",
+          registeredAt: new Date(Date.now() - Math.random() * 1000000000),
+          profileImage: attendeeId === currentUser.id ? currentUser.profileImage : undefined,
+        }));
       };
       
       setAttendeeDetails(mockFetchAttendeeDetails());
@@ -132,21 +138,42 @@ const EventDetail = () => {
       setIsAttending(true);
       
       if (currentUser) {
-        // Add user to attendee list
-        setAttendeeDetails(prevDetails => [
-          ...prevDetails, 
-          {
-            id: currentUser.id,
-            name: currentUser.name,
-            profileImage: currentUser.profileImage
-          }
-        ]);
+        // Add user to attendee list with proper details
+        const newAttendeeDetail: AttendeeDetail = {
+          id: currentUser.id,
+          name: registrationData.name, // Use the name from the registration form
+          profileImage: currentUser.profileImage
+        };
         
-        // Add registration data
-        setRegistrations(prevRegs => [
-          ...prevRegs,
-          registrationData
-        ]);
+        // Update attendee details
+        setAttendeeDetails(prevDetails => {
+          // Check if the user is already in the list
+          const existingIndex = prevDetails.findIndex(a => a.id === currentUser.id);
+          if (existingIndex >= 0) {
+            // Replace existing entry
+            const updatedDetails = [...prevDetails];
+            updatedDetails[existingIndex] = newAttendeeDetail;
+            return updatedDetails;
+          } else {
+            // Add new entry
+            return [...prevDetails, newAttendeeDetail];
+          }
+        });
+        
+        // Update registrations data
+        setRegistrations(prevRegs => {
+          // Check if the user already has a registration
+          const existingIndex = prevRegs.findIndex(r => r.userId === currentUser.id);
+          if (existingIndex >= 0) {
+            // Replace existing entry
+            const updatedRegs = [...prevRegs];
+            updatedRegs[existingIndex] = registrationData;
+            return updatedRegs;
+          } else {
+            // Add new entry
+            return [...prevRegs, registrationData];
+          }
+        });
       }
       
       toast({
