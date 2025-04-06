@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -190,7 +189,75 @@ const Profile = () => {
 
   const userToShow = isOwnProfile ? currentUser : profileUser;
 
+  const fetchProfileImages = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('profiles')
+        .list(currentUser.id, {
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+      
+      if (error) {
+        console.error('Error listing profile images:', error);
+        return;
+      }
+      
+      if (data) {
+        const imageUrls = await Promise.all(
+          data.map(async (file) => {
+            const { data: urlData } = await supabase.storage
+              .from('profiles')
+              .getPublicUrl(`${currentUser.id}/${file.name}`);
+            
+            return {
+              name: file.name,
+              url: urlData.publicUrl
+            };
+          })
+        );
+        setProfileImages(imageUrls);
+      }
+    } catch (error) {
+      console.error('Error fetching profile images:', error);
+    }
+  };
   
+  const fetchCoverImages = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const { data, error } = await supabase.storage
+        .from('covers')
+        .list(currentUser.id, {
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+      
+      if (error) {
+        console.error('Error listing cover images:', error);
+        return;
+      }
+      
+      if (data) {
+        const imageUrls = await Promise.all(
+          data.map(async (file) => {
+            const { data: urlData } = await supabase.storage
+              .from('covers')
+              .getPublicUrl(`${currentUser.id}/${file.name}`);
+            
+            return {
+              name: file.name,
+              url: urlData.publicUrl
+            };
+          })
+        );
+        setCoverImages(imageUrls);
+      }
+    } catch (error) {
+      console.error('Error fetching cover images:', error);
+    }
+  };
   
   const handleCrop = (imageUrl: string, type: 'profile' | 'cover') => {
     setCropImageSrc(imageUrl);
@@ -303,78 +370,6 @@ const Profile = () => {
       });
     }
   };
-
-  
-  
-  const fetchProfileImages = async () => {
-    if (!currentUser) return;
-    
-    try {
-      const { data, error } = await supabase.storage
-        .from('profiles')
-        .list(currentUser.id, {
-          sortBy: { column: 'created_at', order: 'desc' },
-        });
-      
-      if (error) {
-        console.error('Error listing profile images:', error);
-        return;
-      }
-      
-      if (data) {
-        const imageUrls = await Promise.all(
-          data.map(async (file) => {
-            const { data: urlData } = await supabase.storage
-              .from('profiles')
-              .getPublicUrl(`${currentUser.id}/${file.name}`);
-            
-            return {
-              name: file.name,
-              url: urlData.publicUrl
-            };
-          })
-        );
-        setProfileImages(imageUrls);
-      }
-    } catch (error) {
-      console.error('Error fetching profile images:', error);
-    }
-  };
-  
-  const fetchCoverImages = async () => {
-    if (!currentUser) return;
-    
-    try {
-      const { data, error } = await supabase.storage
-        .from('covers')
-        .list(currentUser.id, {
-          sortBy: { column: 'created_at', order: 'desc' },
-        });
-      
-      if (error) {
-        console.error('Error listing cover images:', error);
-        return;
-      }
-      
-      if (data) {
-        const imageUrls = await Promise.all(
-          data.map(async (file) => {
-            const { data: urlData } = await supabase.storage
-              .from('covers')
-              .getPublicUrl(`${currentUser.id}/${file.name}`);
-            
-            return {
-              name: file.name,
-              url: urlData.publicUrl
-            };
-          })
-        );
-        setCoverImages(imageUrls);
-      }
-    } catch (error) {
-      console.error('Error fetching cover images:', error);
-    }
-  };
   
   const selectProfileImage = (url: string) => {
     handleCrop(url, 'profile');
@@ -427,8 +422,6 @@ const Profile = () => {
       });
     }
   };
-
-  
   
   const renderRoleContent = () => {
     if (!userToShow) return null;
@@ -527,21 +520,6 @@ const Profile = () => {
   const userServices = userToShow && userToShow.role === 'coach' ? 
     services.filter(service => service.providerId === userToShow.id) : [];
 
-  // Helper function to get user initials
-  const getUserInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(part => part[0])
-      .join('')
-      .toUpperCase()
-      .substring(0, 2);
-  };
-
-  // Get default avatar URL
-  const getDefaultAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`;
-  };
-
   return (
     <div className="space-y-8">
       <Card className="overflow-hidden">
@@ -568,12 +546,12 @@ const Profile = () => {
               <div className="h-32 w-32 rounded-full border-4 border-white overflow-hidden shadow-md bg-white">
                 <Avatar className="h-full w-full">
                   <AvatarImage 
-                    src={userToShow?.profileImage || (userToShow?.name ? getDefaultAvatarUrl(userToShow.name) : undefined)} 
-                    alt={userToShow?.name || 'User'} 
+                    src={userToShow?.profileImage} 
+                    alt={userToShow?.name || 'User'}
                     onError={() => {
                       console.log("Profile image failed to load");
                       if (userToShow?.name) {
-                        const fallbackSrc = getDefaultAvatarUrl(userToShow.name);
+                        const fallbackSrc = `https://ui-avatars.com/api/?name=${encodeURIComponent(userToShow.name)}&background=random`;
                         const imgElements = document.querySelectorAll(`img[alt="${userToShow.name || 'User'}"]`);
                         imgElements.forEach(img => {
                           (img as HTMLImageElement).src = fallbackSrc;
@@ -582,7 +560,7 @@ const Profile = () => {
                     }}
                   />
                   <AvatarFallback>
-                    {userToShow?.name ? getUserInitials(userToShow.name) : 'U'}
+                    {userToShow?.name?.substring(0, 2).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
               </div>
@@ -957,6 +935,89 @@ const Profile = () => {
           />
         </DialogContent>
       </Dialog>
+      
+      <Tabs defaultValue="posts" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="posts">Posts</TabsTrigger>
+          <TabsTrigger value="events">Events</TabsTrigger>
+          <TabsTrigger value="groups">Groups</TabsTrigger>
+          {userToShow?.role === 'coach' && (
+            <TabsTrigger value="services">Services</TabsTrigger>
+          )}
+        </TabsList>
+        
+        <TabsContent value="posts" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userPosts.length > 0 ? (
+            <div className="space-y-4">
+              {userPosts.map(post => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="events" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userEvents.length > 0 ? (
+            <div className="space-y-4">
+              {userEvents.map(event => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} participated in any events yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="groups" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userGroups.length > 0 ? (
+            <div className="space-y-4">
+              {userGroups.map(group => (
+                <GroupCard key={group.id} group={group} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} joined any groups yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="services" className="mt-6">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : userServices.length > 0 ? (
+            <div className="space-y-4">
+              {userServices.map(service => (
+                <ServiceCard key={service.id} service={service} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500 mb-4">
+                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any services yet.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
