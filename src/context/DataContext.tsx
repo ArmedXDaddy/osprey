@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, ReactNode, useEffect } from
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
-import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment } from '@/types';
+import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment, EventPrivacy } from '@/types';
 import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking, uploadImage, updateComment, deleteComment } from '@/integrations/supabase/helpers';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -885,7 +885,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       const { data, error } = await supabase
         .from('events')
         .insert(newEventData)
-        .select()
+        .select('*')
         .single();
       
       if (error) throw error;
