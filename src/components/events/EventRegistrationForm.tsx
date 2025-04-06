@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -67,7 +66,7 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
       userId: currentUser.id,
       name: values.name,
       email: values.email,
-      age: values.age,
+      age: values.age,  // This transformation is now handled by Zod
       gender: values.gender,
       phone: values.phone,
       emergencyContact: values.emergencyContact,
