@@ -20,7 +20,8 @@ import {
   DollarSign,
   GraduationCap,
   Building,
-  Package2
+  Package2,
+  Award  // Add this import for the Sponsorships icon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -103,6 +104,20 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     </NavLink>
   );
 
+  // In both desktop and mobile navigation, add Sponsorships link
+  const navLinks = [
+    { to: "/", icon: <Home size={18} />, label: "Home" },
+    { to: "/explore", icon: <Search size={18} />, label: "Explore" },
+    { to: "/networking", icon: <NetworkIcon size={18} />, label: "Networking" },
+    { to: "/events", icon: <Calendar size={18} />, label: "Events" },
+    { to: "/groups", icon: <Users size={18} />, label: "Groups" },
+    { to: "/services", icon: <DollarSign size={18} />, label: "Services" },
+    { to: "/jobs", icon: <Briefcase size={18} />, label: "Jobs" },
+    { to: "/products", icon: <Package2 size={18} />, label: "Products" },
+    { to: "/workshops", icon: <GraduationCap size={18} />, label: "Workshops" },
+    { to: "/sponsorships", icon: <Award size={18} />, label: "Sponsorships" },
+  ];
+
   const MobileMenu = () => (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
       <SheetContent side="left" className="w-[75%] sm:w-[350px] p-0 dark:bg-gray-900 dark:text-white">
@@ -132,15 +147,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           
           <div className="flex-1 overflow-auto p-4">
             <nav className="space-y-1">
-              <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
-              <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
-              <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
-              <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
-              <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
-              <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
-              <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
-              <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
-              <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+              {navLinks.map(link => (
+                <NavigationLink 
+                  key={link.to} 
+                  to={link.to} 
+                  icon={link.icon} 
+                  label={link.label} 
+                />
+              ))}
               
               {isCompany && (
                 <>
@@ -188,15 +202,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <h1 className="text-xl font-semibold mb-8 gradient-text">Osprey</h1>
           
           <nav className="space-y-1 flex-1">
-            <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
-            <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
-            <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
-            <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
-            <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
-            <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
-            <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
-            <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
-            <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+            {navLinks.map(link => (
+              <NavigationLink 
+                key={link.to} 
+                to={link.to} 
+                icon={link.icon} 
+                label={link.label} 
+              />
+            ))}
             
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
             <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
