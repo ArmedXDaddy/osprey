@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useNavigate } from 'react-router-dom';
 import { Booking, Event, Group, JoinRequest, Message, Post, 
   Service, Session, SessionEnrollment, 
   Sponsorship, UserRole, SponsorshipApplication, 
@@ -58,7 +57,6 @@ interface DataContextProps {
   loading: boolean;
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   
-  // Add all missing functions referenced in errors
   sendServiceMessage: (messageData: any) => Promise<void>;
   getServiceMessages: (serviceId: string) => Promise<Message[]>;
   approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
@@ -121,25 +119,20 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [postComments, setPostComments] = useState<Record<string, any[]>>({});
   const [loading, setLoading] = useState(false);
   const { currentUser } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Only initialize mock data if user is logged in and we don't have data yet
   useEffect(() => {
     if (currentUser && posts.length === 0) {
       setPosts(generateMockPosts(currentUser));
     }
   }, [currentUser, posts.length]);
 
-  // Load initial data - typically would be API calls
   useEffect(() => {
     if (currentUser) {
-      // Only load mock data once
       if (groups.length === 0) {
         setGroups(generateMockGroups(currentUser));
       }
       
-      // Only load additional mock data if services is empty
       if (services.length === 0) {
         setServices(generateMockServices(currentUser));
         setEvents(generateMockEvents(currentUser));
@@ -152,7 +145,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   }, [currentUser]);
 
-  // Add a new post
   const createPost = async (postData: any) => {
     try {
       if (!currentUser) {
@@ -181,7 +173,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Add or update a user's group
   const createGroup = async (groupData: any) => {
     try {
       const userRole = currentUser.role as UserRole;
@@ -211,7 +202,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Join a group
   const joinGroup = async (groupId: string) => {
     try {
       setGroups(prev =>
@@ -225,7 +215,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Leave a group
   const leaveGroup = async (groupId: string) => {
     try {
       setGroups(prev =>
@@ -239,7 +228,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Approve a join request
   const approveJoinRequest = async (requestId: string) => {
     try {
       setJoinRequests(prev => prev.filter(req => req.id !== requestId));
@@ -249,7 +237,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Reject a join request
   const rejectJoinRequest = async (requestId: string) => {
     try {
       setJoinRequests(prev => prev.filter(req => req.id !== requestId));
@@ -259,16 +246,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Delete a group
   const deleteGroup = async (groupId: string) => {
     try {
-      // Make API call to delete group from the database
       await deleteGroupFromDB(groupId);
       
-      // Remove from local state
       setGroups(prev => prev.filter(group => group.id !== groupId));
       
-      // Clean up related data
       setJoinRequests(prev => prev.filter(req => req.groupId !== groupId));
       setMessages(prev => prev.filter(msg => msg.groupId !== groupId));
       
@@ -279,7 +262,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Create an event
   const createEvent = async (eventData: any) => {
     try {
       const eventPrivacy = eventData.privacy as EventPrivacy;
@@ -311,7 +293,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Join an event
   const joinEvent = async (eventId: string) => {
     try {
       setEvents(prev =>
@@ -325,7 +306,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Leave an event
   const leaveEvent = async (eventId: string) => {
     try {
       setEvents(prev =>
@@ -342,7 +322,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Post an announcement
   const postAnnouncement = async (eventId: string, content: string) => {
     try {
       const newAnnouncement: Announcement = {
@@ -361,16 +340,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Delete an event
   const deleteEvent = async (eventId: string, reason?: string) => {
     try {
-      // Make API call to delete event from the database
       await deleteEventFromDB(eventId);
       
-      // Remove from local state
       setEvents(prev => prev.filter(event => event.id !== eventId));
       
-      // Archive completed events if a reason is provided
       if (reason === 'completed') {
         const eventToArchive = events.find(e => e.id === eventId);
         if (eventToArchive) {
@@ -378,7 +353,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         }
       }
       
-      // Clean up related data
       setJoinRequests(prev => prev.filter(req => req.eventId !== eventId));
       setAnnouncements(prev => prev.filter(a => a.eventId !== eventId));
       
@@ -389,7 +363,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Create a service booking
   const createServiceBooking = async (serviceId: string, notes?: string) => {
     if (!currentUser) {
       console.error('User not logged in');
@@ -426,10 +399,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
 
-  // Stub implementations for missing functions to fix TypeScript errors
   const sendServiceMessage = async (messageData: any) => {
     console.log('sendServiceMessage called with:', messageData);
-    // Implementation would go here
   };
 
   const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
@@ -439,22 +410,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const approveEventRequest = async (requestId: string, eventId: string, userId: string) => {
     console.log('approveEventRequest called with:', requestId, eventId, userId);
-    // Implementation would go here
   };
 
   const rejectEventRequest = async (requestId: string) => {
     console.log('rejectEventRequest called with:', requestId);
-    // Implementation would go here
   };
 
   const updateGroupDetails = async (groupId: string, details: any) => {
     console.log('updateGroupDetails called with:', groupId, details);
-    // Implementation would go here
   };
 
   const removeGroupMember = async (groupId: string, userId: string) => {
     console.log('removeGroupMember called with:', groupId, userId);
-    // Implementation would go here
   };
 
   const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
@@ -464,17 +431,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected') => {
     console.log('handleJoinRequest called with:', groupId, userId, status);
-    // Implementation would go here
   };
 
   const sendMessage = async (messageData: any) => {
     console.log('sendMessage called with:', messageData);
-    // Implementation would go here
   };
 
   const bookService = async (serviceId: string, data: any) => {
     console.log('bookService called with:', serviceId, data);
-    // Implementation would go here
   };
 
   const getUserBookings = async (userId: string): Promise<any[]> => {
@@ -490,7 +454,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const cancelBooking = async (bookingId: string) => {
     console.log('cancelBooking called with:', bookingId);
-    // Implementation would go here
   };
 
   const getUserSessions = async (userId: string): Promise<Session[]> => {
@@ -517,7 +480,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const updateService = async (serviceId: string, serviceData: any): Promise<Service> => {
     console.log('updateService called with:', serviceId, serviceData);
-    // Implementation would go here
     return {} as Service;
   };
 
@@ -528,42 +490,34 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const addComment = async (postId: string, content: string) => {
     console.log('addComment called with:', postId, content);
-    // Implementation would go here
   };
 
   const deleteComment = async (commentId: string) => {
     console.log('deleteComment called with:', commentId);
-    // Implementation would go here
   };
 
   const updateComment = async (commentId: string, content: string) => {
     console.log('updateComment called with:', commentId, content);
-    // Implementation would go here
   };
 
   const likePost = async (postId: string) => {
     console.log('likePost called with:', postId);
-    // Implementation would go here
   };
 
   const unlikePost = async (postId: string) => {
     console.log('unlikePost called with:', postId);
-    // Implementation would go here
   };
 
   const enrollInSession = async (sessionId: string) => {
     console.log('enrollInSession called with:', sessionId);
-    // Implementation would go here
   };
 
   const cancelEnrollment = async (enrollmentId: string) => {
     console.log('cancelEnrollment called with:', enrollmentId);
-    // Implementation would go here
   };
 
   const applyForSponsorship = async (sponsorshipId: string, applicationData: any) => {
     console.log('applyForSponsorship called with:', sponsorshipId, applicationData);
-    // Implementation would go here
   };
 
   const getSponsorshipApplications = async (sponsorshipId: string): Promise<SponsorshipApplication[]> => {
@@ -573,7 +527,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const updateApplicationStatus = async (applicationId: string, status: string) => {
     console.log('updateApplicationStatus called with:', applicationId, status);
-    // Implementation would go here
   };
 
   const createSession = async (sessionData: any): Promise<Session> => {
@@ -592,7 +545,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const requestToJoinGroup = async (groupId: string) => {
     console.log('requestToJoinGroup called with:', groupId);
-    // Implementation would go here
   };
 
   const getServiceBookings = async (serviceId: string): Promise<any[]> => {
@@ -602,17 +554,14 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const approveBooking = async (bookingId: string) => {
     console.log('approveBooking called with:', bookingId);
-    // Implementation would go here
   };
 
   const updateSession = async (sessionId: string, data: any) => {
     console.log('updateSession called with:', sessionId, data);
-    // Implementation would go here
   };
 
   const updateEnrollmentStatus = async (enrollmentId: string, status: string) => {
     console.log('updateEnrollmentStatus called with:', enrollmentId, status);
-    // Implementation would go here
   };
 
   const getSponsorshipById = async (sponsorshipId: string): Promise<Sponsorship | null> => {
@@ -665,7 +614,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     deleteEvent,
     loading,
     setLoading,
-    // Add all the newly implemented functions to the context value
     sendServiceMessage,
     getServiceMessages,
     approveEventRequest,
