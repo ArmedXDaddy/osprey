@@ -19,12 +19,12 @@ const Workshops = () => {
     const fetchWorkshops = async () => {
       setIsLoading(true);
       try {
-        const data = await getWorkshops();
+        const workshopsData = await getWorkshops();
         if (currentUser && currentUser.role === 'company') {
-          const companyWorkshops = data.filter(workshop => workshop.companyId === currentUser.id);
+          const companyWorkshops = workshopsData.filter(workshop => workshop.companyId === currentUser.id);
           setWorkshops(companyWorkshops);
         } else {
-          setWorkshops(data);
+          setWorkshops(workshopsData);
         }
       } catch (error) {
         console.error('Error fetching workshops:', error);

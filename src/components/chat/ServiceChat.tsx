@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -11,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Send, MessageSquare, RefreshCw } from 'lucide-react';
 import { Service, Booking, Message, UserRole } from '@/types';
 import { toast } from '@/hooks/use-toast';
-import { toUserRole } from '@/utils/typeMappers';
+import { toUserRole } from '@/utils/typeHelpers';
 
 interface ServiceChatProps {
   service: Service;
@@ -28,7 +27,6 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
-  // Fetch service messages
   const fetchMessages = async () => {
     if (service?.id) {
       try {
@@ -50,14 +48,11 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
     }
   };
 
-  // Setup real-time subscription
   useEffect(() => {
     if (!service?.id) return;
 
-    // Initial fetch
     fetchMessages();
 
-    // Real-time subscription
     const channel = supabase
       .channel('service_messages')
       .on(
@@ -72,7 +67,6 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
           console.log("New message received via real-time:", payload);
           const newMessage = payload.new as any;
           
-          // Construct a proper Message object with the required userRole
           const messageWithRole: Message = {
             id: newMessage.id,
             serviceId: newMessage.service_id,
@@ -91,13 +85,11 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
 
     console.log("Real-time subscription established for service:", service.id);
 
-    // Cleanup subscription on unmount
     return () => {
       supabase.removeChannel(channel);
     };
   }, [service?.id]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     if (scrollAreaRef.current) {
       const scrollArea = scrollAreaRef.current;
@@ -114,7 +106,6 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
       setIsSubmitting(true);
       console.log("Sending message to service:", service.id);
       
-      // Store message locally to avoid the screen going white
       const tempMessage: Message = {
         id: 'temp-' + Date.now(),
         serviceId: service.id,
@@ -126,13 +117,10 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
         userRole: currentUser.role
       };
       
-      // Optimistically update UI
       setMessages(prev => [...prev, tempMessage]);
       
-      // Clear input field immediately
       setNewMessage('');
       
-      // Send message to server
       await sendServiceMessage({
         serviceId: service.id,
         content: newMessage,
@@ -146,7 +134,6 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
         description: error.message || "There was an error sending your message"
       });
       
-      // Remove optimistic message if it failed
       setMessages(prev => prev.filter(msg => msg.id !== 'temp-' + Date.now()));
     } finally {
       setIsSubmitting(false);
@@ -159,7 +146,6 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
 
   if (!service || !currentUser) return null;
 
-  // Dynamic chat title and description
   const chatTitle = isProvider 
     ? "Service Chat" 
     : `${service.title} Chat`;

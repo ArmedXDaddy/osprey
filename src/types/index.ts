@@ -31,7 +31,7 @@ export interface UserProfile {
   location?: string;
   socialLinks?: SocialLinks;
   followers?: number;
-  following?: number;
+  following?: string[];
   createdAt: Date;
   interests?: string[];
   verified?: boolean;
@@ -92,7 +92,7 @@ export interface Group {
   members: number;
   memberIds?: string[]; 
   memberLimit?: number;
-  privacy: string;
+  privacy: GroupPrivacy;
   price?: number;
   pendingRequests?: number;
   rules: string[];
@@ -153,6 +153,12 @@ export interface Booking {
   scheduledTime?: Date;
   preferredTime?: Date;
   userEmail?: string;
+  serviceTitle?: string;
+  coachName?: string;
+  price?: number;
+  duration?: string;
+  isOnline?: boolean;
+  serviceType?: ServiceType;
 }
 
 export interface Session {
@@ -215,7 +221,7 @@ export interface Product {
   title: string;
   description: string;
   longDescription?: string;
-  price: string;
+  price: number;
   image?: string;
   companyId: string;
   companyName: string;
@@ -245,6 +251,7 @@ export interface Workshop {
   capacity?: number;
   location?: string;
   isOnline: boolean;
+  isFree?: boolean;
   meetingUrl?: string;
   image?: string;
   category: string;

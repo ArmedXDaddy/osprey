@@ -1,17 +1,17 @@
+
 import { supabase } from './client';
 import { generateId } from '@/utils';
-import { ServiceType, UserRole } from '@/types';
+import { UserRole, GroupPrivacy, ServiceType, BookingStatus, PaymentStatus, Product, Workshop, Group, Message, Service, Booking } from '@/types';
+import { toUserRole } from '@/utils/typeHelpers';
 
 // Function to create a user profile
 export const createUserProfile = async (userId: string, email: string, name: string, role: string) => {
-  const { data, error } = await supabase.from('profiles').insert([
-    {
-      id: userId,
-      email,
-      name,
-      role
-    }
-  ]).select();
+  const { data, error } = await supabase.from('profiles').insert([{
+    id: userId,
+    email,
+    name,
+    role
+  }]).select();
   
   if (error) {
     console.error('Error creating user profile:', error);
@@ -619,16 +619,22 @@ export const createMessage = async (messageData: any) => {
 };
 
 // Service bookings
-export const createServiceBooking = async (bookingData: Booking) => {
+export const createServiceBooking = async (
+  serviceId: string, 
+  userId: string, 
+  notes?: string, 
+  paymentStatus: PaymentStatus = 'unpaid', 
+  status: BookingStatus = 'pending'
+) => {
   const { data, error } = await supabase
     .from('service_bookings')
     .insert([{
-      id: bookingData.id || generateId(),
-      service_id: bookingData.serviceId,
-      user_id: bookingData.userId,
-      status: bookingData.status,
-      payment_status: bookingData.paymentStatus,
-      notes: bookingData.notes
+      id: generateId(),
+      service_id: serviceId,
+      user_id: userId,
+      status: status,
+      payment_status: paymentStatus,
+      notes: notes
     }]);
 
   if (error) {
@@ -639,7 +645,7 @@ export const createServiceBooking = async (bookingData: Booking) => {
   return data;
 };
 
-export const getServiceBookings = async (serviceId: string) => {
+export const getServiceBookings = async (serviceId: string): Promise<Booking[]> => {
   try {
     const { data, error } = await supabase.rpc('get_service_bookings', {
       p_service_id: serviceId
@@ -670,7 +676,7 @@ export const getServiceBookings = async (serviceId: string) => {
   }
 };
 
-export const getUserBookings = async (userId: string) => {
+export const getUserBookings = async (userId: string): Promise<Booking[]> => {
   try {
     const { data, error } = await supabase.rpc('get_user_bookings', {
       p_user_id: userId
@@ -699,7 +705,7 @@ export const getUserBookings = async (userId: string) => {
       price: item.price,
       duration: item.duration,
       isOnline: item.is_online,
-      serviceType: item.service_type
+      serviceType: item.service_type as ServiceType
     }));
     
     return bookings;
@@ -709,7 +715,7 @@ export const getUserBookings = async (userId: string) => {
   }
 };
 
-export const getUserBookingForService = async (serviceId: string, userId: string): Promise<any | null> => {
+export const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
   try {
     const { data, error } = await supabase.rpc('get_user_booking_for_service', {
       p_service_id: serviceId,
@@ -727,7 +733,7 @@ export const getUserBookingForService = async (serviceId: string, userId: string
     
     // Map the data to the Booking type
     const bookingData = data[0];
-    const booking = {
+    const booking: Booking = {
       id: bookingData.id,
       serviceId: bookingData.service_id,
       userId: bookingData.user_id,
@@ -824,7 +830,7 @@ export const getServiceChatMessages = async (serviceId: string) => {
   }
 };
 
-export const mapDbServiceToService = (dbService: any) => {
+export const mapDbServiceToService = (dbService: any): Service => {
   return {
     id: dbService.id,
     title: dbService.title,
@@ -844,68 +850,78 @@ export const mapDbServiceToService = (dbService: any) => {
   };
 };
 
-export const mapDbProductToProduct = (dbProduct: any) => {
+export const mapDbProductToProduct = (dbProduct: any): Product => {
   return {
     id: dbProduct.id,
     title: dbProduct.title,
     description: dbProduct.description,
-    price: dbProduct.price,
+    price: Number(dbProduct.price),
     image: dbProduct.image,
     companyId: dbProduct.company_id,
     companyName: dbProduct.company_name,
     companyLogo: dbProduct.company_logo,
     category: dbProduct.category,
     features: dbProduct.features || [],
+    useCases: dbProduct.use_cases || [],
+    tags: dbProduct.tags || [],
+    pricingTiers: dbProduct.pricing_tiers,
+    websiteUrl: dbProduct.website_url,
+    demoUrl: dbProduct.demo_url,
     releaseDate: new Date(dbProduct.release_date || dbProduct.created_at),
-    createdAt: new Date(dbProduct.created_at),
-    updatedAt: dbProduct.updated_at ? new Date(dbProduct.updated_at) : undefined,
-    website: dbProduct.website_url,
-    demo: dbProduct.demo_url
+    createdAt: new Date(dbProduct.created_at)
   };
 };
 
-export const mapDbWorkshopToWorkshop = (dbWorkshop: any) => {
+export const mapDbWorkshopToWorkshop = (dbWorkshop: any): Workshop => {
   return {
     id: dbWorkshop.id,
     title: dbWorkshop.title,
     description: dbWorkshop.description,
+    longDescription: dbWorkshop.long_description,
     companyId: dbWorkshop.company_id,
     companyName: dbWorkshop.company_name,
     companyLogo: dbWorkshop.company_logo,
     date: new Date(dbWorkshop.date),
-    startTime: dbWorkshop.start_time,
-    endTime: dbWorkshop.end_time,
+    duration: dbWorkshop.duration || "1 hour",
+    price: dbWorkshop.price,
+    capacity: dbWorkshop.capacity,
     location: dbWorkshop.location,
     isOnline: dbWorkshop.is_online,
+    isFree: dbWorkshop.price === 0 || dbWorkshop.is_free,
     meetingUrl: dbWorkshop.meeting_url,
-    capacity: dbWorkshop.capacity,
-    price: dbWorkshop.price,
-    isFree: dbWorkshop.is_free,
-    topics: dbWorkshop.topics || [],
-    requirements: dbWorkshop.requirements || [],
     image: dbWorkshop.image,
-    createdAt: new Date(dbWorkshop.created_at),
-    updatedAt: dbWorkshop.updated_at ? new Date(dbWorkshop.updated_at) : undefined,
-    category: dbWorkshop.category
+    category: dbWorkshop.category,
+    topics: dbWorkshop.topics || [],
+    prerequisites: dbWorkshop.prerequisites || [],
+    includes: dbWorkshop.includes || [],
+    instructors: dbWorkshop.instructors || [],
+    tags: dbWorkshop.tags || [],
+    startTime: dbWorkshop.start_time,
+    endTime: dbWorkshop.end_time
   };
 };
 
-export const mapDbGroupToGroup = (dbGroup: any) => {
+export const mapDbGroupToGroup = (dbGroup: any): Group => {
   return {
     id: dbGroup.id,
     name: dbGroup.name,
     description: dbGroup.description,
     creatorId: dbGroup.creator_id,
     creatorName: dbGroup.creator_name,
-    creatorRole: dbGroup.creator_role as UserRole,
+    creatorRole: toUserRole(dbGroup.creator_role || 'user'),
     image: dbGroup.image,
     members: dbGroup.members,
     memberIds: dbGroup.member_ids || [],
     memberLimit: dbGroup.member_limit,
-    privacy: dbGroup.privacy,
+    privacy: dbGroup.privacy as GroupPrivacy,
     price: dbGroup.price,
     pendingRequests: dbGroup.pending_requests || 0,
     rules: dbGroup.rules || [],
     createdAt: new Date(dbGroup.created_at)
   };
 };
+
+// These functions may not be used yet but let's implement them
+export const createMessage = async () => {}
+export const updateMessage = async () => {}
+export const deleteMessage = async () => {}

@@ -9,10 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProducts, getWorkshops } from '@/integrations/supabase/helpers';
 import { mapDbProductToProduct, mapDbWorkshopToWorkshop } from '@/utils/typeMappers';
+import { supabase } from '@/integrations/supabase/client';
 
 const CompanyProfile = () => {
   const { companyId } = useParams<{ companyId: string }>();
-  const { currentUser, getAllUsers } = useAuth();
+  const { currentUser } = useAuth();
   const [company, setCompany] = useState<User | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
@@ -22,10 +23,35 @@ const CompanyProfile = () => {
     const fetchCompanyData = async () => {
       setIsLoading(true);
       try {
-        // Find the company from all users
-        const users = await getAllUsers();
-        const foundCompany = users.find(user => user.id === companyId);
-        setCompany(foundCompany);
+        // Find the company from database
+        if (companyId) {
+          const { data: companyData, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', companyId)
+            .eq('role', 'company')
+            .single();
+          
+          if (error) {
+            console.error("Error fetching company profile:", error);
+          } else if (companyData) {
+            setCompany({
+              id: companyData.id,
+              name: companyData.name,
+              email: companyData.email,
+              role: companyData.role,
+              profileImage: companyData.profile_image,
+              bio: companyData.bio,
+              location: companyData.location,
+              followers: companyData.followers,
+              following: companyData.following,
+              interests: companyData.interests,
+              socialLinks: companyData.social_links,
+              verified: companyData.verified,
+              coverImage: undefined
+            });
+          }
+        }
 
         // Fetch products and workshops for the company
         const productsData = await getProducts();

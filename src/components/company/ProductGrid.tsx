@@ -38,7 +38,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products }) => {
             <h3 className="text-lg font-semibold mb-1">{product.title}</h3>
             <p className="text-sm text-gray-600 line-clamp-2 mb-2">{product.description}</p>
             <div className="flex justify-between items-center mt-4">
-              <span className="font-medium">${product.price?.toFixed(2) || "Free"}</span>
+              <span className="font-medium">${typeof product.price === 'number' ? product.price.toFixed(2) : Number(product.price).toFixed(2) || "Free"}</span>
               <Link 
                 to={`/company/products/${product.id}`}
                 className="text-blue-500 hover:text-blue-700 text-sm"

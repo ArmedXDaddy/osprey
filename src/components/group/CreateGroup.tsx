@@ -2,14 +2,14 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
-import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Badge } from '@/components/ui/badge';
-import { Globe, Lock, DollarSign, Plus, X, Upload } from 'lucide-react';
+import { uploadImage } from '@/integrations/supabase/helpers';
+import { GroupPrivacy } from '@/types';
+import { useToast } from '@/hooks/use-toast';
 
 interface CreateGroupProps {
   onSuccess?: () => void;
@@ -21,255 +21,180 @@ const CreateGroup: React.FC<CreateGroupProps> = ({ onSuccess, onCancel }) => {
   const { createGroup } = useData();
   const { toast } = useToast();
   
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    image: '',
-    privacy: 'public',
-    price: 9.99,
-    memberLimit: 100,
-    rules: ['Be respectful to all members', 'No spam or self-promotion']
-  });
-  const [newRule, setNewRule] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    const numValue = parseInt(value);
-    if (!isNaN(numValue) && numValue > 0) {
-      setFormData(prev => ({ ...prev, [name]: numValue }));
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [privacy, setPrivacy] = useState<GroupPrivacy>('public');
+  const [price, setPrice] = useState<number | undefined>(undefined);
+  const [memberLimit, setMemberLimit] = useState<number>(100);
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  if (!currentUser) {
+    return (
+      <div className="text-center p-4">
+        <p className="text-red-500">You must be logged in to create a group.</p>
+      </div>
+    );
+  }
+  
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImage(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
-
-  const handlePrivacyChange = (value: string) => {
-    setFormData(prev => ({ ...prev, privacy: value }));
-  };
-
-  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const price = parseFloat(e.target.value);
-    if (!isNaN(price) && price >= 0) {
-      setFormData(prev => ({ ...prev, price }));
-    }
-  };
-
-  const handleAddRule = () => {
-    if (newRule.trim() && !formData.rules.includes(newRule.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        rules: [...prev.rules, newRule.trim()]
-      }));
-      setNewRule('');
-    }
-  };
-
-  const handleRemoveRule = (ruleToRemove: string) => {
-    setFormData(prev => ({
-      ...prev,
-      rules: prev.rules.filter(rule => rule !== ruleToRemove)
-    }));
-  };
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!currentUser) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to create a group",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!formData.name.trim() || !formData.description.trim()) {
+    if (!name || !description) {
       toast({
         title: "Missing information",
-        description: "Please fill in all required fields",
+        description: "Please provide a name and description for your group.",
         variant: "destructive"
       });
       return;
     }
-
-    setLoading(true);
-
+    
     try {
-      const groupData = {
-        ...formData,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role,
-      };
-
-      await createGroup(groupData);
+      setIsSubmitting(true);
       
-      toast({
-        title: "Group created!",
-        description: `Your group "${formData.name}" has been created successfully.`
+      let imageUrl = null;
+      if (image) {
+        imageUrl = await uploadImage(image, 'groups');
+      }
+      
+      const newGroup = await createGroup({
+        name,
+        description,
+        image: imageUrl,
+        privacy,
+        price: privacy === 'paid' ? price : undefined,
+        memberLimit,
+        rules: []
       });
       
-      if (onSuccess) onSuccess();
-    } catch (error: any) {
-      console.error("Failed to create group:", error);
       toast({
-        title: "Creation failed",
-        description: error.message || "There was an error creating your group. Please try again.",
+        title: "Group created",
+        description: "Your group has been created successfully."
+      });
+      
+      if (onSuccess) {
+        onSuccess();
+      }
+    } catch (error: any) {
+      console.error("Error creating group:", error);
+      toast({
+        title: "Error creating group",
+        description: error.message || "There was a problem creating your group.",
         variant: "destructive"
       });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
-
+  
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="name">Group Name</Label>
+      <div className="grid w-full items-center gap-1.5">
+        <Label htmlFor="group-name">Group Name</Label>
         <Input
-          id="name"
-          name="name"
-          value={formData.name}
-          onChange={handleChange}
-          placeholder="e.g., Fitness Enthusiasts"
+          id="group-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Enter group name"
           required
         />
       </div>
       
-      <div className="space-y-2">
-        <Label htmlFor="description">Description</Label>
+      <div className="grid w-full items-center gap-1.5">
+        <Label htmlFor="group-description">Description</Label>
         <Textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          placeholder="What is your group about?"
+          id="group-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What is this group about?"
           required
         />
       </div>
       
-      <div className="space-y-2">
-        <Label htmlFor="image">Cover Image URL</Label>
+      <div className="grid w-full items-center gap-1.5">
+        <Label htmlFor="group-image">Group Image</Label>
         <Input
-          id="image"
-          name="image"
-          value={formData.image}
-          onChange={handleChange}
-          placeholder="https://example.com/image.jpg"
+          id="group-image"
+          type="file"
+          accept="image/*"
+          onChange={handleImageChange}
         />
+        {imagePreview && (
+          <div className="mt-2 w-full aspect-video relative">
+            <img
+              src={imagePreview}
+              alt="Group preview"
+              className="rounded object-cover w-full h-full"
+            />
+          </div>
+        )}
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="memberLimit">Member Limit</Label>
-        <Input
-          id="memberLimit"
-          name="memberLimit"
-          type="number"
-          min="1"
-          value={formData.memberLimit}
-          onChange={handleNumberChange}
-          required
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <Label>Group Rules</Label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {formData.rules.map((rule, index) => (
-            <Badge 
-              key={index} 
-              variant="secondary"
-              className="flex items-center gap-1 px-2 py-1"
-            >
-              <span>{rule}</span>
-              <button 
-                type="button" 
-                onClick={() => handleRemoveRule(rule)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <Input
-            value={newRule}
-            onChange={(e) => setNewRule(e.target.value)}
-            placeholder="Add a new rule"
-            className="flex-1"
-          />
-          <Button 
-            type="button" 
-            onClick={handleAddRule}
-            variant="outline"
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-      
-      <div className="space-y-2">
-        <Label>Privacy Settings</Label>
+        <Label>Privacy</Label>
         <RadioGroup 
-          defaultValue="public" 
-          value={formData.privacy}
-          onValueChange={handlePrivacyChange}
-          className="grid grid-cols-1 gap-4 pt-2"
+          value={privacy} 
+          onValueChange={(value) => setPrivacy(value as GroupPrivacy)}
+          className="flex flex-col space-y-1"
         >
-          <div className="flex items-center space-x-2 border rounded-md p-3">
-            <RadioGroupItem value="public" id="privacy-public" />
-            <Label htmlFor="privacy-public" className="flex items-center cursor-pointer">
-              <Globe className="h-4 w-4 mr-2 text-blue-500" />
-              <div>
-                <span className="font-medium">Public</span>
-                <p className="text-sm text-gray-500">Anyone can join and view content</p>
-              </div>
-            </Label>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="public" id="public" />
+            <Label htmlFor="public" className="cursor-pointer">Public - Anyone can join</Label>
           </div>
-          
-          <div className="flex items-center space-x-2 border rounded-md p-3">
-            <RadioGroupItem value="private" id="privacy-private" />
-            <Label htmlFor="privacy-private" className="flex items-center cursor-pointer">
-              <Lock className="h-4 w-4 mr-2 text-amber-500" />
-              <div>
-                <span className="font-medium">Private</span>
-                <p className="text-sm text-gray-500">Members need approval to join</p>
-              </div>
-            </Label>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="private" id="private" />
+            <Label htmlFor="private" className="cursor-pointer">Private - Request to join required</Label>
           </div>
-          
-          <div className="flex items-center space-x-2 border rounded-md p-3">
-            <RadioGroupItem value="paid" id="privacy-paid" />
-            <Label htmlFor="privacy-paid" className="flex items-center cursor-pointer">
-              <DollarSign className="h-4 w-4 mr-2 text-green-500" />
-              <div>
-                <span className="font-medium">Paid Membership</span>
-                <p className="text-sm text-gray-500">Members pay a subscription fee</p>
-              </div>
-            </Label>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="paid" id="paid" />
+            <Label htmlFor="paid" className="cursor-pointer">Paid - Membership requires payment</Label>
           </div>
         </RadioGroup>
       </div>
       
-      {formData.privacy === 'paid' && (
-        <div className="space-y-2">
-          <Label htmlFor="price">Monthly Price ($)</Label>
+      {privacy === 'paid' && (
+        <div className="grid w-full items-center gap-1.5">
+          <Label htmlFor="group-price">Membership Price ($)</Label>
           <Input
-            id="price"
-            name="price"
+            id="group-price"
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
-            value={formData.price}
-            onChange={handlePriceChange}
+            value={price || ''}
+            onChange={(e) => setPrice(parseFloat(e.target.value))}
+            placeholder="5.00"
             required
           />
         </div>
       )}
+      
+      <div className="grid w-full items-center gap-1.5">
+        <Label htmlFor="member-limit">Member Limit</Label>
+        <Input
+          id="member-limit"
+          type="number"
+          min="5"
+          max="1000"
+          value={memberLimit}
+          onChange={(e) => setMemberLimit(parseInt(e.target.value, 10))}
+        />
+        <p className="text-xs text-gray-500">Maximum number of members allowed (5-1000)</p>
+      </div>
       
       <div className="flex justify-end space-x-2 pt-4">
         {onCancel && (
@@ -277,8 +202,8 @@ const CreateGroup: React.FC<CreateGroupProps> = ({ onSuccess, onCancel }) => {
             Cancel
           </Button>
         )}
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Creating...' : 'Create Group'}
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : 'Create Group'}
         </Button>
       </div>
     </form>

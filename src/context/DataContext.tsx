@@ -4,27 +4,26 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment 
+  Booking, ServiceType, Comment, GroupPrivacy 
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking,
-  updateComment, deleteComment,
-  createComment, createEvent, createGroup, createJoinRequest, 
-  createMessage, createPost, createProduct, createService, 
-  createWorkshop, deleteEvent, deleteGroup, deleteMessage, 
-  deletePost, getEvents, getGroups, getJoinRequests, 
-  getMessages, getPosts, getProducts, getServices, 
-  getWorkshops, updateEvent, updateGroup, updateJoinRequest, 
-  updateMessage, updatePost, uploadImage
+  updateComment, deleteComment
 } from '@/integrations/supabase/helpers';
-import { 
-  generateMockServices, generateMockPosts, generateMockEvents, 
+import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
   generateMockMessages, generateMockJoinRequests 
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
-import { asGroupPrivacy } from '@/utils/typeHelpers';
+
+import { 
+  createComment, createEvent, createGroup, createJoinRequest, createMessage, 
+  createPost, createProduct, createService, createWorkshop, deleteEvent, 
+  deleteGroup, deletePost, getEvents, getGroups, getJoinRequests, getMessages, 
+  getPosts, getProducts, getServices, getWorkshops, updateEvent, updateGroup, 
+  updateJoinRequest, updatePost, uploadImage 
+} from '@/integrations/supabase/helpers';
 
 interface GroupPrivacy {
   private: boolean;
