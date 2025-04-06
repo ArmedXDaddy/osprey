@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Booking, Event, Group, JoinRequest, Message, Post, 
   Service, Session, SessionEnrollment, 
   Sponsorship, UserRole, SponsorshipApplication, 
-  EventPrivacy, Announcement } from '@/types';
+  EventPrivacy, Announcement, Comment } from '@/types';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -66,7 +66,7 @@ interface DataContextProps {
   getGroupRequests: (groupId: string) => Promise<JoinRequest[]>;
   handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
   sendMessage: (messageData: any) => Promise<void>;
-  bookService: (serviceId: string, data: any) => Promise<void>;
+  bookService: (serviceId: string, paymentStatus?: string) => Promise<void>;
   getUserBookings: (userId: string) => Promise<any[]>;
   getServiceById: (serviceId: string) => Promise<Service | null>;
   cancelBooking: (bookingId: string) => Promise<void>;
@@ -89,7 +89,7 @@ interface DataContextProps {
   createSession: (sessionData: any) => Promise<Session>;
   createSponsorship: (sponsorshipData: any) => Promise<Sponsorship>;
   requestToJoinGroup: (groupId: string) => Promise<void>;
-  postComments: Record<string, any[]>;
+  postComments: Record<string, Comment[]>;
   getServiceBookings: (serviceId: string) => Promise<any[]>;
   approveBooking: (bookingId: string) => Promise<void>;
   updateSession: (sessionId: string, data: any) => Promise<void>;
@@ -116,7 +116,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
   const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [postComments, setPostComments] = useState<Record<string, any[]>>({});
+  const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [loading, setLoading] = useState(false);
   const { currentUser } = useAuth();
   const { toast } = useToast();
@@ -158,8 +158,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         userId: currentUser.id,
         userName: currentUser.name,
         userRole: currentUser.role as UserRole,
-        likesCount: 0,
-        commentsCount: 0,
+        likes: 0,
+        comments: 0,
         shares: 0,
         userProfileImage: currentUser.profileImage,
         image: postData.image
@@ -437,8 +437,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     console.log('sendMessage called with:', messageData);
   };
 
-  const bookService = async (serviceId: string, data: any) => {
-    console.log('bookService called with:', serviceId, data);
+  const bookService = async (serviceId: string, paymentStatus?: string) => {
+    console.log('bookService called with:', serviceId, paymentStatus);
   };
 
   const getUserBookings = async (userId: string): Promise<any[]> => {
@@ -458,7 +458,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
 
   const getUserSessions = async (userId: string): Promise<Session[]> => {
     console.log('getUserSessions called for userId:', userId);
-    return sessions.filter(s => s.attendeeIds?.includes(userId));
+    return sessions.filter(s => {
+      const attendees = (s as any).attendeeIds || [];
+      return attendees.includes(userId);
+    });
   };
 
   const getCoachSessions = async (coachId: string): Promise<Session[]> => {

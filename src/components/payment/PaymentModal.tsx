@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/types';
@@ -68,7 +67,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
 
       // For paid services, mark as 'paid' in the database
       // Using String 'paid' rather than an enum type as per the function implementation
-      await bookService(service.id, isFreeService ? undefined : 'paid');
+      await bookService(service.id, 'paid');
 
       toast({
         title: "Booking successful!",

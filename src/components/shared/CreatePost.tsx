@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +57,11 @@ const CreatePost: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await createPost(content, selectedImage);
+      const postData = {
+        content: content,
+        image: selectedImage
+      };
+      await createPost(postData);
       setContent('');
       setSelectedImage(null);
       setImagePreview(null);

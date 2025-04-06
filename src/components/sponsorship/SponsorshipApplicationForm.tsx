@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -65,7 +64,7 @@ const SponsorshipApplicationForm = ({ sponsorshipId, onSuccess }: SponsorshipApp
         },
       };
 
-      await applyForSponsorship(applicationData);
+      await applyForSponsorship(sponsorshipId, applicationData);
       
       toast({
         title: 'Application submitted',
