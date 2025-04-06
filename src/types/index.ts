@@ -1,3 +1,4 @@
+
 // Export any necessary types from the existing types file
 export * from './badge.d';
 
@@ -10,6 +11,16 @@ export type UserRole = 'user' | 'coach' | 'influencer' | 'company' | 'admin';
 
 export type EventPrivacy = 'public' | 'private' | 'paid';
 
+export interface SocialLinks {
+  twitter?: string;
+  instagram?: string;
+  linkedin?: string;
+  facebook?: string;
+  youtube?: string;
+  website?: string;
+  [key: string]: string | undefined; // Add index signature for Record<string, string> compatibility
+}
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -18,7 +29,7 @@ export interface UserProfile {
   profileImage?: string;
   bio?: string;
   location?: string;
-  socialLinks?: Record<string, string>;
+  socialLinks?: SocialLinks;
   followers?: number;
   following?: number;
   createdAt: Date;
@@ -39,7 +50,7 @@ export interface User {
   following?: string[];
   createdAt?: Date;
   interests?: string[];
-  socialLinks?: Record<string, string>;
+  socialLinks?: SocialLinks;
   verified?: boolean;
   coverImage?: string;
 }
@@ -127,7 +138,7 @@ export interface Service {
 
 export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
-export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'approved' | 'rejected';
+export type SessionStatus = 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'approved' | 'rejected' | 'pending';
 
 export interface Booking {
   id: string;

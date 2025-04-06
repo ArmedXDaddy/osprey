@@ -1,18 +1,18 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
 import { User, Product, Workshop } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getProducts, getWorkshops } from '@/integrations/supabase/helpers';
+import { mapDbProductToProduct, mapDbWorkshopToWorkshop } from '@/utils/typeMappers';
 
 const CompanyProfile = () => {
   const { companyId } = useParams<{ companyId: string }>();
-  const { currentUser } = useAuth();
-  const { users } = useData();
+  const { currentUser, getAllUsers } = useAuth();
   const [company, setCompany] = useState<User | undefined>(undefined);
   const [products, setProducts] = useState<Product[]>([]);
   const [workshops, setWorkshops] = useState<Workshop[]>([]);
@@ -22,7 +22,8 @@ const CompanyProfile = () => {
     const fetchCompanyData = async () => {
       setIsLoading(true);
       try {
-        // Find the company from the users array
+        // Find the company from all users
+        const users = await getAllUsers();
         const foundCompany = users.find(user => user.id === companyId);
         setCompany(foundCompany);
 
@@ -42,7 +43,7 @@ const CompanyProfile = () => {
     };
 
     fetchCompanyData();
-  }, [companyId, users]);
+  }, [companyId]);
 
   if (isLoading) {
     return <div className="text-center py-12">Loading company profile...</div>;

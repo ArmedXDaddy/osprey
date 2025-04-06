@@ -11,6 +11,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Send, MessageSquare, RefreshCw } from 'lucide-react';
 import { Service, Booking, Message, UserRole } from '@/types';
 import { toast } from '@/hooks/use-toast';
+import { toUserRole } from '@/utils/typeMappers';
 
 interface ServiceChatProps {
   service: Service;
@@ -80,7 +81,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider 
             userProfileImage: newMessage.user_profile_image,
             content: newMessage.content,
             createdAt: new Date(newMessage.created_at),
-            userRole: (newMessage.user_role as UserRole) || 'user' // Cast as UserRole
+            userRole: toUserRole(newMessage.user_role || 'user')
           };
           
           setMessages((prevMessages) => [...prevMessages, messageWithRole]);

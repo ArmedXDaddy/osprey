@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -6,6 +7,7 @@ import { UserRole, Product } from '@/types';
 import ProductGrid from '@/components/company/ProductGrid';
 import { Plus } from 'lucide-react';
 import { getProducts } from '@/integrations/supabase/helpers';
+import { mapDbProductToProduct } from '@/utils/typeMappers';
 
 const Products = () => {
   const navigate = useNavigate();

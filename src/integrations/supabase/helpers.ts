@@ -1,6 +1,8 @@
+
 import { supabase } from './client';
 import { generateId } from '@/utils';
-import { Service, Booking, Session, SessionEnrollment, Message, UserRole, BookingStatus, PaymentStatus, GroupPrivacy } from '@/types';
+import { Service, Booking, Session, SessionEnrollment, Message, UserRole, BookingStatus, PaymentStatus, GroupPrivacy, Product, Workshop, Group } from '@/types';
+import { mapDbProductToProduct, mapDbWorkshopToWorkshop, toUserRole, toSessionStatus, mapDbMessageToMessage } from '@/utils/typeMappers';
 
 /**
  * Function to upload an image to Supabase storage
@@ -36,12 +38,12 @@ export const uploadImage = async (file: File, filePath: string): Promise<string>
 export const createUserProfile = async (user: any) => {
   const { data, error } = await supabase
     .from('profiles')
-    .insert([
-      {
-        id: user.id,
-        email: user.email,
-      },
-    ]);
+    .insert({
+      id: user.id,
+      email: user.email,
+      name: user.name || 'New User',
+      role: user.role || 'user'
+    });
 
   if (error) {
     console.error('Error creating user profile:', error);
@@ -148,28 +150,28 @@ export const createComment = async (comment: any) => {
   return data;
 };
 
-export const updateMessage = async (messageId: string, updates: any) => {
+export const updateComment = async (commentId: string, updates: any) => {
   const { data, error } = await supabase
-    .from('messages')
+    .from('comments')
     .update(updates)
-    .eq('id', messageId);
+    .eq('id', commentId);
 
   if (error) {
-    console.error('Error updating message:', error);
+    console.error('Error updating comment:', error);
     throw error;
   }
 
   return data;
 };
 
-export const deleteMessage = async (messageId: string) => {
+export const deleteComment = async (commentId: string) => {
   const { data, error } = await supabase
-    .from('messages')
+    .from('comments')
     .delete()
-    .eq('id', messageId);
+    .eq('id', commentId);
 
   if (error) {
-    console.error('Error deleting message:', error);
+    console.error('Error deleting comment:', error);
     throw error;
   }
 
@@ -194,7 +196,23 @@ export const getMessages = async (senderId: string, receiverId: string) => {
 export const createService = async (service: Service) => {
   const { data, error } = await supabase
     .from('services')
-    .insert([service]);
+    .insert({
+      id: service.id || generateId(),
+      title: service.title,
+      description: service.description,
+      coach_id: service.providerId,
+      coach_name: service.providerName,
+      price: service.price,
+      duration: service.duration,
+      capacity: service.capacity,
+      service_type: service.serviceType,
+      is_online: service.isOnline,
+      location: service.location,
+      meeting_url: service.meetingUrl,
+      cover_image: service.coverImage,
+      is_active: true,
+      is_free: service.price === 0
+    });
 
   if (error) {
     console.error('Error creating service:', error);
@@ -246,17 +264,35 @@ export const deleteService = async (serviceId: string) => {
   return data;
 };
 
-export const createProduct = async (product: Product) => {
+export const createProduct = async (product: any) => {
   const { data, error } = await supabase
     .from('products')
-    .insert([product]);
+    .insert([{
+      id: generateId(),
+      title: product.title,
+      description: product.description,
+      long_description: product.longDescription,
+      price: product.price,
+      image: product.image,
+      company_id: product.companyId,
+      company_name: product.companyName,
+      company_logo: product.companyLogo,
+      category: product.category,
+      features: product.features,
+      use_cases: product.useCases,
+      tags: product.tags,
+      pricing_tiers: product.pricingTiers,
+      website_url: product.websiteUrl,
+      demo_url: product.demoUrl,
+      release_date: product.releaseDate
+    }]);
 
   if (error) {
     console.error('Error creating product:', error);
     throw error;
   }
 
-  return data;
+  return data?.[0] || null;
 };
 
 export const getProducts = async () => {
@@ -270,7 +306,8 @@ export const getProducts = async () => {
     throw error;
   }
 
-  return data;
+  // Map DB products to Product type
+  return data.map(mapDbProductToProduct);
 };
 
 export const updateProduct = async (productId: string, updates: any) => {
@@ -301,17 +338,41 @@ export const deleteProduct = async (productId: string) => {
   return data;
 };
 
-export const createWorkshop = async (workshop: Workshop) => {
+export const createWorkshop = async (workshop: any) => {
   const { data, error } = await supabase
     .from('workshops')
-    .insert([workshop]);
+    .insert([{
+      id: generateId(),
+      title: workshop.title,
+      description: workshop.description,
+      long_description: workshop.longDescription,
+      company_id: workshop.companyId,
+      company_name: workshop.companyName,
+      company_logo: workshop.companyLogo,
+      date: workshop.date,
+      duration: workshop.duration,
+      price: workshop.price,
+      capacity: workshop.capacity,
+      location: workshop.location,
+      is_online: workshop.isOnline,
+      meeting_url: workshop.meetingUrl,
+      image: workshop.image,
+      category: workshop.category,
+      topics: workshop.topics,
+      prerequisites: workshop.prerequisites,
+      includes: workshop.includes,
+      instructors: workshop.instructors,
+      tags: workshop.tags,
+      start_time: workshop.startTime,
+      end_time: workshop.endTime
+    }]);
 
   if (error) {
     console.error('Error creating workshop:', error);
     throw error;
   }
 
-  return data;
+  return data?.[0] || null;
 };
 
 export const getWorkshops = async () => {
@@ -325,7 +386,8 @@ export const getWorkshops = async () => {
     throw error;
   }
 
-  return data;
+  // Map DB workshops to Workshop type
+  return data.map(mapDbWorkshopToWorkshop);
 };
 
 export const updateWorkshop = async (workshopId: string, updates: any) => {
@@ -356,10 +418,23 @@ export const deleteWorkshop = async (workshopId: string) => {
   return data;
 };
 
-export const createGroup = async (group: Group) => {
+export const createGroup = async (group: any) => {
   const { data, error } = await supabase
     .from('groups')
-    .insert([group]);
+    .insert([{
+      name: group.name,
+      description: group.description,
+      creator_id: group.creatorId,
+      creator_name: group.creatorName,
+      creator_role: group.creatorRole,
+      image: group.image,
+      members: 1,
+      member_limit: group.memberLimit,
+      privacy: group.privacy,
+      price: group.price,
+      pending_requests: 0,
+      rules: group.rules || []
+    }]);
 
   if (error) {
     console.error('Error creating group:', error);
@@ -464,4 +539,290 @@ export const deleteJoinRequest = async (joinRequestId: string) => {
   }
 
   return data;
+};
+
+export const createEvent = async (eventData: any) => {
+  const { data, error } = await supabase.rpc('create_event', {
+    title: eventData.title,
+    description: eventData.description,
+    creator_id: eventData.creatorId,
+    creator_name: eventData.creatorName,
+    creator_role: eventData.creatorRole,
+    location: eventData.location,
+    date: eventData.date,
+    image: eventData.image,
+    privacy: eventData.privacy,
+    price: eventData.price,
+    attendees: eventData.attendees || [],
+    pending_requests: eventData.pendingRequests || 0
+  });
+
+  if (error) {
+    console.error('Error creating event:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const getEvents = async () => {
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching events:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const updateEvent = async (eventId: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('events')
+    .update(updates)
+    .eq('id', eventId);
+
+  if (error) {
+    console.error('Error updating event:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteEvent = async (eventId: string) => {
+  const { data, error } = await supabase
+    .from('events')
+    .delete()
+    .eq('id', eventId);
+
+  if (error) {
+    console.error('Error deleting event:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const createMessage = async (messageData: any) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .insert([messageData]);
+
+  if (error) {
+    console.error('Error creating message:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+// Service bookings
+export const createServiceBooking = async (bookingData: Booking) => {
+  const { data, error } = await supabase
+    .from('service_bookings')
+    .insert([{
+      id: bookingData.id || generateId(),
+      service_id: bookingData.serviceId,
+      user_id: bookingData.userId,
+      status: bookingData.status,
+      payment_status: bookingData.paymentStatus,
+      notes: bookingData.notes
+    }]);
+
+  if (error) {
+    console.error('Error creating service booking:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const getServiceBookings = async (serviceId: string) => {
+  try {
+    const { data, error } = await supabase.rpc('get_service_bookings', {
+      p_service_id: serviceId
+    });
+    if (error) {
+      console.error('Error fetching service bookings:', error);
+      throw error;
+    }
+    
+    // Map the data to the Booking type
+    const bookings = data.map((item: any) => ({
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name,
+      userEmail: item.user_email,
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
+      notes: item.notes,
+      createdAt: new Date(item.created_at),
+      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined
+    }));
+    
+    return bookings;
+  } catch (error) {
+    console.error('Error in getServiceBookings:', error);
+    throw error;
+  }
+};
+
+export const getUserBookings = async (userId: string) => {
+  try {
+    const { data, error } = await supabase.rpc('get_user_bookings', {
+      p_user_id: userId
+    });
+    
+    if (error) {
+      console.error('Error fetching user bookings:', error);
+      throw error;
+    }
+    
+    // Map the data to the Booking type
+    const bookings = data.map((item: any) => ({
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name,
+      userEmail: item.user_email,
+      status: item.status as BookingStatus,
+      paymentStatus: item.payment_status as PaymentStatus,
+      notes: item.notes,
+      createdAt: new Date(item.created_at),
+      scheduledTime: item.created_at ? new Date(item.created_at) : undefined,
+      preferredTime: item.preferred_time ? new Date(item.preferred_time) : undefined,
+      serviceTitle: item.service_title,
+      coachName: item.coach_name,
+      price: item.price,
+      duration: item.duration,
+      isOnline: item.is_online,
+      serviceType: item.service_type
+    }));
+    
+    return bookings;
+  } catch (error) {
+    console.error('Error in getUserBookings:', error);
+    throw error;
+  }
+};
+
+export const getUserBookingForService = async (serviceId: string, userId: string) => {
+  try {
+    const { data, error } = await supabase.rpc('get_user_booking_for_service', {
+      p_service_id: serviceId,
+      p_user_id: userId
+    });
+    
+    if (error) {
+      console.error('Error fetching user booking for service:', error);
+      return null;
+    }
+    
+    if (!data || data.length === 0) {
+      return null;
+    }
+    
+    // Map the data to the Booking type
+    const bookingData = data[0];
+    const booking = {
+      id: bookingData.id,
+      serviceId: bookingData.service_id,
+      userId: bookingData.user_id,
+      userName: bookingData.user_name,
+      userEmail: bookingData.user_email,
+      status: bookingData.status as BookingStatus,
+      paymentStatus: bookingData.payment_status as PaymentStatus,
+      notes: bookingData.notes,
+      createdAt: new Date(bookingData.created_at),
+      preferredTime: bookingData.preferred_time ? new Date(bookingData.preferred_time) : undefined
+    };
+    
+    return booking;
+  } catch (error) {
+    console.error('Error in getUserBookingForService:', error);
+    return null;
+  }
+};
+
+export const approveBooking = async (bookingId: string) => {
+  const { data, error } = await supabase
+    .from('service_bookings')
+    .update({ status: 'approved' })
+    .eq('id', bookingId);
+
+  if (error) {
+    console.error('Error approving booking:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const cancelBooking = async (bookingId: string) => {
+  const { data, error } = await supabase
+    .from('service_bookings')
+    .update({ status: 'cancelled' })
+    .eq('id', bookingId);
+
+  if (error) {
+    console.error('Error cancelling booking:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const sendServiceChatMessage = async (serviceId: string, userId: string, content: string) => {
+  try {
+    const { data, error } = await supabase.rpc('send_service_chat_message', {
+      p_service_id: serviceId,
+      p_user_id: userId,
+      p_content: content
+    });
+    
+    if (error) {
+      console.error('Error sending service chat message:', error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error in sendServiceChatMessage:', error);
+    throw error;
+  }
+};
+
+export const getServiceChatMessages = async (serviceId: string) => {
+  try {
+    const { data, error } = await supabase.rpc('get_service_chat_messages', {
+      p_service_id: serviceId
+    });
+    
+    if (error) {
+      console.error('Error fetching service chat messages:', error);
+      throw error;
+    }
+    
+    // Map the data to the Message type
+    const messages = data.map((item: any) => ({
+      id: item.id,
+      serviceId: item.service_id,
+      userId: item.user_id,
+      userName: item.user_name,
+      userProfileImage: item.user_profile_image,
+      content: item.content,
+      createdAt: new Date(item.created_at),
+      userRole: toUserRole(item.user_role || 'user')
+    }));
+    
+    return messages;
+  } catch (error) {
+    console.error('Error in getServiceChatMessages:', error);
+    throw error;
+  }
 };

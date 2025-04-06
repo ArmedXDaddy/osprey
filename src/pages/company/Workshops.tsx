@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -6,6 +7,7 @@ import { UserRole, Workshop } from '@/types';
 import WorkshopGrid from '@/components/company/WorkshopGrid';
 import { Plus } from 'lucide-react';
 import { getWorkshops } from '@/integrations/supabase/helpers';
+import { mapDbWorkshopToWorkshop } from '@/utils/typeMappers';
 
 const Workshops = () => {
   const navigate = useNavigate();

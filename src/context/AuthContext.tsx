@@ -19,6 +19,7 @@ interface AuthContextType {
   currentUser: UserProfile | null;
   isAuthenticated: boolean;
   loading: boolean;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string, name: string, role: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -39,6 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const setUserFromProfile = (profile: any): UserProfile => {
     console.log("Setting current user with data:", {
@@ -128,6 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(userData);
             setIsAuthenticated(true);
             setLoading(false);
+            setIsLoading(false);
           })
           .catch((error) => {
             console.error("Error fetching profile data on init:", error);
@@ -148,9 +151,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setCurrentUser(userData);
             setIsAuthenticated(false);
             setLoading(false);
+            setIsLoading(false);
           });
       } else {
         setLoading(false);
+        setIsLoading(false);
       }
     });
 
@@ -259,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     currentUser,
     isAuthenticated,
     loading,
+    isLoading,
     login,
     register,
     logout,
