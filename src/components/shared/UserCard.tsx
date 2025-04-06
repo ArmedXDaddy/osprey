@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User as UserIcon, UserPlus } from 'lucide-react';
+import { User as UserIcon, MapPin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import FollowButton from '@/components/profile/FollowButton';
 
 interface UserCardProps {
   user: {
@@ -15,6 +16,7 @@ interface UserCardProps {
     followers?: number;
     location?: string;
     image?: string;
+    profileImage?: string; // Support both image and profileImage
     bio?: string;
   };
 }
@@ -30,12 +32,15 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
     admin: 'bg-red-100 text-red-800'
   };
   
+  // Use profileImage if available, fall back to image
+  const userImage = user.profileImage || user.image;
+  
   return (
-    <Card className="overflow-hidden">
+    <Card className="overflow-hidden transition-all hover:shadow-md">
       <div className="aspect-[3/1] bg-gradient-to-r from-indigo-500 to-purple-600" />
       <div className="relative px-4">
         <Avatar className="h-16 w-16 -mt-8 border-4 border-background">
-          <AvatarImage src={user.image} alt={user.name} />
+          <AvatarImage src={userImage} alt={user.name} />
           <AvatarFallback>
             <UserIcon className="h-8 w-8" />
           </AvatarFallback>
@@ -49,7 +54,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
               <Badge variant="secondary" className={roleColors[user.role]}>
                 {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </Badge>
-              {user.followers && (
+              {user.followers !== undefined && (
                 <span className="text-xs text-muted-foreground">
                   {user.followers.toLocaleString()} followers
                 </span>
@@ -58,10 +63,13 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           </div>
         </div>
         {user.location && (
-          <p className="text-xs text-muted-foreground mt-1">{user.location}</p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center">
+            <MapPin className="h-3 w-3 mr-1" />
+            {user.location}
+          </p>
         )}
         {user.bio && (
-          <p className="text-sm mt-2 line-clamp-2">{user.bio}</p>
+          <p className="text-sm mt-2 line-clamp-2 text-gray-700">{user.bio}</p>
         )}
       </CardContent>
       <CardFooter className="flex justify-between">
@@ -72,10 +80,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
         >
           View Profile
         </Button>
-        <Button variant="default" size="sm">
-          <UserPlus className="h-4 w-4 mr-1" />
-          Follow
-        </Button>
+        <FollowButton targetUserId={user.id} />
       </CardFooter>
     </Card>
   );

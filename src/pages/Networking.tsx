@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -7,69 +8,7 @@ import { Search, UserCircle } from 'lucide-react';
 import { useSearchParams, useLocation } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { User, UserRole } from '@/types';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import FollowButton from '@/components/profile/FollowButton';
-
-type UserCardProps = {
-  user: User;
-};
-
-const UserCard: React.FC<UserCardProps> = ({ user }) => {
-  const roleColors: Record<UserRole, string> = {
-    user: 'bg-gray-100',
-    influencer: 'bg-purple-100',
-    coach: 'bg-blue-100',
-    company: 'bg-green-100',
-    admin: 'bg-red-100'
-  };
-
-  const roleBadgeColors: Record<UserRole, string> = {
-    user: 'bg-gray-500 text-white',
-    influencer: 'bg-purple-500 text-white',
-    coach: 'bg-blue-500 text-white',
-    company: 'bg-green-500 text-white',
-    admin: 'bg-red-500 text-white'
-  };
-
-  return (
-    <Card className="overflow-hidden transition-all hover:shadow-md">
-      <div 
-        className="h-32 w-full bg-gradient-to-r from-indigo-500 to-purple-600"
-      />
-      <CardHeader className="pt-0 -mt-12 flex justify-center">
-        <Avatar className="h-24 w-24 border-4 border-white">
-          <AvatarImage src={user.profileImage} />
-          <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-            {user.name.charAt(0)}
-          </AvatarFallback>
-        </Avatar>
-      </CardHeader>
-      <CardContent className="text-center">
-        <h3 className="text-xl font-bold mb-1">{user.name}</h3>
-        <div className="mb-2">
-          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${roleBadgeColors[user.role]}`}>
-            {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-          </span>
-        </div>
-        <p className="text-gray-500 text-sm mb-2">{user.location}</p>
-        <p className="text-sm line-clamp-2 mb-2">{user.bio}</p>
-        <div className="text-sm text-gray-500 mb-2">
-          <span className="font-semibold">{user.followers?.toLocaleString() || 0}</span> followers
-        </div>
-      </CardContent>
-      <CardFooter className="flex justify-between items-center pb-4">
-        <Link to={`/profile/${user.id}`}>
-          <Button variant="outline" size="sm">View Profile</Button>
-        </Link>
-        <FollowButton targetUserId={user.id} />
-      </CardFooter>
-    </Card>
-  );
-};
+import UserCard from '@/components/shared/UserCard';
 
 const Networking = () => {
   const [searchParams, setSearchParams] = useSearchParams();
