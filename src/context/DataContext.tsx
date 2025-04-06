@@ -1274,16 +1274,38 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       createdAt: new Date(),
     };
     
-    setSponsorships(prev => [...prev, newSponsorship]);
+    // Add to state
+    setSponsorships(prev => {
+      const updated = [...prev, newSponsorship];
+      
+      // Store in localStorage
+      try {
+        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error storing sponsorships in localStorage:', error);
+      }
+      
+      return updated;
+    });
+    
     return newSponsorship;
   }, []);
 
   const updateSponsorship = useCallback((id: string, updatedData: Partial<Sponsorship>) => {
     console.log(`Updating sponsorship with id: ${id}`, updatedData);
     
-    setSponsorships(prev => 
-      prev.map(s => (s.id === id ? { ...s, ...updatedData } : s))
-    );
+    setSponsorships(prev => {
+      const updated = prev.map(s => (s.id === id ? { ...s, ...updatedData } : s));
+      
+      // Store in localStorage
+      try {
+        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error storing sponsorships in localStorage:', error);
+      }
+      
+      return updated;
+    });
     
     return getSponsorshipById(id);
   }, [getSponsorshipById]);
@@ -1291,7 +1313,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const deleteSponsorship = useCallback((id: string) => {
     console.log(`Deleting sponsorship with id: ${id}`);
     
-    setSponsorships(prev => prev.filter(s => s.id !== id));
+    setSponsorships(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      
+      // Store in localStorage
+      try {
+        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+      } catch (error) {
+        console.error('Error storing sponsorships in localStorage:', error);
+      }
+      
+      return updated;
+    });
   }, []);
 
   const getSponsorshipApplications = useCallback((sponsorshipId: string) => {

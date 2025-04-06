@@ -94,7 +94,13 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Return empty sponsorships array as they should only be created by companies
+// Get stored sponsorships from localStorage or return an empty array
 export const generateMockSponsorships = (): Sponsorship[] => {
-  return [];
+  try {
+    const storedSponsorships = localStorage.getItem('mock_sponsorships');
+    return storedSponsorships ? JSON.parse(storedSponsorships) : [];
+  } catch (error) {
+    console.error('Error retrieving sponsorships from localStorage:', error);
+    return [];
+  }
 };
