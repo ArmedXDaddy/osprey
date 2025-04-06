@@ -1,21 +1,21 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '../integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
   Booking, ServiceType, Comment, GroupPrivacy, Announcement
-} from '@/types';
+} from '../types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
   uploadImage, updateComment, deleteComment 
-} from '@/integrations/supabase/helpers';
+} from '../integrations/supabase/helpers';
 import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
   generateMockMessages, generateMockJoinRequests 
-} from '@/utils/mockData';
-import { useToast } from "@/hooks/use-toast";
+} from '../utils/mockData';
+import { useToast } from "../hooks/use-toast";
 
 interface DataContextType {
   posts: Post[];
@@ -58,6 +58,7 @@ interface DataContextType {
   handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   updateGroupDetails: (groupId: string, updates: any) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
   createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>) => Promise<Session>;
   enrollInSession: (sessionId: string) => Promise<void>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
@@ -1278,6 +1279,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       handleJoinRequest,
       removeGroupMember,
       updateGroupDetails,
+      deleteGroup,
       createSession,
       enrollInSession,
       cancelEnrollment,
@@ -1301,8 +1303,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       sendServiceMessage,
       getServiceMessages,
       getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices,
-      deleteGroup
+      fetchUserServices
     }}>
       {children}
     </DataContext.Provider>

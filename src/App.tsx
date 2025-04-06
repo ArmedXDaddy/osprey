@@ -1,28 +1,29 @@
+
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import MainLayout from '@/layouts/MainLayout';
-import Home from '@/pages/Home';
-import Auth from '@/pages/Auth';
-import Profile from '@/pages/Profile';
-import Events from '@/pages/Events';
-import EventDetail from '@/pages/EventDetail';
-import Services from '@/pages/Services';
-import ServiceDetail from '@/pages/ServiceDetail';
-import CreateService from '@/pages/CreateService';
-import EditService from '@/pages/EditService';
-import Sessions from '@/pages/Sessions';
-import SessionDetail from '@/pages/SessionDetail';
-import CreateSession from '@/pages/CreateSession';
-import Groups from '@/pages/Groups';
-import GroupDetail from '@/pages/GroupDetail';
-import CreateGroup from '@/pages/CreateGroup';
-import Products from '@/pages/Products';
-import ProductDetail from '@/pages/ProductDetail';
-import Workshops from '@/pages/Workshops';
-import WorkshopDetail from '@/pages/WorkshopDetail';
-import Jobs from '@/pages/Jobs';
-import JobDetail from '@/pages/JobDetail';
-import EditGroup from '@/pages/EditGroup';
+import MainLayout from './components/layout/MainLayout';
+import Home from './pages/Home';
+import Auth from './pages/Auth';
+import Profile from './pages/Profile';
+import Events from './pages/Events';
+import EventDetail from './pages/EventDetail';
+import Services from './pages/Services';
+import ServiceDetail from './pages/ServiceDetail';
+import CreateService from './pages/CreateService';
+import EditService from './pages/EditService';
+import Sessions from './pages/Sessions';
+import SessionDetail from './pages/SessionDetail';
+import CreateSession from './pages/CreateSession';
+import Groups from './pages/Groups';
+import GroupDetail from './pages/GroupDetail';
+import CreateGroup from './pages/CreateGroup';
+import Products from './pages/Products';
+import ProductDetail from './pages/ProductDetail';
+import Workshops from './pages/Workshops';
+import WorkshopDetail from './pages/WorkshopDetail';
+import Jobs from './pages/Jobs';
+import JobDetail from './pages/JobDetail';
+import EditGroup from './pages/EditGroup';
 
 function App() {
   return (

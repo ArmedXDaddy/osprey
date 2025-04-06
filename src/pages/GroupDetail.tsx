@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useData } from '@/context/DataContext';
-import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
+import { Button } from '../components/ui/button';
+import { Skeleton } from '../components/ui/skeleton';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { 
   Users, 
   Lock, 
@@ -21,13 +21,13 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { Group, UserRole, GroupPrivacy, JoinRequest } from '@/types';
+import { Group, UserRole, GroupPrivacy, JoinRequest } from '../types';
 import { format } from 'date-fns';
-import GroupRequestsSection from '@/components/group/GroupRequestsSection';
-import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
-import GroupChatSection from '@/components/group/GroupChatSection';
-import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { toast } from 'react-toastify';
+import GroupRequestsSection from '../components/group/GroupRequestsSection';
+import OriginalGroupChatSection from '../components/group/OriginalGroupChatSection';
+import GroupChatSection from '../components/group/GroupChatSection';
+import { Dialog, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription } from '../components/ui/dialog';
+import { useToast } from '../components/ui/use-toast';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +48,7 @@ const GroupDetail = () => {
   const [tempMemberLimit, setTempMemberLimit] = useState<number | undefined>(undefined);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (id && groups.length > 0) {

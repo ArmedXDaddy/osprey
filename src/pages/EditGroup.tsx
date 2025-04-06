@@ -1,12 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useData } from '@/context/DataContext';
-import { Group } from '@/types';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useData } from '../context/DataContext';
+import { Group } from '../types';
+import { Skeleton } from '../components/ui/skeleton';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import EditGroupForm from '@/components/group/EditGroupForm';
+import EditGroupForm from '../components/group/EditGroupForm';
 
 const EditGroup = () => {
   const { id } = useParams<{ id: string }>();
