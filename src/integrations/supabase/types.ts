@@ -50,6 +50,57 @@ export type Database = {
           },
         ]
       }
+      events: {
+        Row: {
+          attendees: string[] | null
+          created_at: string
+          creator_id: string
+          creator_name: string
+          creator_role: string
+          date: string
+          description: string
+          id: string
+          image: string | null
+          location: string
+          pending_requests: number | null
+          price: number | null
+          privacy: string
+          title: string
+        }
+        Insert: {
+          attendees?: string[] | null
+          created_at?: string
+          creator_id: string
+          creator_name: string
+          creator_role: string
+          date: string
+          description: string
+          id?: string
+          image?: string | null
+          location: string
+          pending_requests?: number | null
+          price?: number | null
+          privacy?: string
+          title: string
+        }
+        Update: {
+          attendees?: string[] | null
+          created_at?: string
+          creator_id?: string
+          creator_name?: string
+          creator_role?: string
+          date?: string
+          description?: string
+          id?: string
+          image?: string | null
+          location?: string
+          pending_requests?: number | null
+          price?: number | null
+          privacy?: string
+          title?: string
+        }
+        Relationships: []
+      }
       followers: {
         Row: {
           created_at: string

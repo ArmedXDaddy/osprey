@@ -901,7 +901,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         date: new Date(data.date),
         image: data.image,
         attendees: data.attendees || [currentUser.id],
-        privacy: data.privacy,
+        privacy: data.privacy as EventPrivacy,
         price: data.price,
         pendingRequests: data.pending_requests || 0,
         createdAt: new Date(data.created_at)
