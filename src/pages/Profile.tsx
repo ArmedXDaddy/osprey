@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -48,7 +47,6 @@ import FollowButton from '@/components/profile/FollowButton';
 import FollowersList from '@/components/profile/FollowersList';
 import { useFollowers } from '@/hooks/useFollowers';
 
-// Define a type for the social links structure
 interface SocialLinks {
   instagram?: string;
   twitter?: string;
@@ -135,6 +133,7 @@ const Profile = () => {
       
       setIsLoadingProfile(true);
       try {
+        console.log('Fetching profile for user ID:', id);
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
@@ -151,16 +150,12 @@ const Profile = () => {
           throw new Error('User profile not found');
         }
         
-        // Parse social_links - ensure it's properly typed
         let socialLinks: SocialLinks = {};
         if (data.social_links) {
           try {
-            // If it's a string, try to parse it as JSON
             if (typeof data.social_links === 'string') {
               socialLinks = JSON.parse(data.social_links);
-            }
-            // If it's already an object, use it directly
-            else if (typeof data.social_links === 'object') {
+            } else if (typeof data.social_links === 'object') {
               socialLinks = data.social_links as SocialLinks;
             }
           } catch (e) {
@@ -421,6 +416,25 @@ const Profile = () => {
       
       await updateProfile(updatedProfile);
       
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: profileForm.name,
+          bio: profileForm.bio,
+          location: profileForm.location,
+          profile_image: profileForm.profileImage,
+          social_links: {
+            instagram: profileForm.instagram,
+            twitter: profileForm.twitter,
+            website: profileForm.website
+          }
+        })
+        .eq('id', currentUser.id);
+      
+      if (error) {
+        throw new Error(`Error updating public profile: ${error.message}`);
+      }
+      
       toast({
         title: "Profile updated",
         description: "Your profile has been successfully updated",
@@ -545,10 +559,12 @@ const Profile = () => {
   };
 
   const getDefaultAvatarUrl = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random`;
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name || 'User')}&background=random&color=fff&size=256`;
   };
 
   console.log("Rendering profile for user:", userToShow);
+  console.log("User has profile image:", userToShow?.profileImage);
+  console.log("User has bio:", userToShow?.bio);
   
   return (
     <div className="space-y-8">
@@ -579,6 +595,7 @@ const Profile = () => {
                     src={userToShow?.profileImage} 
                     alt={userToShow?.name || 'User'} 
                     fallbackSrc={userToShow?.name ? getDefaultAvatarUrl(userToShow.name) : undefined}
+                    onFallbackLoad={() => console.log('Fallback image loaded for', userToShow?.name)}
                   />
                   <AvatarFallback>
                     {userToShow?.name ? getUserInitials(userToShow.name) : 'U'}

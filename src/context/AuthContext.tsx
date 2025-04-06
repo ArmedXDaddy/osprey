@@ -195,6 +195,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (error) throw error;
       
+      // Update the profiles table to ensure other users can see the updated data
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name || currentUser.name,
+          profile_image: userData.profileImage || currentUser.profileImage,
+          bio: userData.bio || currentUser.bio,
+          location: userData.location || currentUser.location,
+          social_links: userData.socialLinks ? {
+            ...(currentUser.socialLinks || {}),
+            ...userData.socialLinks
+          } : currentUser.socialLinks
+        })
+        .eq('id', currentUser.id);
+      
+      if (profileError) {
+        console.error('Error updating public profile:', profileError);
+        // Continue even if there's an error with the profile update
+      }
+      
       // Update local state immediately to reflect changes
       const updatedUser = { 
         ...currentUser, 
