@@ -133,13 +133,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               {isCompany && (
                 <>
                   <div className="mt-4 mb-2 px-3">
-                    <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Dashboard</h3>
+                    <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Management</h3>
                   </div>
-                  <NavigationLink 
-                    to="/company/dashboard" 
-                    icon={<LayoutDashboard size={18} />} 
-                    label="Company Dashboard" 
-                  />
+                  <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+                  <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+                  <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
                 </>
               )}
               
