@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -12,13 +13,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Button } from "@/components/ui/button"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -54,9 +56,17 @@ const CreateEvent = () => {
     },
   });
 
+  // Watch the privacy field to conditionally display price input
+  const watchPrivacy = form.watch("privacy");
+
   const handleSubmit = async (formData: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
+      
+      // If event is paid but no price is set, set a default price
+      if (formData.privacy === 'paid' && (!formData.price || formData.price <= 0)) {
+        formData.price = 10; // Default price of $10
+      }
       
       // Pass the data to createEvent
       const newEvent = await createEvent(formData);
@@ -159,28 +169,33 @@ const CreateEvent = () => {
                     <SelectItem value="paid">Paid</SelectItem>
                   </SelectContent>
                 </Select>
+                <FormDescription>
+                  Paid events require attendees to purchase tickets.
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    placeholder="Event price"
-                    {...field}
-                    onChange={(e) => field.onChange(Number(e.target.value))}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {watchPrivacy === 'paid' && (
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price ($)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      placeholder="Event price"
+                      {...field}
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
           <FormField
             control={form.control}
             name="image"

@@ -2,10 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Workshop } from '@/types';
 import { Users } from 'lucide-react';
+import MockPaymentModal from '@/components/payment/MockPaymentModal';
 
 interface WorkshopRegistrationProps {
   workshop: Workshop;
@@ -19,6 +20,7 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
   const [isRegistering, setIsRegistering] = useState(false);
   const [registrationCount, setRegistrationCount] = useState(0);
   const [atCapacity, setAtCapacity] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
 
   useEffect(() => {
     if (currentUser && workshop.id) {
@@ -60,7 +62,7 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
     }
   }, [currentUser, workshop.id, workshop.capacity]);
 
-  const handleRegister = async () => {
+  const handleRegisterClick = () => {
     if (!currentUser) {
       toast({
         title: 'Authentication required',
@@ -79,58 +81,51 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
       return;
     }
 
+    if (isRegistered) {
+      handleUnregister();
+    } else {
+      // For paid workshops, show payment modal
+      if (workshop.price > 0) {
+        setShowPaymentModal(true);
+      } else {
+        handleRegister();
+      }
+    }
+  };
+
+  const handleRegister = async () => {
     setIsRegistering(true);
 
     try {
-      if (isRegistered) {
-        // Unregister - using direct query
-        const { error } = await supabase
-          .from('workshop_registrations')
-          .delete()
-          .eq('workshop_id', workshop.id)
-          .eq('user_id', currentUser.id);
-
-        if (error) throw error;
-
-        setIsRegistered(false);
-        setRegistrationCount(prev => Math.max(0, prev - 1));
-        setAtCapacity(false);
-
-        toast({
-          title: 'Unregistered',
-          description: 'You have been removed from this workshop',
-        });
-      } else {
-        // Register - using direct insert
-        const { error } = await supabase
-          .from('workshop_registrations')
-          .insert({
-            workshop_id: workshop.id,
-            user_id: currentUser.id,
-            user_name: currentUser.name,
-            user_email: currentUser.email,
-            user_profile_image: currentUser.profileImage || null,
-            status: 'confirmed'
-          });
-
-        if (error) throw error;
-
-        setIsRegistered(true);
-        setRegistrationCount(prev => prev + 1);
-        
-        // Check if now at capacity
-        if (workshop.capacity && registrationCount + 1 >= workshop.capacity) {
-          setAtCapacity(true);
-        }
-
-        toast({
-          title: 'Registration successful',
-          description: 'You have been registered for this workshop',
+      // Register - using direct insert
+      const { error } = await supabase
+        .from('workshop_registrations')
+        .insert({
+          workshop_id: workshop.id,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_email: currentUser.email,
+          user_profile_image: currentUser.profileImage || null,
+          status: 'confirmed'
         });
 
-        if (onRegistered) {
-          onRegistered();
-        }
+      if (error) throw error;
+
+      setIsRegistered(true);
+      setRegistrationCount(prev => prev + 1);
+      
+      // Check if now at capacity
+      if (workshop.capacity && registrationCount + 1 >= workshop.capacity) {
+        setAtCapacity(true);
+      }
+
+      toast({
+        title: 'Registration successful',
+        description: 'You have been registered for this workshop',
+      });
+
+      if (onRegistered) {
+        onRegistered();
       }
     } catch (error) {
       console.error('Registration error:', error);
@@ -142,6 +137,43 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
     } finally {
       setIsRegistering(false);
     }
+  };
+
+  const handleUnregister = async () => {
+    setIsRegistering(true);
+
+    try {
+      // Unregister - using direct query
+      const { error } = await supabase
+        .from('workshop_registrations')
+        .delete()
+        .eq('workshop_id', workshop.id)
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
+
+      setIsRegistered(false);
+      setRegistrationCount(prev => Math.max(0, prev - 1));
+      setAtCapacity(false);
+
+      toast({
+        title: 'Unregistered',
+        description: 'You have been removed from this workshop',
+      });
+    } catch (error) {
+      console.error('Unregistration error:', error);
+      toast({
+        title: 'Unregistration failed',
+        description: 'There was an error processing your request',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    handleRegister();
   };
 
   const spotRemaining = workshop.capacity 
@@ -160,7 +192,7 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
       </div>
 
       <Button
-        onClick={handleRegister}
+        onClick={handleRegisterClick}
         variant={isRegistered ? "outline" : "default"}
         disabled={isRegistering || (!isRegistered && atCapacity)}
         className="w-full sm:w-auto"
@@ -170,6 +202,22 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
 
       {(!isRegistered && atCapacity) && (
         <p className="text-sm text-red-500">This workshop is at full capacity</p>
+      )}
+
+      {/* Payment Modal for paid workshops */}
+      {showPaymentModal && (
+        <MockPaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+          itemTitle={workshop.title}
+          itemDescription={workshop.description}
+          itemImage={workshop.image}
+          organizerName={workshop.companyName}
+          price={workshop.price}
+          duration={workshop.duration}
+          isFree={workshop.price === 0}
+        />
       )}
     </div>
   );
