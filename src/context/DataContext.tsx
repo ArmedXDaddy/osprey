@@ -1254,7 +1254,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       rejectEventRequest: async () => { throw new Error('Not implemented'); },
       getEventRequests: async () => { return []; },
       handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
-      createGroup: async () => { throw new Error('Not implemented'); },
+      createGroup,
       joinGroup,
       leaveGroup,
       requestToJoinGroup,
