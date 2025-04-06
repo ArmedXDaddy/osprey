@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -44,29 +43,23 @@ const EventDetail = () => {
   }
   
   useEffect(() => {
-    if (currentUser && event.attendees) {
+    if (currentUser && event) {
       const isUserAttending = event.attendees.includes(currentUser.id);
       setIsAttending(isUserAttending);
       
-      // Use only real attendee data - no mock data
-      const realAttendeeDetails: AttendeeDetail[] = [];
-      const realRegistrations: EventRegistration[] = [];
+      let currentAttendeeDetails: AttendeeDetail[] = [];
+      let currentRegistrations: EventRegistration[] = [];
       
-      // If we have attendee details and registrations in the event, use those
       if (event.attendeeDetails && event.attendeeDetails.length > 0) {
-        event.attendeeDetails.forEach(attendee => {
-          realAttendeeDetails.push(attendee);
-        });
+        currentAttendeeDetails = [...event.attendeeDetails];
       }
       
       if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
-        event.attendeeRegistrations.forEach(registration => {
-          realRegistrations.push(registration);
-        });
+        currentRegistrations = [...event.attendeeRegistrations];
       }
       
-      setAttendeeDetails(realAttendeeDetails);
-      setRegistrations(realRegistrations);
+      setAttendeeDetails(currentAttendeeDetails);
+      setRegistrations(currentRegistrations);
     }
   }, [currentUser, event]);
   
@@ -110,45 +103,34 @@ const EventDetail = () => {
   
   const handleRegister = async (registrationData: EventRegistration) => {
     try {
-      // In a real app, we would save the registration to the backend
-      // For now, we'll just update the local state
-      await joinEvent(event.id);
+      await joinEvent(event.id, registrationData);
       setIsAttending(true);
       
       if (currentUser) {
-        // Add user to attendee list with proper details
         const newAttendeeDetail: AttendeeDetail = {
           id: currentUser.id,
-          name: registrationData.name, // Use the name from the registration form
+          name: registrationData.name, 
           profileImage: currentUser.profileImage
         };
         
-        // Update attendee details
         setAttendeeDetails(prevDetails => {
-          // Check if the user is already in the list
           const existingIndex = prevDetails.findIndex(a => a.id === currentUser.id);
           if (existingIndex >= 0) {
-            // Replace existing entry
             const updatedDetails = [...prevDetails];
             updatedDetails[existingIndex] = newAttendeeDetail;
             return updatedDetails;
           } else {
-            // Add new entry
             return [...prevDetails, newAttendeeDetail];
           }
         });
         
-        // Update registrations data
         setRegistrations(prevRegs => {
-          // Check if the user already has a registration
           const existingIndex = prevRegs.findIndex(r => r.userId === currentUser.id);
           if (existingIndex >= 0) {
-            // Replace existing entry
             const updatedRegs = [...prevRegs];
             updatedRegs[existingIndex] = registrationData;
             return updatedRegs;
           } else {
-            // Add new entry
             return [...prevRegs, registrationData];
           }
         });
@@ -164,7 +146,7 @@ const EventDetail = () => {
         description: error.message || "An error occurred during registration",
         variant: "destructive"
       });
-      throw error; // Re-throw to be caught by the form handler
+      throw error;
     }
   };
   
@@ -216,7 +198,6 @@ const EventDetail = () => {
     });
   };
   
-  // Use actual attendee count from the available data, not from event.attendees
   const attendeesCount = attendeeDetails.length;
   
   return (
