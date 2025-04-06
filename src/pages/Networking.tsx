@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, UserCircle } from 'lucide-react';
-import { useSearchParams, useLocation } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { User, UserRole } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
@@ -78,7 +78,6 @@ const Networking = () => {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { currentUser } = useAuth();
-  const location = useLocation();
   
   const activeTab = searchParams.get('tab') || 'all';
   
@@ -87,8 +86,6 @@ const Networking = () => {
   };
 
   useEffect(() => {
-    console.log('Location changed or component mounted:', location.pathname);
-    
     const fetchUsers = async () => {
       setLoading(true);
       try {
@@ -158,7 +155,7 @@ const Networking = () => {
     };
 
     fetchUsers();
-  }, [activeTab, toast, searchTerm, location.pathname]);
+  }, [activeTab, toast, searchTerm]);
   
   const filteredUsers = users.filter(user => {
     if (currentUser && user.id === currentUser.id) {
@@ -193,7 +190,7 @@ const Networking = () => {
         </div>
       </div>
       
-      <Tabs defaultValue={activeTab} value={activeTab} onValueChange={handleTabChange} className="w-full">
+      <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="influencer">Influencers</TabsTrigger>
