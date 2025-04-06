@@ -23,8 +23,8 @@ export const WorkshopCard = ({ workshop, onClick }: WorkshopCardProps) => {
           <div className="flex-1">
             <CardTitle className="text-lg">{workshop.title}</CardTitle>
             <CardDescription className="flex items-center gap-1">
-              <img src={workshop.companyLogo} alt={workshop.companyName} className="h-4 w-4 rounded-full" />
-              <span>{workshop.companyName}</span>
+              <img src={workshop.company_logo} alt={workshop.company_name} className="h-4 w-4 rounded-full" />
+              <span>{workshop.company_name}</span>
             </CardDescription>
           </div>
           {workshop.category && <Badge variant="outline">{workshop.category}</Badge>}
@@ -41,7 +41,7 @@ export const WorkshopCard = ({ workshop, onClick }: WorkshopCardProps) => {
             <span>{workshop.duration}</span>
           </div>
           <div className="flex items-center gap-1 text-gray-600">
-            {workshop.isOnline ? (
+            {workshop.is_online ? (
               <>
                 <Video className="h-4 w-4" />
                 <span>Online</span>

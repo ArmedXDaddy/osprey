@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -282,7 +283,7 @@ const WorkshopDetail = () => {
               </div>
             )}
             
-            {workshop.instructors && workshop.instructors.length > 0 && (
+            {workshop.instructors && Array.isArray(workshop.instructors) && workshop.instructors.length > 0 && (
               <div>
                 <h3 className="font-semibold mb-2">Instructors</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
