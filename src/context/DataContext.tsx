@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Booking, Event, Group, JoinRequest, Message, Post, 
@@ -160,7 +161,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         userRole: currentUser.role as UserRole,
         likes: 0,
         comments: 0,
-        shares: 0,
         userProfileImage: currentUser.profileImage,
         image: postData.image
       };
@@ -459,7 +459,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const getUserSessions = async (userId: string): Promise<Session[]> => {
     console.log('getUserSessions called for userId:', userId);
     return sessions.filter(s => {
-      const attendees = (s as any).attendeeIds || [];
+      // Handle the attendees property without needing attendeeIds
+      const attendees = s.attendees || [];
       return attendees.includes(userId);
     });
   };
