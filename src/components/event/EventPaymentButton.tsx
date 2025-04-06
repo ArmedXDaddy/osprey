@@ -6,7 +6,19 @@ import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { toast } from '@/hooks/use-toast';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
-import { DollarSign, Users } from 'lucide-react';
+import { DollarSign, Users, Ticket } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
 
 interface EventPaymentButtonProps {
   event: Event;
@@ -22,8 +34,16 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   const { currentUser } = useAuth();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showVerificationCode, setShowVerificationCode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
   
   const isPaidEvent = event.privacy === 'paid' && event.price && event.price > 0;
+
+  // Function to generate a random 6-digit verification code
+  const generateVerificationCode = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    return code;
+  };
 
   const handleJoinClick = async () => {
     if (!currentUser) {
@@ -43,7 +63,24 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       setShowPaymentModal(true);
     } else {
       // For free events, join directly
-      onJoin();
+      joinEvent();
+    }
+  };
+  
+  const joinEvent = async () => {
+    try {
+      await onJoin();
+      // Generate verification code after successful join
+      const code = generateVerificationCode();
+      setVerificationCode(code);
+      setShowVerificationCode(true);
+    } catch (error) {
+      console.error("Error joining event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to join the event. Please try again."
+      });
     }
   };
   
@@ -52,11 +89,28 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       setIsProcessing(true);
       // After successful payment, join the event
       await onJoin();
+      
+      // Generate verification code
+      const code = generateVerificationCode();
+      setVerificationCode(code);
+      
+      // Close payment modal and show verification code
+      setShowPaymentModal(false);
+      setShowVerificationCode(true);
     } catch (error) {
       console.error("Error joining event after payment:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to register for the event. Please try again."
+      });
     } finally {
       setIsProcessing(false);
     }
+  };
+  
+  const handleCloseVerificationDialog = () => {
+    setShowVerificationCode(false);
   };
   
   return (
@@ -93,6 +147,42 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
           isFree={!isPaidEvent}
         />
       )}
+      
+      {/* Verification Code Dialog */}
+      <Dialog open={showVerificationCode} onOpenChange={handleCloseVerificationDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Your Event Verification Code</DialogTitle>
+            <DialogDescription>
+              Keep this code safe. You'll need to present it at the event entrance for verification.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center justify-center p-4 space-y-4">
+            <div className="bg-muted p-4 rounded-lg w-full text-center">
+              <InputOTP maxLength={6} value={verificationCode} disabled>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Ticket className="h-4 w-4 mr-2" />
+              <span>Event: {event.title}</span>
+            </div>
+            
+            <p className="text-xs text-muted-foreground text-center">
+              You can find this code in your profile or booking history at any time.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

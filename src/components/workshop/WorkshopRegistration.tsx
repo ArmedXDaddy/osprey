@@ -5,8 +5,20 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Workshop } from '@/types';
-import { Users } from 'lucide-react';
+import { Users, Ticket } from 'lucide-react';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
 
 interface WorkshopRegistrationProps {
   workshop: Workshop;
@@ -21,6 +33,8 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
   const [registrationCount, setRegistrationCount] = useState(0);
   const [atCapacity, setAtCapacity] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showVerificationCode, setShowVerificationCode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
 
   useEffect(() => {
     if (currentUser && workshop.id) {
@@ -61,6 +75,12 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
       checkRegistration();
     }
   }, [currentUser, workshop.id, workshop.capacity]);
+
+  // Function to generate a random 6-digit verification code
+  const generateVerificationCode = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    return code;
+  };
 
   const handleRegisterClick = () => {
     if (!currentUser) {
@@ -124,6 +144,11 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
         description: 'You have been registered for this workshop',
       });
 
+      // Generate verification code
+      const code = generateVerificationCode();
+      setVerificationCode(code);
+      setShowVerificationCode(true);
+
       if (onRegistered) {
         onRegistered();
       }
@@ -174,6 +199,11 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
 
   const handlePaymentSuccess = () => {
     handleRegister();
+    setShowPaymentModal(false);
+  };
+
+  const handleCloseVerificationDialog = () => {
+    setShowVerificationCode(false);
   };
 
   const spotRemaining = workshop.capacity 
@@ -219,6 +249,42 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
           isFree={workshop.price === 0}
         />
       )}
+      
+      {/* Verification Code Dialog */}
+      <Dialog open={showVerificationCode} onOpenChange={handleCloseVerificationDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Your Workshop Registration Code</DialogTitle>
+            <DialogDescription>
+              Keep this code safe. You'll need to present it at the workshop for verification.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex flex-col items-center justify-center p-4 space-y-4">
+            <div className="bg-muted p-4 rounded-lg w-full text-center">
+              <InputOTP maxLength={6} value={verificationCode} disabled>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Ticket className="h-4 w-4 mr-2" />
+              <span>Workshop: {workshop.title}</span>
+            </div>
+            
+            <p className="text-xs text-muted-foreground text-center">
+              You can find this code in your profile or booking history at any time.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
