@@ -90,48 +90,45 @@ export const createProduct = async (productData: any): Promise<Product> => {
  */
 export const createWorkshop = async (workshopData: any): Promise<Workshop> => {
   try {
-    // Use the runQuery helper to work around TypeScript limitations
-    const { data, error } = await runQuery(`
-      INSERT INTO workshops (
-        title, description, company_id, company_name, company_logo, 
-        price, date, duration, capacity, location, is_online, 
-        meeting_url, category, image, start_time, end_time,
-        long_description, topics, prerequisites, includes, tags, instructors
-      ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-        $17, $18, $19, $20, $21, $22
-      ) RETURNING *
-    `, [
-      workshopData.title,
-      workshopData.description,
-      workshopData.company_id,
-      workshopData.company_name,
-      workshopData.company_logo,
-      workshopData.price,
-      workshopData.date,
-      workshopData.duration,
-      workshopData.capacity,
-      workshopData.location,
-      workshopData.is_online,
-      workshopData.meeting_url,
-      workshopData.category,
-      workshopData.image,
-      workshopData.start_time || null,
-      workshopData.end_time || null,
-      workshopData.long_description || null,
-      workshopData.topics || null,
-      workshopData.prerequisites || null,
-      workshopData.includes || null,
-      workshopData.tags || null,
-      workshopData.instructors ? JSON.stringify(workshopData.instructors) : null
-    ]);
+    console.log('Creating workshop with data:', workshopData);
+    
+    // Use direct SQL query with supabase instead of runQuery
+    const { data, error } = await supabase
+      .from('workshops')
+      .insert({
+        title: workshopData.title,
+        description: workshopData.description,
+        company_id: workshopData.company_id,
+        company_name: workshopData.company_name,
+        company_logo: workshopData.company_logo,
+        price: workshopData.price,
+        date: workshopData.date,
+        duration: workshopData.duration,
+        capacity: workshopData.capacity,
+        location: workshopData.location,
+        is_online: workshopData.is_online,
+        meeting_url: workshopData.meeting_url,
+        category: workshopData.category,
+        image: workshopData.image,
+        // Store additional data as JSON in the long_description column if available
+        long_description: workshopData.long_description || null,
+        topics: workshopData.topics || null,
+        prerequisites: workshopData.prerequisites || null,
+        includes: workshopData.includes || null,
+        tags: workshopData.tags || null,
+        instructors: workshopData.instructors ? JSON.stringify(workshopData.instructors) : null,
+        start_time: workshopData.start_time || null,
+        end_time: workshopData.end_time || null
+      })
+      .select()
+      .single();
       
     if (error) {
       console.error('Error creating workshop:', error);
       throw new Error(error.message || 'Failed to create workshop');
     }
     
-    return data[0] as unknown as Workshop;
+    return data as unknown as Workshop;
   } catch (error: any) {
     console.error('Error in createWorkshop:', error);
     throw new Error(error.message || 'Failed to create workshop');
@@ -507,7 +504,7 @@ export const fetchProducts = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: null, // Default to null since it might not exist in the database
+      longDescription: item.long_description || null, // Handle potentially missing property
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
@@ -519,9 +516,9 @@ export const fetchProducts = async () => {
       demoUrl: item.demo_url,
       releaseDate: new Date(item.release_date),
       createdAt: new Date(item.created_at),
-      features: [], // Default to empty array
-      useCases: [], // Default to empty array
-      pricingTiers: [] // Default to empty array
+      features: item.features || [], // Handle potentially missing property
+      useCases: item.use_cases || [], // Handle potentially missing property
+      pricingTiers: item.pricing_tiers || [] // Handle potentially missing property
     }));
     
     return mappedProducts as Product[];
@@ -549,14 +546,14 @@ export const fetchWorkshops = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: null, // Default to null
+      longDescription: item.long_description || null, // Handle potentially missing property
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
       price: item.price,
       date: new Date(item.date),
-      startTime: null, // Default to null
-      endTime: null, // Default to null
+      startTime: item.start_time ? new Date(item.start_time) : null, // Handle potentially missing property
+      endTime: item.end_time ? new Date(item.end_time) : null, // Handle potentially missing property
       duration: item.duration,
       capacity: item.capacity,
       location: item.location,
@@ -565,11 +562,11 @@ export const fetchWorkshops = async () => {
       category: item.category,
       image: item.image,
       createdAt: new Date(item.created_at),
-      topics: [], // Default to empty array
-      prerequisites: [], // Default to empty array
-      includes: [], // Default to empty array
-      tags: [], // Default to empty array
-      instructors: [] // Default to empty array
+      topics: item.topics || [], // Handle potentially missing property
+      prerequisites: item.prerequisites || [], // Handle potentially missing property
+      includes: item.includes || [], // Handle potentially missing property
+      tags: item.tags || [], // Handle potentially missing property
+      instructors: item.instructors || [] // Handle potentially missing property
     }));
     
     return mappedWorkshops as Workshop[];
