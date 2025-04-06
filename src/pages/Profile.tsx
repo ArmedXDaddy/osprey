@@ -548,7 +548,7 @@ const Profile = () => {
                   <AvatarImage 
                     src={userToShow?.profileImage} 
                     alt={userToShow?.name || 'User'}
-                    onError={(e) => {
+                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                       console.log("Profile image failed to load:", e);
                       if (userToShow?.name) {
                         const imgElement = e.target as HTMLImageElement;
