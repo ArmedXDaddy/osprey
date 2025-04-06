@@ -1,7 +1,22 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { Event, UserRole, EventPrivacy } from '@/types';
+import { 
+  Event, UserRole, EventPrivacy, Post, Group, Service, 
+  Session, SessionEnrollment, Message, JoinRequest, 
+  Booking, ServiceType, Comment 
+} from '@/types';
+import { 
+  createServiceBooking, getUserBookings, getServiceBookings, 
+  getUserBookingForService, cancelBooking, approveBooking, 
+  uploadImage, updateComment, deleteComment 
+} from '@/integrations/supabase/helpers';
+import { generateMockServices, generateMockPosts, generateMockEvents, 
+  generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
+  generateMockMessages, generateMockJoinRequests 
+} from '@/utils/mockData';
+import { useToast } from "@/hooks/use-toast";
 import { toast } from "@/components/ui/use-toast";
 
 interface DataContextType {
