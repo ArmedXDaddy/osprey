@@ -58,6 +58,7 @@ interface DataContextType {
   handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
   updateGroupDetails: (groupId: string, updatedData: Partial<Group>) => Promise<void>;
+  deleteGroup: (groupId: string) => Promise<void>;
   createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>) => Promise<Session>;
   enrollInSession: (sessionId: string) => Promise<void>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
@@ -1234,6 +1235,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       handleJoinRequest,
       removeGroupMember,
       updateGroupDetails,
+      deleteGroup,
       createSession,
       enrollInSession,
       cancelEnrollment,
@@ -1257,8 +1259,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       sendServiceMessage,
       getServiceMessages,
       getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices,
-      deleteGroup
+      fetchUserServices
     }}>
       {children}
     </DataContext.Provider>
