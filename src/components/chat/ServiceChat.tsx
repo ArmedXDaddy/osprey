@@ -1,252 +1,203 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
+import { useData } from '@/context/DataContext';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Send } from 'lucide-react';
+import { Message } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
-import { Send, MessageSquare, RefreshCw } from 'lucide-react';
-import { Service, Booking, Message } from '@/types';
-import { toast } from '@/hooks/use-toast';
 
 interface ServiceChatProps {
-  service: Service;
-  booking: Booking | null;
+  serviceId: string;
+  userId: string;
   isProvider: boolean;
 }
 
-const ServiceChat: React.FC<ServiceChatProps> = ({ service, booking, isProvider }) => {
+const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider }) => {
   const { currentUser } = useAuth();
   const { sendServiceMessage, getServiceMessages } = useData();
-  const [newMessage, setNewMessage] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Fetch service messages
-  const fetchMessages = async () => {
-    if (service?.id) {
-      try {
-        setIsLoading(true);
-        console.log("Fetching messages for service:", service.id);
-        const serviceMessages = await getServiceMessages(service.id);
-        console.log("Messages fetched:", serviceMessages);
-        setMessages(serviceMessages);
-      } catch (error) {
-        console.error("Failed to fetch messages:", error);
-        toast({
-          variant: "destructive",
-          title: "Failed to load messages",
-          description: "There was an error loading the chat messages"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-
-  // Setup real-time subscription
+  // Fetch messages when component mounts
   useEffect(() => {
-    if (!service?.id) return;
-
-    // Initial fetch
+    const fetchMessages = async () => {
+      try {
+        setLoading(true);
+        const messagesData = await getServiceMessages(serviceId);
+        setMessages(messagesData);
+      } catch (error) {
+        console.error("Error fetching messages:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
     fetchMessages();
-
-    // Real-time subscription
+  }, [serviceId, getServiceMessages]);
+  
+  // Subscribe to real-time updates
+  useEffect(() => {
+    // Set up subscription to service messages
     const channel = supabase
-      .channel('service_messages')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'service_messages',
-          filter: `service_id=eq.${service.id}`
-        },
-        (payload) => {
-          console.log("New message received via real-time:", payload);
-          const newMessage = payload.new as any;
-          
-          // Construct a proper Message object with the required userRole
-          const messageWithRole: Message = {
-            id: newMessage.id,
-            serviceId: newMessage.service_id,
-            userId: newMessage.user_id,
-            userName: newMessage.user_name,
-            userProfileImage: newMessage.user_profile_image,
-            content: newMessage.content,
-            createdAt: new Date(newMessage.created_at),
-            userRole: newMessage.user_role || 'user' // Use provided role or default to 'user'
-          };
-          
-          setMessages((prevMessages) => [...prevMessages, messageWithRole]);
-        }
-      )
+      .channel('public:service_messages')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'service_messages',
+        filter: `service_id=eq.${serviceId}`,
+      }, (payload) => {
+        console.log('New message received:', payload);
+        const newMsg = payload.new as any;
+        
+        const message: Message = {
+          id: newMsg.id,
+          content: newMsg.content,
+          userId: newMsg.user_id,
+          userName: newMsg.user_name,
+          userProfileImage: newMsg.user_profile_image,
+          userRole: newMsg.user_role || 'user',
+          createdAt: new Date(newMsg.created_at),
+          serviceId: newMsg.service_id
+        };
+        
+        setMessages(prev => [...prev, message]);
+      })
       .subscribe();
-
-    console.log("Real-time subscription established for service:", service.id);
-
-    // Cleanup subscription on unmount
+      
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [service?.id]);
-
-  // Scroll to bottom on new messages
+  }, [serviceId]);
+  
+  // Scroll to bottom when messages change
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      const scrollArea = scrollAreaRef.current;
-      scrollArea.scrollTop = scrollArea.scrollHeight;
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!newMessage.trim() || !currentUser || !service) return;
+  
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !currentUser) return;
     
     try {
-      setIsSubmitting(true);
-      console.log("Sending message to service:", service.id);
-      
-      // Store message locally to avoid the screen going white
-      const tempMessage: Message = {
-        id: 'temp-' + Date.now(),
-        serviceId: service.id,
-        userId: currentUser.id,
-        userName: currentUser.name || 'You',
-        userProfileImage: currentUser.profileImage,
-        content: newMessage,
-        createdAt: new Date(),
-        userRole: currentUser.role || 'user'
-      };
-      
-      // Optimistically update UI
-      setMessages(prev => [...prev, tempMessage]);
-      
-      // Clear input field immediately
-      setNewMessage('');
-      
-      // Send message to server
+      setSendingMessage(true);
       await sendServiceMessage({
-        serviceId: service.id,
-        content: newMessage,
+        serviceId,
+        content: newMessage.trim()
       });
-      
-    } catch (error: any) {
-      console.error("Failed to send message:", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to send message",
-        description: error.message || "There was an error sending your message"
-      });
-      
-      // Remove optimistic message if it failed
-      setMessages(prev => prev.filter(msg => msg.id !== 'temp-' + Date.now()));
+      setNewMessage('');
+    } catch (error) {
+      console.error("Error sending message:", error);
     } finally {
-      setIsSubmitting(false);
+      setSendingMessage(false);
     }
   };
-
-  const handleRefresh = () => {
-    fetchMessages();
-  };
-
-  if (!service || !currentUser) return null;
-
-  // Dynamic chat title and description
-  const chatTitle = isProvider 
-    ? "Service Chat" 
-    : `${service.title} Chat`;
   
-  const chatDescription = isProvider
-    ? "Chat with users who have booked this service"
-    : `Chat with ${service.providerName}`;
-
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+  
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Loading messages...</CardTitle>
+        </CardHeader>
+        <CardContent className="h-[400px] flex items-center justify-center">
+          <div className="animate-pulse">Loading conversation...</div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
-    <div className="flex flex-col h-[500px] border rounded-lg">
-      <div className="bg-muted px-4 py-3 border-b flex justify-between items-center">
-        <div>
-          <h3 className="font-medium">{chatTitle}</h3>
-          <p className="text-sm text-muted-foreground">{chatDescription}</p>
-        </div>
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={handleRefresh}
-          disabled={isLoading}
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-          <span className="sr-only">Refresh</span>
-        </Button>
-      </div>
-      
-      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
-        {messages.length > 0 ? (
-          <div className="space-y-4">
-            {messages.map((message) => {
-              const isCurrentUser = currentUser?.id === message.userId;
-              
-              return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Service Chat</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ScrollArea className="h-[400px] pr-4">
+          {messages.length === 0 ? (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+              No messages yet. Start the conversation!
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {messages.map((message) => (
                 <div 
-                  key={message.id} 
-                  className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
+                  key={message.id}
+                  className={`flex ${message.userId === currentUser?.id ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex ${isCurrentUser ? 'flex-row-reverse' : 'flex-row'} max-w-[80%] gap-2`}>
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={message.userProfileImage} />
-                      <AvatarFallback>{message.userName.charAt(0)}</AvatarFallback>
+                  <div 
+                    className={`flex max-w-[80%] ${
+                      message.userId === currentUser?.id 
+                        ? 'flex-row-reverse' 
+                        : 'flex-row'
+                    }`}
+                  >
+                    <Avatar className={`h-8 w-8 ${message.userId === currentUser?.id ? 'ml-2' : 'mr-2'}`}>
+                      <AvatarImage src={message.userProfileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(message.userName)}&background=random`} />
+                      <AvatarFallback>{message.userName[0]}</AvatarFallback>
                     </Avatar>
                     
                     <div>
-                      <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} items-center gap-2 mb-1`}>
-                        <span className="text-sm font-medium">{message.userName}</span>
-                        <span className="text-xs text-gray-500">
-                          {formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })}
-                        </span>
-                      </div>
-                      
                       <div 
-                        className={`p-3 rounded-lg ${
-                          isCurrentUser 
-                            ? 'bg-primary text-primary-foreground' 
+                        className={`px-3 py-2 rounded-lg ${
+                          message.userId === currentUser?.id
+                            ? 'bg-primary text-primary-foreground'
                             : 'bg-muted'
                         }`}
                       >
-                        {message.content}
+                        <p className="text-sm">{message.content}</p>
+                      </div>
+                      <div 
+                        className={`text-xs text-muted-foreground mt-1 ${
+                          message.userId === currentUser?.id ? 'text-right' : ''
+                        }`}
+                      >
+                        {message.userName} • {formatDistanceToNow(message.createdAt, { addSuffix: true })}
                       </div>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <MessageSquare className="h-8 w-8 text-muted-foreground mb-2" />
-            <p className="text-gray-500">No messages yet. Start the conversation!</p>
-          </div>
-        )}
-      </ScrollArea>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </ScrollArea>
+      </CardContent>
       
-      <div className="p-4 border-t">
-        <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-          <Input
+      <CardFooter className="border-t p-3">
+        <div className="flex w-full items-center space-x-2">
+          <Textarea 
+            placeholder="Type your message..."
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Type your message..."
-            disabled={isSubmitting}
+            onKeyDown={handleKeyDown}
+            className="min-h-[40px] flex-1"
+            rows={1}
           />
-          <Button type="submit" size="icon" disabled={isSubmitting}>
+          <Button 
+            size="icon" 
+            onClick={handleSendMessage} 
+            disabled={!newMessage.trim() || sendingMessage}
+          >
             <Send className="h-4 w-4" />
           </Button>
-        </form>
-      </div>
-    </div>
+        </div>
+      </CardFooter>
+    </Card>
   );
 };
 

@@ -65,7 +65,7 @@ interface DataContextType {
   updateEnrollmentStatus: (enrollmentId: string, status: string) => Promise<void>;
   sendMessage: (messageData: {groupId: string; content: string}) => Promise<void>;
   getServiceById: (serviceId: string) => Promise<Service | null>;
-  bookService: (serviceId: string, notes?: string, preferredTime?: Date) => Promise<void>;
+  bookService: (serviceId: string, paymentStatus?: string) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
   getUserBookings: (userId: string) => Promise<Booking[]>;
   getServiceBookings: (serviceId: string) => Promise<Booking[]>;
@@ -502,22 +502,33 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
-  const bookService = async (serviceId: string, notes?: string, preferredTime?: Date): Promise<void> => {
+  const bookService = async (serviceId: string, paymentStatus?: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to book a service');
     
     try {
-      const isPaid = notes === 'paid';
-      const status = isPaid ? 'approved' : 'pending';
+      const status = paymentStatus === 'paid' ? 'approved' : 'pending';
       
       await createServiceBooking(
         serviceId,
         currentUser.id,
-        notes,
-        isPaid ? 'paid' : 'unpaid',
-        status
+        undefined,
+        paymentStatus as any,
+        status as any
       );
+      
+      toast({
+        title: "Service booked successfully",
+        description: paymentStatus === 'paid' 
+          ? "Your booking has been confirmed" 
+          : "Your booking request has been submitted"
+      });
     } catch (err: any) {
       console.error("Error booking service:", err);
+      toast({
+        variant: "destructive",
+        title: "Booking failed",
+        description: err.message || "Failed to book service"
+      });
       throw new Error(err.message || 'Failed to book service');
     }
   };
@@ -638,7 +649,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           service_type: updates.serviceType,
           cover_image: updates.coverImage,
           meeting_url: updates.meetingUrl,
-          updated_at: new Date().toISOString() // Convert Date to ISO string format
+          updated_at: new Date().toISOString()
         })
         .eq('id', serviceId)
         .eq('coach_id', currentUser.id);

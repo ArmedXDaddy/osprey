@@ -23,7 +23,7 @@ const ManageService = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, getServiceBookings } = useData();
+  const { getServiceById, getServiceBookings, approveBooking, cancelBooking } = useData();
   
   const [service, setService] = useState<Service | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -105,6 +105,44 @@ const ManageService = () => {
   
   if (!service) return null;
   
+  const handleBookingStatusChange = async (bookingId: string, status: 'approved' | 'rejected') => {
+    try {
+      if (status === 'approved') {
+        await approveBooking(bookingId);
+        setBookings(prev => 
+          prev.map(booking => 
+            booking.id === bookingId 
+              ? {...booking, status: 'approved'} 
+              : booking
+          )
+        );
+        toast({
+          title: "Booking approved",
+          description: "The booking has been approved successfully."
+        });
+      } else {
+        await cancelBooking(bookingId);
+        setBookings(prev => 
+          prev.map(booking => 
+            booking.id === bookingId 
+              ? {...booking, status: 'cancelled'} 
+              : booking
+          )
+        );
+        toast({
+          title: "Booking rejected",
+          description: "The booking has been rejected."
+        });
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update booking status."
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center">
@@ -210,6 +248,8 @@ const ManageService = () => {
             bookings={bookings} 
             isLoading={loadingBookings} 
             serviceId={service.id}
+            onApprove={(bookingId) => handleBookingStatusChange(bookingId, 'approved')}
+            onReject={(bookingId) => handleBookingStatusChange(bookingId, 'rejected')}
           />
         </TabsContent>
         

@@ -23,7 +23,7 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
   
   // If user is the provider, they always have access to the chat
   if (isProvider) {
-    return <ServiceChat service={service} booking={booking} isProvider={true} />;
+    return <ServiceChat serviceId={service.id} userId={currentUser?.id || ''} isProvider={true} />;
   }
   
   // For regular users, show appropriate content based on booking status
@@ -48,13 +48,13 @@ const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking 
 
   // Handle paid services - all types
   if (userBooking.paymentStatus === 'paid') {
-    return <ServiceChat service={service} booking={userBooking} isProvider={false} />;
+    return <ServiceChat serviceId={service.id} userId={currentUser?.id || ''} isProvider={false} />;
   }
 
   // Handle free services that need approval
   if (service.price === 0) {
     if (userBooking.status === 'approved') {
-      return <ServiceChat service={service} booking={userBooking} isProvider={false} />;
+      return <ServiceChat serviceId={service.id} userId={currentUser?.id || ''} isProvider={false} />;
     } else if (userBooking.status === 'pending') {
       return (
         <Card>

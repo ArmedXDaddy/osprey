@@ -67,6 +67,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
       setIsProcessing(true);
 
       // For paid services, mark as 'paid' in the database
+      // Using String 'paid' rather than an enum type as per the function implementation
       await bookService(service.id, isFreeService ? undefined : 'paid');
 
       toast({
