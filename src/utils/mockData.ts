@@ -94,13 +94,7 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Get stored sponsorships from localStorage or return an empty array
+// Return an empty array for mock sponsorships, as this will be fetched from Supabase
 export const generateMockSponsorships = (): Sponsorship[] => {
-  try {
-    const storedSponsorships = localStorage.getItem('mock_sponsorships');
-    return storedSponsorships ? JSON.parse(storedSponsorships) : [];
-  } catch (error) {
-    console.error('Error retrieving sponsorships from localStorage:', error);
-    return [];
-  }
+  return [];
 };
