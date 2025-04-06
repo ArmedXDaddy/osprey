@@ -4,7 +4,7 @@ import { useData } from '@/context/DataContext';
 import GroupCard from '@/components/shared/GroupCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Users, List, Grid, Filter, Trash2 } from 'lucide-react';
+import { Search, Users, List, Grid, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -12,27 +12,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from '@/hooks/use-toast';
 
 const Groups = () => {
-  const { groups, loading, deleteGroup } = useData();
+  const { groups, loading } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('popular');
-  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
   // Filter groups based on search term
   const filteredGroups = groups.filter(group =>
@@ -61,24 +48,6 @@ const Groups = () => {
   // Get groups the user has joined (for future implementation)
   const joinedGroups = []; // This would be populated from the backend in a real implementation
 
-  // Handle delete group
-  const handleDeleteGroup = async (groupId: string) => {
-    try {
-      await deleteGroup(groupId);
-      toast({
-        title: "Group deleted",
-        description: "The group has been permanently deleted",
-      });
-      setGroupToDelete(null);
-    } catch (error: any) {
-      toast({
-        title: "Error deleting group",
-        description: error.message || "An error occurred",
-        variant: "destructive"
-      });
-    }
-  };
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -91,48 +60,6 @@ const Groups = () => {
       </div>
     );
   }
-
-  // Group card with delete option
-  const GroupCardWithOptions = ({ group }: { group: any }) => {
-    const isOwner = currentUser && group.creatorId === currentUser.id;
-    
-    if (!isOwner) {
-      return (
-        <Link to={`/groups/${group.id}`} key={group.id}>
-          <GroupCard group={group} />
-        </Link>
-      );
-    }
-    
-    return (
-      <div className="relative group">
-        <Link to={`/groups/${group.id}`}>
-          <GroupCard group={group} />
-        </Link>
-        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="ghost" className="h-8 w-8 bg-white/80 hover:bg-white">
-                <Trash2 className="h-4 w-4 text-gray-700" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem 
-                className="text-red-500 focus:text-red-500"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setGroupToDelete(group.id);
-                }}
-              >
-                Delete Group
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="space-y-6">
@@ -215,7 +142,9 @@ const Groups = () => {
           {viewMode === 'grid' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sortedGroups.map((group) => (
-                <GroupCardWithOptions key={group.id} group={group} />
+                <Link to={`/groups/${group.id}`} key={group.id}>
+                  <GroupCard group={group} />
+                </Link>
               ))}
             </div>
           ) : (
@@ -235,26 +164,9 @@ const Groups = () => {
                       {group.members} members
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {currentUser && group.creatorId === currentUser.id && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-red-500 border-red-200 hover:bg-red-50"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setGroupToDelete(group.id);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    )}
-                    <Link to={`/groups/${group.id}`}>
-                      <Button size="sm">View</Button>
-                    </Link>
-                  </div>
+                  <Link to={`/groups/${group.id}`}>
+                    <Button size="sm">View</Button>
+                  </Link>
                 </div>
               ))}
             </div>
@@ -274,7 +186,9 @@ const Groups = () => {
             {userGroups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userGroups.map((group) => (
-                  <GroupCardWithOptions key={group.id} group={group} />
+                  <Link to={`/groups/${group.id}`} key={group.id}>
+                    <GroupCard group={group} />
+                  </Link>
                 ))}
               </div>
             ) : (
@@ -314,27 +228,6 @@ const Groups = () => {
           </TabsContent>
         )}
       </Tabs>
-
-      {/* Delete confirmation dialog */}
-      <AlertDialog open={!!groupToDelete} onOpenChange={(open) => !open && setGroupToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this group?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the group and remove all members.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => groupToDelete && handleDeleteGroup(groupToDelete)}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 };

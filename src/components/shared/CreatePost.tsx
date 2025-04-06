@@ -58,11 +58,7 @@ const CreatePost: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const postData = {
-        content: content,
-        image: selectedImage
-      };
-      await createPost(postData);
+      await createPost(content, selectedImage);
       setContent('');
       setSelectedImage(null);
       setImagePreview(null);

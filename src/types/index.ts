@@ -7,8 +7,6 @@ export type SessionStatus = 'pending' | 'approved' | 'rejected' | 'completed';
 export type PaymentStatus = 'unpaid' | 'paid';
 export type ServiceType = 'one_on_one' | 'group' | 'webinar' | 'course';
 export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-export type SponsorshipStatus = 'active' | 'closed' | 'draft';
-export type ApplicationStatus = 'pending' | 'approved' | 'rejected';
 
 export interface User {
   id: string;
@@ -273,39 +271,5 @@ export interface Announcement {
   creatorId: string;
   creatorName: string;
   content: string;
-  createdAt: Date;
-}
-
-export interface Sponsorship {
-  id: string;
-  title: string;
-  description: string;
-  companyId: string;
-  companyName: string;
-  companyLogo?: string;
-  requirements: string[];
-  benefits: string[];
-  compensation?: string;
-  deadline?: Date;
-  status: SponsorshipStatus;
-  tags?: string[];
-  createdAt: Date;
-}
-
-export interface SponsorshipApplication {
-  id: string;
-  sponsorshipId: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  userProfileImage?: string;
-  motivation: string;
-  experience: string;
-  socialLinks?: {
-    instagram?: string;
-    twitter?: string;
-    website?: string;
-  };
-  status: ApplicationStatus;
   createdAt: Date;
 }

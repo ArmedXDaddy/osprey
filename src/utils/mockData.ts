@@ -1,5 +1,5 @@
 
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User, Sponsorship, SponsorshipStatus } from '@/types';
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest } from '@/types';
 
 // Generate mock services
 export const generateMockServices = (): Service[] => {
@@ -68,78 +68,4 @@ export const generateMockJoinRequests = (): JoinRequest[] => {
 
 export const generateMockPosts = (): Post[] => {
   return [];
-};
-
-// Add mock users for application and sponsorship functionality
-export const mockUsers: User[] = [
-  {
-    id: 'user-1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    role: 'influencer',
-    profileImage: '/placeholder.svg',
-    bio: 'Content creator and influencer',
-    followers: 1200,
-    createdAt: new Date()
-  },
-  {
-    id: 'user-2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    role: 'influencer',
-    profileImage: '/placeholder.svg',
-    bio: 'Lifestyle blogger',
-    followers: 850,
-    createdAt: new Date()
-  }
-];
-
-// Return initial sample sponsorships data for mock/demo purposes only
-// Real data will be retrieved from Supabase
-export const generateMockSponsorships = (): Sponsorship[] => {
-  return [
-    {
-      id: 'sponsorship-1',
-      title: 'Fitness Brand Ambassador',
-      description: 'Looking for fitness enthusiasts to represent our new line of workout gear.',
-      companyId: 'company-1',
-      companyName: 'FitLife Apparel',
-      companyLogo: '/placeholder.svg',
-      requirements: [
-        'At least 1000 followers on Instagram',
-        'Regular fitness content creator',
-        'Located in the United States'
-      ],
-      benefits: [
-        'Free products monthly',
-        'Commission on sales with your code',
-        'Featured on our social media'
-      ],
-      compensation: '$500 per month',
-      status: 'active' as SponsorshipStatus,
-      tags: ['fitness', 'health', 'apparel'],
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 days ago
-    },
-    {
-      id: 'sponsorship-2',
-      title: 'Tech Reviewer Partnership',
-      description: 'Seeking tech reviewers for our new smartphone accessories.',
-      companyId: 'company-2',
-      companyName: 'TechGadget Co',
-      companyLogo: '/placeholder.svg',
-      requirements: [
-        'Technology-focused content creator',
-        'Experience with product reviews',
-        'At least 5K subscribers on YouTube'
-      ],
-      benefits: [
-        'Keep all products you review',
-        'Early access to new releases',
-        'Affiliate partnership opportunity'
-      ],
-      status: 'active' as SponsorshipStatus,
-      tags: ['technology', 'gadgets', 'reviews'],
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) // 3 days ago
-    }
-  ];
 };
