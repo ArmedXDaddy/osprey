@@ -1,166 +1,168 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { UserRole } from '@/types';
-import { toast } from 'sonner';
+import { toast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+
+const formSchema = z.object({
+  name: z.string().min(2, {
+    message: "Name must be at least 2 characters.",
+  }),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }),
+  password: z.string().min(8, {
+    message: "Password must be at least 8 characters.",
+  }),
+  role: z.enum(['user', 'influencer', 'coach', 'company']),
+});
 
 const Register = () => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('user');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const { register, currentUser } = useAuth();
   const navigate = useNavigate();
+  const { register } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Redirect if user is already logged in
-  useEffect(() => {
-    if (currentUser) {
-      navigate('/');
-    }
-  }, [currentUser, navigate]);
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!name || !email || !password || !confirmPassword) {
-      toast.error('Please fill in all fields');
-      return;
-    }
-    
-    if (password !== confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-    
-    setIsSubmitting(true);
+  const {
+    register: useFormRegister,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+  });
+
+  const handleRegister = async (formData: z.infer<typeof formSchema>) => {
+    setIsLoading(true);
+    setError('');
     
     try {
-      await register(email, password, name, role);
-      toast.success('Registration successful! Please complete your profile.');
-      // Redirect to profile page instead of home page
-      navigate('/profile');
+      await register(
+        formData.email,
+        formData.password,
+        formData.name,
+        formData.role as UserRole
+      );
+      
+      toast({
+        title: "Registration successful",
+        description: "Your account has been created. You can now login.",
+      });
+      
+      navigate('/auth/login');
     } catch (error: any) {
       console.error('Registration error:', error);
-      toast.error(error.message || 'Registration failed');
+      setError(error.message || 'Failed to register');
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold gradient-text">Osprey</h1>
-          <p className="mt-2 text-gray-600">
-            The ultimate platform for women's fitness & collaboration
-          </p>
-        </div>
-
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold text-center mb-6">Create an Account</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="flex justify-center items-center h-screen bg-gray-100 dark:bg-gray-900">
+      <Card className="w-full max-w-md p-4 bg-white dark:bg-gray-800 shadow-md rounded-md">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-gray-800 dark:text-white text-center">
+            Create an account
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(handleRegister)} className="space-y-4">
             <div>
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Name
+              </Label>
               <Input
-                id="name"
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Jane Doe"
+                id="name"
+                placeholder="Enter your name"
+                className="mt-1 w-full rounded-md shadow-sm focus:ring focus:ring-primary/50 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                {...useFormRegister("name")}
               />
+              {errors.name && (
+                <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+              )}
             </div>
-            
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Email
+              </Label>
               <Input
-                id="email"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                id="email"
+                placeholder="Enter your email"
+                className="mt-1 w-full rounded-md shadow-sm focus:ring focus:ring-primary/50 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                {...useFormRegister("email")}
               />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+              )}
             </div>
-            
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Password
+              </Label>
               <Input
+                type="password"
                 id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Enter your password"
+                className="mt-1 w-full rounded-md shadow-sm focus:ring focus:ring-primary/50 focus:outline-none dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                {...useFormRegister("password")}
               />
+              {errors.password && (
+                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+              )}
             </div>
-            
             <div>
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+              <Label htmlFor="role" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Role
+              </Label>
+              <Select {...useFormRegister("role")} >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="influencer">Influencer</SelectItem>
+                  <SelectItem value="coach">Coach</SelectItem>
+                  <SelectItem value="company">Company</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.role && (
+                <p className="text-red-500 text-sm mt-1">{errors.role.message}</p>
+              )}
             </div>
-            
-            <div>
-              <Label>I am a:</Label>
-              <RadioGroup 
-                value={role} 
-                onValueChange={(value) => setRole(value as UserRole)}
-                className="mt-2 grid grid-cols-2 gap-2"
-              >
-                <div className="flex items-center space-x-2 border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="user" id="user" />
-                  <Label htmlFor="user" className="cursor-pointer">User/Follower</Label>
-                </div>
-                
-                <div className="flex items-center space-x-2 border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="influencer" id="influencer" />
-                  <Label htmlFor="influencer" className="cursor-pointer">Influencer/Athlete</Label>
-                </div>
-                
-                <div className="flex items-center space-x-2 border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="coach" id="coach" />
-                  <Label htmlFor="coach" className="cursor-pointer">Coach</Label>
-                </div>
-                
-                <div className="flex items-center space-x-2 border rounded-md p-3 cursor-pointer hover:bg-gray-50">
-                  <RadioGroupItem value="company" id="company" />
-                  <Label htmlFor="company" className="cursor-pointer">Company/Sponsor</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Creating Account...' : 'Register'}
+            {error && (
+              <p className="text-red-500 text-sm text-center">{error}</p>
+            )}
+            <Button disabled={isLoading} className="w-full" type="submit">
+              {isLoading ? "Creating account..." : "Create Account"}
             </Button>
           </form>
-          
-          <div className="mt-6">
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Already have an account?{" "}
               <Link to="/auth/login" className="text-primary hover:underline">
-                Login
+                Log in
               </Link>
             </p>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -401,58 +401,24 @@ const Profile = () => {
     }));
   };
   
-  const handleProfileUpdate = async () => {
-    if (!currentUser) return;
-    
+  const handleProfileUpdate = async (updatedData: Partial<User>) => {
+    setIsUpdating(true);
     try {
-      const updatedProfile = {
-        ...currentUser,
-        name: profileForm.name,
-        bio: profileForm.bio,
-        location: profileForm.location,
-        profileImage: profileForm.profileImage,
-        coverImage: profileForm.coverImage,
-        socialLinks: {
-          instagram: profileForm.instagram,
-          twitter: profileForm.twitter,
-          website: profileForm.website
-        }
-      };
-      
-      await updateProfile(updatedProfile);
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: profileForm.name,
-          bio: profileForm.bio,
-          location: profileForm.location,
-          profile_image: profileForm.profileImage,
-          social_links: {
-            instagram: profileForm.instagram,
-            twitter: profileForm.twitter,
-            website: profileForm.website
-          }
-        })
-        .eq('id', currentUser.id);
-      
-      if (error) {
-        throw new Error(`Error updating public profile: ${error.message}`);
-      }
-      
+      await updateProfile(updatedData);
       toast({
         title: "Profile updated",
-        description: "Your profile has been successfully updated",
+        description: "Your profile has been successfully updated.",
       });
-      
-      setIsEditDialogOpen(false);
-    } catch (error: any) {
-      console.error("Error updating profile:", error);
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Profile update error:', error);
       toast({
         title: "Update failed",
-        description: error.message || "There was an error updating your profile",
-        variant: "destructive"
+        description: "There was a problem updating your profile.",
+        variant: "destructive",
       });
+    } finally {
+      setIsUpdating(false);
     }
   };
   

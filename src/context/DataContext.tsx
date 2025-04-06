@@ -48,7 +48,13 @@ interface DataContextType {
   rejectEventRequest: (requestId: string) => Promise<void>;
   getEventRequests: (eventId: string) => Promise<JoinRequest[]>;
   handleEventJoinRequest: (eventId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
-  createGroup: (groupData: any) => Promise<Group>;
+  createGroup: (groupData: {
+    name: string;
+    description: string;
+    privacy: GroupPrivacy;
+    price?: number;
+    image?: string;
+  }) => Promise<Group>;
   joinGroup: (groupId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
   requestToJoinGroup: (groupId: string) => Promise<void>;
@@ -1030,28 +1036,39 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     throw new Error('Not implemented');
   };
   
-  const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    
+  const createGroup = async (groupData: {
+    name: string;
+    description: string;
+    privacy: GroupPrivacy;
+    price?: number;
+    image?: string;
+  }) => {
     try {
-      const { name, description, image, privacy, price, memberLimit, rules } = groupData;
+      setIsLoading(true);
+      
+      if (!currentUser) {
+        throw new Error('You must be logged in to create a group');
+      }
+      
+      // Convert the string to GroupPrivacy type explicitly
+      const privacyValue = groupData.privacy as GroupPrivacy;
+      
+      const newGroup = {
+        name: groupData.name,
+        description: groupData.description,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        creator_role: currentUser.role,
+        members: 1,
+        privacy: privacyValue,
+        image: groupData.image,
+        price: groupData.privacy === 'paid' ? groupData.price : null,
+        member_ids: [currentUser.id], // Initialize with creator
+      };
       
       const { data, error } = await supabase
         .from('groups')
-        .insert({
-          name,
-          description,
-          image,
-          privacy,
-          price: privacy === 'paid' ? price : null,
-          member_limit: memberLimit,
-          rules,
-          creator_id: currentUser.id,
-          creator_name: currentUser.name,
-          creator_role: currentUser.role as string,
-          members: 1,
-          pending_requests: 0
-        })
+        .insert(newGroup)
         .select()
         .single();
       
@@ -1085,7 +1102,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       });
       
       return newGroup;
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating group:", error);
       toast({
         title: "Creation failed",
@@ -1093,6 +1110,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         variant: "destructive",
       });
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
   

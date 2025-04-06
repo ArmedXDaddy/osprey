@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -15,7 +14,7 @@ import GroupChatSection from '@/components/group/GroupChatSection';
 import GroupMembersSection from '@/components/group/GroupMembersSection';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { Group } from '@/types';
+import { Group, UserRole, GroupPrivacy } from '@/types';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,54 +23,40 @@ const GroupDetail = () => {
   const [group, setGroup] = useState<Group | null>(null);
   const [isUserMember, setIsUserMember] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     const fetchGroupDetails = async () => {
-      // First try to find group in our state
-      const foundGroup = groups.find(g => g.id === id);
-      
-      if (foundGroup) {
-        setGroup(foundGroup);
-      } else {
-        // If not in state, fetch from API
-        try {
-          const { data, error } = await supabase
-            .from('groups')
-            .select('*')
-            .eq('id', id)
-            .single();
-            
-          if (error) throw error;
-          
-          if (data) {
-            const groupData: Group = {
-              id: data.id,
-              name: data.name,
-              description: data.description,
-              creatorId: data.creator_id,
-              creatorName: data.creator_name,
-              creatorRole: data.creator_role,
-              members: data.members,
-              memberIds: data.member_ids,
-              image: data.image,
-              privacy: data.privacy,
-              price: data.price,
-              pendingRequests: data.pending_requests,
-              rules: data.rules || [],
-              memberLimit: data.member_limit,
-              createdAt: new Date(data.created_at)
-            };
-            
-            setGroup(groupData);
-          }
-        } catch (error) {
-          console.error("Error fetching group:", error);
-          toast({
-            title: "Error",
-            description: "Could not load group details",
-            variant: "destructive"
-          });
-        }
+      try {
+        setIsLoading(true);
+        
+        const { data: groupData, error } = await supabase
+          .from('groups')
+          .select('*')
+          .eq('id', id)
+          .single();
+        
+        if (error) throw error;
+        
+        const group = {
+          ...groupData,
+          creator_role: groupData.creator_role as UserRole,
+          memberIds: groupData.member_ids || []
+        };
+        
+        setGroup({
+          ...group,
+          privacy: group.privacy as GroupPrivacy
+        });
+      } catch (error) {
+        console.error("Error fetching group:", error);
+        toast({
+          title: "Error",
+          description: "Could not load group details",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
     
