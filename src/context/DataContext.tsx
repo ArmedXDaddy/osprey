@@ -4,7 +4,8 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy, Announcement
+  Booking, ServiceType, Comment, GroupPrivacy, Announcement,
+  BookingStatus, PaymentStatus
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -708,7 +709,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             user_id,
             status,
             payment_status,
-            created_at
+            created_at,
+            user_name,
+            user_email
           )
         `)
         .eq('id', id)
@@ -741,6 +744,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           id: booking.id,
           serviceId: id,
           userId: booking.user_id,
+          userName: booking.user_name || 'Unknown User',
+          userEmail: booking.user_email || 'unknown@example.com',
           status: booking.status as BookingStatus,
           paymentStatus: booking.payment_status as PaymentStatus,
           isPaid: booking.payment_status === 'paid',
@@ -766,7 +771,9 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             user_id,
             status,
             payment_status,
-            created_at
+            created_at,
+            user_name,
+            user_email
           )
         `)
         .order('created_at', { ascending: false });
@@ -798,6 +805,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           id: booking.id,
           serviceId: item.id,
           userId: booking.user_id,
+          userName: booking.user_name || 'Unknown User',
+          userEmail: booking.user_email || 'unknown@example.com',
           status: booking.status as BookingStatus,
           paymentStatus: booking.payment_status as PaymentStatus,
           isPaid: booking.payment_status === 'paid',
