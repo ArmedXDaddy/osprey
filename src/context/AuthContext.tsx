@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User, UserRole } from '@/types';
 import { supabase } from "@/integrations/supabase/client";
@@ -95,6 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSupabaseSession(session);
       
       if (session?.user) {
+        // Fix: Use Promise chain properly with then() and catch()
         supabase
           .from('profiles')
           .select('*')
