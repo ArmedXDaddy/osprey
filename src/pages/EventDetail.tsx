@@ -109,10 +109,9 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
-      await deleteEvent(event.id);
-      
       navigate('/events');
       
+      await deleteEvent(event.id, 'cancelled');
       toast({
         title: "Event cancelled",
         description: "The event has been cancelled and removed from the list."
@@ -130,10 +129,9 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
-      await deleteEvent(event.id, 'completed');
-      
       navigate('/events');
       
+      await deleteEvent(event.id, 'completed');
       toast({
         title: "Event completed",
         description: "The event has been marked as completed and archived."
