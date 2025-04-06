@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -23,12 +22,11 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider
   const { currentUser } = useAuth();
   const { sendServiceMessage, getServiceMessages } = useData();
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Fetch messages when component mounts
   useEffect(() => {
     const fetchMessages = async () => {
       try {
@@ -45,9 +43,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider
     fetchMessages();
   }, [serviceId, getServiceMessages]);
   
-  // Subscribe to real-time updates
   useEffect(() => {
-    // Set up subscription to service messages
     const channel = supabase
       .channel('public:service_messages')
       .on('postgres_changes', {
@@ -79,23 +75,29 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider
     };
   }, [serviceId]);
   
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !currentUser) return;
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!message.trim() || !currentUser) return;
     
     try {
       setSendingMessage(true);
-      await sendServiceMessage({
-        serviceId,
-        content: newMessage.trim()
-      });
-      setNewMessage('');
+      await sendServiceMessage(serviceId, message);
+      setMessage('');
+      
+      const updatedMessages = await getServiceMessages(serviceId);
+      setMessages(updatedMessages);
     } catch (error) {
-      console.error("Error sending message:", error);
+      console.error("Failed to send message:", error);
+      toast({
+        title: "Error sending message",
+        description: "Please try again later",
+        variant: "destructive"
+      });
     } finally {
       setSendingMessage(false);
     }
@@ -182,8 +184,8 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider
         <div className="flex w-full items-center space-x-2">
           <Textarea 
             placeholder="Type your message..."
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             className="min-h-[40px] flex-1"
             rows={1}
@@ -191,7 +193,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider
           <Button 
             size="icon" 
             onClick={handleSendMessage} 
-            disabled={!newMessage.trim() || sendingMessage}
+            disabled={!message.trim() || sendingMessage}
           >
             <Send className="h-4 w-4" />
           </Button>

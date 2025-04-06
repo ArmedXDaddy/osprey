@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useData } from '@/context/DataContext';
-import { useAuth } from '@/context/AuthContext'; // Add this import
+import { useAuth } from '@/context/AuthContext';
 import { EventPrivacy } from '@/types';
 import {
   Form,
@@ -46,7 +45,7 @@ const formSchema = z.object({
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { createEvent } = useData();
-  const { currentUser } = useAuth(); // Add this line
+  const { currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showImageUpload, setShowImageUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -68,11 +67,9 @@ const CreateEvent = () => {
     },
   });
 
-  // Watch the privacy field to conditionally display price input
   const watchPrivacy = form.watch("privacy");
   const watchImage = form.watch("image");
 
-  // Fetch event images from Supabase storage on component mount
   React.useEffect(() => {
     const fetchEventImages = async () => {
       try {
@@ -116,47 +113,33 @@ const CreateEvent = () => {
     fetchEventImages();
   }, []);
 
-  const handleSubmit = async (formData: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (data: EventFormValues) => {
+    setIsSubmitting(true);
+    
     try {
-      setIsSubmitting(true);
+      const eventData = {
+        title: data.title,
+        description: data.description,
+        location: data.location,
+        date: data.date,
+        privacy: data.privacy,
+        price: data.privacy === 'paid' ? parseFloat(data.price as string) : 0,
+        image: data.image || selectedImage
+      };
       
-      if (!currentUser) {
-        toast({
-          variant: "destructive",
-          title: "Authentication required",
-          description: "You must be logged in to create an event.",
-        });
-        return;
-      }
+      const event = await createEvent(eventData);
       
-      // If event is paid but no price is set, set a default price
-      if (formData.privacy === 'paid' && (!formData.price || formData.price <= 0)) {
-        formData.price = 10; // Default price of $10
-      }
-      
-      // Create the event with creator info
-      const newEvent = await createEvent({
-        title: formData.title,
-        description: formData.description,
-        location: formData.location,
-        date: formData.date,
-        privacy: formData.privacy as EventPrivacy,
-        price: formData.price,
-        image: formData.image,
+      toast({
+        title: "Event created",
+        description: "Your event has been created successfully."
       });
       
-      // Redirect to the event detail page
+      navigate(`/events/${event.id}`);
+    } catch (error: any) {
       toast({
-        title: "Event created successfully!",
-        description: "Your event has been created.",
-      });
-      
-      navigate(`/events/${newEvent.id}`);
-    } catch (err: any) {
-      toast({
-        variant: "destructive",
-        title: "Uh oh! Something went wrong.",
-        description: err.message || "Failed to create event. Please try again.",
+        title: "Error",
+        description: error.message || "Failed to create event",
+        variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
@@ -171,24 +154,19 @@ const CreateEvent = () => {
     setUploadProgress(0);
     
     try {
-      // Get current user
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user) {
         throw new Error('User not authenticated');
       }
 
-      // Upload the file to Supabase storage
       const userId = userData.user.id;
       const filePath = `${userId}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
       
-      // Use the uploadImage helper function
       const imageUrl = await uploadImage(file, filePath);
       
-      // Add the new image to the list of event images
       const newImage = { name: file.name, url: imageUrl };
       setEventImages(prev => [newImage, ...prev]);
       
-      // Set the image in the form
       form.setValue("image", imageUrl);
       setImagePreview(imageUrl);
       
@@ -198,7 +176,6 @@ const CreateEvent = () => {
         variant: "success",
       });
       
-      // Close the upload dialog
       setShowImageUpload(false);
     } catch (error: any) {
       console.error("Error uploading image:", error);
@@ -392,7 +369,6 @@ const CreateEvent = () => {
           <DialogTitle>Select or Upload Event Image</DialogTitle>
           
           <div className="space-y-4">
-            {/* Upload Section */}
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">Upload New Image</label>
               <label className="cursor-pointer">
@@ -419,7 +395,6 @@ const CreateEvent = () => {
               </label>
             </div>
             
-            {/* Gallery Section */}
             <div>
               <h4 className="text-sm font-medium mb-2">Your Images</h4>
               

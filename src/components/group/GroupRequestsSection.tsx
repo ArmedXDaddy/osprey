@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { JoinRequest } from '@/types';
 import { useData } from '@/context/DataContext';

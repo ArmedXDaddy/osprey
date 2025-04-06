@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -6,8 +7,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDistanceToNow } from 'date-fns';
-import { Edit, Trash, Send } from 'lucide-react';
+import { Edit, Trash, Send, MoreHorizontal, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface CommentSectionProps {
   postId: string;
@@ -22,8 +29,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     
     if (!currentUser) {
       toast({
@@ -109,10 +118,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
       <div className="flex gap-2">
         <Avatar className="h-8 w-8">
           <AvatarImage 
-            src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
-            alt={currentUser.name}
+            src={currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || '')}&background=random`} 
+            alt={currentUser?.name || ''}
           />
-          <AvatarFallback>{currentUser.name[0]}</AvatarFallback>
+          <AvatarFallback>{currentUser?.name?.[0] || '?'}</AvatarFallback>
         </Avatar>
         
         <div className="flex-1 flex gap-2">
@@ -130,7 +139,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
           />
           <Button 
             size="sm" 
-            onClick={handleSubmit}
+            onClick={() => handleSubmit()}
             disabled={isSubmitting || !newComment.trim()}
           >
             {isSubmitting ? 'Posting...' : 'Post'}
@@ -159,7 +168,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, comments }) => 
                         {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                       </span>
                       
-                      {(currentUser.id === comment.userId) && (
+                      {(currentUser && currentUser.id === comment.userId) && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-5 w-5">

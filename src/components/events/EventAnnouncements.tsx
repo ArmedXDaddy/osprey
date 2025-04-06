@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Megaphone, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -53,7 +52,6 @@ const EventAnnouncements = ({
     }
   };
 
-  // If the user is not the creator and hasn't joined, show a message to join first
   if (!isCreator && !hasJoined) {
     return (
       <div className="py-8 text-center border rounded-lg bg-muted/20">

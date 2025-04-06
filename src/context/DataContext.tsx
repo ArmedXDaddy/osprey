@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Post, Event, Group, Service, Session, Message, JoinRequest, Comment, Product, Workshop, JobPosting, Announcement, EventRegistration, Booking, SessionEnrollment } from '@/types';
 import { 
@@ -49,7 +48,7 @@ interface DataContextProps {
   joinEvent: (eventId: string, registrationData?: EventRegistration) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
   deleteEvent: (eventId: string, reason: 'cancelled' | 'completed') => Promise<void>;
-  postAnnouncement: (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'creatorId' | 'creatorName'>) => Promise<void>;
+  postAnnouncement: (eventId: string, content: string) => Promise<void>;
   approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<void>;
   rejectEventRequest: (requestId: string) => Promise<void>;
   
@@ -63,8 +62,8 @@ interface DataContextProps {
   removeGroupMember: (groupId: string, memberId: string) => Promise<void>;
   updateGroupDetails: (groupId: string, groupData: Partial<Group>) => Promise<void>;
   getGroupRequests: (groupId: string) => Promise<JoinRequest[]>;
-  handleJoinRequest: (requestId: string, status: 'approved' | 'rejected') => Promise<void>;
-  sendMessage: (groupId: string, message: Omit<Message, 'id' | 'createdAt'>) => Promise<void>;
+  handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
+  sendMessage: (messageData: { groupId: string, content: string }) => Promise<void>;
   setMessages: (messages: Message[]) => void;
   
   // Service related functions
@@ -78,7 +77,7 @@ interface DataContextProps {
   cancelBooking: (bookingId: string) => Promise<void>;
   getServiceBookings: (serviceId: string) => Promise<Booking[]>;
   approveBooking: (bookingId: string) => Promise<void>;
-  sendServiceMessage: (serviceId: string, message: string) => Promise<void>;
+  sendServiceMessage: (serviceId: string, content: string) => Promise<void>;
   getServiceMessages: (serviceId: string) => Promise<Message[]>;
   
   // Session related functions
@@ -318,8 +317,20 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     );
   };
 
-  const postAnnouncement = async (announcementData: Omit<Announcement, 'id' | 'createdAt' | 'creatorId' | 'creatorName'>) => {
-    // Implementation
+  // Implementation of postAnnouncement for EventAnnouncements component
+  const postAnnouncement = async (eventId: string, content: string) => {
+    if (!currentUser) return;
+    
+    const announcementData: Omit<Announcement, 'id' | 'createdAt' | 'creatorId' | 'creatorName'> = {
+      eventId,
+      content
+    };
+    
+    await createAnnouncement({
+      ...announcementData,
+      creatorId: currentUser.id,
+      creatorName: currentUser.name
+    });
   };
 
   const approveEventRequest = async (requestId: string, eventId: string, userId: string) => {
@@ -370,17 +381,31 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // Implementation
   };
 
-  const getGroupRequests = async (groupId: string) => {
-    // Implementation
-    return [];
+  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
+    return joinRequests.filter(request => request.groupId === groupId);
   };
 
-  const handleJoinRequest = async (requestId: string, status: 'approved' | 'rejected') => {
+  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected') => {
     // Implementation
+    console.log(`Handling join request for group ${groupId}, user ${userId}, status: ${status}`);
   };
 
-  const sendMessage = async (groupId: string, message: Omit<Message, 'id' | 'createdAt'>) => {
-    // Implementation
+  // Group message functions
+  const sendMessage = async (messageData: { groupId: string, content: string }) => {
+    if (!currentUser) return;
+    
+    const newMessage: Message = {
+      id: Math.random().toString(),
+      groupId: messageData.groupId,
+      content: messageData.content,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      userRole: currentUser.role,
+      userProfileImage: currentUser.profileImage,
+      createdAt: new Date()
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
   };
   
   // Service functions
@@ -439,13 +464,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // Implementation
   };
 
-  const sendServiceMessage = async (serviceId: string, message: string) => {
-    // Implementation
+  // Service message functions
+  const sendServiceMessage = async (serviceId: string, content: string) => {
+    if (!currentUser) return;
+    
+    // Implementation similar to sendMessage but for services
+    console.log(`Sending service message to ${serviceId}: ${content}`);
   };
 
-  const getServiceMessages = async (serviceId: string) => {
-    // Implementation
-    return [];
+  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
+    // Mock implementation
+    return messages.filter(msg => msg.serviceId === serviceId);
   };
   
   // Session functions

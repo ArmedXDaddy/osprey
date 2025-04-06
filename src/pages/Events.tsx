@@ -256,6 +256,7 @@ const Events = () => {
                         eventId={eventId}
                         isCreator={event.creatorId === currentUser.id}
                         onPostAnnouncement={postAnnouncement}
+                        hasJoined={isAttending}
                       />
                     </div>
                   );

@@ -75,17 +75,16 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
             content: msg.content,
             userId: msg.user_id,
             userName: msg.user_name,
-            userRole: msg.user_role as UserRole, // Fix: Type assertion to UserRole
+            userRole: msg.user_role as UserRole,
             userProfileImage: msg.user_profile_image,
             createdAt: new Date(msg.created_at),
             groupId: msg.group_id
           }));
 
-          setMessages(prev => {
-            // Filter out existing messages for this group and add the new ones
-            const filteredMessages = prev.filter(msg => msg.groupId !== group.id);
-            return [...filteredMessages, ...transformedMessages];
-          });
+          setMessages([
+            ...messages.filter(msg => msg.groupId !== group.id),
+            ...transformedMessages
+          ]);
         }
       } catch (error) {
         console.error("Error fetching group messages:", error);
@@ -115,13 +114,13 @@ const GroupChatSection: React.FC<GroupChatSectionProps> = ({ group }) => {
             content: newMessage.content,
             userId: newMessage.user_id,
             userName: newMessage.user_name,
-            userRole: newMessage.user_role as UserRole, // Fix: Type assertion to UserRole
+            userRole: newMessage.user_role as UserRole,
             userProfileImage: newMessage.user_profile_image,
             createdAt: new Date(newMessage.created_at),
             groupId: newMessage.group_id
           };
           
-          setMessages(prev => [...prev, message]);
+          setMessages([...messages, message]);
         }
       )
       .subscribe();
