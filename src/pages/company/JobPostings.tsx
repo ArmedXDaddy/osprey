@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { PlusCircle, Briefcase, Building, MapPin, Clock, DollarSign } from 'luci
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, runQuery } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { JobPosting } from '@/types';
 
@@ -40,14 +41,17 @@ const JobPostings = () => {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
-          .from('job_postings')
-          .select('*')
-          .order('created_at', { ascending: false }) as { data: JobPosting[] | null, error: any };
-          
+        let query = `SELECT * FROM job_postings ORDER BY created_at DESC`;
+        
+        if (isCompanyRoute && isCompany && currentUser?.id) {
+          query = `SELECT * FROM job_postings WHERE company_id = '${currentUser.id}' ORDER BY created_at DESC`;
+        }
+        
+        const { data, error } = await runQuery(query);
+        
         if (error) throw error;
         
-        const formattedJobs = data?.map(job => ({
+        const formattedJobs = data?.map((job: JobPosting) => ({
           id: job.id,
           title: job.title,
           company: job.company_name || 'Unknown Company',
@@ -56,16 +60,12 @@ const JobPostings = () => {
           type: job.job_type || 'Full-time',
           salary: job.salary_range || 'Not specified',
           description: job.description || 'No description provided',
-          skills: job.skills ? (Array.isArray(job.skills) ? job.skills : job.skills.toString().split(',').map(s => s.trim())) : [],
+          skills: job.skills || [],
           postedDate: job.created_at,
           companyId: job.company_id
         })) || [];
         
-        const filteredJobs = isCompanyRoute && isCompany && currentUser?.id
-          ? formattedJobs.filter(job => job.companyId === currentUser.id)
-          : formattedJobs;
-          
-        setJobs(filteredJobs);
+        setJobs(formattedJobs);
       } catch (error) {
         console.error('Error loading jobs:', error);
         toast({

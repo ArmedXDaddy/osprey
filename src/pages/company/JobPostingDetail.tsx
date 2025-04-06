@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Briefcase, Building, MapPin, Clock, DollarSign, Calendar, ExternalLink } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
+import { runQuery } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
 import { JobPosting } from '@/types';
 
@@ -22,31 +22,31 @@ const JobPostingDetail = () => {
       
       try {
         setLoading(true);
-        const { data, error } = await supabase
-          .from('job_postings')
-          .select('*')
-          .eq('id', id)
-          .single() as { data: JobPosting | null, error: any };
+        const query = `SELECT * FROM job_postings WHERE id = '${id}'`;
+        const { data, error } = await runQuery(query);
           
         if (error) throw error;
+        if (!data || data.length === 0) throw new Error('Job not found');
+        
+        const jobData = data[0] as JobPosting;
         
         setJob({
-          id: data.id,
-          title: data.title,
-          company: data.company_name,
-          companyLogo: data.company_logo,
-          location: data.location,
-          type: data.job_type,
-          salary: data.salary_range,
-          description: data.description,
-          responsibilities: data.responsibilities || [],
-          requirements: data.requirements || [],
-          benefits: data.benefits || [],
-          skills: Array.isArray(data.skills) ? data.skills : [],
-          postedDate: data.created_at,
-          applicationUrl: data.application_url,
-          applicationDeadline: data.application_deadline,
-          companyDescription: data.company_description || 'No company description available.'
+          id: jobData.id,
+          title: jobData.title,
+          company: jobData.company_name,
+          companyLogo: jobData.company_logo,
+          location: jobData.location,
+          type: jobData.job_type,
+          salary: jobData.salary_range,
+          description: jobData.description,
+          responsibilities: jobData.responsibilities || [],
+          requirements: jobData.requirements || [],
+          benefits: jobData.benefits || [],
+          skills: jobData.skills || [],
+          postedDate: jobData.created_at,
+          applicationUrl: jobData.application_url,
+          applicationDeadline: jobData.application_deadline,
+          companyDescription: jobData.company_description || 'No company description available.'
         });
       } catch (error) {
         console.error('Error fetching job details:', error);

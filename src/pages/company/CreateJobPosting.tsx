@@ -12,8 +12,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { JobPosting } from '@/types';
+import { runQuery } from '@/integrations/supabase/client';
 
 const jobSchema = z.object({
   title: z.string().min(5, 'Job title must be at least 5 characters'),
@@ -62,21 +61,41 @@ const CreateJobPosting = () => {
   
   const onSubmit = async (data: JobFormValues) => {
     try {
-      // Save to Supabase with type assertion to address TypeScript issues
-      const { error } = await supabase.from('job_postings').insert({
-        title: data.title,
-        description: data.description,
-        location: data.location,
-        job_type: data.type,
-        salary_range: data.salaryRange,
-        skills: data.skills.split(',').map(skill => skill.trim()),
-        application_url: data.applicationUrl,
-        application_email: data.applicationEmail,
-        application_deadline: data.applicationDeadline,
-        company_id: currentUser?.id,
-        company_name: currentUser?.name,
-        company_logo: currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Company')}&background=random`
-      } as any);
+      // Convert skills to array
+      const skillsArray = data.skills.split(',').map(skill => skill.trim());
+      
+      // Build the insert query
+      const query = `
+        INSERT INTO job_postings (
+          title, 
+          description, 
+          location, 
+          job_type, 
+          salary_range, 
+          skills, 
+          application_url, 
+          application_email, 
+          application_deadline, 
+          company_id, 
+          company_name, 
+          company_logo
+        ) VALUES (
+          '${data.title.replace(/'/g, "''")}', 
+          '${data.description.replace(/'/g, "''")}', 
+          '${data.location.replace(/'/g, "''")}', 
+          '${data.type}', 
+          '${data.salaryRange.replace(/'/g, "''")}', 
+          ARRAY[${skillsArray.map(skill => `'${skill.replace(/'/g, "''")}'`).join(', ')}], 
+          '${data.applicationUrl}', 
+          '${data.applicationEmail}', 
+          '${data.applicationDeadline}', 
+          '${currentUser?.id}', 
+          '${currentUser?.name.replace(/'/g, "''")}', 
+          '${currentUser?.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser?.name || 'Company')}&background=random`}'
+        ) RETURNING id
+      `;
+      
+      const { data: result, error } = await runQuery(query);
       
       if (error) throw error;
       
