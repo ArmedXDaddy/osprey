@@ -821,6 +821,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_user: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       get_service_bookings: {
         Args: {
           p_service_id: string

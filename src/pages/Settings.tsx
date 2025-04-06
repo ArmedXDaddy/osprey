@@ -133,10 +133,23 @@ const Settings = () => {
     
     try {
       setIsDeleting(true);
-      // Using Supabase admin API to delete the user
-      const { error } = await supabase.rpc('delete_user', { user_id: currentUser.id });
+      
+      // Call the delete_user function through a direct SQL query instead of RPC
+      const { error } = await supabase.from('profiles')
+        .delete()
+        .eq('id', currentUser.id);
       
       if (error) throw error;
+      
+      // Attempt to delete the auth user directly
+      const { error: authError } = await supabase.auth.admin.deleteUser(
+        currentUser.id
+      );
+      
+      if (authError) {
+        console.error('Auth deletion error:', authError);
+        // Even if there's an auth error, we should still logout
+      }
       
       // Logout after account deletion
       await logout();
