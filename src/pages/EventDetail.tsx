@@ -11,11 +11,7 @@ import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, X } from 'luc
 import { toast } from '@/hooks/use-toast';
 import EventAnnouncements from '@/components/events/EventAnnouncements';
 import EventAttendees from '@/components/events/EventAttendees';
-import EventPaymentButton from '@/components/event/EventPaymentButton';
-import EventRegistrationDialog from '@/components/events/EventRegistrationDialog';
-import EventAttendeesDetail from '@/components/events/EventAttendeesDetail';
-import { AttendeeDetail, EventRegistration } from '@/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AttendeeDetail } from '@/types';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -24,8 +20,6 @@ const EventDetail = () => {
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
   const [attendeeDetails, setAttendeeDetails] = useState<AttendeeDetail[]>([]);
-  const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
-  const [showRegistration, setShowRegistration] = useState(false);
   
   const event = events.find(e => e.id === id);
   
@@ -47,48 +41,17 @@ const EventDetail = () => {
       const isUserAttending = event.attendees.includes(currentUser.id);
       setIsAttending(isUserAttending);
       
-      // In a real app, we would fetch real attendee data from the backend
-      // For now, we'll mock this data
       const mockFetchAttendeeDetails = () => {
-        return event.attendees.map((attendeeId, index) => {
-          // If we have this attendee's details in the event already, use those
-          if (event.attendeeDetails && event.attendeeDetails.find(a => a.id === attendeeId)) {
-            return event.attendeeDetails.find(a => a.id === attendeeId)!;
-          }
-          
-          // Otherwise create a placeholder
-          return {
-            id: attendeeId,
-            name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
-            profileImage: attendeeId === currentUser.id 
-              ? currentUser.profileImage 
-              : undefined
-          };
-        });
-      };
-      
-      // Mock registrations data
-      const mockFetchRegistrations = () => {
-        // If we have registration data in the event, use that
-        if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
-          return event.attendeeRegistrations;
-        }
-        
-        // Otherwise generate mock data for existing attendees
         return event.attendees.map((attendeeId, index) => ({
-          userId: attendeeId,
+          id: attendeeId,
           name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
-          email: attendeeId === currentUser.id ? currentUser.email : `attendee${index + 1}@example.com`,
-          phone: index % 2 === 0 ? "+1234567890" : undefined,
-          age: Math.floor(Math.random() * 30) + 18,
-          gender: index % 3 === 0 ? "male" : index % 3 === 1 ? "female" : "prefer-not-to-say",
-          registeredAt: new Date(Date.now() - Math.random() * 1000000000),
-          profileImage: attendeeId === currentUser.id ? currentUser.profileImage : undefined,
+          profileImage: attendeeId === currentUser.id 
+            ? currentUser.profileImage 
+            : undefined
         }));
       };
       
       setAttendeeDetails(mockFetchAttendeeDetails());
-      setRegistrations(mockFetchRegistrations());
     }
   }, [currentUser, event]);
   
@@ -104,89 +67,41 @@ const EventDetail = () => {
       return;
     }
     
-    if (isAttending) {
-      try {
+    try {
+      if (isAttending) {
         await leaveEvent(event.id);
         setIsAttending(false);
         setAttendeeDetails(prevDetails => 
           prevDetails.filter(attendee => attendee.id !== currentUser.id)
         );
-        setRegistrations(prevRegs => 
-          prevRegs.filter(reg => reg.userId !== currentUser.id)
-        );
         toast({
           title: "You're no longer attending",
           description: "You've been removed from the attendee list."
         });
-      } catch (error: any) {
+      } else {
+        await joinEvent(event.id);
+        setIsAttending(true);
+        if (currentUser) {
+          setAttendeeDetails(prevDetails => [
+            ...prevDetails, 
+            {
+              id: currentUser.id,
+              name: currentUser.name,
+              profileImage: currentUser.profileImage
+            }
+          ]);
+        }
         toast({
-          title: "Error",
-          description: error.message || "An error occurred",
-          variant: "destructive"
+          title: "You're attending this event!",
+          description: "You've been added to the attendee list."
         });
       }
-    } else {
-      setShowRegistration(true);
-    }
-  };
-  
-  const handleRegister = async (registrationData: EventRegistration) => {
-    try {
-      // In a real app, we would save the registration to the backend
-      // For now, we'll just update the local state
-      await joinEvent(event.id);
-      setIsAttending(true);
-      
-      if (currentUser) {
-        // Add user to attendee list with proper details
-        const newAttendeeDetail: AttendeeDetail = {
-          id: currentUser.id,
-          name: registrationData.name, // Use the name from the registration form
-          profileImage: currentUser.profileImage
-        };
-        
-        // Update attendee details
-        setAttendeeDetails(prevDetails => {
-          // Check if the user is already in the list
-          const existingIndex = prevDetails.findIndex(a => a.id === currentUser.id);
-          if (existingIndex >= 0) {
-            // Replace existing entry
-            const updatedDetails = [...prevDetails];
-            updatedDetails[existingIndex] = newAttendeeDetail;
-            return updatedDetails;
-          } else {
-            // Add new entry
-            return [...prevDetails, newAttendeeDetail];
-          }
-        });
-        
-        // Update registrations data
-        setRegistrations(prevRegs => {
-          // Check if the user already has a registration
-          const existingIndex = prevRegs.findIndex(r => r.userId === currentUser.id);
-          if (existingIndex >= 0) {
-            // Replace existing entry
-            const updatedRegs = [...prevRegs];
-            updatedRegs[existingIndex] = registrationData;
-            return updatedRegs;
-          } else {
-            // Add new entry
-            return [...prevRegs, registrationData];
-          }
-        });
-      }
-      
-      toast({
-        title: "Registration successful!",
-        description: "You're now registered for this event."
-      });
     } catch (error: any) {
       toast({
-        title: "Registration failed",
-        description: error.message || "An error occurred during registration",
+        title: "Error",
+        description: error.message || "An error occurred",
         variant: "destructive"
       });
-      throw error; // Re-throw to be caught by the form handler
     }
   };
   
@@ -304,41 +219,15 @@ const EventDetail = () => {
           
           <Separator />
           
-          {isCreator ? (
-            <Tabs defaultValue="attendees">
-              <TabsList className="mb-4">
-                <TabsTrigger value="attendees">Attendees</TabsTrigger>
-                <TabsTrigger value="details">Registration Details</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="attendees">
-                <h2 className="text-xl font-semibold mb-3">
-                  Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
-                </h2>
-                <EventAttendees 
-                  attendees={attendeeDetails} 
-                  totalCount={attendeesCount} 
-                />
-              </TabsContent>
-              
-              <TabsContent value="details">
-                <EventAttendeesDetail 
-                  attendees={registrations}
-                  isCreator={isCreator}
-                />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <div>
-              <h2 className="text-xl font-semibold mb-3">
-                Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
-              </h2>
-              <EventAttendees 
-                attendees={attendeeDetails} 
-                totalCount={attendeesCount} 
-              />
-            </div>
-          )}
+          <div>
+            <h2 className="text-xl font-semibold mb-3">
+              Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
+            </h2>
+            <EventAttendees 
+              attendees={attendeeDetails} 
+              totalCount={attendeesCount} 
+            />
+          </div>
         </div>
         
         <div className="space-y-6">
@@ -403,29 +292,19 @@ const EventDetail = () => {
                 </Button>
               </>
             ) : (
-              <>
-                {event.privacy === 'paid' && event.price ? (
-                  <EventPaymentButton 
-                    event={event}
-                    isAttending={isAttending}
-                    onJoin={handleAttendEvent}
-                  />
+              <Button 
+                onClick={handleAttendEvent}
+                className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
+              >
+                {isAttending ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Attending
+                  </>
                 ) : (
-                  <Button 
-                    onClick={handleAttendEvent}
-                    className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
-                  >
-                    {isAttending ? (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Attending
-                      </>
-                    ) : (
-                      "Register for Event"
-                    )}
-                  </Button>
+                  "Attend Event"
                 )}
-              </>
+              </Button>
             )}
             
             <Button variant="outline" onClick={handleShareEvent}>
@@ -447,13 +326,6 @@ const EventDetail = () => {
           />
         </div>
       )}
-      
-      <EventRegistrationDialog
-        isOpen={showRegistration}
-        onClose={() => setShowRegistration(false)}
-        eventTitle={event.title}
-        onSubmit={handleRegister}
-      />
     </div>
   );
 };
