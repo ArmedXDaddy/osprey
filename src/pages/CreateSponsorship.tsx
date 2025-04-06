@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -15,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon, X } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { SponsorshipStatus } from '@/types';
 
 const formSchema = z.object({
   title: z.string().min(5, { message: 'Title must be at least 5 characters' }),
@@ -83,7 +83,7 @@ const CreateSponsorship = () => {
         companyId: currentUser.id,
         companyName: currentUser.name,
         companyLogo: currentUser.profileImage,
-        status: 'active',
+        status: 'active' as SponsorshipStatus,
       };
 
       const newSponsorship = await createSponsorship(sponsorshipData);

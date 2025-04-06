@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -5,16 +6,17 @@ import {
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
   Booking, ServiceType, Comment, GroupPrivacy, Announcement,
-  Sponsorship, SponsorshipApplication, ApplicationStatus
+  Sponsorship, SponsorshipApplication, ApplicationStatus, SponsorshipStatus
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
   uploadImage, updateComment, deleteComment 
 } from '@/integrations/supabase/helpers';
-import { generateMockServices, generateMockPosts, generateMockEvents, 
+import { 
+  generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
-  generateMockMessages, generateMockJoinRequests 
+  generateMockMessages, generateMockJoinRequests, mockUsers
 } from '@/utils/mockData';
 import { useToast } from "@/hooks/use-toast";
 
