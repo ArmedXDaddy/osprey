@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import GroupCard from '@/components/shared/GroupCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, Users, List, Grid, Filter, Plus } from 'lucide-react';
+import { Search, Users, List, Grid, Filter, Plus, Trash2, PenSquare } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -12,13 +13,25 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from '@/hooks/use-toast';
 
 const Groups = () => {
-  const { groups, loading } = useData();
+  const { groups, loading, deleteGroup } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('popular');
+  const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
   // Filter groups based on search term
   const filteredGroups = groups.filter(group =>
@@ -46,6 +59,26 @@ const Groups = () => {
   
   // Get groups the user has joined (for future implementation)
   const joinedGroups = [];
+
+  const handleDeleteGroup = async () => {
+    if (!groupToDelete) return;
+    
+    try {
+      await deleteGroup(groupToDelete);
+      toast({
+        title: "Group deleted",
+        description: "Your group has been successfully deleted."
+      });
+      setGroupToDelete(null);
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete the group."
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -190,9 +223,34 @@ const Groups = () => {
             {userGroups.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userGroups.map((group) => (
-                  <Link to={`/groups/${group.id}`} key={group.id}>
-                    <GroupCard group={group} />
-                  </Link>
+                  <div key={group.id} className="relative">
+                    <Link to={`/groups/${group.id}`}>
+                      <GroupCard group={group} />
+                    </Link>
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <Button 
+                        size="icon" 
+                        variant="secondary" 
+                        className="h-8 w-8 bg-white/90 hover:bg-white"
+                        asChild
+                      >
+                        <Link to={`/groups/${group.id}/edit`}>
+                          <PenSquare className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <Button 
+                        size="icon" 
+                        variant="destructive" 
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setGroupToDelete(group.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -200,9 +258,9 @@ const Groups = () => {
                 <Users className="h-12 w-12 mx-auto text-gray-300" />
                 <h3 className="mt-4 text-lg font-medium">You haven't created any groups yet</h3>
                 {['influencer', 'company', 'coach'].includes(currentUser.role) && (
-                  <Link to="/create-group" className="mt-4 inline-block">
-                    <Button>Create Your First Group</Button>
-                  </Link>
+                   <Link to="/create-group" className="mt-4 inline-block">
+                     <Button>Create Your First Group</Button>
+                   </Link>
                 )}
               </div>
             )}
@@ -232,6 +290,24 @@ const Groups = () => {
           </TabsContent>
         )}
       </Tabs>
+
+      <AlertDialog open={!!groupToDelete} onOpenChange={(open) => !open && setGroupToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this group?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your group
+              and remove all data associated with it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteGroup} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

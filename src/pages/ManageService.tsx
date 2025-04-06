@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -13,7 +14,17 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, Clock, DollarSign, Users, MessageSquare } from 'lucide-react';
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Calendar, Clock, DollarSign, Users, MessageSquare, Trash2 } from 'lucide-react';
 import EditServiceForm from '@/components/service/EditServiceForm';
 import BookingsList from '@/components/service/BookingsList';
 import ServiceChatAccess from '@/components/service/ServiceChatAccess';
@@ -23,13 +34,14 @@ const ManageService = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { getServiceById, getServiceBookings } = useData();
+  const { getServiceById, getServiceBookings, deleteService } = useData();
   
   const [service, setService] = useState<Service | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadingService, setLoadingService] = useState<boolean>(true);
   const [loadingBookings, setLoadingBookings] = useState<boolean>(true);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   
   useEffect(() => {
     const fetchService = async () => {
@@ -93,6 +105,26 @@ const ManageService = () => {
       navigate('/services');
     }
   }, [service, currentUser, navigate]);
+
+  const handleDelete = async () => {
+    if (!service || !id) return;
+    
+    try {
+      await deleteService(id);
+      toast({
+        title: "Service deleted",
+        description: "Your service has been successfully deleted."
+      });
+      navigate('/services');
+    } catch (error) {
+      console.error("Error deleting service:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete the service."
+      });
+    }
+  };
   
   if (loadingService) {
     return (
@@ -123,6 +155,10 @@ const ManageService = () => {
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => setIsEditModalOpen(true)}>
             Edit Service
+          </Button>
+          <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
           </Button>
         </div>
       </div>
@@ -224,6 +260,24 @@ const ManageService = () => {
           onSave={() => setIsEditModalOpen(false)}
         />
       )}
+
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this service?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your service
+              and remove all data associated with it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

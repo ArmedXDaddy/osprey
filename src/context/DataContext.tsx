@@ -77,6 +77,9 @@ interface DataContextType {
   getServiceMessages: (serviceId: string) => Promise<Message[]>;
   getUserBookingForService: (serviceId: string, userId: string) => Promise<Booking | null>;
   fetchUserServices: (userId: string) => Promise<Service[]>;
+  deleteGroup: (groupId: string) => Promise<void>;
+  deleteEvent: (eventId: string) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -674,6 +677,26 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   
   const deleteService = async (serviceId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to delete a service');
+    
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', serviceId)
+        .eq('coach_id', currentUser.id);
+      
+      if (error) throw error;
+      
+      setServices(prev => prev.filter(service => service.id !== serviceId));
+      
+      toast({
+        title: "Service deleted",
+        description: "Your service has been successfully deleted."
+      });
+    } catch (err: any) {
+      console.error("Error deleting service:", err);
+      throw new Error(err.message || 'Failed to delete service');
+    }
   };
   
   const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
@@ -1082,6 +1105,66 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     }
   };
   
+  const deleteGroup = async (groupId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a group');
+    
+    try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the groups array
+      setGroups(prev => prev.filter(group => group.id !== groupId));
+      
+      toast({
+        title: "Group deleted",
+        description: "Your group has been successfully deleted."
+      });
+    } catch (err: any) {
+      console.error("Error deleting group:", err);
+      throw new Error(err.message || 'Failed to delete group');
+    }
+  };
+  
+  const deleteEvent = async (eventId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete an event');
+    
+    try {
+      // In a real implementation, we would delete from the database
+      // For the mock implementation, we just filter the events array
+      setEvents(prev => prev.filter(event => event.id !== eventId));
+      
+      toast({
+        title: "Event deleted",
+        description: "Your event has been successfully deleted."
+      });
+    } catch (err: any) {
+      console.error("Error deleting event:", err);
+      throw new Error(err.message || 'Failed to delete event');
+    }
+  };
+  
+  const deletePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a post');
+    
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('user_id', currentUser.id);
+      
+      if (error) throw error;
+      
+      setPosts(prev => prev.filter(post => post.id !== postId));
+      
+      toast({
+        title: "Post deleted",
+        description: "Your post has been successfully deleted."
+      });
+    } catch (err: any) {
+      console.error("Error deleting post:", err);
+      throw new Error(err.message || 'Failed to delete post');
+    }
+  };
+  
   const contextValue: DataContextType = {
     posts,
     events,
@@ -1141,7 +1224,10 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     sendServiceMessage,
     getServiceMessages,
     getUserBookingForService: getUserBookingForServiceImpl,
-    fetchUserServices
+    fetchUserServices,
+    deleteGroup,
+    deleteEvent,
+    deletePost
   };
   
   return (
