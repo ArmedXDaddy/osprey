@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -43,6 +44,9 @@ const GroupDetail = () => {
           if (error) throw error;
           
           if (data) {
+            // Create memberIds array if it doesn't exist in the database
+            const memberIds = data.members_ids || [];
+            
             const groupData: Group = {
               id: data.id,
               name: data.name,
@@ -51,7 +55,7 @@ const GroupDetail = () => {
               creatorName: data.creator_name,
               creatorRole: data.creator_role as UserRole,
               members: data.members,
-              memberIds: data.member_ids || [],
+              memberIds: memberIds,
               image: data.image,
               privacy: data.privacy as GroupPrivacy,
               price: data.price,
@@ -95,7 +99,11 @@ const GroupDetail = () => {
           console.error("Error checking membership:", error);
         }
         
-        const isMember = currentUser && (group.creatorId === currentUser.id || (group.memberIds && group.memberIds.includes(currentUser.id)));
+        // Check if user is creator or member
+        const isMember = currentUser && (
+          group.creatorId === currentUser.id || 
+          (group.memberIds && group.memberIds.includes(currentUser.id))
+        );
         setIsUserMember(isMember);
       } catch (error) {
         console.error("Error checking membership:", error);

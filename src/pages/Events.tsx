@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
-import { Event } from '@/types';
+import { Event, UserRole } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 const Events = () => {
@@ -47,7 +47,7 @@ const Events = () => {
             description: event.description,
             creatorId: event.creator_id,
             creatorName: event.creator_name,
-            creatorRole: event.creator_role,
+            creatorRole: event.creator_role as UserRole, // Cast to UserRole
             location: event.location,
             date: new Date(event.date),
             image: event.image,

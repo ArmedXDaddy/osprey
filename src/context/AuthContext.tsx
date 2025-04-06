@@ -131,6 +131,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           
           if (userData) {
+            // Fix: Parse social_links properly or default to an empty object
+            let socialLinks = { instagram: null, twitter: null, website: null };
+            
+            if (userData.social_links) {
+              try {
+                // If it's already an object, use it, otherwise try to parse it
+                if (typeof userData.social_links === 'object' && !Array.isArray(userData.social_links)) {
+                  socialLinks = {
+                    instagram: userData.social_links.instagram || null,
+                    twitter: userData.social_links.twitter || null,
+                    website: userData.social_links.website || null
+                  };
+                } else if (typeof userData.social_links === 'string') {
+                  const parsed = JSON.parse(userData.social_links);
+                  socialLinks = {
+                    instagram: parsed.instagram || null,
+                    twitter: parsed.twitter || null,
+                    website: parsed.website || null
+                  };
+                }
+              } catch (e) {
+                console.error('Error parsing social links:', e);
+              }
+            }
+            
             setCurrentUser({
               id: userData.id,
               name: userData.name,
@@ -144,9 +169,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               following: userData.following,
               followers: userData.followers,
               verified: userData.verified,
-              socialLinks: typeof userData.social_links === 'object' 
-                ? userData.social_links 
-                : { instagram: null, twitter: null, website: null }, // Fix: Ensure socialLinks is properly typed
+              socialLinks,
               createdAt: new Date(userData.created_at)
             });
           }
@@ -182,6 +205,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
           
           if (userData) {
+            // Fix: Parse social_links properly or default to an empty object
+            let socialLinks = { instagram: null, twitter: null, website: null };
+            
+            if (userData.social_links) {
+              try {
+                // If it's already an object, use it, otherwise try to parse it
+                if (typeof userData.social_links === 'object' && !Array.isArray(userData.social_links)) {
+                  socialLinks = {
+                    instagram: userData.social_links.instagram || null,
+                    twitter: userData.social_links.twitter || null,
+                    website: userData.social_links.website || null
+                  };
+                } else if (typeof userData.social_links === 'string') {
+                  const parsed = JSON.parse(userData.social_links);
+                  socialLinks = {
+                    instagram: parsed.instagram || null,
+                    twitter: parsed.twitter || null,
+                    website: parsed.website || null
+                  };
+                }
+              } catch (e) {
+                console.error('Error parsing social links:', e);
+              }
+            }
+            
             setCurrentUser({
               id: userData.id,
               name: userData.name,
@@ -195,9 +243,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               following: userData.following,
               followers: userData.followers,
               verified: userData.verified,
-              socialLinks: typeof userData.social_links === 'object' 
-                ? userData.social_links 
-                : { instagram: null, twitter: null, website: null }, // Fix: Ensure socialLinks is properly typed
+              socialLinks,
               createdAt: new Date(userData.created_at)
             });
           }
