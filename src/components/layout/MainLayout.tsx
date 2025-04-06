@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -27,6 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/components/ui/use-toast';
+import { useTheme } from '@/pages/Settings';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -39,12 +41,22 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const { isDarkTheme } = useTheme();
   
   React.useEffect(() => {
     if (!isLoading && !currentUser && !location.pathname.startsWith('/auth')) {
       navigate('/auth/login');
     }
   }, [currentUser, isLoading, location.pathname, navigate]);
+
+  React.useEffect(() => {
+    // Apply dark theme class to body when component mounts or theme changes
+    if (isDarkTheme) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkTheme]);
 
   const handleLogout = async () => {
     try {
@@ -82,7 +94,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       onClick={() => isMobile && setMobileMenuOpen(false)}
       className={({ isActive }) => 
         `flex items-center gap-2 py-2 px-3 rounded-md transition-colors ${
-          isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100'
+          isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
         }`
       }
     >
@@ -93,9 +105,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   const MobileMenu = () => (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="w-[75%] sm:w-[350px] p-0">
+      <SheetContent side="left" className="w-[75%] sm:w-[350px] p-0 dark:bg-gray-900 dark:text-white">
         <div className="flex flex-col h-full">
-          <div className="p-4 border-b">
+          <div className="p-4 border-b dark:border-gray-800">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold gradient-text">Osprey</h2>
               <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
@@ -112,7 +124,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 />
                 <div>
                   <p className="font-medium text-sm">{currentUser.name}</p>
-                  <p className="text-xs text-gray-500 capitalize">{currentUser.role}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{currentUser.role}</p>
                 </div>
               </div>
             )}
@@ -142,6 +154,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               )}
               
               <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+              <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
               {currentUser?.role === 'admin' && (
                 <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
               )}
@@ -152,10 +165,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             </div>
           </div>
           
-          <div className="p-4 border-t">
+          <div className="p-4 border-t dark:border-gray-800">
             <Button 
               variant="outline" 
-              className="w-full justify-start gap-2" 
+              className="w-full justify-start gap-2 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800" 
               onClick={handleLogout}
               disabled={isLoggingOut}
             >
@@ -169,8 +182,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <div className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 h-screen sticky top-0 shrink-0">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:text-white flex">
+      <div className="hidden md:flex flex-col w-56 bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800 h-screen sticky top-0 shrink-0">
         <div className="p-4 flex flex-col h-full">
           <h1 className="text-xl font-semibold mb-8 gradient-text">Osprey</h1>
           
@@ -186,6 +199,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
             
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+            <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
             {currentUser?.role === 'admin' && (
               <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
             )}
@@ -204,7 +218,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               />
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-sm truncate">{currentUser.name}</p>
-                <p className="text-xs text-gray-500 truncate capitalize">{currentUser.role}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate capitalize">{currentUser.role}</p>
               </div>
             </div>
           )}
@@ -212,7 +226,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <Button 
             variant="outline" 
             size="sm"
-            className="w-full justify-start gap-2" 
+            className="w-full justify-start gap-2 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800" 
             onClick={handleLogout}
             disabled={isLoggingOut}
           >
@@ -223,16 +237,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       </div>
       
       <div className="flex flex-col flex-1">
-        <header className="md:hidden bg-white border-b border-gray-100 p-3 sticky top-0 z-10 flex items-center justify-between">
+        <header className="md:hidden bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 p-3 sticky top-0 z-10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)}>
+            <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(true)} className="dark:text-gray-300">
               <Menu size={18} />
             </Button>
             <h1 className="text-lg font-semibold gradient-text">Osprey</h1>
           </div>
           
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="dark:text-gray-300">
               <Bell size={18} />
             </Button>
             {currentUser && (
