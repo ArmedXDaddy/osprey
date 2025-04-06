@@ -1,59 +1,40 @@
 
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
 import MainLayout from './components/layout/MainLayout';
-import Home from './pages/Home';
-import Auth from './pages/Auth';
-import Profile from './pages/Profile';
-import Events from './pages/Events';
-import EventDetail from './pages/EventDetail';
-import Services from './pages/Services';
-import ServiceDetail from './pages/ServiceDetail';
-import CreateService from './pages/CreateService';
-import EditService from './pages/EditService';
-import Sessions from './pages/Sessions';
-import SessionDetail from './pages/SessionDetail';
-import CreateSession from './pages/CreateSession';
-import Groups from './pages/Groups';
-import GroupDetail from './pages/GroupDetail';
-import CreateGroup from './pages/CreateGroup';
-import Products from './pages/Products';
-import ProductDetail from './pages/ProductDetail';
-import Workshops from './pages/Workshops';
-import WorkshopDetail from './pages/WorkshopDetail';
-import Jobs from './pages/Jobs';
-import JobDetail from './pages/JobDetail';
+import { Toaster } from './components/ui/toaster';
 import EditGroup from './pages/EditGroup';
 
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainLayout />}>
-          <Route index element={<Home />} />
-          <Route path="auth" element={<Auth />} />
-          <Route path="profile/:id" element={<Profile />} />
-          <Route path="events" element={<Events />} />
-          <Route path="events/:id" element={<EventDetail />} />
-          <Route path="services" element={<Services />} />
-          <Route path="services/:id" element={<ServiceDetail />} />
-          <Route path="services/create" element={<CreateService />} />
-          <Route path="services/:id/edit" element={<EditService />} />
-          <Route path="sessions" element={<Sessions />} />
-          <Route path="sessions/:id" element={<SessionDetail />} />
-          <Route path="sessions/create" element={<CreateSession />} />
-          <Route path="groups" element={<Groups />} />
-          <Route path="groups/:id" element={<GroupDetail />} />
-          <Route path="groups/create" element={<CreateGroup />} />
+        <Route path="/" element={<MainLayout><Outlet /></MainLayout>}>
+          <Route index element={<div>Home Page</div>} />
+          <Route path="auth" element={<div>Auth Page</div>} />
+          <Route path="profile/:id" element={<div>Profile Page</div>} />
+          <Route path="events" element={<div>Events Page</div>} />
+          <Route path="events/:id" element={<div>Event Detail Page</div>} />
+          <Route path="services" element={<div>Services Page</div>} />
+          <Route path="services/:id" element={<div>Service Detail Page</div>} />
+          <Route path="services/create" element={<div>Create Service Page</div>} />
+          <Route path="services/:id/edit" element={<div>Edit Service Page</div>} />
+          <Route path="sessions" element={<div>Sessions Page</div>} />
+          <Route path="sessions/:id" element={<div>Session Detail Page</div>} />
+          <Route path="sessions/create" element={<div>Create Session Page</div>} />
+          <Route path="groups" element={<div>Groups Page</div>} />
+          <Route path="groups/:id" element={<div>Group Detail Page</div>} />
+          <Route path="groups/create" element={<div>Create Group Page</div>} />
           <Route path="groups/:id/edit" element={<EditGroup />} />
-          <Route path="products" element={<Products />} />
-          <Route path="products/:id" element={<ProductDetail />} />
-          <Route path="workshops" element={<Workshops />} />
-          <Route path="workshops/:id" element={<WorkshopDetail />} />
-          <Route path="jobs" element={<Jobs />} />
-          <Route path="jobs/:id" element={<JobDetail />} />
+          <Route path="products" element={<div>Products Page</div>} />
+          <Route path="products/:id" element={<div>Product Detail Page</div>} />
+          <Route path="workshops" element={<div>Workshops Page</div>} />
+          <Route path="workshops/:id" element={<div>Workshop Detail Page</div>} />
+          <Route path="jobs" element={<div>Jobs Page</div>} />
+          <Route path="jobs/:id" element={<div>Job Detail Page</div>} />
         </Route>
       </Routes>
+      <Toaster />
     </BrowserRouter>
   );
 }

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -27,7 +26,7 @@ import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { toast } from '@/components/ui/use-toast';
+import { toast } from '@/hooks/use-toast';
 import { useTheme } from '@/pages/Settings';
 
 interface MainLayoutProps {
@@ -50,7 +49,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, [currentUser, isLoading, location.pathname, navigate]);
 
   React.useEffect(() => {
-    // Apply dark theme class to body when component mounts or theme changes
     if (isDarkTheme) {
       document.documentElement.classList.add('dark');
     } else {
