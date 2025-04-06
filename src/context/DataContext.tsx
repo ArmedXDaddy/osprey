@@ -110,16 +110,53 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
-  const [mockServices, setMockServices] = useState<Service[]>([]);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
+  const fetchEvents = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error("Error fetching events:", error);
+        return generateMockEvents();
+      }
+      
+      if (data && data.length > 0) {
+        return data.map((event: any): Event => ({
+          id: event.id,
+          title: event.title,
+          description: event.description,
+          creatorId: event.creator_id,
+          creatorName: event.creator_name,
+          creatorRole: event.creator_role as UserRole,
+          location: event.location,
+          date: new Date(event.date),
+          image: event.image,
+          attendees: event.attendees || [],
+          privacy: event.privacy as EventPrivacy,
+          price: event.price,
+          pendingRequests: event.pending_requests || 0,
+          createdAt: new Date(event.created_at)
+        }));
+      }
+      
+      return generateMockEvents();
+    } catch (err) {
+      console.error("Error in fetchEvents:", err);
+      return generateMockEvents();
+    }
+  };
+  
   React.useEffect(() => {
-    const loadMockData = async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
         
@@ -164,7 +201,9 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           setPosts(generateMockPosts());
         }
         
-        setEvents(generateMockEvents());
+        const eventsData = await fetchEvents();
+        setEvents(eventsData);
+        
         setGroups(generateMockGroups());
         setSessions(generateMockSessions());
         setSessionEnrollments(generateMockSessionEnrollments());
@@ -176,15 +215,16 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         setLoading(false);
       }
     };
-    loadMockData();
+    
+    loadData();
     
     const postsChannel = supabase.channel('public:posts');
     const commentsChannel = supabase.channel('public:comments');
     const likesChannel = supabase.channel('public:post_likes');
     
     postsChannel
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'posts' }, 
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'posts' },
         async (payload) => {
           console.log('New post:', payload);
           const newPost = payload.new as any;
@@ -313,10 +353,78 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       )
       .subscribe();
       
+    const eventsChannel = supabase.channel('public:events');
+    
+    eventsChannel
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('New event:', payload);
+          const newEvent = payload.new as any;
+          
+          const event: Event = {
+            id: newEvent.id,
+            title: newEvent.title,
+            description: newEvent.description,
+            creatorId: newEvent.creator_id,
+            creatorName: newEvent.creator_name,
+            creatorRole: newEvent.creator_role as UserRole,
+            location: newEvent.location,
+            date: new Date(newEvent.date),
+            image: newEvent.image,
+            attendees: newEvent.attendees || [],
+            privacy: newEvent.privacy as EventPrivacy,
+            price: newEvent.price,
+            pendingRequests: newEvent.pending_requests || 0,
+            createdAt: new Date(newEvent.created_at)
+          };
+          
+          setEvents(prevEvents => [event, ...prevEvents]);
+        }
+      )
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('Updated event:', payload);
+          const updatedEvent = payload.new as any;
+          
+          setEvents(prevEvents => prevEvents.map(event => {
+            if (event.id === updatedEvent.id) {
+              return {
+                ...event,
+                title: updatedEvent.title,
+                description: updatedEvent.description,
+                location: updatedEvent.location,
+                date: new Date(updatedEvent.date),
+                image: updatedEvent.image,
+                privacy: updatedEvent.privacy as EventPrivacy,
+                price: updatedEvent.price,
+                attendees: updatedEvent.attendees || event.attendees,
+                pendingRequests: updatedEvent.pending_requests || event.pendingRequests
+              };
+            }
+            return event;
+          }));
+        }
+      )
+      .on('postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'events' },
+        (payload) => {
+          console.log('Deleted event:', payload);
+          const deletedEvent = payload.old as any;
+          
+          setEvents(prevEvents => 
+            prevEvents.filter(event => event.id !== deletedEvent.id)
+          );
+        }
+      )
+      .subscribe();
+      
     return () => {
       supabase.removeChannel(postsChannel);
       supabase.removeChannel(commentsChannel);
       supabase.removeChannel(likesChannel);
+      supabase.removeChannel(eventsChannel);
     };
   }, []);
   
@@ -1003,11 +1111,101 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to join an event');
+    
+    try {
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('attendees')
+        .eq('id', eventId)
+        .single();
+      
+      if (eventError) throw eventError;
+      
+      const attendees = eventData.attendees || [];
+      if (!attendees.includes(currentUser.id)) {
+        attendees.push(currentUser.id);
+        
+        const { error } = await supabase
+          .from('events')
+          .update({ attendees })
+          .eq('id', eventId);
+        
+        if (error) throw error;
+        
+        setEvents(prev => prev.map(event => 
+          event.id === eventId 
+            ? { ...event, attendees } 
+            : event
+        ));
+        
+        toast({
+          title: "Success",
+          description: "You have joined the event",
+        });
+      } else {
+        toast({
+          title: "Already joined",
+          description: "You are already attending this event",
+        });
+      }
+    } catch (error: any) {
+      console.error("Error joining event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join event",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   const leaveEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to leave an event');
+    
+    try {
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('attendees, creator_id')
+        .eq('id', eventId)
+        .single();
+      
+      if (eventError) throw eventError;
+      
+      if (eventData.creator_id === currentUser.id) {
+        throw new Error("Event creator cannot leave their own event");
+      }
+      
+      const attendees = (eventData.attendees || []).filter(
+        (userId: string) => userId !== currentUser.id
+      );
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees })
+        .eq('id', eventId);
+      
+      if (error) throw error;
+      
+      setEvents(prev => prev.map(event => 
+        event.id === eventId 
+          ? { ...event, attendees } 
+          : event
+      ));
+      
+      toast({
+        title: "Success",
+        description: "You have left the event",
+      });
+    } catch (error: any) {
+      console.error("Error leaving event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave event",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
   
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
@@ -1214,8 +1412,6 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a group');
     
     try {
-      // In a real implementation, we would delete from the database
-      // For the mock implementation, we just filter the groups array
       setGroups(prev => prev.filter(group => group.id !== groupId));
       
       toast({
@@ -1232,17 +1428,39 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
-      // In a real implementation, we would delete from the database
-      // For the mock implementation, we just filter the events array
+      const { data: eventData, error: eventError } = await supabase
+        .from('events')
+        .select('creator_id')
+        .eq('id', eventId)
+        .single();
+      
+      if (eventError) throw eventError;
+      
+      if (eventData.creator_id !== currentUser.id) {
+        throw new Error("Only the event creator can delete this event");
+      }
+      
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+      
+      if (error) throw error;
+      
       setEvents(prev => prev.filter(event => event.id !== eventId));
       
       toast({
         title: "Event deleted",
         description: "Your event has been successfully deleted."
       });
-    } catch (err: any) {
-      console.error("Error deleting event:", err);
-      throw new Error(err.message || 'Failed to delete event');
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
   

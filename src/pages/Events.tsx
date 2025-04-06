@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
@@ -31,6 +32,8 @@ const Events = () => {
       </div>
     );
   }
+
+  console.log("Events loaded:", events.length, events);
 
   // Filter events based on search term
   const filteredEvents = events.filter(event =>
@@ -132,7 +135,7 @@ const Events = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {sortedEvents.map((event) => (
-              <Link to={`/events/${event.id}`} key={event.id}>
+              <Link to={`/events/${event.id}`} key={event.id} className="block">
                 <EventCard event={event} />
               </Link>
             ))}
@@ -151,7 +154,7 @@ const Events = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {upcomingEvents.length > 0 ? (
               upcomingEvents.map((event) => (
-                <Link to={`/events/${event.id}`} key={event.id}>
+                <Link to={`/events/${event.id}`} key={event.id} className="block">
                   <EventCard event={event} />
                 </Link>
               ))
@@ -169,7 +172,7 @@ const Events = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {pastEvents.length > 0 ? (
               pastEvents.map((event) => (
-                <Link to={`/events/${event.id}`} key={event.id}>
+                <Link to={`/events/${event.id}`} key={event.id} className="block">
                   <EventCard event={event} />
                 </Link>
               ))
@@ -188,7 +191,7 @@ const Events = () => {
             {userEvents.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {userEvents.map((event) => (
-                  <Link to={`/events/${event.id}`} key={event.id}>
+                  <Link to={`/events/${event.id}`} key={event.id} className="block">
                     <EventCard event={event} />
                   </Link>
                 ))}

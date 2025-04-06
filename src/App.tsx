@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 import MainLayout from "@/components/layout/MainLayout";
-import { ThemeProvider } from "@/pages/Settings";
+import { ThemeProvider } from "@/components/ui/theme-provider";
 
 // Pages
 import Index from "./pages/Index";
@@ -53,7 +52,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <ThemeProvider>
+        <ThemeProvider defaultTheme="light">
           <DataProvider>
             <Toaster />
             <Sonner />
