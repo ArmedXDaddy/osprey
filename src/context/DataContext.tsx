@@ -798,128 +798,15 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   };
   
   const joinEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to join an event');
-    
-    try {
-      const eventToUpdate = events.find(e => e.id === eventId);
-      if (!eventToUpdate) throw new Error('Event not found');
-      
-      // Check if user is already attending
-      if (eventToUpdate.attendees.includes(currentUser.id)) {
-        toast({
-          title: "Already attending",
-          description: "You are already attending this event"
-        });
-        return;
-      }
-      
-      // Create a new array with the current user added
-      const updatedAttendees = [...eventToUpdate.attendees, currentUser.id];
-      
-      // Update events state locally first for immediate UI feedback
-      setEvents(prev => 
-        prev.map(event => 
-          event.id === eventId 
-            ? { ...event, attendees: updatedAttendees } 
-            : event
-        )
-      );
-      
-      // In a real implementation, we would update the database here
-      // For now, we're just updating the local state
-      
-      toast({
-        title: "Event joined",
-        description: "You have successfully joined the event"
-      });
-    } catch (error: any) {
-      console.error("Error joining event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join event",
-        variant: "destructive"
-      });
-      throw error;
-    }
+    throw new Error('Not implemented');
   };
   
   const leaveEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to leave an event');
-    
-    try {
-      const eventToUpdate = events.find(e => e.id === eventId);
-      if (!eventToUpdate) throw new Error('Event not found');
-      
-      // Check if user is attending
-      if (!eventToUpdate.attendees.includes(currentUser.id)) {
-        toast({
-          title: "Not attending",
-          description: "You are not attending this event"
-        });
-        return;
-      }
-      
-      // Create a new array without the current user
-      const updatedAttendees = eventToUpdate.attendees.filter(id => id !== currentUser.id);
-      
-      // Update events state locally first for immediate UI feedback
-      setEvents(prev => 
-        prev.map(event => 
-          event.id === eventId 
-            ? { ...event, attendees: updatedAttendees } 
-            : event
-        )
-      );
-      
-      // In a real implementation, we would update the database here
-      // For now, we're just updating the local state
-      
-      toast({
-        title: "Event left",
-        description: "You have successfully left the event"
-      });
-    } catch (error: any) {
-      console.error("Error leaving event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to leave event",
-        variant: "destructive"
-      });
-      throw error;
-    }
+    throw new Error('Not implemented');
   };
   
-  const deleteEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to delete an event');
-    
-    try {
-      const eventToDelete = events.find(e => e.id === eventId);
-      if (!eventToDelete) throw new Error('Event not found');
-      
-      // Check if the current user is the creator of the event
-      if (eventToDelete.creatorId !== currentUser.id) {
-        throw new Error('You can only delete events you created');
-      }
-      
-      // Remove the event from state
-      setEvents(prev => prev.filter(event => event.id !== eventId));
-      
-      // In a real implementation, we would delete from the database here
-      // For now, we're just updating the local state
-      
-      toast({
-        title: "Event deleted",
-        description: "Your event has been successfully deleted"
-      });
-    } catch (error: any) {
-      console.error("Error deleting event:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete event",
-        variant: "destructive"
-      });
-      throw error;
-    }
+  const requestToJoinEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
   };
   
   const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
@@ -1155,9 +1042,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       updateComment: async () => { throw new Error('Not implemented'); },
       deleteComment: async () => { throw new Error('Not implemented'); },
       createEvent,
-      joinEvent,
-      leaveEvent,
-      deleteEvent,
+      joinEvent: async () => { throw new Error('Not implemented'); },
+      leaveEvent: async () => { throw new Error('Not implemented'); },
       requestToJoinEvent: async () => { throw new Error('Not implemented'); },
       approveEventRequest: async () => { throw new Error('Not implemented'); },
       rejectEventRequest: async () => { throw new Error('Not implemented'); },
