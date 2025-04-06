@@ -94,7 +94,8 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Return initial sample sponsorships data - no localStorage persistence
+// Return initial sample sponsorships data for mock/demo purposes only
+// Real data will be retrieved from Supabase
 export const generateMockSponsorships = (): Sponsorship[] => {
   return [
     {
