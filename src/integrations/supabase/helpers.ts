@@ -502,7 +502,29 @@ export const fetchProducts = async () => {
     
     if (error) throw error;
     
-    return data as Product[];
+    // Map the snake_case database columns to camelCase properties expected by Product type
+    const mappedProducts = data.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      longDescription: item.long_description,
+      companyId: item.company_id,
+      companyName: item.company_name,
+      companyLogo: item.company_logo,
+      price: item.price,
+      category: item.category,
+      tags: item.tags,
+      image: item.image,
+      websiteUrl: item.website_url,
+      demoUrl: item.demo_url,
+      releaseDate: new Date(item.release_date),
+      createdAt: new Date(item.created_at),
+      features: item.features,
+      useCases: item.use_cases,
+      pricingTiers: item.pricing_tiers
+    }));
+    
+    return mappedProducts as Product[];
   } catch (error) {
     console.error('Error fetching products:', error);
     return [];
@@ -522,7 +544,35 @@ export const fetchWorkshops = async () => {
     
     if (error) throw error;
     
-    return data as Workshop[];
+    // Map the snake_case database columns to camelCase properties expected by Workshop type
+    const mappedWorkshops = data.map(item => ({
+      id: item.id,
+      title: item.title,
+      description: item.description,
+      longDescription: item.long_description,
+      companyId: item.company_id,
+      companyName: item.company_name,
+      companyLogo: item.company_logo,
+      price: item.price,
+      date: new Date(item.date),
+      startTime: item.start_time,
+      endTime: item.end_time,
+      duration: item.duration,
+      capacity: item.capacity,
+      location: item.location,
+      isOnline: item.is_online,
+      meetingUrl: item.meeting_url,
+      category: item.category,
+      image: item.image,
+      createdAt: new Date(item.created_at),
+      topics: item.topics,
+      prerequisites: item.prerequisites,
+      includes: item.includes,
+      tags: item.tags,
+      instructors: item.instructors
+    }));
+    
+    return mappedWorkshops as Workshop[];
   } catch (error) {
     console.error('Error fetching workshops:', error);
     return [];
