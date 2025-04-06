@@ -880,5 +880,3 @@ export const DataProvider = ({ children }: DataProviderProps) => {
       };
       
       setEvents(prev => [newEvent, ...prev]);
-      
-      toast({
