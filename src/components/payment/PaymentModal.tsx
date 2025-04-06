@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/types';
@@ -67,8 +66,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      // Add userId parameter for the bookService call
-      await bookService(service.id, isFreeService ? undefined : 'paid', notes);
+      await bookService(service.id, {
+        paymentStatus: isFreeService ? undefined : 'paid',
+        notes: notes
+      });
 
       toast({
         title: "Booking successful!",
@@ -104,8 +105,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, service, onClose, o
     try {
       setIsProcessing(true);
 
-      // Add userId parameter for the bookService call
-      await bookService(service.id, undefined, notes);
+      await bookService(service.id, {
+        notes: notes
+      });
 
       toast({
         title: "Request submitted!",

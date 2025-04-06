@@ -27,8 +27,10 @@ const EventRequestsSection: React.FC<EventRequestsSectionProps> = ({ eventId }) 
 
   const handleEventJoinRequest = (requestId: string, userId: string, status: 'approved' | 'rejected') => {
     if (status === 'approved') {
-      approveEventRequest(requestId, eventId, userId);
+      // Fix function call to match expected arguments (requestId, userId)
+      approveEventRequest(requestId, userId);
     } else {
+      // Fix function call to match expected arguments (requestId)
       rejectEventRequest(requestId);
     }
   };
