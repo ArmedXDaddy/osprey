@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, ReactNode, useEffect } from
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
-import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment, EventPrivacy } from '@/types';
+import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment, EventPrivacy, UserRole } from '@/types';
 import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking, uploadImage, updateComment, deleteComment } from '@/integrations/supabase/helpers';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -872,7 +872,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: eventData.description,
         creator_id: currentUser.id,
         creator_name: currentUser.name,
-        creator_role: currentUser.role,
+        creator_role: currentUser.role as string,
         location: eventData.location,
         date: eventData.date,
         image: eventData.image || null,
@@ -896,7 +896,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: data.description,
         creatorId: data.creator_id,
         creatorName: data.creator_name,
-        creatorRole: data.creator_role,
+        creatorRole: data.creator_role as UserRole,
         location: data.location,
         date: new Date(data.date),
         image: data.image,
