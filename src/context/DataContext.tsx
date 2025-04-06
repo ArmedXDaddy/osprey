@@ -982,7 +982,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (error) throw error;
       
-      return {
+      const newService: Service = {
         id: data.id,
         title: data.title,
         description: data.description,
@@ -999,6 +999,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         coverImage: data.cover_image,
         meetingUrl: data.meeting_url
       };
+      
+      // Update the services state
+      setServices(prevServices => [newService, ...prevServices]);
+      
+      return newService;
     } catch (err: any) {
       console.error("Error creating service:", err);
       setError(err);

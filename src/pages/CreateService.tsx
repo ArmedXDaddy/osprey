@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import { ServiceType } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Image, Upload } from 'lucide-react';
 
 const formSchema = z.object({
   title: z.string().min(2, {
@@ -34,11 +36,21 @@ const formSchema = z.object({
   coverImage: z.string().optional(),
 });
 
+// Sample images for selection
+const sampleImages = [
+  '/placeholder.svg',
+  'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9',
+  'https://images.unsplash.com/photo-1721322800607-8c38375eef04',
+  'https://images.unsplash.com/photo-1472396961693-142e6e269027',
+];
+
 const CreateService = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { services, createService } = useData();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isImageDialogOpen, setIsImageDialogOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string>('');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -58,6 +70,13 @@ const CreateService = () => {
 
   const watchServiceType = form.watch("serviceType");
   const watchIsOnline = form.watch("isOnline");
+  const watchCoverImage = form.watch("coverImage");
+
+  const handleSelectImage = (imageUrl: string) => {
+    form.setValue('coverImage', imageUrl);
+    setSelectedImage(imageUrl);
+    setIsImageDialogOpen(false);
+  };
 
   const handleSubmit = async (data: z.infer<typeof formSchema>) => {
     if (!currentUser || currentUser.role !== 'coach') {
@@ -88,6 +107,8 @@ const CreateService = () => {
         providerName: currentUser.name,
         available: true,
       };
+
+      console.log("Creating service with data:", serviceData);
 
       // Create service
       const newService = await createService(serviceData);
@@ -293,10 +314,51 @@ const CreateService = () => {
             name="coverImage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cover Image URL (Optional)</FormLabel>
-                <FormControl>
-                  <Input placeholder="URL for service cover image" {...field} />
-                </FormControl>
+                <FormLabel>Cover Image</FormLabel>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <FormControl>
+                      <Input placeholder="URL for service cover image" {...field} />
+                    </FormControl>
+                    <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button type="button" variant="outline" size="icon">
+                          <Image className="h-4 w-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Select Image</DialogTitle>
+                        </DialogHeader>
+                        <div className="grid grid-cols-2 gap-4 py-4">
+                          {sampleImages.map((imgSrc, index) => (
+                            <div 
+                              key={index} 
+                              onClick={() => handleSelectImage(imgSrc)}
+                              className={`cursor-pointer rounded-md overflow-hidden border-2 ${selectedImage === imgSrc ? 'border-primary' : 'border-transparent'}`}
+                            >
+                              <img
+                                src={imgSrc}
+                                alt={`Sample image ${index + 1}`}
+                                className="w-full h-32 object-cover"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                  
+                  {watchCoverImage && (
+                    <div className="w-full h-40 overflow-hidden rounded-md border">
+                      <img
+                        src={watchCoverImage}
+                        alt="Cover preview"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
                 <FormMessage />
               </FormItem>
             )}
