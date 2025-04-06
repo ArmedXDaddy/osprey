@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -44,9 +43,9 @@ const GroupDetail = () => {
           if (error) throw error;
           
           if (data) {
-            // Create memberIds array from the database
-            // Note: Since 'members_ids' doesn't exist, we're creating an empty array as default
-            const memberIds = data.members_ids || [];
+            // Since there's no members_ids field in the database, we need to
+            // create an empty array or fetch member IDs from group_members table
+            const memberIds: string[] = []; // Initialize with empty array
             
             const groupData: Group = {
               id: data.id,
@@ -56,7 +55,7 @@ const GroupDetail = () => {
               creatorName: data.creator_name,
               creatorRole: data.creator_role as UserRole,
               members: data.members,
-              memberIds: memberIds, // Using the memberIds we created
+              memberIds: memberIds, // Use our initialized empty array
               image: data.image,
               privacy: data.privacy as GroupPrivacy,
               price: data.price,
