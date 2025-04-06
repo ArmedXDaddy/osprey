@@ -19,19 +19,31 @@ import {
   UserPlus,
   User,
   Eye,
-  EyeOff
+  EyeOff,
+  Trash2
 } from 'lucide-react';
 import { Group, UserRole, GroupPrivacy, JoinRequest } from '@/types';
 import { format } from 'date-fns';
 import GroupRequestsSection from '@/components/group/GroupRequestsSection';
 import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
 import GroupChatSection from '@/components/group/GroupChatSection';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { groups, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails, getGroupRequests } = useData();
+  const { groups, joinGroup, leaveGroup, requestToJoinGroup, removeGroupMember, updateGroupDetails, getGroupRequests, deleteGroup } = useData();
   const [group, setGroup] = useState<Group | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMember, setIsMember] = useState(false);
@@ -185,6 +197,12 @@ const GroupDetail = () => {
     setEditingMemberLimit(false);
   };
 
+  const handleDeleteGroup = async () => {
+    if (!currentUser) return;
+    await deleteGroup(id!);
+    navigate('/groups');
+  };
+
   return (
     <div className="container py-8">
       <div className="flex items-center mb-6">
@@ -205,10 +223,35 @@ const GroupDetail = () => {
               <CardTitle className="text-2xl font-bold">{group.name}</CardTitle>
             </div>
             {isGroupAdmin && (
-              <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/edit`)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Group
-              </Button>
+              <div className="flex space-x-2">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/edit`)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Group
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm">
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete the
+                        "{group.name}" group and remove all data associated with it.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteGroup}>
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             )}
           </div>
           <CardDescription>{group.description}</CardDescription>

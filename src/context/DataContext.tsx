@@ -57,7 +57,7 @@ interface DataContextType {
   getGroupRequests: (groupId: string) => Promise<JoinRequest[]>;
   handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
   removeGroupMember: (groupId: string, userId: string) => Promise<void>;
-  updateGroupDetails: (groupId: string, updates: any) => Promise<void>;
+  updateGroupDetails: (groupId: string, updatedData: Partial<Group>) => Promise<void>;
   createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>) => Promise<Session>;
   enrollInSession: (sessionId: string) => Promise<void>;
   cancelEnrollment: (enrollmentId: string) => Promise<void>;
@@ -98,7 +98,7 @@ interface DataProviderProps {
   children: ReactNode;
 }
 
-export function DataProvider({ children }: { children: React.ReactNode }) {
+export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -603,8 +603,31 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     throw new Error('Not implemented');
   };
   
-  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
-    throw new Error('Not implemented');
+  const updateGroupDetails = async (groupId: string, updatedData: Partial<Group>): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update group details');
+    
+    try {
+      const { error } = await supabase
+        .from('groups')
+        .update(updatedData)
+        .eq('id', groupId);
+      
+      if (error) throw error;
+      
+      setGroups(prevGroups => 
+        prevGroups.map(group => 
+          group.id === groupId 
+            ? { 
+                ...group, 
+                ...updatedData
+              } 
+            : group
+        )
+      );
+    } catch (err: any) {
+      console.error("Error updating group details:", err);
+      throw new Error(err.message || 'Failed to update group details');
+    }
   };
   
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
@@ -1149,6 +1172,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
+  const deleteGroup = async (groupId: string) => {
+    try {
+      // In a real app, you would make an API call to delete the group
+      const updatedGroups = groups.filter(group => group.id !== groupId);
+      setGroups(updatedGroups);
+      
+      toast({
+        title: "Group deleted",
+        description: "The group has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      toast({
+        title: "Error",
+        description: "There was an error deleting the group. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1214,7 +1257,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       sendServiceMessage,
       getServiceMessages,
       getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices
+      fetchUserServices,
+      deleteGroup
     }}>
       {children}
     </DataContext.Provider>
