@@ -4,8 +4,7 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy, Announcement,
-  BookingStatus, PaymentStatus
+  Booking, ServiceType, Comment, GroupPrivacy, Announcement
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -71,7 +70,7 @@ interface DataContextType {
   updateSession: (sessionId: string, updates: any) => Promise<void>;
   updateEnrollmentStatus: (enrollmentId: string, status: string) => Promise<void>;
   sendMessage: (messageData: {groupId: string; content: string}) => Promise<void>;
-  getServiceById: (id: string) => Promise<Service | null>;
+  getServiceById: (serviceId: string) => Promise<Service | null>;
   bookService: (serviceId: string, paymentStatus?: string) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
   getUserBookings: (userId: string) => Promise<Booking[]>;
@@ -84,7 +83,6 @@ interface DataContextType {
   getServiceMessages: (serviceId: string) => Promise<Message[]>;
   getUserBookingForService: (serviceId: string, userId: string) => Promise<Booking | null>;
   fetchUserServices: (userId: string) => Promise<Service[]>;
-  getServices: () => Promise<Service[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -698,129 +696,40 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  const getServiceById = async (id: string): Promise<Service | null> => {
+  const getServiceById = async (serviceId: string): Promise<Service | null> => {
     try {
       const { data, error } = await supabase
         .from('services')
-        .select(`
-          *,
-          bookings:service_bookings(
-            id,
-            user_id,
-            status,
-            payment_status,
-            created_at,
-            user_name,
-            user_email
-          )
-        `)
-        .eq('id', id)
+        .select('*')
+        .eq('id', serviceId)
         .single();
-
-      if (error) {
-        console.error('Error fetching service:', error);
-        return null;
-      }
-
-      // Map the data to our Service type
-      const service: Service = {
+      
+      if (error) throw error;
+      if (!data) return null;
+      
+      return {
         id: data.id,
         title: data.title,
-        description: data.description || '',
+        description: data.description,
         providerId: data.coach_id,
         providerName: data.coach_name,
-        price: data.price || 0,
-        duration: data.duration || '',
+        price: data.price,
+        duration: data.duration,
         available: data.is_active,
-        isOnline: data.is_online || false,
-        location: data.location || '',
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
         capacity: data.capacity,
         serviceType: data.service_type as ServiceType,
-        meetingUrl: data.meeting_url,
         coverImage: data.cover_image,
-        createdAt: new Date(data.created_at),
-        // Map bookings
-        bookings: data.bookings ? data.bookings.map((booking: any) => ({
-          id: booking.id,
-          serviceId: id,
-          userId: booking.user_id,
-          userName: booking.user_name || 'Unknown User',
-          userEmail: booking.user_email || 'unknown@example.com',
-          status: booking.status as BookingStatus,
-          paymentStatus: booking.payment_status as PaymentStatus,
-          isPaid: booking.payment_status === 'paid',
-          createdAt: new Date(booking.created_at)
-        })) : []
+        meetingUrl: data.meeting_url
       };
-
-      return service;
-    } catch (error) {
-      console.error('Error in getServiceById:', error);
+    } catch (err) {
+      console.error("Error fetching service:", err);
       return null;
     }
   };
-
-  const getServices = async (): Promise<Service[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select(`
-          *,
-          bookings:service_bookings(
-            id,
-            user_id,
-            status,
-            payment_status,
-            created_at,
-            user_name,
-            user_email
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching services:', error);
-        return [];
-      }
-
-      // Map the data to our Service type
-      const services: Service[] = data.map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description || '',
-        providerId: item.coach_id,
-        providerName: item.coach_name,
-        price: item.price || 0,
-        duration: item.duration || '',
-        available: item.is_active,
-        isOnline: item.is_online || false,
-        location: item.location || '',
-        capacity: item.capacity,
-        serviceType: item.service_type as ServiceType,
-        meetingUrl: item.meeting_url,
-        coverImage: item.cover_image,
-        createdAt: new Date(item.created_at),
-        // Map bookings
-        bookings: item.bookings ? item.bookings.map((booking: any) => ({
-          id: booking.id,
-          serviceId: item.id,
-          userId: booking.user_id,
-          userName: booking.user_name || 'Unknown User',
-          userEmail: booking.user_email || 'unknown@example.com',
-          status: booking.status as BookingStatus,
-          paymentStatus: booking.payment_status as PaymentStatus,
-          isPaid: booking.payment_status === 'paid',
-          createdAt: new Date(booking.created_at)
-        })) : []
-      }));
-
-      return services;
-    } catch (error) {
-      console.error('Error in getServices:', error);
-      return [];
-    }
-  };
-
+  
   const bookService = async (serviceId: string, paymentStatus?: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to book a service');
     
@@ -1374,8 +1283,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       sendServiceMessage,
       getServiceMessages,
       getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices,
-      getServices
+      fetchUserServices
     }}>
       {children}
     </DataContext.Provider>

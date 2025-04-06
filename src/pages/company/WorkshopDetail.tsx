@@ -17,7 +17,8 @@ import {
   Book,
   Award,
   CheckCircle,
-  Tag
+  Tag,
+  Edit
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -91,6 +92,10 @@ const WorkshopDetail = () => {
     navigate(-1);
   };
   
+  const handleEdit = () => {
+    navigate(`/company/workshops/edit/${id}`);
+  };
+  
   const isCreator = currentUser?.id === workshop?.company_id;
   
   if (loading) {
@@ -121,11 +126,18 @@ const WorkshopDetail = () => {
   
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
+        
+        {isCreator && (
+          <Button variant="outline" size="sm" onClick={handleEdit}>
+            <Edit className="h-4 w-4 mr-2" />
+            Edit Workshop
+          </Button>
+        )}
       </div>
       
       <div>

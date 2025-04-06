@@ -113,7 +113,6 @@ export interface Service {
   sessionId?: string; // Reference to a session if linked
   meetingUrl?: string; // Added for online services
   coverImage?: string; // Added for service image
-  bookings?: Booking[]; // Added to track bookings for this service
 }
 
 export interface Booking {
