@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
-import { Event, UserRole } from '@/types';
+import { Event, UserRole, EventPrivacy } from '@/types';
 import { toast } from '@/hooks/use-toast';
 
 const Events = () => {
@@ -52,7 +52,7 @@ const Events = () => {
             date: new Date(event.date),
             image: event.image,
             attendees: event.attendees || [],
-            privacy: event.privacy,
+            privacy: event.privacy as EventPrivacy, // Cast to EventPrivacy explicitly
             price: event.price,
             pendingRequests: event.pending_requests,
             createdAt: new Date(event.created_at)

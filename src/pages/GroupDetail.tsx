@@ -44,7 +44,8 @@ const GroupDetail = () => {
           if (error) throw error;
           
           if (data) {
-            // Create memberIds array if it doesn't exist in the database
+            // Create memberIds array from the database
+            // Note: Since 'members_ids' doesn't exist, we're creating an empty array as default
             const memberIds = data.members_ids || [];
             
             const groupData: Group = {
@@ -55,7 +56,7 @@ const GroupDetail = () => {
               creatorName: data.creator_name,
               creatorRole: data.creator_role as UserRole,
               members: data.members,
-              memberIds: memberIds,
+              memberIds: memberIds, // Using the memberIds we created
               image: data.image,
               privacy: data.privacy as GroupPrivacy,
               price: data.price,
