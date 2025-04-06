@@ -877,6 +877,16 @@ export type Database = {
         }
         Returns: Json
       }
+      create_service_booking: {
+        Args: {
+          p_service_id: string
+          p_user_id: string
+          p_notes?: string
+          p_payment_status?: string
+          p_status?: string
+        }
+        Returns: string
+      }
       decrement_post_comments: {
         Args: {
           post_id: string

@@ -1,3 +1,4 @@
+
 import { supabase, runQuery } from './client';
 import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
@@ -217,6 +218,7 @@ export const createServiceBooking = async (
     console.log(`Creating booking with: serviceId=${serviceId}, userId=${userId}, notes=${notes}, paymentStatus=${paymentStatus}, status=${status}`);
     
     // Using direct SQL query with custom PostgreSQL function
+    // Ensure parameters are in the correct order as defined in the database function
     const { data, error } = await supabase.rpc(
       'create_service_booking' as any, // Type cast to avoid TypeScript errors
       {
