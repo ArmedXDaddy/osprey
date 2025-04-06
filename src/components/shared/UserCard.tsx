@@ -51,7 +51,7 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
           <div>
             <h3 className="font-semibold">{user.name}</h3>
             <div className="flex items-center gap-2 mt-1">
-              <Badge variant="secondary" className={roleColors[user.role]}>
+              <Badge variant="secondary" className={roleColors[user.role] || roleColors.user}>
                 {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
               </Badge>
               {user.followers !== undefined && (
