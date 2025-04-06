@@ -94,7 +94,7 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Return an empty array for mock sponsorships, as this will be fetched from Supabase
+// Return empty sponsorships array as they should only be created by companies
 export const generateMockSponsorships = (): Sponsorship[] => {
   return [];
 };
