@@ -6,7 +6,7 @@ import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Search } from 'lucide-react';
+import { Search, PlusCircle } from 'lucide-react';
 import SponsorshipCard from '@/components/shared/SponsorshipCard';
 import { UserRole } from '@/types';
 
@@ -51,7 +51,7 @@ const Sponsorships = () => {
 
   return (
     <div className="container py-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+      <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold">Sponsorship Opportunities</h1>
           <p className="text-muted-foreground mt-1">
@@ -60,7 +60,11 @@ const Sponsorships = () => {
         </div>
         
         {isCompany && (
-          <Button onClick={handleCreateSponsorship} className="mt-4 md:mt-0">
+          <Button 
+            onClick={handleCreateSponsorship} 
+            className="flex items-center gap-2"
+          >
+            <PlusCircle className="h-4 w-4" />
             Create Opportunity
           </Button>
         )}
@@ -105,7 +109,8 @@ const Sponsorships = () => {
               : "There are no sponsorship opportunities available yet."}
           </p>
           {isCompany && (
-            <Button onClick={handleCreateSponsorship}>
+            <Button onClick={handleCreateSponsorship} className="flex items-center gap-2">
+              <PlusCircle className="h-4 w-4" />
               Create Your First Opportunity
             </Button>
           )}
