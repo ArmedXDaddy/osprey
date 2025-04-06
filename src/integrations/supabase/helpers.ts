@@ -1032,3 +1032,46 @@ export const createProduct = async (productData: any): Promise<any> => {
     throw error;
   }
 };
+
+export const createWorkshop = async (workshopData: any): Promise<any> => {
+  try {
+    const { data, error } = await supabase
+      .from('workshops')
+      .insert([{
+        title: workshopData.title,
+        description: workshopData.description,
+        long_description: workshopData.long_description,
+        company_id: workshopData.company_id,
+        company_name: workshopData.company_name,
+        company_logo: workshopData.company_logo,
+        price: workshopData.price,
+        date: workshopData.date,
+        start_time: workshopData.start_time,
+        end_time: workshopData.end_time,
+        duration: workshopData.duration,
+        capacity: workshopData.capacity,
+        location: workshopData.location,
+        is_online: workshopData.is_online,
+        meeting_url: workshopData.meeting_url,
+        category: workshopData.category,
+        image: workshopData.image,
+        topics: workshopData.topics,
+        prerequisites: workshopData.prerequisites,
+        includes: workshopData.includes,
+        tags: workshopData.tags,
+        instructors: workshopData.instructors
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating workshop:', error);
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error in createWorkshop:', error);
+    throw error;
+  }
+};
