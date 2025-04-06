@@ -38,7 +38,7 @@ const formSchema = z.object({
   }),
   date: z.date(),
   privacy: z.enum(['public', 'private', 'paid']),
-  price: z.number().optional(),
+  price: z.number().optional().default(0),
   image: z.string().optional(),
 });
 
@@ -71,7 +71,6 @@ const CreateEvent = () => {
   });
 
   const watchPrivacy = form.watch("privacy");
-  const watchImage = form.watch("image");
 
   React.useEffect(() => {
     const fetchEventImages = async () => {
@@ -126,7 +125,7 @@ const CreateEvent = () => {
         location: data.location,
         date: data.date,
         privacy: data.privacy,
-        price: data.privacy === 'paid' ? parseFloat(data.price as string) : 0,
+        price: data.privacy === 'paid' ? Number(data.price ?? 0) : 0,
         image: data.image || imagePreview,
         creatorId: currentUser?.id || "",
         creatorName: currentUser?.name || "",
