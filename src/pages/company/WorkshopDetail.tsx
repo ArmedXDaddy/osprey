@@ -66,10 +66,12 @@ const WorkshopDetail = () => {
     
     const loadRegistrations = async () => {
       try {
+        // Use direct query instead of RPC
         const { data, error } = await supabase
-          .rpc('get_workshop_registrations', {
-            p_workshop_id: id
-          });
+          .from('workshop_registrations')
+          .select('*')
+          .eq('workshop_id', id)
+          .order('created_at', { ascending: false });
           
         if (error) throw error;
         

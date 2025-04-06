@@ -23,30 +23,31 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
   useEffect(() => {
     if (currentUser && workshop.id) {
       const checkRegistration = async () => {
-        // Check if user is already registered
+        // Check if user is already registered - using direct query
         const { data: registration, error: registrationError } = await supabase
-          .rpc('check_workshop_registration', {
-            p_workshop_id: workshop.id,
-            p_user_id: currentUser.id
-          })
-          .single();
+          .from('workshop_registrations')
+          .select('*')
+          .eq('workshop_id', workshop.id)
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
 
-        if (registrationError && registrationError.code !== 'PGRST116') {
+        if (registrationError) {
           console.error('Error checking registration:', registrationError);
         }
 
         setIsRegistered(!!registration);
 
-        // Get count of registrations
-        const { count, error: countError } = await supabase
-          .rpc('count_workshop_registrations', {
-            p_workshop_id: workshop.id
-          });
+        // Get count of registrations - using direct query
+        const { data: registrations, error: countError } = await supabase
+          .from('workshop_registrations')
+          .select('*', { count: 'exact' })
+          .eq('workshop_id', workshop.id);
 
         if (countError) {
           console.error('Error counting registrations:', countError);
         } else {
-          setRegistrationCount(count || 0);
+          const count = registrations?.length || 0;
+          setRegistrationCount(count);
           
           // Check if at capacity
           if (workshop.capacity && count !== null) {
@@ -82,12 +83,12 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
 
     try {
       if (isRegistered) {
-        // Unregister
+        // Unregister - using direct query
         const { error } = await supabase
-          .rpc('delete_workshop_registration', {
-            p_workshop_id: workshop.id,
-            p_user_id: currentUser.id
-          });
+          .from('workshop_registrations')
+          .delete()
+          .eq('workshop_id', workshop.id)
+          .eq('user_id', currentUser.id);
 
         if (error) throw error;
 
@@ -100,14 +101,16 @@ const WorkshopRegistration = ({ workshop, onRegistered }: WorkshopRegistrationPr
           description: 'You have been removed from this workshop',
         });
       } else {
-        // Register
+        // Register - using direct insert
         const { error } = await supabase
-          .rpc('create_workshop_registration', {
-            p_workshop_id: workshop.id,
-            p_user_id: currentUser.id,
-            p_user_name: currentUser.name,
-            p_user_email: currentUser.email,
-            p_user_profile_image: currentUser.profileImage || null
+          .from('workshop_registrations')
+          .insert({
+            workshop_id: workshop.id,
+            user_id: currentUser.id,
+            user_name: currentUser.name,
+            user_email: currentUser.email,
+            user_profile_image: currentUser.profileImage || null,
+            status: 'confirmed'
           });
 
         if (error) throw error;
