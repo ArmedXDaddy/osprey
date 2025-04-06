@@ -94,13 +94,8 @@ export const mockUsers: User[] = [
   }
 ];
 
-// Get stored sponsorships from localStorage or return an empty array
+// We no longer need this function since data is stored in the database
+// It's kept for backward compatibility but doesn't fetch from localStorage anymore
 export const generateMockSponsorships = (): Sponsorship[] => {
-  try {
-    const storedSponsorships = localStorage.getItem('mock_sponsorships');
-    return storedSponsorships ? JSON.parse(storedSponsorships) : [];
-  } catch (error) {
-    console.error('Error retrieving sponsorships from localStorage:', error);
-    return [];
-  }
+  return [];
 };
