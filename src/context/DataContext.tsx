@@ -330,7 +330,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           };
           
           if (!commentsByPost[comment.post_id]) {
-            commentsByPost[comment.post_id] = [];
+            commentsByPost[comment.postId] = [];
           }
           
           commentsByPost[comment.post_id].push(transformedComment);
@@ -882,11 +882,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         pending_requests: 0
       };
       
-      const { data, error } = await supabase
-        .from('events')
-        .insert(newEventData)
-        .select('*')
-        .single();
+      const { data, error } = await supabase.rpc('create_event', newEventData);
       
       if (error) throw error;
       
