@@ -860,6 +860,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_event: {
+        Args: {
+          title: string
+          description: string
+          creator_id: string
+          creator_name: string
+          creator_role: string
+          location: string
+          date: string
+          image: string
+          privacy: string
+          price: number
+          attendees: string[]
+          pending_requests: number
+        }
+        Returns: Json
+      }
       decrement_post_comments: {
         Args: {
           post_id: string

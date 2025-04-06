@@ -1,10 +1,8 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
-import { generateMockServices, generateMockPosts, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests } from '@/utils/mockData';
-import { Service, Post, Event, Group, Message, JoinRequest, SessionEnrollment, Booking, Session, ServiceType, Comment, EventPrivacy, UserRole } from '@/types';
-import { createServiceBooking, getUserBookings, getServiceBookings, getUserBookingForService, cancelBooking, approveBooking, uploadImage, updateComment, deleteComment } from '@/integrations/supabase/helpers';
-import { useToast } from '@/components/ui/use-toast';
+import { Event, UserRole, EventPrivacy } from '@/types';
+import { toast } from "@/components/ui/use-toast";
 
 interface DataContextType {
   posts: Post[];
@@ -886,21 +884,23 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       if (error) throw error;
       
+      const eventFromDb = typeof data === 'string' ? JSON.parse(data) : data;
+      
       const newEvent: Event = {
-        id: data.id,
-        title: data.title,
-        description: data.description,
-        creatorId: data.creator_id,
-        creatorName: data.creator_name,
-        creatorRole: data.creator_role as UserRole,
-        location: data.location,
-        date: new Date(data.date),
-        image: data.image,
-        attendees: data.attendees || [currentUser.id],
-        privacy: data.privacy as EventPrivacy,
-        price: data.price,
-        pendingRequests: data.pending_requests || 0,
-        createdAt: new Date(data.created_at)
+        id: eventFromDb.id,
+        title: eventFromDb.title,
+        description: eventFromDb.description,
+        creatorId: eventFromDb.creator_id,
+        creatorName: eventFromDb.creator_name,
+        creatorRole: eventFromDb.creator_role as UserRole,
+        location: eventFromDb.location,
+        date: new Date(eventFromDb.date),
+        image: eventFromDb.image,
+        attendees: eventFromDb.attendees || [currentUser.id],
+        privacy: eventFromDb.privacy as EventPrivacy,
+        price: eventFromDb.price,
+        pendingRequests: eventFromDb.pending_requests || 0,
+        createdAt: new Date(eventFromDb.created_at || new Date())
       };
       
       setEvents(prev => [newEvent, ...prev]);
