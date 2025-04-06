@@ -156,8 +156,39 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           setPosts(generateMockPosts());
         }
         
+        const { data: groupsData, error: groupsError } = await supabase
+          .from('groups')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (groupsError) {
+          console.error("Error fetching groups:", groupsError);
+          setGroups(generateMockGroups());
+        } else if (groupsData && groupsData.length > 0) {
+          const transformedGroups: Group[] = groupsData.map((group: any) => ({
+            id: group.id,
+            name: group.name,
+            description: group.description,
+            creatorId: group.creator_id,
+            creatorName: group.creator_name,
+            creatorRole: group.creator_role as UserRole,
+            members: group.members,
+            memberIds: [],
+            image: group.image,
+            privacy: group.privacy as GroupPrivacy,
+            price: group.price,
+            createdAt: new Date(group.created_at),
+            pendingRequests: group.pending_requests || 0,
+            rules: group.rules || [],
+            memberLimit: group.member_limit
+          }));
+          
+          setGroups(transformedGroups);
+        } else {
+          setGroups(generateMockGroups());
+        }
+        
         setEvents(generateMockEvents());
-        setGroups(generateMockGroups());
         setSessions(generateMockSessions());
         setSessionEnrollments(generateMockSessionEnrollments());
         setMessages(generateMockMessages());
