@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -39,7 +38,6 @@ import Workshops from "./pages/company/Workshops";
 import CreateProduct from "./pages/company/CreateProduct";
 import CreateWorkshop from "./pages/company/CreateWorkshop";
 import CompanyProfile from "./components/company/CompanyProfile";
-import CompanyDashboard from "./pages/company/Dashboard";
 
 // New Job, Product, Workshop Detail Pages
 import JobPostingDetail from "./pages/company/JobPostingDetail";
@@ -92,8 +90,7 @@ const App = () => (
                 <Route path="/workshops" element={<Workshops />} />
                 <Route path="/workshops/:id" element={<WorkshopDetail />} />
                 
-                {/* Company Routes - redirected through the dashboard */}
-                <Route path="/company/dashboard" element={<CompanyDashboard />} />
+                {/* Company Routes - redirected through individual management pages */}
                 <Route path="/company/jobs" element={<JobPostings />} />
                 <Route path="/company/jobs/create" element={<CreateJobPosting />} />
                 <Route path="/company/jobs/:id" element={<JobPostingDetail />} />

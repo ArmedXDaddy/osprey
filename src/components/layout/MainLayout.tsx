@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -173,6 +172,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     </Sheet>
   );
 
+  // Desktop sidebar navigation
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <div className="hidden md:flex flex-col w-56 bg-white border-r border-gray-100 h-screen sticky top-0 shrink-0">
