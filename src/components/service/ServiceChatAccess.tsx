@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check, Clock, X, MessageSquare } from 'lucide-react';
 import ServiceChat from '../chat/ServiceChat';
-import { useToast } from '@/hooks/use-toast';
 
 interface ServiceChatAccessProps {
   service: Service;
@@ -17,49 +16,10 @@ interface ServiceChatAccessProps {
 const ServiceChatAccess: React.FC<ServiceChatAccessProps> = ({ service, booking }) => {
   const { currentUser } = useAuth();
   const { getUserBookingForService } = useData();
-  const { toast } = useToast();
   const [userBooking, setUserBooking] = useState<Booking | null>(booking);
-  const [loading, setLoading] = useState(false);
-  
-  useEffect(() => {
-    const fetchBooking = async () => {
-      if (!currentUser || !service || booking) return;
-      
-      try {
-        setLoading(true);
-        // Only fetch if we don't already have the booking
-        const result = await getUserBookingForService(service.id, currentUser.id);
-        if (result) {
-          setUserBooking(result);
-        }
-      } catch (error) {
-        console.error("Error fetching booking:", error);
-        toast({
-          title: "Error",
-          description: "Failed to retrieve service booking information",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchBooking();
-  }, [service, currentUser, booking, getUserBookingForService, toast]);
   
   // Check if current user is the service provider/coach
   const isProvider = currentUser?.id === service.providerId;
-  
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Loading...</CardTitle>
-          <CardDescription>Checking access status</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
   
   // If user is the provider, they always have access to the chat
   if (isProvider) {

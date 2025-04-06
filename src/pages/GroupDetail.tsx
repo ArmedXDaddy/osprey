@@ -24,8 +24,8 @@ import {
 import { Group, UserRole, GroupPrivacy, JoinRequest } from '@/types';
 import { format } from 'date-fns';
 import GroupRequestsSection from '@/components/group/GroupRequestsSection';
+import OriginalGroupChatSection from '@/components/group/OriginalGroupChatSection';
 import GroupChatSection from '@/components/group/GroupChatSection';
-import GroupMembersModal from '@/components/group/GroupMembersModal';
 
 const GroupDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +45,6 @@ const GroupDetail = () => {
   const [editingMemberLimit, setEditingMemberLimit] = useState(false);
   const [tempMemberLimit, setTempMemberLimit] = useState<number | undefined>(undefined);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
-  const [showMembersModal, setShowMembersModal] = useState(false);
 
   useEffect(() => {
     if (id && groups.length > 0) {
@@ -206,16 +205,10 @@ const GroupDetail = () => {
               <CardTitle className="text-2xl font-bold">{group.name}</CardTitle>
             </div>
             {isGroupAdmin && (
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm" onClick={() => setShowMembersModal(true)}>
-                  <Users className="h-4 w-4 mr-2" />
-                  Manage Members
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/edit`)}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Group
-                </Button>
-              </div>
+              <Button variant="outline" size="sm" onClick={() => navigate(`/groups/${id}/edit`)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit Group
+              </Button>
             )}
           </div>
           <CardDescription>{group.description}</CardDescription>
@@ -422,15 +415,6 @@ const GroupDetail = () => {
           </div>
         )}
       </Card>
-
-      {isGroupAdmin && showMembersModal && (
-        <GroupMembersModal 
-          groupId={id} 
-          creatorId={group.creatorId} 
-          open={showMembersModal} 
-          onClose={() => setShowMembersModal(false)} 
-        />
-      )}
     </div>
   );
 };
