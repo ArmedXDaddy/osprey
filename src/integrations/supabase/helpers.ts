@@ -1,8 +1,7 @@
-
 import { supabase } from './client';
 import { generateId } from '@/utils';
 import { UserRole, GroupPrivacy, ServiceType, BookingStatus, PaymentStatus, Product, Workshop, Group, Message, Service, Booking } from '@/types';
-import { toUserRole } from '@/utils/typeHelpers';
+import { asUserRole } from '@/utils/typeHelpers';
 
 // Function to create a user profile
 export const createUserProfile = async (userId: string, email: string, name: string, role: string) => {
@@ -217,7 +216,7 @@ export const createService = async (service: Service) => {
     throw error;
   }
 
-  return data;
+  return data || [];
 };
 
 export const getServices = async () => {
@@ -618,7 +617,6 @@ export const createMessage = async (messageData: any) => {
   return data;
 };
 
-// Service bookings
 export const createServiceBooking = async (
   serviceId: string, 
   userId: string, 
@@ -820,7 +818,7 @@ export const getServiceChatMessages = async (serviceId: string) => {
       userProfileImage: item.user_profile_image,
       content: item.content,
       createdAt: new Date(item.created_at),
-      userRole: toUserRole(item.user_role || 'user')
+      userRole: asUserRole(item.user_role || 'user')
     }));
     
     return messages;
@@ -908,7 +906,7 @@ export const mapDbGroupToGroup = (dbGroup: any): Group => {
     description: dbGroup.description,
     creatorId: dbGroup.creator_id,
     creatorName: dbGroup.creator_name,
-    creatorRole: toUserRole(dbGroup.creator_role || 'user'),
+    creatorRole: asUserRole(dbGroup.creator_role || 'user'),
     image: dbGroup.image,
     members: dbGroup.members,
     memberIds: dbGroup.member_ids || [],
@@ -921,7 +919,30 @@ export const mapDbGroupToGroup = (dbGroup: any): Group => {
   };
 };
 
-// These functions may not be used yet but let's implement them
-export const createMessage = async () => {}
-export const updateMessage = async () => {}
-export const deleteMessage = async () => {}
+export const updateMessageData = async (messageId: string, updates: any) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .update(updates)
+    .eq('id', messageId);
+
+  if (error) {
+    console.error('Error updating message:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+export const deleteMessageData = async (messageId: string) => {
+  const { data, error } = await supabase
+    .from('messages')
+    .delete()
+    .eq('id', messageId);
+
+  if (error) {
+    console.error('Error deleting message:', error);
+    throw error;
+  }
+
+  return data;
+};

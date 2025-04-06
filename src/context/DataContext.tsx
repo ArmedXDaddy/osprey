@@ -4,12 +4,12 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy 
+  Booking, ServiceType, Comment
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
-  getUserBookingForService, cancelBooking, approveBooking,
-  updateComment, deleteComment
+  getUserBookingForService, cancelBooking, approveBooking, 
+  updateComment as updateCommentHelper, deleteComment as deleteCommentHelper 
 } from '@/integrations/supabase/helpers';
 import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
@@ -18,17 +18,16 @@ import { generateMockServices, generateMockPosts, generateMockEvents,
 import { useToast } from "@/hooks/use-toast";
 
 import { 
-  createComment, createEvent, createGroup, createJoinRequest, createMessage, 
-  createPost, createProduct, createService, createWorkshop, deleteEvent, 
-  deleteGroup, deletePost, getEvents, getGroups, getJoinRequests, getMessages, 
-  getPosts, getProducts, getServices, getWorkshops, updateEvent, updateGroup, 
-  updateJoinRequest, updatePost, uploadImage 
+  createComment, createEvent as createEventHelper, createGroup as createGroupHelper, 
+  createJoinRequest, createMessage, createPost as createPostHelper, 
+  createProduct, createService as createServiceHelper, 
+  createWorkshop, deleteEvent as deleteEventHelper, 
+  deleteGroup as deleteGroupHelper, deletePost as deletePostHelper, 
+  getEvents, getGroups, getJoinRequests, getMessages, 
+  getPosts, getProducts, getServices, getWorkshops, 
+  updateEvent, updateGroup, updateJoinRequest, updateMessageData, uploadImage 
 } from '@/integrations/supabase/helpers';
-
-interface GroupPrivacy {
-  private: boolean;
-  public: boolean;
-}
+import { asUserRole } from '@/utils/typeHelpers';
 
 interface DataContextType {
   posts: Post[];
@@ -144,7 +143,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           description: event.description,
           creatorId: event.creator_id,
           creatorName: event.creator_name,
-          creatorRole: event.creator_role as UserRole,
+          creatorRole: asUserRole(event.creator_role),
           location: event.location,
           date: new Date(event.date),
           image: event.image,
@@ -376,7 +375,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             description: newEvent.description,
             creatorId: newEvent.creator_id,
             creatorName: newEvent.creator_name,
-            creatorRole: newEvent.creator_role as UserRole,
+            creatorRole: asUserRole(newEvent.creator_role),
             location: newEvent.location,
             date: new Date(newEvent.date),
             image: newEvent.image,
@@ -1066,7 +1065,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: eventData.description,
         creator_id: currentUser.id,
         creator_name: currentUser.name,
-        creator_role: currentUser.role as string,
+        creator_role: currentUser.role,
         location: eventData.location,
         date: eventData.date,
         image: eventData.image || null,
@@ -1076,9 +1075,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         pending_requests: 0
       };
       
-      const { data, error } = await supabase.rpc('create_event', newEventData);
-      
-      if (error) throw error;
+      const data = await createEventHelper(newEventData);
       
       const eventFromDb = typeof data === 'string' ? JSON.parse(data) : data;
       
@@ -1088,7 +1085,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: eventFromDb.description,
         creatorId: eventFromDb.creator_id,
         creatorName: eventFromDb.creator_name,
-        creatorRole: eventFromDb.creator_role as UserRole,
+        creatorRole: asUserRole(eventFromDb.creator_role),
         location: eventFromDb.location,
         date: new Date(eventFromDb.date),
         image: eventFromDb.image,
@@ -1242,26 +1239,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       const { name, description, image, privacy, price, memberLimit, rules } = groupData;
       
-      const { data, error } = await supabase
-        .from('groups')
-        .insert({
-          name,
-          description,
-          image,
-          privacy,
-          price: privacy === 'paid' ? price : null,
-          member_limit: memberLimit,
-          rules,
-          creator_id: currentUser.id,
-          creator_name: currentUser.name,
-          creator_role: currentUser.role as string,
-          members: 1,
-          pending_requests: 0
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
+      const data = await createGroupHelper({
+        name,
+        description,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role,
+        image,
+        privacy,
+        price: privacy === 'paid' ? price : null,
+        memberLimit,
+        rules
+      });
       
       if (!data) throw new Error('Failed to create group');
       
@@ -1271,11 +1260,12 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         description: data.description,
         creatorId: data.creator_id,
         creatorName: data.creator_name,
-        creatorRole: data.creator_role as UserRole,
+        creatorRole: asUserRole(data.creator_role),
         image: data.image,
         members: data.members,
+        memberIds: data.member_ids || [],
         memberLimit: data.member_limit,
-        privacy: data.privacy,
+        privacy: data.privacy as any,
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
@@ -1341,7 +1331,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to update a comment');
     
     try {
-      await updateComment(commentId, content);
+      await updateCommentHelper(commentId, content);
       
       setPostComments(prev => {
         const updatedComments = { ...prev };
@@ -1375,7 +1365,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to delete a comment');
     
     try {
-      await deleteComment(commentId);
+      await deleteCommentHelper(commentId);
       
       setPostComments(prev => {
         const updatedComments = { ...prev };
