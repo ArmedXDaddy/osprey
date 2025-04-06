@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -96,7 +95,8 @@ const GroupDetail = () => {
           console.error("Error checking membership:", error);
         }
         
-        setIsUserMember(!!data || currentUser.id === group.creatorId);
+        const isMember = currentUser && (group.creatorId === currentUser.id || (group.memberIds && group.memberIds.includes(currentUser.id)));
+        setIsUserMember(isMember);
       } catch (error) {
         console.error("Error checking membership:", error);
       }

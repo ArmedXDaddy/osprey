@@ -33,8 +33,8 @@ const Login = () => {
     setIsSubmitting(true);
     
     try {
-      const result = await login(email, password);
-      if (result) {
+      const success = await login(email, password);
+      if (success) {
         toast.success('Login successful!');
         navigate('/');
       }
@@ -48,8 +48,8 @@ const Login = () => {
         
         // Immediate retry for email confirmation issues
         try {
-          const retryResult = await login(email, password);
-          if (retryResult) {
+          const retrySuccess = await login(email, password);
+          if (retrySuccess) {
             toast.success('Login successful!');
             navigate('/');
           } else {

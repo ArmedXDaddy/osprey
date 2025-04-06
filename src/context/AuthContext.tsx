@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@/types';
@@ -6,16 +7,19 @@ interface AuthContextProps {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
   loading: boolean;
-  login: (email: string) => Promise<void>;
-  register: (email: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (email: string, password: string, name: string, role: string) => Promise<void>;
   logout: () => Promise<void>;
+  isLoading: boolean; // Add this property
+  updateProfile?: (userData: Partial<User>) => Promise<void>; // Add this property
 }
 
 const AuthContext = createContext<AuthContextProps>({
   currentUser: null,
   setCurrentUser: () => {},
   loading: true,
-  login: async () => {},
+  isLoading: true, // Initialize the property
+  login: async () => false,
   register: async () => {},
   logout: async () => {},
 });
@@ -27,26 +31,38 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   
-  const login = async (email: string) => {
+  const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      const { error } = await supabase.auth.signInWithOtp({ email });
+      const { error, data } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      alert('Check your email for the login link!');
+      return true;
     } catch (error) {
       console.error("Login error:", error);
-      alert(error);
+      throw error;
     }
   };
   
-  const register = async (email: string) => {
+  const register = async (email: string, password: string, name: string, role: string) => {
     try {
-      const { error } = await supabase.auth.signUp({ email, options: { emailRedirectTo: `${window.location.origin}/profile` } });
+      // Fix: Add password to the signup call
+      const { error } = await supabase.auth.signUp({ 
+        email, 
+        password,
+        options: { 
+          emailRedirectTo: `${window.location.origin}/profile`,
+          data: {
+            name,
+            role
+          }
+        } 
+      });
       if (error) throw error;
       alert('Check your email to confirm your registration!');
     } catch (error) {
       console.error("Registration error:", error);
-      alert(error);
+      throw error;
     }
   };
   
@@ -57,7 +73,36 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setCurrentUser(null);
     } catch (error) {
       console.error("Logout error:", error);
-      alert(error);
+      throw error;
+    }
+  };
+
+  // Add updateProfile function
+  const updateProfile = async (userData: Partial<User>) => {
+    try {
+      if (!currentUser) throw new Error("No user logged in");
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          bio: userData.bio,
+          location: userData.location,
+          profile_image: userData.profileImage,
+          // No cover_image in the profiles table
+          interests: userData.interests,
+          social_links: userData.socialLinks ? JSON.stringify(userData.socialLinks) : null,
+        })
+        .eq('id', currentUser.id);
+        
+      if (error) throw error;
+      
+      // Update local user state
+      setCurrentUser(prev => prev ? { ...prev, ...userData } : null);
+      
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw error;
     }
   };
 
@@ -66,6 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const checkSession = async () => {
       try {
         setLoading(true);
+        setIsLoading(true);
         const { data: sessionData, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -89,16 +135,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               id: userData.id,
               name: userData.name,
               email: userData.email,
-              role: userData.role,
+              role: userData.role as any, // Fix: Cast to UserRole
               profileImage: userData.profile_image,
-              coverImage: userData.cover_image,
+              coverImage: null, // Fix: No cover_image in profiles table
               bio: userData.bio,
               location: userData.location,
               interests: userData.interests,
               following: userData.following,
               followers: userData.followers,
               verified: userData.verified,
-              socialLinks: userData.social_links,
+              socialLinks: typeof userData.social_links === 'object' 
+                ? userData.social_links 
+                : { instagram: null, twitter: null, website: null }, // Fix: Ensure socialLinks is properly typed
               createdAt: new Date(userData.created_at)
             });
           }
@@ -107,12 +155,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Error checking session:', error);
       } finally {
         setLoading(false);
+        setIsLoading(false);
       }
     };
     
     checkSession().catch(error => {
       console.error("Failed to check session:", error);
       setLoading(false);
+      setIsLoading(false);
     });
     
     // Listen for auth state changes
@@ -136,16 +186,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               id: userData.id,
               name: userData.name,
               email: userData.email,
-              role: userData.role,
+              role: userData.role as any, // Fix: Cast to UserRole
               profileImage: userData.profile_image,
-              coverImage: userData.cover_image,
+              coverImage: null, // Fix: No cover_image in profiles table
               bio: userData.bio,
               location: userData.location,
               interests: userData.interests,
               following: userData.following,
               followers: userData.followers,
               verified: userData.verified,
-              socialLinks: userData.social_links,
+              socialLinks: typeof userData.social_links === 'object' 
+                ? userData.social_links 
+                : { instagram: null, twitter: null, website: null }, // Fix: Ensure socialLinks is properly typed
               createdAt: new Date(userData.created_at)
             });
           }
@@ -167,9 +219,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     currentUser,
     setCurrentUser,
     loading,
+    isLoading,
     login,
     register,
     logout,
+    updateProfile
   };
 
   return (
