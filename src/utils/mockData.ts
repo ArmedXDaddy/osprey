@@ -42,6 +42,10 @@ export const generateMockServices = (): Service[] => {
 };
 
 // Add other mock data generation functions to return actual arrays instead of empty arrays
+export const generateMockPosts = (): Post[] => {
+  return [];
+};
+
 export const generateMockEvents = (): Event[] => {
   return [];
 };
@@ -63,10 +67,6 @@ export const generateMockMessages = (): Message[] => {
 };
 
 export const generateMockJoinRequests = (): JoinRequest[] => {
-  return [];
-};
-
-export const generateMockPosts = (): Post[] => {
   return [];
 };
 
@@ -94,8 +94,38 @@ export const mockUsers: User[] = [
   }
 ];
 
-// We no longer need this function since data is stored in the database
-// It's kept for backward compatibility but doesn't fetch from localStorage anymore
+// Generate mock sponsorships - this is the function that was missing
 export const generateMockSponsorships = (): Sponsorship[] => {
-  return [];
+  return [
+    {
+      id: 'mock-sponsorship-1',
+      title: 'Brand Ambassador Program',
+      description: 'Represent our fitness brand on social media',
+      companyId: 'company-1',
+      companyName: 'FitLife Inc',
+      companyLogo: '/placeholder.svg',
+      requirements: ['Minimum 1000 followers', 'Post at least twice weekly'],
+      benefits: ['Free products', 'Commissions on sales'],
+      compensation: '$500 per month',
+      deadline: new Date(new Date().setMonth(new Date().getMonth() + 1)),
+      tags: ['fitness', 'lifestyle'],
+      status: 'active' as SponsorshipStatus,
+      createdAt: new Date()
+    },
+    {
+      id: 'mock-sponsorship-2',
+      title: 'Product Review Partnership',
+      description: 'Review our new line of protein supplements',
+      companyId: 'company-2',
+      companyName: 'NutriBoost',
+      companyLogo: '/placeholder.svg',
+      requirements: ['Experience with nutrition products', 'Detailed reviews'],
+      benefits: ['Free products for 6 months', 'Exclusive discounts'],
+      compensation: 'Free products + affiliate commissions',
+      deadline: null,
+      tags: ['nutrition', 'health'],
+      status: 'active' as SponsorshipStatus,
+      createdAt: new Date()
+    }
+  ];
 };
