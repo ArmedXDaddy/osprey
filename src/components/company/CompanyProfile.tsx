@@ -42,8 +42,8 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
           
           // Load workshops
           setLoadingWorkshops(true);
-          const workshopsData = await fetchWorkshops(profileId);
-          setWorkshops(workshopsData);
+          const workshopsData = await fetchWorkshops();
+          setWorkshops(workshopsData.filter(w => w.companyId === profileId));
           setLoadingWorkshops(false);
         } catch (error) {
           console.error('Error loading company data:', error);

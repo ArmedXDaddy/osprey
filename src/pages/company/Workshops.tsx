@@ -25,11 +25,15 @@ const Workshops = () => {
     const loadWorkshops = async () => {
       try {
         setLoading(true);
-        // If on company route and user is a company, only show their workshops
-        const workshopsData = await fetchWorkshops(
-          isCompanyRoute && isCompany ? currentUser?.id : undefined
-        );
-        setWorkshops(workshopsData);
+        // Get all workshops
+        const workshopsData = await fetchWorkshops();
+        
+        // If on company route and user is a company, filter to only show their workshops
+        const filteredWorkshops = isCompanyRoute && isCompany && currentUser?.id
+          ? workshopsData.filter(workshop => workshop.companyId === currentUser.id)
+          : workshopsData;
+          
+        setWorkshops(filteredWorkshops);
       } catch (error) {
         console.error('Error loading workshops:', error);
         toast({
