@@ -246,6 +246,9 @@ const Events = () => {
                   const event = events.find(e => e.id === eventId);
                   if (!event) return null;
                   
+                  const isAttending = event.attendees && Array.isArray(event.attendees) && 
+                    event.attendees.includes(currentUser.id);
+                  
                   return (
                     <div key={eventId} className="border rounded-lg p-4 space-y-4 bg-card">
                       <Link to={`/events/${eventId}`} className="block hover:underline">

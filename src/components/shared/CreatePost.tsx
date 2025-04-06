@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import { useAuth } from '@/context/AuthContext';
@@ -42,7 +43,9 @@ const CreatePost: React.FC<CreatePostProps> = ({ onPostCreated }) => {
         userName: currentUser.name,
         userRole: currentUser.role,
         userProfileImage: currentUser.profileImage,
-        image: selectedImage || null
+        image: selectedImage || null,
+        likes: 0,
+        comments: 0
       });
       
       if (newPost && newPost.id && currentUser) {

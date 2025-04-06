@@ -42,6 +42,9 @@ const formSchema = z.object({
   image: z.string().optional(),
 });
 
+// Define the EventFormValues type for TypeScript
+type EventFormValues = z.infer<typeof formSchema>;
+
 const CreateEvent = () => {
   const navigate = useNavigate();
   const { createEvent } = useData();
@@ -124,7 +127,10 @@ const CreateEvent = () => {
         date: data.date,
         privacy: data.privacy,
         price: data.privacy === 'paid' ? parseFloat(data.price as string) : 0,
-        image: data.image || selectedImage
+        image: data.image || imagePreview,
+        creatorId: currentUser?.id || "",
+        creatorName: currentUser?.name || "",
+        creatorRole: currentUser?.role || "user"
       };
       
       const event = await createEvent(eventData);

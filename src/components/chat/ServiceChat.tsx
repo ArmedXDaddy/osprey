@@ -11,6 +11,7 @@ import { Send } from 'lucide-react';
 import { Message } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from '@/hooks/use-toast';
 
 interface ServiceChatProps {
   serviceId: string;
@@ -106,7 +107,7 @@ const ServiceChat: React.FC<ServiceChatProps> = ({ serviceId, userId, isProvider
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSendMessage(e);
     }
   };
   
