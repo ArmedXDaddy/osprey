@@ -1073,7 +1073,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
-        createdAt: new Date(data.created_at)
+        createdAt: new Date(data.created_at),
+        memberIds: [] // Initialize with empty array
       };
       
       setGroups(prev => [newGroup, ...prev]);

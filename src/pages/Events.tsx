@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,10 @@ const Events = () => {
     );
   }
 
-  // Filter events based on search term
+  useEffect(() => {
+    console.log("Events loaded:", events);
+  }, [events]);
+
   const filteredEvents = events.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -40,7 +43,6 @@ const Events = () => {
     event.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort events based on selected option
   const sortedEvents = [...filteredEvents].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
@@ -54,13 +56,10 @@ const Events = () => {
     }
   });
 
-  // Get user's events (events created by the current user)
   const userEvents = currentUser ? events.filter(event => event.creatorId === currentUser?.id) : [];
 
-  // Get upcoming events
   const upcomingEvents = sortedEvents.filter(event => new Date(event.date) > new Date());
 
-  // Get past events
   const pastEvents = sortedEvents.filter(event => new Date(event.date) < new Date());
 
   return (

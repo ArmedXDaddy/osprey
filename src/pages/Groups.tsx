@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import GroupCard from '@/components/shared/GroupCard';
 import { Button } from '@/components/ui/button';
@@ -33,14 +32,16 @@ const Groups = () => {
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('popular');
   const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
-  // Filter groups based on search term
+  useEffect(() => {
+    console.log("Groups loaded:", groups);
+  }, [groups]);
+
   const filteredGroups = groups.filter(group =>
     group.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
     group.creatorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort groups based on selected option
   const sortedGroups = [...filteredGroups].sort((a, b) => {
     switch (sortBy) {
       case 'newest':
@@ -54,10 +55,8 @@ const Groups = () => {
     }
   });
 
-  // Get user's groups (groups created by the current user)
   const userGroups = currentUser ? groups.filter(group => group.creatorId === currentUser?.id) : [];
   
-  // Get groups the user has joined (for future implementation)
   const joinedGroups = [];
 
   const handleDeleteGroup = async () => {
@@ -93,7 +92,6 @@ const Groups = () => {
     );
   }
 
-  // Check if user can create groups (influencers, companies, and coaches)
   const canCreateGroup = currentUser && ['influencer', 'company', 'coach'].includes(currentUser.role);
 
   return (
@@ -116,7 +114,6 @@ const Groups = () => {
             />
           </div>
           
-          {/* Show create button for influencers, companies, and coaches */}
           {canCreateGroup && (
             <Link to="/create-group">
               <Button>
