@@ -33,10 +33,7 @@ interface EventRegistrationFormProps {
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email'),
-  age: z.union([
-    z.string().optional().transform(val => val ? parseInt(val, 10) : undefined),
-    z.number().optional()
-  ]),
+  age: z.coerce.number().optional(),
   gender: z.string().optional(),
   phone: z.string().optional(),
   emergencyContact: z.string().optional(),
@@ -53,7 +50,7 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
     defaultValues: {
       name: currentUser?.name || '',
       email: currentUser?.email || '',
-      age: '',
+      age: undefined,
       gender: '',
       phone: '',
       emergencyContact: '',
@@ -70,7 +67,7 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
       userId: currentUser.id,
       name: values.name,
       email: values.email,
-      age: values.age,  // Now safely handles both string and number inputs
+      age: values.age,  // z.coerce.number() handles the type conversion
       gender: values.gender,
       phone: values.phone,
       emergencyContact: values.emergencyContact,
@@ -123,7 +120,16 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
               <FormItem>
                 <FormLabel>Age</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="Your age (optional)" {...field} />
+                  <Input 
+                    type="number" 
+                    placeholder="Your age (optional)" 
+                    {...field} 
+                    value={field.value || ''}
+                    onChange={(e) => {
+                      const value = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                      field.onChange(value);
+                    }}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
