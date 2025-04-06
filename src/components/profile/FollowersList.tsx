@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Link } from 'react-router-dom';
-import { User, UserRole } from '@/types';
+import { User, UserProfile, UserRole } from '@/types';
 import FollowButton from './FollowButton';
 
 type UserWithFollowStatus = {

@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment 
+  Booking, ServiceType, Comment, GroupPrivacy, GroupPrivacyString
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -48,7 +48,13 @@ interface DataContextType {
   rejectEventRequest: (requestId: string) => Promise<void>;
   getEventRequests: (eventId: string) => Promise<JoinRequest[]>;
   handleEventJoinRequest: (eventId: string, userId: string, status: 'approved' | 'rejected') => Promise<void>;
-  createGroup: (groupData: any) => Promise<Group>;
+  createGroup: (groupData: {
+    name: string;
+    description: string;
+    privacy: GroupPrivacy | GroupPrivacyString;
+    price?: number;
+    image?: string;
+  }) => Promise<Group>;
   joinGroup: (groupId: string) => Promise<void>;
   leaveGroup: (groupId: string) => Promise<void>;
   requestToJoinGroup: (groupId: string) => Promise<void>;
@@ -110,52 +116,53 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
   const [sessionEnrollments, setSessionEnrollments] = useState<SessionEnrollment[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
+  const [mockServices, setMockServices] = useState<Service[]>([]);
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
-  const fetchEvents = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .order('created_at', { ascending: false });
+  React.useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('events')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.error("Error fetching events:", error);
+          return generateMockEvents();
+        }
         
-      if (error) {
-        console.error("Error fetching events:", error);
+        if (data && data.length > 0) {
+          return data.map((event: any): Event => ({
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            creatorId: event.creator_id,
+            creatorName: event.creator_name,
+            creatorRole: event.creator_role as UserRole,
+            location: event.location,
+            date: new Date(event.date),
+            image: event.image,
+            attendees: event.attendees || [],
+            privacy: event.privacy as EventPrivacy,
+            price: event.price,
+            pendingRequests: event.pending_requests || 0,
+            createdAt: new Date(event.created_at)
+          }));
+        }
+        
+        return generateMockEvents();
+      } catch (err) {
+        console.error("Error in fetchEvents:", err);
         return generateMockEvents();
       }
-      
-      if (data && data.length > 0) {
-        return data.map((event: any): Event => ({
-          id: event.id,
-          title: event.title,
-          description: event.description,
-          creatorId: event.creator_id,
-          creatorName: event.creator_name,
-          creatorRole: event.creator_role as UserRole,
-          location: event.location,
-          date: new Date(event.date),
-          image: event.image,
-          attendees: event.attendees || [],
-          privacy: event.privacy as EventPrivacy,
-          price: event.price,
-          pendingRequests: event.pending_requests || 0,
-          createdAt: new Date(event.created_at)
-        }));
-      }
-      
-      return generateMockEvents();
-    } catch (err) {
-      console.error("Error in fetchEvents:", err);
-      return generateMockEvents();
-    }
-  };
-  
-  React.useEffect(() => {
+    };
+    
     const loadData = async () => {
       try {
         setLoading(true);
@@ -492,7 +499,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
             providerId: item.coach_id,
             providerName: item.coach_name,
             price: item.price,
-            duration: item.duration,
+            duration: typeof item.duration === 'string' ? parseInt(item.duration, 10) || 0 : item.duration || 0,
             available: item.is_active,
             createdAt: new Date(item.created_at),
             isOnline: item.is_online,
@@ -530,7 +537,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       sessionType: sessionData.sessionType,
       capacity: sessionData.capacity,
       price: sessionData.price,
-      duration: sessionData.duration,
+      duration: typeof sessionData.duration === 'string' ? parseInt(sessionData.duration, 10) || 0 : sessionData.duration,
       startTime: sessionData.startTime,
       location: sessionData.location,
       meetingUrl: sessionData.meetingUrl,
@@ -641,7 +648,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         providerId: data.coach_id,
         providerName: data.coach_name,
         price: data.price,
-        duration: data.duration,
+        duration: typeof data.duration === 'string' ? parseInt(data.duration, 10) || 0 : data.duration || 0,
         available: data.is_active,
         createdAt: new Date(data.created_at),
         isOnline: data.is_online,
@@ -922,7 +929,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         providerId: item.coach_id,
         providerName: item.coach_name,
         price: item.price,
-        duration: item.duration,
+        duration: typeof item.duration === 'string' ? parseInt(item.duration, 10) || 0 : item.duration || 0,
         available: item.is_active,
         createdAt: new Date(item.created_at),
         isOnline: item.is_online,
@@ -1228,28 +1235,44 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     throw new Error('Not implemented');
   };
   
-  const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    
+  const createGroup = async (groupData: {
+    name: string;
+    description: string;
+    privacy: GroupPrivacy | GroupPrivacyString;
+    price?: number;
+    image?: string;
+  }): Promise<Group> => {
     try {
-      const { name, description, image, privacy, price, memberLimit, rules } = groupData;
+      setLoading(true);
+      
+      if (!currentUser) {
+        throw new Error('You must be logged in to create a group');
+      }
+      
+      // Process privacy value for database storage
+      let privacyValue: any;
+      if (typeof groupData.privacy === 'string') {
+        privacyValue = groupData.privacy;
+      } else {
+        privacyValue = groupData.privacy;
+      }
+      
+      const groupInsertData = {
+        name: groupData.name,
+        description: groupData.description,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        creator_role: currentUser.role,
+        members: 1,
+        privacy: privacyValue,
+        image: groupData.image,
+        price: groupData.privacy === 'paid' ? groupData.price : null,
+        member_ids: [currentUser.id], // Initialize with creator
+      };
       
       const { data, error } = await supabase
         .from('groups')
-        .insert({
-          name,
-          description,
-          image,
-          privacy,
-          price: privacy === 'paid' ? price : null,
-          member_limit: memberLimit,
-          rules,
-          creator_id: currentUser.id,
-          creator_name: currentUser.name,
-          creator_role: currentUser.role as string,
-          members: 1,
-          pending_requests: 0
-        })
+        .insert(groupInsertData)
         .select()
         .single();
       
@@ -1257,7 +1280,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
       
       if (!data) throw new Error('Failed to create group');
       
-      const newGroup: Group = {
+      const createdGroup: Group = {
         id: data.id,
         name: data.name,
         description: data.description,
@@ -1271,17 +1294,18 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         price: data.price,
         pendingRequests: data.pending_requests,
         rules: data.rules || [],
-        createdAt: new Date(data.created_at)
+        createdAt: new Date(data.created_at),
+        memberIds: data.member_ids || [] // Use member_ids from the response
       };
       
-      setGroups(prev => [newGroup, ...prev]);
+      setGroups(prev => [createdGroup, ...prev]);
       
       toast({
         title: "Group created",
         description: "Your group has been created successfully",
       });
       
-      return newGroup;
+      return createdGroup;
     } catch (error: any) {
       console.error("Error creating group:", error);
       toast({
@@ -1290,6 +1314,8 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         variant: "destructive",
       });
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
   

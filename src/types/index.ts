@@ -1,11 +1,35 @@
+
 // Export any necessary types from the existing types file
 export * from './badge.d';
 
-// If the types from badge.d.ts don't include GroupPrivacy, Event, etc., we need to add them here
+// User roles
 export type UserRole = 'user' | 'coach' | 'influencer' | 'company' | 'admin';
 
+// Event privacy options
 export type EventPrivacy = 'public' | 'private' | 'paid';
 
+// Booking status and payment status
+export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
+export type PaymentStatus = 'unpaid' | 'paid' | 'refunded';
+
+// Session status
+export type SessionStatus = 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
+
+// Define the User interface
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  profileImage?: string;
+  bio?: string;
+  location?: string;
+  followers?: number;
+  following?: number;
+  isFollowing?: boolean;
+}
+
+// User profile structure
 export interface UserProfile {
   id: string;
   email: string;
@@ -18,8 +42,10 @@ export interface UserProfile {
   followers?: number;
   following?: number;
   createdAt: Date;
+  coverImage?: string;
 }
 
+// Post structure
 export interface Post {
   id: string;
   userId: string;
@@ -34,6 +60,7 @@ export interface Post {
   createdAt: Date;
 }
 
+// Comment structure
 export interface Comment {
   id: string;
   postId: string;
@@ -45,12 +72,16 @@ export interface Comment {
   createdAt: Date;
 }
 
+// Group privacy options as a string enum for better compatibility
+export type GroupPrivacyString = 'public' | 'private' | 'paid';
+
+// Group privacy structure (used in some places)
 export interface GroupPrivacy {
   private: boolean;
   public: boolean;
 }
 
-// Because code expects these fields in the Group interface
+// Group structure
 export interface Group {
   id: string;
   name: string;
@@ -60,15 +91,16 @@ export interface Group {
   creatorRole: UserRole;
   image?: string;
   members: number;
-  memberIds?: string[]; // Add this field which is expected by the code
+  memberIds?: string[];
   memberLimit?: number;
-  privacy: GroupPrivacy;
+  privacy: GroupPrivacy | GroupPrivacyString;
   price?: number;
   pendingRequests?: number;
   rules: string[];
   createdAt: Date;
 }
 
+// Event structure
 export interface Event {
   id: string;
   title: string;
@@ -86,8 +118,10 @@ export interface Event {
   createdAt: Date;
 }
 
-export type ServiceType = 'one_on_one' | 'group' | 'consultation' | 'program';
+// Service types
+export type ServiceType = 'one_on_one' | 'group' | 'consultation' | 'program' | 'webinar' | 'course';
 
+// Service structure
 export interface Service {
   id: string;
   title: string;
@@ -95,7 +129,7 @@ export interface Service {
   providerId: string;
   providerName: string;
   price: number;
-  duration: number;
+  duration: number | string;
   available: boolean;
   createdAt: Date;
   isOnline: boolean;
@@ -106,19 +140,23 @@ export interface Service {
   meetingUrl?: string;
 }
 
+// Booking structure
 export interface Booking {
   id: string;
   serviceId: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   userProfileImage?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
   notes?: string;
   createdAt: Date;
   scheduledTime?: Date;
+  preferredTime?: Date;
 }
 
+// Session structure
 export interface Session {
   id: string;
   title: string;
@@ -138,18 +176,21 @@ export interface Session {
   updatedAt: Date;
 }
 
+// Session enrollment structure
 export interface SessionEnrollment {
   id: string;
   sessionId: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   userProfileImage?: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed' | 'cancelled';
-  paymentStatus: 'unpaid' | 'paid' | 'refunded';
+  status: BookingStatus;
+  paymentStatus: PaymentStatus;
   notes?: string;
   createdAt: Date;
 }
 
+// Message structure
 export interface Message {
   id: string;
   groupId?: string;
@@ -162,6 +203,7 @@ export interface Message {
   createdAt: Date;
 }
 
+// Join request structure
 export interface JoinRequest {
   id: string;
   userId: string;
@@ -171,4 +213,74 @@ export interface JoinRequest {
   eventId?: string;
   status: 'pending' | 'approved' | 'rejected';
   createdAt: Date;
+}
+
+// Product structure for company products
+export interface Product {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  price: string;
+  category: string;
+  tags?: string[];
+  image?: string;
+  features?: string[];
+  demoUrl?: string;
+  websiteUrl?: string;
+  releaseDate: Date;
+  createdAt: Date;
+}
+
+// Workshop structure for company workshops
+export interface Workshop {
+  id: string;
+  title: string;
+  description: string;
+  longDescription?: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  date: Date;
+  duration: string;
+  startTime?: string;
+  endTime?: string;
+  price: number;
+  category: string;
+  topics?: string[];
+  prerequisites?: string[];
+  includes?: string[];
+  tags?: string[];
+  image?: string;
+  capacity?: number;
+  isOnline: boolean;
+  location?: string;
+  meetingUrl?: string;
+  instructors?: any[];
+  createdAt: Date;
+}
+
+// Job posting structure for company job postings
+export interface JobPosting {
+  id: string;
+  title: string;
+  description: string;
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  companyDescription?: string;
+  jobType: string;
+  location?: string;
+  salaryRange?: string;
+  skills?: string[];
+  requirements?: string[];
+  responsibilities?: string[];
+  benefits?: string[];
+  applicationDeadline?: Date;
+  applicationEmail?: string;
+  applicationUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

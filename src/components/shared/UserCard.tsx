@@ -1,19 +1,21 @@
-
 import React from 'react';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { User as UserIcon, MapPin } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import FollowButton from '@/components/profile/FollowButton';
-import { User } from '@/types';
+import { MapPin, Calendar, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { User, UserProfile } from '@/types';
+import FollowButton from '../profile/FollowButton';
 
 interface UserCardProps {
-  user: User;
+  user: UserProfile | User;
+  isFollowing?: boolean;
+  showFollowButton?: boolean;
+  onClick?: () => void;
 }
 
-const UserCard: React.FC<UserCardProps> = ({ user }) => {
+const UserCard: React.FC<UserCardProps> = ({ user, isFollowing = false, showFollowButton = true, onClick }) => {
   const navigate = useNavigate();
   
   const roleColors: Record<string, string> = {
@@ -24,12 +26,10 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
     admin: 'bg-red-100 text-red-800'
   };
   
-  // Generate fallback avatar URL based on user name
   const getFallbackAvatarUrl = (name: string) => {
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=256`;
   };
   
-  // Get user initials for the fallback
   const getUserInitials = (name: string) => {
     return name
       .split(' ')
@@ -39,7 +39,6 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
       .substring(0, 2);
   };
   
-  // Log user data for debugging
   console.log('UserCard rendering for:', user.id, user.name);
   console.log('User profile image:', user.profileImage);
   console.log('User bio:', user.bio);
@@ -93,7 +92,9 @@ const UserCard: React.FC<UserCardProps> = ({ user }) => {
         >
           View Profile
         </Button>
-        <FollowButton targetUserId={user.id} />
+        {showFollowButton && (
+          <FollowButton targetUserId={user.id} isFollowing={isFollowing} />
+        )}
       </CardFooter>
     </Card>
   );
