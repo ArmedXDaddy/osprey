@@ -1,12 +1,12 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { PlusCircle, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import SponsorshipCard from '@/components/shared/SponsorshipCard';
 
 const Sponsorships = () => {
@@ -42,12 +42,6 @@ const Sponsorships = () => {
             Find brands looking for ambassadors and collaboration opportunities
           </p>
         </div>
-        {isCompany && (
-          <Button onClick={handleCreateSponsorship} className="mt-4 md:mt-0 gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Create Opportunity
-          </Button>
-        )}
       </div>
 
       <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
