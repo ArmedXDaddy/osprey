@@ -476,11 +476,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const approveEnrollment = async (enrollmentId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be a coach to approve an enrollment');
+    if (!currentUser) throw new Error('You must be logged in to approve an enrollment');
   };
   
   const rejectEnrollment = async (enrollmentId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be a coach to reject an enrollment');
+    if (!currentUser) throw new Error('You must be logged in to reject an enrollment');
   };
   
   const getUserSessions = async (userId: string): Promise<Session[]> => {
@@ -572,7 +572,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         description: error.message || "Failed to join group",
         variant: "destructive"
       });
-      throw error;
+      throw new Error(error.message || 'Failed to join group');
     }
   };
   
@@ -608,12 +608,26 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to update group details');
     
     try {
+      const dataToUpdate = {
+        name: updatedData.name,
+        description: updatedData.description,
+        image: updatedData.image,
+        privacy: updatedData.privacy,
+        rules: updatedData.rules,
+        member_limit: updatedData.memberLimit
+      };
+      
+      console.log('Updating group with data:', dataToUpdate);
+      
       const { error } = await supabase
         .from('groups')
-        .update(updatedData)
+        .update(dataToUpdate)
         .eq('id', groupId);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Error from Supabase:", error);
+        throw error;
+      }
       
       setGroups(prevGroups => 
         prevGroups.map(group => 
@@ -625,8 +639,18 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             : group
         )
       );
+      
+      toast({
+        title: "Group updated",
+        description: "Group details have been updated successfully."
+      });
     } catch (err: any) {
       console.error("Error updating group details:", err);
+      toast({
+        title: "Update failed",
+        description: err.message || 'Failed to update group details',
+        variant: "destructive"
+      });
       throw new Error(err.message || 'Failed to update group details');
     }
   };

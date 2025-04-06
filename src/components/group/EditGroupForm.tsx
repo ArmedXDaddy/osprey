@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Group } from '@/types';
@@ -28,6 +29,7 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
     description: group.description,
     image: group.image || '',
     memberLimit: group.memberLimit || 100,
+    privacy: group.privacy || 'public',
     rules: group.rules || ['Be respectful to all members', 'No spam or self-promotion']
   });
   const [newRule, setNewRule] = useState('');
@@ -108,14 +110,25 @@ const EditGroupForm: React.FC<EditGroupFormProps> = ({ group, isOpen, onClose })
     }
 
     setLoading(true);
+    console.log("Submitting form data:", formData);
 
     try {
-      await updateGroupDetails(group.id, formData);
+      await updateGroupDetails(group.id, {
+        name: formData.name,
+        description: formData.description,
+        image: formData.image,
+        memberLimit: formData.memberLimit,
+        privacy: formData.privacy,
+        rules: formData.rules
+      });
+      
       toast({
         title: "Group updated",
         description: "Group details have been updated successfully"
       });
-      onClose();
+      
+      // Navigate back to the group page
+      navigate(`/groups/${group.id}`);
     } catch (error) {
       console.error("Failed to update group:", error);
       toast({
