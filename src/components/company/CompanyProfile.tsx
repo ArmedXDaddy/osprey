@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Building, Users, DollarSign, Briefcase, GraduationCap, Edit, MapPin, Globe, Mail, Phone, PlusCircle, FileText } from 'lucide-react';
@@ -8,6 +8,11 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
+import { Product, Workshop } from '@/types';
+import { ProductCard } from '@/components/shared/ProductCard';
+import { WorkshopCard } from '@/components/shared/WorkshopCard';
+import { useToast } from '@/components/ui/use-toast';
 
 interface CompanyProfileProps {
   companyId?: string;
@@ -16,7 +21,43 @@ interface CompanyProfileProps {
 const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const isOwnProfile = !companyId || (currentUser && currentUser.id === companyId);
+  const profileId = companyId || currentUser?.id;
+  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadingWorkshops, setLoadingWorkshops] = useState(true);
+  
+  useEffect(() => {
+    const loadData = async () => {
+      if (profileId) {
+        try {
+          // Load products
+          setLoadingProducts(true);
+          const productsData = await fetchProducts();
+          setProducts(productsData.filter(p => p.companyId === profileId));
+          setLoadingProducts(false);
+          
+          // Load workshops
+          setLoadingWorkshops(true);
+          const workshopsData = await fetchWorkshops(profileId);
+          setWorkshops(workshopsData);
+          setLoadingWorkshops(false);
+        } catch (error) {
+          console.error('Error loading company data:', error);
+          toast({
+            title: 'Failed to load data',
+            description: 'Please try again later',
+            variant: 'destructive',
+          });
+        }
+      }
+    };
+    
+    loadData();
+  }, [profileId, toast]);
   
   // Placeholder data - would be fetched from API in a real implementation
   const companyData = {
@@ -165,21 +206,39 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
               <CardDescription>Products and services offered by {companyData.name}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center p-8">
-                <DollarSign className="h-12 w-12 mx-auto text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium">No products yet</h3>
-                <p className="text-gray-500 mt-2 mb-6">This company hasn't added any products or services.</p>
-                {isOwnProfile ? (
-                  <Button onClick={() => navigate('/company/products/create')}>
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Add Product
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => navigate('/products')}>
-                    Browse All Products
-                  </Button>
-                )}
-              </div>
+              {loadingProducts ? (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-72 rounded-lg border bg-card animate-pulse" />
+                  ))}
+                </div>
+              ) : products.length > 0 ? (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {products.map((product) => (
+                    <ProductCard 
+                      key={product.id} 
+                      product={product} 
+                      onClick={() => navigate(`/products/${product.id}`)} 
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-8">
+                  <DollarSign className="h-12 w-12 mx-auto text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium">No products yet</h3>
+                  <p className="text-gray-500 mt-2 mb-6">This company hasn't added any products or services.</p>
+                  {isOwnProfile ? (
+                    <Button onClick={() => navigate('/company/products/create')}>
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add Product
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => navigate('/products')}>
+                      Browse All Products
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -217,21 +276,39 @@ const CompanyProfile: React.FC<CompanyProfileProps> = ({ companyId }) => {
               <CardDescription>Educational opportunities offered by {companyData.name}</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center p-8">
-                <GraduationCap className="h-12 w-12 mx-auto text-gray-400" />
-                <h3 className="mt-4 text-lg font-medium">No workshops available</h3>
-                <p className="text-gray-500 mt-2 mb-6">This company hasn't added any workshops or training sessions.</p>
-                {isOwnProfile ? (
-                  <Button onClick={() => navigate('/company/workshops/create')}>
-                    <PlusCircle className="h-4 w-4 mr-2" />
-                    Create Workshop
-                  </Button>
-                ) : (
-                  <Button variant="outline" onClick={() => navigate('/workshops')}>
-                    Browse All Workshops
-                  </Button>
-                )}
-              </div>
+              {loadingWorkshops ? (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="h-72 rounded-lg border bg-card animate-pulse" />
+                  ))}
+                </div>
+              ) : workshops.length > 0 ? (
+                <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+                  {workshops.map((workshop) => (
+                    <WorkshopCard 
+                      key={workshop.id} 
+                      workshop={workshop} 
+                      onClick={() => navigate(`/workshops/${workshop.id}`)} 
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-8">
+                  <GraduationCap className="h-12 w-12 mx-auto text-gray-400" />
+                  <h3 className="mt-4 text-lg font-medium">No workshops available</h3>
+                  <p className="text-gray-500 mt-2 mb-6">This company hasn't added any workshops or training sessions.</p>
+                  {isOwnProfile ? (
+                    <Button onClick={() => navigate('/company/workshops/create')}>
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Create Workshop
+                    </Button>
+                  ) : (
+                    <Button variant="outline" onClick={() => navigate('/workshops')}>
+                      Browse All Workshops
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

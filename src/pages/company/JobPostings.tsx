@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,53 +7,56 @@ import { PlusCircle, Briefcase, Building, MapPin, Clock, DollarSign } from 'luci
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const JobPostings = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast } = useToast();
   const isCompany = currentUser?.role === 'company';
   const isCompanyRoute = location.pathname.startsWith('/company');
   
-  // This would come from an API in a real implementation
-  const jobs = [
-    {
-      id: '1',
-      title: 'Senior Frontend Developer',
-      company: 'Tech Solutions Inc.',
-      companyLogo: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=random',
-      location: 'San Francisco, CA',
-      type: 'Full-time',
-      salary: '$120,000 - $150,000',
-      description: 'We are looking for a skilled senior frontend developer to join our team...',
-      skills: ['React', 'TypeScript', 'GraphQL'],
-      postedDate: '2025-03-15'
-    },
-    {
-      id: '2',
-      title: 'Product Manager',
-      company: 'Innovative Apps',
-      companyLogo: 'https://ui-avatars.com/api/?name=Innovative+Apps&background=random',
-      location: 'New York, NY (Remote)',
-      type: 'Full-time',
-      salary: '$130,000 - $160,000',
-      description: 'Seeking an experienced product manager to lead our SaaS platform development...',
-      skills: ['Product Strategy', 'Agile', 'User Research'],
-      postedDate: '2025-03-20'
-    },
-    {
-      id: '3',
-      title: 'DevOps Engineer',
-      company: 'Cloud Systems',
-      companyLogo: 'https://ui-avatars.com/api/?name=Cloud+Systems&background=random',
-      location: 'Remote',
-      type: 'Contract',
-      salary: '$90/hour',
-      description: 'Looking for a DevOps engineer to help build and maintain our cloud infrastructure...',
-      skills: ['AWS', 'Kubernetes', 'Terraform', 'CI/CD'],
-      postedDate: '2025-03-18'
-    }
-  ];
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // This is a placeholder. In a real implementation, you'd have a fetchJobs helper
+    // or directly query the job_postings table
+    const loadJobs = async () => {
+      try {
+        setLoading(true);
+        // Mock data for now
+        setJobs([
+          {
+            id: '1',
+            title: 'Senior Frontend Developer',
+            company: 'Tech Solutions Inc.',
+            companyLogo: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=random',
+            location: 'San Francisco, CA',
+            type: 'Full-time',
+            salary: '$120,000 - $150,000',
+            description: 'We are looking for a skilled senior frontend developer to join our team...',
+            skills: ['React', 'TypeScript', 'GraphQL'],
+            postedDate: '2025-03-15'
+          },
+          // More mock jobs here...
+        ]);
+      } catch (error) {
+        console.error('Error loading jobs:', error);
+        toast({
+          title: 'Failed to load job postings',
+          description: 'Please try again later',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    loadJobs();
+  }, [toast]);
   
   const handleCreateJob = () => {
     navigate('/company/jobs/create');
@@ -81,7 +84,13 @@ const JobPostings = () => {
       
       <Separator />
       
-      {jobs.length > 0 ? (
+      {loading ? (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-64 rounded-lg border bg-card animate-pulse" />
+          ))}
+        </div>
+      ) : jobs.length > 0 ? (
         <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           {jobs.map((job, i) => (
             <JobCard key={i} job={job} onClick={() => handleViewJob(job.id)} />
