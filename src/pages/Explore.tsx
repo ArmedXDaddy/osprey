@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -12,7 +11,7 @@ import GroupCard from '@/components/shared/GroupCard';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { WorkshopCard } from '@/components/shared/WorkshopCard';
 import { useNavigate } from 'react-router-dom';
-import { Product, Workshop, Event, Group } from '@/types';
+import { Product, Workshop, Event, Group, User as UserType } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
 
@@ -43,13 +42,73 @@ const Explore = () => {
     queryFn: fetchWorkshops,
   });
 
-  const users = [
-    { id: '1', name: 'Alex Johnson', role: 'influencer', followers: 21500, location: 'New York, NY', image: 'https://randomuser.me/api/portraits/men/32.jpg', bio: 'Tech influencer focusing on mobile development and emerging technologies.' },
-    { id: '2', name: 'Sarah Williams', role: 'coach', followers: 8900, location: 'San Francisco, CA', image: 'https://randomuser.me/api/portraits/women/44.jpg', bio: 'Career coach helping tech professionals advance their careers and find work-life balance.' },
-    { id: '3', name: 'Tech Solutions Inc.', role: 'company', followers: 45600, location: 'Boston, MA', image: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=0D8ABC&color=fff', bio: 'Leading technology consulting firm specializing in digital transformation.' },
-    { id: '4', name: 'Michael Brown', role: 'influencer', followers: 15200, location: 'Austin, TX', image: 'https://randomuser.me/api/portraits/men/22.jpg', bio: 'Sharing insights on startup growth, venture capital, and entrepreneurship.' },
-    { id: '5', name: 'Innovation Labs', role: 'company', followers: 32100, location: 'Seattle, WA', image: 'https://ui-avatars.com/api/?name=Innovation+Labs&background=FF5733&color=fff', bio: 'Cutting-edge research lab focused on AI and robotics.' },
-    { id: '6', name: 'Emma Clark', role: 'coach', followers: 11800, location: 'Chicago, IL', image: 'https://randomuser.me/api/portraits/women/28.jpg', bio: 'Executive coach with expertise in leadership development for tech executives.' }
+  const users: UserType[] = [
+    { 
+      id: '1', 
+      name: 'Alex Johnson', 
+      email: 'alex@example.com',
+      role: 'influencer', 
+      followers: 21500, 
+      location: 'New York, NY', 
+      profileImage: 'https://randomuser.me/api/portraits/men/32.jpg', 
+      bio: 'Tech influencer focusing on mobile development and emerging technologies.',
+      createdAt: new Date('2023-01-01')
+    },
+    { 
+      id: '2', 
+      name: 'Sarah Williams', 
+      email: 'sarah@example.com',
+      role: 'coach', 
+      followers: 8900, 
+      location: 'San Francisco, CA', 
+      profileImage: 'https://randomuser.me/api/portraits/women/44.jpg', 
+      bio: 'Career coach helping tech professionals advance their careers and find work-life balance.',
+      createdAt: new Date('2023-02-15')
+    },
+    { 
+      id: '3', 
+      name: 'Tech Solutions Inc.', 
+      email: 'info@techsolutions.com',
+      role: 'company', 
+      followers: 45600, 
+      location: 'Boston, MA', 
+      profileImage: 'https://ui-avatars.com/api/?name=Tech+Solutions&background=0D8ABC&color=fff', 
+      bio: 'Leading technology consulting firm specializing in digital transformation.',
+      createdAt: new Date('2022-11-05')
+    },
+    { 
+      id: '4', 
+      name: 'Michael Brown', 
+      email: 'michael@example.com',
+      role: 'influencer', 
+      followers: 15200, 
+      location: 'Austin, TX', 
+      profileImage: 'https://randomuser.me/api/portraits/men/22.jpg', 
+      bio: 'Sharing insights on startup growth, venture capital, and entrepreneurship.',
+      createdAt: new Date('2023-03-10')
+    },
+    { 
+      id: '5', 
+      name: 'Innovation Labs', 
+      email: 'contact@innovationlabs.com',
+      role: 'company', 
+      followers: 32100, 
+      location: 'Seattle, WA', 
+      profileImage: 'https://ui-avatars.com/api/?name=Innovation+Labs&background=FF5733&color=fff', 
+      bio: 'Cutting-edge research lab focused on AI and robotics.',
+      createdAt: new Date('2022-10-20')
+    },
+    { 
+      id: '6', 
+      name: 'Emma Clark', 
+      email: 'emma@example.com',
+      role: 'coach', 
+      followers: 11800, 
+      location: 'Chicago, IL', 
+      profileImage: 'https://randomuser.me/api/portraits/women/28.jpg', 
+      bio: 'Executive coach with expertise in leadership development for tech executives.',
+      createdAt: new Date('2023-01-25')
+    }
   ];
 
   const events: Event[] = [
@@ -227,7 +286,7 @@ const Explore = () => {
               .filter(user => 
                 searchTerm === '' || 
                 user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                user.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                 user.role.toLowerCase().includes(searchTerm.toLowerCase())
               )
               .map(user => (
