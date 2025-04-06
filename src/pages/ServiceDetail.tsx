@@ -29,6 +29,7 @@ const ServiceDetail = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [hasBooked, setHasBooked] = useState(false);
   const [userBooking, setUserBooking] = useState<Booking | null>(null);
+  const [isAlreadyBooked, setIsAlreadyBooked] = useState(false);
 
   const fetchServiceAndBookingDetails = async () => {
     if (!id) return;
@@ -51,6 +52,13 @@ const ServiceDetail = () => {
       
       console.log("Service data retrieved:", serviceData);
       setService(serviceData);
+
+      if (serviceData.serviceType === 'one_on_one' && serviceData.bookings && serviceData.bookings.length > 0) {
+        const approvedBookings = serviceData.bookings.filter(booking => 
+          booking.status === 'approved' || booking.status === 'pending'
+        );
+        setIsAlreadyBooked(approvedBookings.length > 0);
+      }
       
       if (currentUser) {
         try {
@@ -82,6 +90,18 @@ const ServiceDetail = () => {
   useEffect(() => {
     fetchServiceAndBookingDetails();
   }, [id, currentUser]);
+
+  const canViewService = () => {
+    if (!service || !currentUser) return false;
+    
+    if (service.providerId === currentUser.id) return true;
+
+    if (hasBooked) return true;
+
+    if (service.serviceType === 'one_on_one' && isAlreadyBooked) return false;
+
+    return true;
+  };
 
   const handleBook = () => {
     if (!currentUser) {
@@ -119,6 +139,33 @@ const ServiceDetail = () => {
       <div className="container py-8">
         <div className="flex justify-center items-center min-h-[300px]">
           <p>Service not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canViewService()) {
+    return (
+      <div className="container py-8">
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/services')}
+            className="mr-2"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Service Unavailable</h1>
+        </div>
+        <div className="flex justify-center items-center min-h-[300px]">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-2">This one-on-one service has already been booked</h2>
+            <p className="text-muted-foreground mb-4">Please check other available services</p>
+            <Button onClick={() => navigate('/services')}>
+              Browse Services
+            </Button>
+          </div>
         </div>
       </div>
     );
