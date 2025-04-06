@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -9,7 +10,7 @@ import {
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
-  uploadImage, updateComment, deleteComment 
+  uploadImage, updateComment as updateCommentHelper, deleteComment as deleteCommentHelper 
 } from '@/integrations/supabase/helpers';
 import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
@@ -218,19 +219,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             createdAt: new Date(event.created_at),
             creatorId: event.creator_id,
             creatorName: event.creator_name,
-            creatorRole: event.creator_role,
+            creatorRole: event.creator_role as UserRole,
             pendingRequests: event.pending_requests || 0
           }));
           
           setEvents(transformedEvents);
           
-          const { data: completedEventsData, error: completedError } = await supabase
-            .from('completed_events')
+          // Instead of querying completed_events, let's adapt to use the events table with a filter
+          const { data: compEventsData, error: compError } = await supabase
+            .from('events')
             .select('*')
-            .order('completed_at', { ascending: false });
+            .eq('is_completed', true)
+            .order('created_at', { ascending: false });
             
-          if (!completedError && completedEventsData && completedEventsData.length > 0) {
-            const transformedCompletedEvents: Event[] = completedEventsData.map((event: any) => ({
+          if (!compError && compEventsData && compEventsData.length > 0) {
+            const transformedCompletedEvents: Event[] = compEventsData.map((event: any) => ({
               id: event.id,
               title: event.title,
               description: event.description,
@@ -243,33 +246,42 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
               createdAt: new Date(event.created_at),
               creatorId: event.creator_id,
               creatorName: event.creator_name,
-              creatorRole: event.creator_role,
+              creatorRole: event.creator_role as UserRole,
               pendingRequests: 0
             }));
             
             setCompletedEvents(transformedCompletedEvents);
+          } else {
+            setCompletedEvents([]);
           }
         } else {
           setEvents(generateMockEvents());
         }
         
-        const { data: announcementsData, error: announcementsError } = await supabase
-          .from('announcements')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (!announcementsError && announcementsData && announcementsData.length > 0) {
-          const transformedAnnouncements: Announcement[] = announcementsData.map((announcement: any) => ({
-            id: announcement.id,
-            eventId: announcement.event_id,
-            creatorId: announcement.creator_id,
-            creatorName: announcement.creator_name,
-            content: announcement.content,
-            createdAt: new Date(announcement.created_at)
-          }));
-          
-          setAnnouncements(transformedAnnouncements);
-        } else {
+        // Instead of directly querying the announcements table, check if it exists first
+        try {
+          const { data, error } = await supabase
+            .from('event_announcements')
+            .select('*')
+            .order('created_at', { ascending: false });
+            
+          if (!error && data && data.length > 0) {
+            const transformedAnnouncements: Announcement[] = data.map((announcement: any) => ({
+              id: announcement.id,
+              eventId: announcement.event_id,
+              creatorId: announcement.creator_id,
+              creatorName: announcement.creator_name,
+              content: announcement.content,
+              createdAt: new Date(announcement.created_at)
+            }));
+            
+            setAnnouncements(transformedAnnouncements);
+          } else {
+            console.log("No announcements found or table doesn't exist");
+            setAnnouncements([]);
+          }
+        } catch (err) {
+          console.error("Error fetching announcements:", err);
           setAnnouncements([]);
         }
         
@@ -289,7 +301,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     const commentsChannel = supabase.channel('public:comments');
     const likesChannel = supabase.channel('public:post_likes');
     const eventsChannel = supabase.channel('public:events');
-    const announcementsChannel = supabase.channel('public:announcements');
+    const announcementsChannel = supabase.channel('public:event_announcements');
     
     postsChannel
       .on('postgres_changes', 
@@ -357,7 +369,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
             createdAt: new Date(newEvent.created_at),
             creatorId: newEvent.creator_id,
             creatorName: newEvent.creator_name,
-            creatorRole: newEvent.creator_role,
+            creatorRole: newEvent.creator_role as UserRole,
             pendingRequests: newEvent.pending_requests || 0
           };
           
@@ -379,7 +391,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
                 location: updatedEvent.location,
                 date: new Date(updatedEvent.date),
                 image: updatedEvent.image,
-                privacy: updatedEvent.privacy,
+                privacy: updatedEvent.privacy as EventPrivacy,
                 price: updatedEvent.price,
                 attendees: updatedEvent.attendees || event.attendees,
                 pendingRequests: updatedEvent.pending_requests || event.pendingRequests
@@ -402,7 +414,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
     announcementsChannel
       .on('postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'announcements' },
+        { event: 'INSERT', schema: 'public', table: 'event_announcements' },
         (payload) => {
           console.log('New announcement:', payload);
           const newAnnouncement = payload.new as any;
@@ -544,7 +556,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
           };
           
           if (!commentsByPost[comment.post_id]) {
-            commentsByPost[comment.postId] = [];
+            commentsByPost[comment.post_id] = [];
           }
           
           commentsByPost[comment.post_id].push(transformedComment);
@@ -603,6 +615,68 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     
     fetchAllServices();
   }, []);
+  
+  // Implement function to post announcements
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    try {
+      // Check if event_announcements table exists first
+      const { data: testData, error: testError } = await supabase
+        .from('event_announcements')
+        .select('id')
+        .limit(1);
+      
+      if (testError && testError.code === '42P01') { // Table doesn't exist error
+        console.error("event_announcements table doesn't exist, creating mock announcement");
+        // If table doesn't exist, add to local state only
+        const mockAnnouncement: Announcement = {
+          id: Date.now().toString(),
+          eventId,
+          creatorId: currentUser.id,
+          creatorName: currentUser.name,
+          content,
+          createdAt: new Date()
+        };
+        
+        setAnnouncements(prev => [mockAnnouncement, ...prev]);
+        toast({
+          title: "Announcement posted",
+          description: "Your announcement has been shared (in local state only)"
+        });
+        return;
+      }
+      
+      // If table exists, insert the data
+      const announcementData = {
+        event_id: eventId,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        content
+      };
+      
+      const { data, error } = await supabase
+        .from('event_announcements')
+        .insert(announcementData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Announcement posted",
+        description: "Your announcement has been shared with all participants"
+      });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({
+        title: "Failed to post announcement",
+        description: "Please try again later",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to post announcement');
+    }
+  };
   
   const createSession = async (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt' | 'coachId' | 'coachName'>): Promise<Session> => {
     if (!currentUser) throw new Error('You must be logged in to create a session');
@@ -951,11 +1025,11 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         description: data.description,
         creatorId: data.creator_id,
         creatorName: data.creator_name,
-        creatorRole: data.creator_role,
+        creatorRole: data.creator_role as UserRole,
         date: new Date(data.date),
         location: data.location,
         image: data.image,
-        privacy: data.privacy,
+        privacy: data.privacy as EventPrivacy,
         price: data.price,
         attendees: data.attendees || [currentUser.id],
         createdAt: new Date(data.created_at),
@@ -1059,96 +1133,62 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     if (!currentUser) throw new Error('You must be logged in to delete an event');
     
     try {
-      // Get event data for archiving if completed
-      let eventData;
-      if (reason === 'completed') {
-        const { data, error } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', eventId)
-          .single();
-          
-        if (error) throw error;
-        eventData = data;
-      }
-      
-      // Delete from events table
-      const { error: deleteError } = await supabase
+      // Get event data before deleting
+      const { data: eventData, error: getError } = await supabase
         .from('events')
-        .delete()
-        .eq('id', eventId);
+        .select('*')
+        .eq('id', eventId)
+        .single();
         
-      if (deleteError) throw deleteError;
+      if (getError) throw getError;
       
-      // If completed, archive to completed_events
-      if (reason === 'completed' && eventData) {
-        const completedData = {
-          ...eventData,
-          completed_at: new Date().toISOString()
+      if (reason === 'completed') {
+        // Instead of moving to a separate table, update the event as completed
+        const { error: updateError } = await supabase
+          .from('events')
+          .update({ is_completed: true })
+          .eq('id', eventId);
+          
+        if (updateError) throw updateError;
+        
+        // Move from active events to completed events in local state
+        const completedEvent: Event = {
+          id: eventData.id,
+          title: eventData.title,
+          description: eventData.description,
+          creatorId: eventData.creator_id,
+          creatorName: eventData.creator_name,
+          creatorRole: eventData.creator_role as UserRole,
+          date: new Date(eventData.date),
+          location: eventData.location,
+          image: eventData.image,
+          privacy: eventData.privacy as EventPrivacy,
+          price: eventData.price,
+          attendees: eventData.attendees || [],
+          createdAt: new Date(eventData.created_at),
+          pendingRequests: 0
         };
         
-        const { error: archiveError } = await supabase
-          .from('completed_events')
-          .insert(completedData);
-          
-        if (archiveError) throw archiveError;
+        setCompletedEvents(prev => [completedEvent, ...prev]);
+        setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
+      } else {
+        // If cancelled, delete the event entirely
+        const { error: deleteError } = await supabase
+          .from('events')
+          .delete()
+          .eq('id', eventId);
         
-        // Add to local state
-        setCompletedEvents(prev => [
-          {
-            id: eventData.id,
-            title: eventData.title,
-            description: eventData.description,
-            creatorId: eventData.creator_id,
-            creatorName: eventData.creator_name,
-            creatorRole: eventData.creator_role,
-            date: new Date(eventData.date),
-            location: eventData.location,
-            image: eventData.image,
-            privacy: eventData.privacy,
-            price: eventData.price,
-            attendees: eventData.attendees || [],
-            createdAt: new Date(eventData.created_at),
-            pendingRequests: 0
-          },
-          ...prev
-        ]);
+        if (deleteError) throw deleteError;
+        
+        // Update local state
+        setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
       }
-      
-      // Update local state
-      setEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
     } catch (error: any) {
-      console.error("Error deleting event:", error);
-      throw new Error(error.message || 'Failed to delete event');
+      console.error("Error deleting/completing event:", error);
+      throw new Error(error.message || 'Failed to process event');
     }
   };
   
-  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to post an announcement');
-    
-    try {
-      const announcementData = {
-        event_id: eventId,
-        creator_id: currentUser.id,
-        creator_name: currentUser.name,
-        content
-      };
-      
-      const { data, error } = await supabase
-        .from('announcements')
-        .insert(announcementData)
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      // No need to manually update state as we're listening to realtime changes
-    } catch (error: any) {
-      console.error("Error posting announcement:", error);
-      throw new Error(error.message || 'Failed to post announcement');
-    }
-  };
-
   const requestToJoinEvent = async (eventId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to request joining an event');
     // Implement if needed
@@ -1269,7 +1309,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     // Implement if needed
     return [];
   };
-
+  
   const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
     try {
       return await getUserBookingForService(serviceId, userId);
@@ -1282,6 +1322,26 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   const addComment = async (postId: string, content: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to comment on a post');
     // Implement if needed
+  };
+
+  const updateComment = async (commentId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a comment');
+    try {
+      await updateCommentHelper(commentId, content);
+    } catch (error) {
+      console.error("Error updating comment:", error);
+      throw error;
+    }
+  };
+
+  const deleteComment = async (commentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a comment');
+    try {
+      await deleteCommentHelper(commentId);
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      throw error;
+    }
   };
 
   const likePost = async (postId: string): Promise<void> => {
