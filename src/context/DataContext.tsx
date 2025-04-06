@@ -882,3 +882,331 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       setEvents(prev => [newEvent, ...prev]);
       
       toast({
+        title: "Event created",
+        description: "Your event has been created successfully",
+      });
+      
+      return newEvent;
+    } catch (err: any) {
+      console.error("Error creating event:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Failed to create event",
+      });
+      throw err;
+    }
+  };
+
+  const fetchSponsorships = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sponsorships')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error("Error fetching sponsorships:", error);
+        return [];
+      }
+      
+      if (data && data.length > 0) {
+        return data.map((sponsorship: any) => ({
+          id: sponsorship.id,
+          title: sponsorship.title,
+          description: sponsorship.description,
+          companyId: sponsorship.company_id,
+          companyName: sponsorship.company_name,
+          companyLogo: sponsorship.company_logo,
+          requirements: sponsorship.requirements,
+          benefits: sponsorship.benefits,
+          compensation: sponsorship.compensation,
+          deadline: sponsorship.deadline ? new Date(sponsorship.deadline) : undefined,
+          tags: sponsorship.tags || [],
+          status: sponsorship.status as SponsorshipStatus,
+          createdAt: new Date(sponsorship.created_at)
+        })) as Sponsorship[];
+      }
+      
+      return [];
+    } catch (err) {
+      console.error("Error in fetchSponsorships:", err);
+      return [];
+    }
+  };
+  
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const loadSponsorships = async () => {
+      try {
+        const sponsorshipsData = await fetchSponsorships();
+        
+        if (sponsorshipsData && sponsorshipsData.length > 0) {
+          setSponsorships(sponsorshipsData);
+        } else {
+          // Fallback to mock data if no sponsorships in the database
+          setSponsorships(generateMockSponsorships());
+        }
+      } catch (err) {
+        console.error("Error loading sponsorships:", err);
+        setSponsorships(generateMockSponsorships());
+      }
+    };
+    
+    loadSponsorships();
+  }, [isAuthenticated]);
+  
+  const getSponsorships = () => {
+    return sponsorships;
+  };
+  
+  const getSponsorshipById = (id: string) => {
+    const sponsorship = sponsorships.find(s => s.id === id);
+    if (!sponsorship) {
+      throw new Error('Sponsorship not found');
+    }
+    return sponsorship;
+  };
+  
+  const createSponsorship = async (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>): Promise<Sponsorship> => {
+    if (!currentUser) throw new Error('You must be logged in to create a sponsorship');
+    if (currentUser.role !== 'company') throw new Error('Only companies can create sponsorships');
+    
+    try {
+      const { data, error } = await supabase
+        .from('sponsorships')
+        .insert({
+          title: sponsorshipData.title,
+          description: sponsorshipData.description,
+          company_id: sponsorshipData.companyId,
+          company_name: sponsorshipData.companyName,
+          company_logo: sponsorshipData.companyLogo,
+          requirements: sponsorshipData.requirements,
+          benefits: sponsorshipData.benefits,
+          compensation: sponsorshipData.compensation,
+          deadline: sponsorshipData.deadline ? sponsorshipData.deadline.toISOString() : null,
+          tags: sponsorshipData.tags,
+          status: sponsorshipData.status
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newSponsorship: Sponsorship = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        companyId: data.company_id,
+        companyName: data.company_name,
+        companyLogo: data.company_logo,
+        requirements: data.requirements,
+        benefits: data.benefits,
+        compensation: data.compensation,
+        deadline: data.deadline ? new Date(data.deadline) : undefined,
+        tags: data.tags || [],
+        status: data.status as SponsorshipStatus,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setSponsorships(prev => [newSponsorship, ...prev]);
+      
+      return newSponsorship;
+    } catch (err: any) {
+      console.error("Error creating sponsorship:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Failed to create sponsorship"
+      });
+      throw err;
+    }
+  };
+  
+  const updateSponsorship = (id: string, updatedData: Partial<Sponsorship>): Sponsorship => {
+    if (!currentUser) throw new Error('You must be logged in to update a sponsorship');
+    
+    const sponsorshipIndex = sponsorships.findIndex(s => s.id === id);
+    if (sponsorshipIndex === -1) {
+      throw new Error('Sponsorship not found');
+    }
+    
+    if (sponsorships[sponsorshipIndex].companyId !== currentUser.id) {
+      throw new Error('You can only update your own sponsorships');
+    }
+    
+    const updatedSponsorship = { ...sponsorships[sponsorshipIndex], ...updatedData };
+    
+    setSponsorships(prev => {
+      const newSponsorships = [...prev];
+      newSponsorships[sponsorshipIndex] = updatedSponsorship;
+      return newSponsorships;
+    });
+    
+    return updatedSponsorship;
+  };
+  
+  const deleteSponsorship = (id: string): void => {
+    if (!currentUser) throw new Error('You must be logged in to delete a sponsorship');
+    
+    const sponsorshipIndex = sponsorships.findIndex(s => s.id === id);
+    if (sponsorshipIndex === -1) {
+      throw new Error('Sponsorship not found');
+    }
+    
+    if (sponsorships[sponsorshipIndex].companyId !== currentUser.id) {
+      throw new Error('You can only delete your own sponsorships');
+    }
+    
+    setSponsorships(prev => prev.filter(s => s.id !== id));
+  };
+  
+  const getSponsorshipApplications = (sponsorshipId: string): SponsorshipApplication[] => {
+    return [];
+  };
+  
+  const getUserApplicationForSponsorship = (sponsorshipId: string, userId: string): SponsorshipApplication | null => {
+    return null;
+  };
+  
+  const applyForSponsorship = async (applicationData: {
+    sponsorshipId: string;
+    userId: string;
+    motivation: string;
+    experience: string;
+    socialLinks?: {
+      instagram?: string;
+      twitter?: string;
+      website?: string;
+    };
+  }): Promise<SponsorshipApplication> => {
+    if (!currentUser) throw new Error('You must be logged in to apply for a sponsorship');
+    
+    try {
+      const { data, error } = await supabase
+        .from('sponsorship_applications')
+        .insert({
+          sponsorship_id: applicationData.sponsorshipId,
+          user_id: applicationData.userId,
+          user_name: currentUser.name,
+          user_email: currentUser.email,
+          user_profile_image: currentUser.profileImage,
+          motivation: applicationData.motivation,
+          experience: applicationData.experience,
+          social_links: applicationData.socialLinks ? applicationData.socialLinks : null,
+          status: 'pending'
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newApplication: SponsorshipApplication = {
+        id: data.id,
+        sponsorshipId: data.sponsorship_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userEmail: data.user_email,
+        userProfileImage: data.user_profile_image,
+        motivation: data.motivation,
+        experience: data.experience,
+        socialLinks: data.social_links as any,
+        status: data.status as ApplicationStatus,
+        createdAt: new Date(data.created_at)
+      };
+      
+      return newApplication;
+    } catch (err: any) {
+      console.error("Error applying for sponsorship:", err);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: err.message || "Failed to apply for sponsorship"
+      });
+      throw err;
+    }
+  };
+  
+  const updateApplicationStatus = (applicationId: string, status: ApplicationStatus): { success: boolean } => {
+    return { success: true };
+  };
+
+  return {
+    posts,
+    events,
+    groups,
+    services,
+    sessions,
+    sessionEnrollments,
+    messages,
+    setMessages,
+    joinRequests,
+    loading,
+    error,
+    postComments,
+    completedEvents,
+    announcements,
+    postAnnouncement: async () => {},
+    createPost: async () => {},
+    likePost: async () => {},
+    unlikePost: async () => {},
+    addComment: async () => {},
+    updateComment: async () => {},
+    deleteComment: async () => {},
+    createEvent,
+    joinEvent: async () => {},
+    leaveEvent: async () => {},
+    deleteEvent: async () => {},
+    requestToJoinEvent: async () => {},
+    approveEventRequest: async () => {},
+    rejectEventRequest: async () => {},
+    getEventRequests: async () => [],
+    handleEventJoinRequest: async () => {},
+    createGroup: async () => ({ id: '' } as Group),
+    joinGroup,
+    leaveGroup,
+    requestToJoinGroup,
+    approveGroupRequest,
+    rejectGroupRequest,
+    getGroupRequests,
+    handleJoinRequest,
+    removeGroupMember,
+    updateGroupDetails,
+    deleteGroup: async () => {},
+    createSession,
+    enrollInSession,
+    cancelEnrollment,
+    approveEnrollment,
+    rejectEnrollment,
+    getUserSessions,
+    getCoachSessions,
+    getUserEnrollments,
+    updateSession,
+    updateEnrollmentStatus,
+    sendMessage,
+    getServiceById,
+    bookService,
+    cancelBooking: cancelBookingImpl,
+    getUserBookings: getUserBookingsImpl,
+    getServiceBookings: getServiceBookingsImpl,
+    createService: async () => ({ id: '' } as Service),
+    updateService: async () => {},
+    deleteService: async () => {},
+    approveBooking: approveBookingImpl,
+    sendServiceMessage: async () => {},
+    getServiceMessages: async () => [],
+    getUserBookingForService: getUserBookingForServiceImpl,
+    fetchUserServices: async () => [],
+    sponsorships,
+    getSponsorships,
+    getSponsorshipById,
+    createSponsorship,
+    updateSponsorship,
+    deleteSponsorship,
+    getSponsorshipApplications,
+    getUserApplicationForSponsorship,
+    applyForSponsorship,
+    updateApplicationStatus
+  };
+};
