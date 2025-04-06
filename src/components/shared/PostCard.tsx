@@ -1,184 +1,151 @@
+
 import React, { useState } from 'react';
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Heart, MessageSquare, MoreHorizontal, Trash2 } from "lucide-react";
-import { formatDistance } from 'date-fns';
-import { Link } from 'react-router-dom';
 import { Post, Comment } from '@/types';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Heart, MessageSquare, Share2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { useData } from '@/context/DataContext';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import CommentSection from './CommentSection';
-import { useData } from '@/context/DataContext';
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { toast } from '@/hooks/use-toast';
 
 interface PostCardProps {
   post: Post;
   comments?: Comment[];
+  showComments?: boolean;
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post, comments = [] }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, comments = [], showComments = false }) => {
+  const { likePost, unlikePost } = useData();
   const { currentUser } = useAuth();
-  const { likePost, unlikePost, deletePost } = useData();
-  const [showComments, setShowComments] = useState(false);
-  const [isLiked, setIsLiked] = useState(() => {
-    return post.userLikes?.includes(currentUser?.id || '') || false;
-  });
-  const [likesCount, setLikesCount] = useState(post.likes);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  const handleLikeToggle = async () => {
+  const [isLiked, setIsLiked] = useState(post.userLikes?.includes(currentUser?.id || '') || false);
+  const [likeCount, setLikeCount] = useState(post.likes);
+  const [showCommentsSection, setShowCommentsSection] = useState(showComments);
+  const [localComments, setLocalComments] = useState<Comment[]>(comments);
+
+  const handleLike = async () => {
     if (!currentUser) return;
     
-    try {
-      if (isLiked) {
+    if (isLiked) {
+      setIsLiked(false);
+      setLikeCount(prev => prev - 1);
+      
+      try {
         await unlikePost(post.id);
-        setLikesCount(prev => Math.max(0, prev - 1));
-      } else {
-        await likePost(post.id);
-        setLikesCount(prev => prev + 1);
+      } catch (error) {
+        // Revert state if API call fails
+        setIsLiked(true);
+        setLikeCount(prev => prev + 1);
+        console.error('Failed to unlike post:', error);
       }
-      setIsLiked(!isLiked);
-    } catch (error) {
-      console.error("Error toggling like:", error);
+    } else {
+      setIsLiked(true);
+      setLikeCount(prev => prev + 1);
+      
+      try {
+        await likePost(post.id);
+      } catch (error) {
+        // Revert state if API call fails
+        setIsLiked(false);
+        setLikeCount(prev => prev - 1);
+        console.error('Failed to like post:', error);
+      }
     }
   };
-  
-  const handleDelete = async () => {
-    try {
-      await deletePost(post.id);
-      toast({
-        title: "Post deleted",
-        description: "Your post has been successfully deleted."
-      });
-    } catch (error) {
-      console.error("Error deleting post:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to delete the post."
-      });
-    }
-  };
-  
-  const isPostOwner = currentUser && post.userId === currentUser.id;
-  
+
+  // Listen for real-time comments
+  React.useEffect(() => {
+    setLocalComments(comments);
+  }, [comments]);
+
   return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div className="flex items-center">
-            <Link to={`/profile/${post.userId}`}>
-              <img 
-                src={post.userProfileImage || "https://via.placeholder.com/40"} 
-                alt={post.userName}
-                className="w-10 h-10 rounded-full mr-3 object-cover" 
+    <Card className="overflow-hidden mb-4">
+      <CardContent className="p-0">
+        {/* Post header with user info */}
+        <div className="p-4 flex items-center gap-3">
+          <Link to={`/profile/${post.userId}`}>
+            <Avatar className="h-10 w-10 border">
+              <AvatarImage 
+                src={post.userProfileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.userName)}&background=random`} 
+                alt={post.userName} 
               />
+              <AvatarFallback>{post.userName[0]}</AvatarFallback>
+            </Avatar>
+          </Link>
+          
+          <div className="flex-1 min-w-0">
+            <Link to={`/profile/${post.userId}`} className="hover:underline">
+              <p className="font-medium truncate">{post.userName}</p>
             </Link>
-            <div>
-              <Link to={`/profile/${post.userId}`} className="font-medium hover:underline">
-                {post.userName}
-              </Link>
-              <p className="text-xs text-gray-500">
-                {formatDistance(post.createdAt, new Date(), { addSuffix: true })}
-              </p>
+            <div className="flex items-center gap-2">
+              <span className={`inline-block px-2 py-0.5 text-xs rounded-full capitalize
+                ${post.userRole === 'influencer' ? 'bg-red-100 text-red-800' : 
+                  post.userRole === 'coach' ? 'bg-teal-100 text-teal-800' : 
+                  post.userRole === 'company' ? 'bg-blue-100 text-blue-800' : 
+                  'bg-purple-100 text-purple-800'}`}
+              >
+                {post.userRole}
+              </span>
+              <span className="text-xs text-gray-500">
+                {formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+              </span>
             </div>
           </div>
-          
-          {isPostOwner && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete post
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
         </div>
         
-        <div className="mt-3">
-          <p className="whitespace-pre-line">{post.content}</p>
-          
-          {post.image && (
+        {/* Post content */}
+        <div className="px-4 pb-4">
+          <p className="text-gray-800 whitespace-pre-line">{post.content}</p>
+        </div>
+        
+        {/* Post image if available */}
+        {post.image && (
+          <div className="aspect-[4/3] w-full overflow-hidden">
             <img 
               src={post.image} 
               alt="Post content" 
-              className="mt-3 rounded-md w-full max-h-96 object-cover" 
+              className="w-full h-full object-cover transition-transform hover:scale-105"
             />
-          )}
-        </div>
+          </div>
+        )}
       </CardContent>
       
-      <CardFooter className="px-4 py-3 flex justify-between border-t">
-        <div className="flex gap-4">
+      <CardFooter className="py-3 px-4 flex justify-between border-t flex-col">
+        <div className="w-full flex justify-between">
           <Button 
             variant="ghost" 
             size="sm" 
-            className="flex items-center gap-1" 
-            onClick={handleLikeToggle}
+            onClick={handleLike}
+            className={`gap-1 ${isLiked ? 'text-red-500 hover:text-red-600' : ''}`}
+            disabled={!currentUser}
           >
-            <Heart 
-              className={`h-4 w-4 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} 
-            />
-            <span>{likesCount}</span>
+            <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+            <span>{likeCount}</span>
           </Button>
           
           <Button 
             variant="ghost" 
             size="sm" 
-            className="flex items-center gap-1" 
-            onClick={() => setShowComments(!showComments)}
+            className="gap-1"
+            onClick={() => setShowCommentsSection(!showCommentsSection)}
           >
-            <MessageSquare className="h-4 w-4" />
+            <MessageSquare className="h-5 w-5" />
             <span>{post.comments}</span>
           </Button>
+          
+          <Button variant="ghost" size="sm">
+            <Share2 className="h-5 w-5" />
+          </Button>
         </div>
+        
+        {showCommentsSection && (
+          <div className="w-full border-t mt-2">
+            <CommentSection postId={post.id} comments={localComments} />
+          </div>
+        )}
       </CardFooter>
-      
-      {showComments && (
-        <CommentSection postId={post.id} comments={comments} />
-      )}
-      
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this post?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your post
-              and remove all data associated with it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Card>
   );
 };
