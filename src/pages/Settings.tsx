@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Moon, Sun, User, Shield, Trash2, Save, AlertTriangle } from 'lucide-react';
@@ -30,7 +29,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 
-// Create a context to manage theme
 const ThemeContext = React.createContext<{
   isDarkTheme: boolean;
   toggleTheme: () => void;
@@ -41,15 +39,12 @@ const ThemeContext = React.createContext<{
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isDarkTheme, setIsDarkTheme] = useState(() => {
-    // Check if theme preference is saved in localStorage
     const savedTheme = localStorage.getItem('theme');
-    // Check system preference if no saved preference
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return savedTheme ? savedTheme === 'dark' : systemPrefersDark;
   });
 
   React.useEffect(() => {
-    // Apply theme when component mounts or theme changes
     if (isDarkTheme) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -70,7 +65,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 };
 
-// Hook for using the theme context
 export const useTheme = () => {
   const context = React.useContext(ThemeContext);
   if (!context) {
@@ -98,30 +92,49 @@ const Settings = () => {
     compactView: false,
   });
 
+  useEffect(() => {
+    if (appearance.reducedMotion) {
+      document.documentElement.classList.add('reduced-motion');
+    } else {
+      document.documentElement.classList.remove('reduced-motion');
+    }
+
+    if (appearance.compactView) {
+      document.documentElement.classList.add('compact-view');
+    } else {
+      document.documentElement.classList.remove('compact-view');
+    }
+  }, [appearance.reducedMotion, appearance.compactView]);
+
+  const handleSaveAppearanceSettings = () => {
+    toast({ 
+      title: "Appearance Settings Saved", 
+      description: `Reduced Motion: ${appearance.reducedMotion ? 'On' : 'Off'}, Compact View: ${appearance.compactView ? 'On' : 'Off'}` 
+    });
+    
+    localStorage.setItem('appearance-settings', JSON.stringify(appearance));
+  };
+
   const handleDeleteAccount = async () => {
     if (!currentUser) return;
     
     try {
       setIsDeleting(true);
       
-      // Call the delete_user function through a direct SQL query instead of RPC
       const { error } = await supabase.from('profiles')
         .delete()
         .eq('id', currentUser.id);
       
       if (error) throw error;
       
-      // Attempt to delete the auth user directly
       const { error: authError } = await supabase.auth.admin.deleteUser(
         currentUser.id
       );
       
       if (authError) {
         console.error('Auth deletion error:', authError);
-        // Even if there's an auth error, we should still logout
       }
       
-      // Logout after account deletion
       await logout();
       
       toast({
@@ -129,7 +142,6 @@ const Settings = () => {
         description: "Your account has been deleted successfully",
       });
       
-      // Navigate to login page
       navigate('/auth/login');
     } catch (error) {
       toast({
@@ -233,12 +245,7 @@ const Settings = () => {
             <CardFooter>
               <Button 
                 className="w-full" 
-                onClick={() => 
-                  toast({ 
-                    title: "Appearance settings saved", 
-                    description: "Your preferences have been updated" 
-                  })
-                }
+                onClick={handleSaveAppearanceSettings}
               >
                 Save Appearance Settings
               </Button>
