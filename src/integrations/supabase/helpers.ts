@@ -507,7 +507,7 @@ export const fetchProducts = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.long_description || null, // Handle possible undefined value
+      longDescription: null, // Default to null since it might not exist in the database
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
@@ -519,9 +519,9 @@ export const fetchProducts = async () => {
       demoUrl: item.demo_url,
       releaseDate: new Date(item.release_date),
       createdAt: new Date(item.created_at),
-      features: item.features || [], // Handle possible undefined value
-      useCases: item.use_cases || [], // Handle possible undefined value
-      pricingTiers: item.pricing_tiers || [] // Handle possible undefined value
+      features: [], // Default to empty array
+      useCases: [], // Default to empty array
+      pricingTiers: [] // Default to empty array
     }));
     
     return mappedProducts as Product[];
@@ -549,14 +549,14 @@ export const fetchWorkshops = async () => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.long_description || null, // Handle possible undefined value
+      longDescription: null, // Default to null
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
       price: item.price,
       date: new Date(item.date),
-      startTime: item.start_time || null, // Handle possible undefined value
-      endTime: item.end_time || null, // Handle possible undefined value
+      startTime: null, // Default to null
+      endTime: null, // Default to null
       duration: item.duration,
       capacity: item.capacity,
       location: item.location,
@@ -565,11 +565,11 @@ export const fetchWorkshops = async () => {
       category: item.category,
       image: item.image,
       createdAt: new Date(item.created_at),
-      topics: item.topics || [], // Handle possible undefined value
-      prerequisites: item.prerequisites || [], // Handle possible undefined value
-      includes: item.includes || [], // Handle possible undefined value
-      tags: item.tags || [], // Handle possible undefined value
-      instructors: item.instructors || [] // Handle possible undefined value
+      topics: [], // Default to empty array
+      prerequisites: [], // Default to empty array
+      includes: [], // Default to empty array
+      tags: [], // Default to empty array
+      instructors: [] // Default to empty array
     }));
     
     return mappedWorkshops as Workshop[];

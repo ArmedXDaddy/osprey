@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -6,13 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Search, Filter, Users, Calendar, User, RefreshCw, Package2, GraduationCap } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import UserCard from '@/components/shared/UserCard';
+import { UserCard } from '@/components/shared/UserCard';
 import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import { ProductCard } from '@/components/shared/ProductCard';
 import { WorkshopCard } from '@/components/shared/WorkshopCard';
 import { useNavigate } from 'react-router-dom';
-import { Product, Workshop } from '@/types';
+import { Product, Workshop, Event, Group } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProducts, fetchWorkshops } from '@/integrations/supabase/helpers';
 
@@ -27,7 +26,6 @@ const Explore = () => {
     setSearchParams({ tab: value });
   };
 
-  // Fetch products data
   const { 
     data: products = [], 
     isLoading: isLoadingProducts,
@@ -36,7 +34,6 @@ const Explore = () => {
     queryFn: fetchProducts,
   });
 
-  // Fetch workshops data
   const { 
     data: workshops = [], 
     isLoading: isLoadingWorkshops,
@@ -44,8 +41,7 @@ const Explore = () => {
     queryKey: ['workshops'],
     queryFn: fetchWorkshops,
   });
-  
-  // Mock data - in a real application this would come from an API
+
   const users = [
     { id: '1', name: 'Alex Johnson', role: 'influencer', followers: 21500, location: 'New York, NY', image: 'https://randomuser.me/api/portraits/men/32.jpg', bio: 'Tech influencer focusing on mobile development and emerging technologies.' },
     { id: '2', name: 'Sarah Williams', role: 'coach', followers: 8900, location: 'San Francisco, CA', image: 'https://randomuser.me/api/portraits/women/44.jpg', bio: 'Career coach helping tech professionals advance their careers and find work-life balance.' },
@@ -54,21 +50,117 @@ const Explore = () => {
     { id: '5', name: 'Innovation Labs', role: 'company', followers: 32100, location: 'Seattle, WA', image: 'https://ui-avatars.com/api/?name=Innovation+Labs&background=FF5733&color=fff', bio: 'Cutting-edge research lab focused on AI and robotics.' },
     { id: '6', name: 'Emma Clark', role: 'coach', followers: 11800, location: 'Chicago, IL', image: 'https://randomuser.me/api/portraits/women/28.jpg', bio: 'Executive coach with expertise in leadership development for tech executives.' }
   ];
-  
-  const events = [
-    { id: '1', title: 'Tech Conference 2023', description: 'Annual tech conference featuring top industry speakers.', date: new Date('2023-05-15'), location: 'San Francisco, CA', image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 120, creator: 'Tech Solutions Inc.' },
-    { id: '2', title: 'Networking Mixer', description: 'Connect with professionals in your industry.', date: new Date('2023-04-20'), location: 'New York, NY', image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 80, creator: 'Sarah Williams' },
-    { id: '3', title: 'Startup Workshop', description: 'Learn the essentials of launching a successful startup.', date: new Date('2023-06-10'), location: 'Austin, TX', image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 50, creator: 'Michael Brown' },
-    { id: '4', title: 'AI in Business Seminar', description: 'Explore practical applications of AI in business operations.', date: new Date('2023-05-25'), location: 'Boston, MA', image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', attendees: 90, creator: 'Innovation Labs' }
+
+  const events: Event[] = [
+    { 
+      id: '1', 
+      title: 'Tech Conference 2023', 
+      description: 'Annual tech conference featuring top industry speakers.', 
+      date: new Date('2023-05-15'), 
+      location: 'San Francisco, CA', 
+      image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2', '3'], 
+      privacy: 'public',
+      creatorId: '1',
+      creatorName: 'Tech Solutions Inc.',
+      creatorRole: 'company',
+      createdAt: new Date('2023-04-15')
+    },
+    { 
+      id: '2', 
+      title: 'Networking Mixer', 
+      description: 'Connect with professionals in your industry.', 
+      date: new Date('2023-04-20'), 
+      location: 'New York, NY', 
+      image: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2', '3', '4'], 
+      privacy: 'public',
+      creatorId: '2',
+      creatorName: 'Sarah Williams',
+      creatorRole: 'coach',
+      createdAt: new Date('2023-03-20')
+    },
+    { 
+      id: '3', 
+      title: 'Startup Workshop', 
+      description: 'Learn the essentials of launching a successful startup.', 
+      date: new Date('2023-06-10'), 
+      location: 'Austin, TX', 
+      image: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2'], 
+      privacy: 'public',
+      creatorId: '4',
+      creatorName: 'Michael Brown',
+      creatorRole: 'influencer',
+      createdAt: new Date('2023-05-10')
+    },
+    { 
+      id: '4', 
+      title: 'AI in Business Seminar', 
+      description: 'Explore practical applications of AI in business operations.', 
+      date: new Date('2023-05-25'), 
+      location: 'Boston, MA', 
+      image: 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      attendees: ['1', '2', '3', '4', '5'], 
+      privacy: 'public',
+      creatorId: '5',
+      creatorName: 'Innovation Labs',
+      creatorRole: 'company',
+      createdAt: new Date('2023-04-25')
+    }
   ];
-  
-  const groups = [
-    { id: '1', name: 'Tech Founders', description: 'A community for startup founders to share experiences and advice.', members: 520, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'public', creator: 'Michael Brown' },
-    { id: '2', name: 'Women in Tech', description: 'Supporting women in technology fields through networking and mentorship.', members: 780, image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'public', creator: 'Sarah Williams' },
-    { id: '3', name: 'AI Research Group', description: 'Discussions on the latest developments in artificial intelligence.', members: 350, image: 'https://images.unsplash.com/photo-1669130650646-67905bfaddd5?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'private', creator: 'Innovation Labs' },
-    { id: '4', name: 'Mobile Dev Meetup', description: 'Regular meetups for mobile developers to share knowledge and network.', members: 420, image: 'https://images.unsplash.com/photo-1574689211272-bc14e289e223?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', privacy: 'public', creator: 'Alex Johnson' }
+
+  const groups: Group[] = [
+    { 
+      id: '1', 
+      name: 'Tech Founders', 
+      description: 'A community for startup founders to share experiences and advice.', 
+      members: 520, 
+      image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'public', 
+      creatorId: '4',
+      creatorName: 'Michael Brown',
+      creatorRole: 'influencer',
+      createdAt: new Date('2022-10-15')
+    },
+    { 
+      id: '2', 
+      name: 'Women in Tech', 
+      description: 'Supporting women in technology fields through networking and mentorship.', 
+      members: 780, 
+      image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'public', 
+      creatorId: '2',
+      creatorName: 'Sarah Williams',
+      creatorRole: 'coach',
+      createdAt: new Date('2022-11-20')
+    },
+    { 
+      id: '3', 
+      name: 'AI Research Group', 
+      description: 'Discussions on the latest developments in artificial intelligence.', 
+      members: 350, 
+      image: 'https://images.unsplash.com/photo-1669130650646-67905bfaddd5?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'private', 
+      creatorId: '5',
+      creatorName: 'Innovation Labs',
+      creatorRole: 'company',
+      createdAt: new Date('2023-01-15')
+    },
+    { 
+      id: '4', 
+      name: 'Mobile Dev Meetup', 
+      description: 'Regular meetups for mobile developers to share knowledge and network.', 
+      members: 420, 
+      image: 'https://images.unsplash.com/photo-1574689211272-bc14e289e223?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3', 
+      privacy: 'public', 
+      creatorId: '1',
+      creatorName: 'Alex Johnson',
+      creatorRole: 'influencer',
+      createdAt: new Date('2023-02-10')
+    }
   ];
-  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
