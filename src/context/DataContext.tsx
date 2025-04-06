@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, ReactNode, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
@@ -529,9 +528,22 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
         
       if (joinError) throw joinError;
       
-      // Update group member count using the increment_group_members function
-      const { data: updateResult, error: updateError } = await supabase
-        .rpc('increment_group_members', { row_id: groupId });
+      // First, get the current members count
+      const { data: groupData, error: getGroupError } = await supabase
+        .from('groups')
+        .select('members')
+        .eq('id', groupId)
+        .single();
+        
+      if (getGroupError) throw getGroupError;
+      
+      // Now update the group with incremented member count
+      const newMemberCount = (groupData?.members || 1) + 1;
+      
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ members: newMemberCount })
+        .eq('id', groupId);
         
       if (updateError) throw updateError;
       
@@ -541,7 +553,7 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
           group.id === groupId 
             ? { 
                 ...group, 
-                members: group.members + 1,
+                members: newMemberCount,
                 memberIds: group.memberIds ? [...group.memberIds, currentUser.id] : [currentUser.id]
               } 
             : group
