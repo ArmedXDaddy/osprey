@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User, Product, Workshop, JobPosting, Announcement, Sponsorship, SponsorshipStatus, SponsorshipApplication, ApplicationStatus } from '@/types';
-import { generateMockServices, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests, generateMockPosts } from '@/utils/mockData';
+import { Service, ServiceType, Post, Event, Group, Session, SessionEnrollment, Message, JoinRequest, User, Product, Workshop, JobPosting, Announcement, Sponsorship, SponsorshipStatus, SponsorshipApplication, ApplicationStatus, Booking } from '@/types';
+import { generateMockServices, generateMockEvents, generateMockGroups, generateMockSessions, generateMockSessionEnrollments, generateMockMessages, generateMockJoinRequests, generateMockPosts, generateMockSponsorships } from '@/utils/mockData';
 import { toast } from '@/hooks/use-toast';
 
 interface DataContextType {
@@ -19,40 +19,93 @@ interface DataContextType {
   announcements: Announcement[];
   sponsorships: Sponsorship[];
   sponsorshipApplications: SponsorshipApplication[];
+  loading?: boolean;
+  completedEvents?: Event[];
+  
+  // Get methods
   getServices: () => Promise<Service[]>;
-  createService: (serviceData: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
-  updateService: (id: string, updates: Partial<Service>) => Promise<Service | null>;
-  deleteService: (id: string) => Promise<boolean>;
   getEvents: () => Promise<Event[]>;
-  createEvent: (eventData: Omit<Event, 'id' | 'createdAt'>) => Promise<Event>;
   getGroups: () => Promise<Group[]>;
-  createGroup: (groupData: Omit<Group, 'id' | 'createdAt'>) => Promise<Group>;
   getSessions: () => Promise<Session[]>;
-  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
   getSessionEnrollments: () => Promise<SessionEnrollment[]>;
-  createSessionEnrollment: (enrollmentData: Omit<SessionEnrollment, 'id' | 'createdAt' | 'status' | 'paymentStatus'>) => Promise<SessionEnrollment>;
   getMessages: () => Promise<Message[]>;
-  createMessage: (messageData: Omit<Message, 'id' | 'createdAt'>) => Promise<Message>;
   getJoinRequests: () => Promise<JoinRequest[]>;
-  createJoinRequest: (joinRequestData: Omit<JoinRequest, 'id' | 'createdAt' | 'status'>) => Promise<JoinRequest>;
   getPosts: () => Promise<Post[]>;
-  createPost: (postData: Omit<Post, 'id' | 'createdAt' | 'likes' | 'comments'>) => Promise<Post>;
   getProducts: () => Promise<Product[]>;
-  createProduct: (productData: Omit<Product, 'id' | 'createdAt'>) => Promise<Product>;
   getWorkshops: () => Promise<Workshop[]>;
-  createWorkshop: (workshopData: Omit<Workshop, 'id' | 'createdAt'>) => Promise<Workshop>;
   getJobPostings: () => Promise<JobPosting[]>;
-  createJobPosting: (jobPostingData: Omit<JobPosting, 'id' | 'created_at' | 'updated_at'>) => Promise<JobPosting>;
   getAnnouncements: () => Promise<Announcement[]>;
-  createAnnouncement: (announcementData: Omit<Announcement, 'id' | 'createdAt'>) => Promise<Announcement>;
   getSponsorships: () => Promise<Sponsorship[]>;
-  createSponsorship: (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => Promise<Sponsorship>;
   getSponsorshipById: (id: string) => Promise<Sponsorship | null>;
-  updateSponsorshipStatus: (id: string, status: SponsorshipStatus) => Promise<boolean>;
+  getGroupRequests: (groupId: string) => Promise<JoinRequest[]>;
+  getUserBookings: (userId: string) => Promise<Booking[]>;
+  getServiceById: (id: string) => Promise<Service | null>;
+  getServiceBookings: (serviceId: string) => Promise<Booking[]>;
+  getUserBookingForService: (serviceId: string, userId: string) => Promise<Booking | null>;
+  getUserSessions: (userId: string) => Promise<Session[]>;
+  getCoachSessions: (coachId: string) => Promise<Session[]>;
+  getUserEnrollments: (userId: string) => Promise<SessionEnrollment[]>;
+  getServiceMessages: (serviceId: string) => Promise<Message[]>;
+  
+  // Create methods
+  createService: (serviceData: Omit<Service, 'id' | 'createdAt'>) => Promise<Service>;
+  createEvent: (eventData: Omit<Event, 'id' | 'createdAt'>) => Promise<Event>;
+  createGroup: (groupData: Omit<Group, 'id' | 'createdAt'>) => Promise<Group>;
+  createSession: (sessionData: Omit<Session, 'id' | 'createdAt' | 'updatedAt'>) => Promise<Session>;
+  createSessionEnrollment: (enrollmentData: Omit<SessionEnrollment, 'id' | 'createdAt' | 'status' | 'paymentStatus'>) => Promise<SessionEnrollment>;
+  createMessage: (messageData: Omit<Message, 'id' | 'createdAt'>) => Promise<Message>;
+  createJoinRequest: (joinRequestData: Omit<JoinRequest, 'id' | 'createdAt' | 'status'>) => Promise<JoinRequest>;
+  createPost: (postData: Omit<Post, 'id' | 'createdAt' | 'likes' | 'comments'>) => Promise<Post>;
+  createProduct: (productData: Omit<Product, 'id' | 'createdAt'>) => Promise<Product>;
+  createWorkshop: (workshopData: Omit<Workshop, 'id' | 'createdAt'>) => Promise<Workshop>;
+  createJobPosting: (jobPostingData: Omit<JobPosting, 'id' | 'created_at' | 'updated_at'>) => Promise<JobPosting>;
+  createAnnouncement: (announcementData: Omit<Announcement, 'id' | 'createdAt'>) => Promise<Announcement>;
+  createSponsorship: (sponsorshipData: Omit<Sponsorship, 'id' | 'createdAt'>) => Promise<Sponsorship>;
   createSponsorshipApplication: (applicationData: Omit<SponsorshipApplication, 'id' | 'createdAt' | 'status'>) => Promise<SponsorshipApplication>;
-  getSponsorshipApplicationsBySponsorshipId: (sponsorshipId: string) => Promise<SponsorshipApplication[]>;
+  
+  // Update methods
+  updateService: (id: string, updates: Partial<Service>) => Promise<Service | null>;
+  updateSponsorshipStatus: (id: string, status: SponsorshipStatus) => Promise<boolean>;
   updateSponsorshipApplicationStatus: (id: string, status: ApplicationStatus) => Promise<boolean>;
+  updateGroupDetails: (id: string, updates: Partial<Group>) => Promise<Group | null>;
+  updateSession: (id: string, updates: Partial<Session>) => Promise<Session | null>;
+  updateEnrollmentStatus: (id: string, status: string) => Promise<boolean>;
+  updateComment: (id: string, content: string) => Promise<boolean>;
+  
+  // Delete methods
+  deleteService: (id: string) => Promise<boolean>;
+  deleteComment: (id: string) => Promise<boolean>;
+  deleteGroup: (id: string) => Promise<boolean>;
+  deleteEvent: (id: string) => Promise<boolean>;
+  
+  // Other actions
+  approveEventRequest: (requestId: string, eventId: string, userId: string) => Promise<boolean>;
+  rejectEventRequest: (requestId: string) => Promise<boolean>;
+  approveBooking: (bookingId: string) => Promise<boolean>;
+  cancelBooking: (bookingId: string) => Promise<boolean>;
+  bookService: (serviceId: string, userId: string, data: any) => Promise<Booking>;
+  joinEvent: (eventId: string, userId: string) => Promise<boolean>;
+  leaveEvent: (eventId: string, userId: string) => Promise<boolean>;
+  joinGroup: (groupId: string, userId: string) => Promise<boolean>;
+  leaveGroup: (groupId: string, userId: string) => Promise<boolean>;
+  removeGroupMember: (groupId: string, userId: string) => Promise<boolean>;
+  requestToJoinGroup: (groupId: string, userId: string) => Promise<boolean>;
+  handleJoinRequest: (groupId: string, userId: string, status: 'approved' | 'rejected') => Promise<boolean>;
+  sendMessage: (data: { groupId: string, content: string }) => Promise<Message>;
+  sendServiceMessage: (data: { serviceId: string, content: string }) => Promise<Message>;
+  likePost: (postId: string) => Promise<boolean>;
+  unlikePost: (postId: string) => Promise<boolean>;
+  enrollInSession: (sessionId: string, userId: string) => Promise<boolean>;
+  cancelEnrollment: (enrollmentId: string) => Promise<boolean>;
+  addComment: (postId: string, content: string) => Promise<boolean>;
+  postAnnouncement: (eventId: string, content: string) => Promise<Announcement>;
+  applyForSponsorship: (data: any) => Promise<SponsorshipApplication>;
+  getSponsorshipApplicationsBySponsorshipId: (sponsorshipId: string) => Promise<SponsorshipApplication[]>;
+  getSponsorshipApplications: (sponsorshipId: string) => Promise<SponsorshipApplication[]>;
+  updateApplicationStatus: (id: string, status: ApplicationStatus) => Promise<boolean>;
   getUserApplicationForSponsorship: (sponsorshipId: string, userId: string) => Promise<SponsorshipApplication | null>;
+  postComments?: any; // Using any temporarily
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>; 
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -72,6 +125,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [sponsorships, setSponshorships] = useState<Sponsorship[]>([]);
   const [sponsorshipApplications, setSponsorshipApplications] = useState<SponsorshipApplication[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
 
   useEffect(() => {
     getServices();
@@ -89,6 +144,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getSponsorships();
   }, []);
 
+  // Get functions
+  
   const getServices = async () => {
     try {
       // Simulate API call
@@ -187,7 +244,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newGroup: Group = {
         id: Math.random().toString(36).substring(2, 15),
         createdAt: new Date(),
-        members: 0,
+        members: 1,
         ...groupData,
       };
       setGroups(prev => [...prev, newGroup]);
@@ -315,7 +372,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-    const getPosts = async () => {
+  const getPosts = async () => {
     try {
       // Simulate API call
       const mockPosts = generateMockPosts();
@@ -348,9 +405,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getProducts = async () => {
     try {
       // Simulate API call
-      // const mockProducts = generateMockProducts();
-      setProducts([]); //setProducts(mockProducts);
-      return []; //mockProducts;
+      setProducts([]); 
+      return []; 
     } catch (error) {
       console.error('Error fetching products:', error);
       return [];
@@ -376,9 +432,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getWorkshops = async () => {
     try {
       // Simulate API call
-      // const mockWorkshops = generateMockWorkshops();
-      setWorkshops([]); //setWorkshops(mockWorkshops);
-      return []; //mockWorkshops;
+      setWorkshops([]); 
+      return []; 
     } catch (error) {
       console.error('Error fetching workshops:', error);
       return [];
@@ -404,9 +459,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getJobPostings = async () => {
     try {
       // Simulate API call
-      // const mockJobPostings = generateMockJobPostings();
-      setJobPostings([]); //setJobPostings(mockJobPostings);
-      return []; //mockJobPostings;
+      setJobPostings([]); 
+      return []; 
     } catch (error) {
       console.error('Error fetching job postings:', error);
       return [];
@@ -433,9 +487,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getAnnouncements = async () => {
     try {
       // Simulate API call
-      // const mockAnnouncements = generateMockAnnouncements();
-      setAnnouncements([]); //setAnnouncements(mockAnnouncements);
-      return []; //mockAnnouncements;
+      setAnnouncements([]); 
+      return []; 
     } catch (error) {
       console.error('Error fetching announcements:', error);
       return [];
@@ -597,7 +650,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      return sponsorship;
+      return sponsorship || null;
     } catch (error) {
       console.error('Error in getSponsorshipById:', error);
       toast({
@@ -638,6 +691,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Implemented sponsorship application functions
   const createSponsorshipApplication = async (applicationData: Omit<SponsorshipApplication, 'id' | 'createdAt' | 'status'>) => {
     try {
       // Transform from camelCase to snake_case for Supabase
@@ -766,11 +820,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('sponsorship_id', sponsorshipId)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
   
       if (error) {
         console.error('Error fetching user application:', error);
-        // If no application is found, the error will be thrown, so return null in that case
         return null;
       }
   
@@ -801,6 +854,232 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Method aliases and stub functions
+  const getSponsorshipApplications = getSponsorshipApplicationsBySponsorshipId;
+  const applyForSponsorship = createSponsorshipApplication;
+  const updateApplicationStatus = updateSponsorshipApplicationStatus;
+
+  // Mock functions for event related actions
+  const joinEvent = async (eventId: string, userId: string) => {
+    console.log('Joining event', eventId, 'with user', userId);
+    return true;
+  };
+
+  const leaveEvent = async (eventId: string, userId: string) => {
+    console.log('Leaving event', eventId, 'with user', userId);
+    return true;
+  };
+
+  const deleteEvent = async (id: string) => {
+    console.log('Deleting event', id);
+    return true;
+  };
+
+  const postAnnouncement = async (eventId: string, content: string) => {
+    console.log('Posting announcement for event', eventId, 'with content', content);
+    return {
+      id: 'mock-announcement',
+      eventId,
+      content,
+      creatorId: 'mock-user',
+      creatorName: 'Mock User',
+      createdAt: new Date()
+    };
+  };
+
+  // Mock functions for group actions
+  const joinGroup = async (groupId: string, userId: string) => {
+    console.log('Joining group', groupId, 'with user', userId);
+    return true;
+  };
+
+  const leaveGroup = async (groupId: string, userId: string) => {
+    console.log('Leaving group', groupId, 'with user', userId);
+    return true;
+  };
+
+  const removeGroupMember = async (groupId: string, userId: string) => {
+    console.log('Removing member', userId, 'from group', groupId);
+    return true;
+  };
+
+  const requestToJoinGroup = async (groupId: string, userId: string) => {
+    console.log('Requesting to join group', groupId, 'with user', userId);
+    return true;
+  };
+
+  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected') => {
+    console.log('Handling join request for group', groupId, 'with user', userId, 'status:', status);
+    return true;
+  };
+
+  const getGroupRequests = async (groupId: string) => {
+    console.log('Getting requests for group', groupId);
+    return [];
+  };
+
+  const deleteGroup = async (id: string) => {
+    console.log('Deleting group', id);
+    return true;
+  };
+
+  const updateGroupDetails = async (id: string, updates: Partial<Group>) => {
+    console.log('Updating group', id, 'with', updates);
+    return null;
+  };
+
+  // Mock functions for message related actions
+  const sendMessage = async (data: { groupId: string, content: string }) => {
+    console.log('Sending message to group', data.groupId, 'content:', data.content);
+    return {
+      id: 'mock-message',
+      groupId: data.groupId,
+      content: data.content,
+      userId: 'mock-user',
+      userName: 'Mock User',
+      userRole: 'user',
+      createdAt: new Date()
+    };
+  };
+
+  const sendServiceMessage = async (data: { serviceId: string, content: string }) => {
+    console.log('Sending message for service', data.serviceId, 'content:', data.content);
+    return {
+      id: 'mock-service-message',
+      serviceId: data.serviceId,
+      content: data.content,
+      userId: 'mock-user',
+      userName: 'Mock User',
+      userRole: 'user',
+      createdAt: new Date()
+    };
+  };
+
+  const getServiceMessages = async (serviceId: string) => {
+    console.log('Getting messages for service', serviceId);
+    return [];
+  };
+
+  // Mock functions for booking related actions
+  const getUserBookings = async (userId: string) => {
+    console.log('Getting bookings for user', userId);
+    return [];
+  };
+
+  const getServiceById = async (id: string) => {
+    console.log('Getting service', id);
+    return null;
+  };
+
+  const cancelBooking = async (id: string) => {
+    console.log('Cancelling booking', id);
+    return true;
+  };
+
+  const getUserBookingForService = async (serviceId: string, userId: string) => {
+    console.log('Getting booking for user', userId, 'and service', serviceId);
+    return null;
+  };
+
+  const getServiceBookings = async (serviceId: string) => {
+    console.log('Getting bookings for service', serviceId);
+    return [];
+  };
+
+  const approveBooking = async (id: string) => {
+    console.log('Approving booking', id);
+    return true;
+  };
+
+  const bookService = async (serviceId: string, userId: string, data: any) => {
+    console.log('Booking service', serviceId, 'for user', userId, 'with data', data);
+    return {
+      id: 'mock-booking',
+      serviceId,
+      userId,
+      userName: 'Mock User',
+      userEmail: 'mock@example.com',
+      status: 'pending',
+      paymentStatus: 'unpaid',
+      notes: data.notes,
+      createdAt: new Date(),
+      isPaid: false
+    };
+  };
+
+  // Mock functions for session related actions
+  const getUserSessions = async (userId: string) => {
+    console.log('Getting sessions for user', userId);
+    return [];
+  };
+
+  const getCoachSessions = async (coachId: string) => {
+    console.log('Getting sessions for coach', coachId);
+    return [];
+  };
+
+  const getUserEnrollments = async (userId: string) => {
+    console.log('Getting enrollments for user', userId);
+    return [];
+  };
+
+  const enrollInSession = async (sessionId: string, userId: string) => {
+    console.log('Enrolling user', userId, 'in session', sessionId);
+    return true;
+  };
+
+  const cancelEnrollment = async (id: string) => {
+    console.log('Cancelling enrollment', id);
+    return true;
+  };
+
+  const updateSession = async (id: string, updates: Partial<Session>) => {
+    console.log('Updating session', id, 'with', updates);
+    return null;
+  };
+
+  const updateEnrollmentStatus = async (id: string, status: string) => {
+    console.log('Updating enrollment', id, 'status to', status);
+    return true;
+  };
+
+  // Mock functions for post & comment related actions
+  const likePost = async (id: string) => {
+    console.log('Liking post', id);
+    return true;
+  };
+
+  const unlikePost = async (id: string) => {
+    console.log('Unliking post', id);
+    return true;
+  };
+
+  const addComment = async (postId: string, content: string) => {
+    console.log('Adding comment to post', postId, 'content:', content);
+    return true;
+  };
+
+  const deleteComment = async (id: string) => {
+    console.log('Deleting comment', id);
+    return true;
+  };
+
+  const updateComment = async (id: string, content: string) => {
+    console.log('Updating comment', id, 'with content', content);
+    return true;
+  };
+
+  // Mock functions for event requests
+  const approveEventRequest = async (requestId: string, eventId: string, userId: string) => {
+    console.log('Approving event request', requestId, 'for event', eventId, 'and user', userId);
+    return true;
+  };
+
+  const rejectEventRequest = async (requestId: string) => {
+    console.log('Rejecting event request', requestId);
+    return true;
+  };
+
   const value: DataContextType = {
     services,
     events,
@@ -816,6 +1095,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     announcements,
     sponsorships,
     sponsorshipApplications,
+    loading,
+    completedEvents,
     getServices,
     createService,
     updateService,
@@ -849,7 +1130,47 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     createSponsorshipApplication,
     getSponsorshipApplicationsBySponsorshipId,
     updateSponsorshipApplicationStatus,
-    getUserApplicationForSponsorship
+    getUserApplicationForSponsorship,
+    getSponsorshipApplications,
+    applyForSponsorship,
+    updateApplicationStatus,
+    setMessages,
+    joinEvent,
+    leaveEvent,
+    deleteEvent,
+    postAnnouncement,
+    joinGroup,
+    leaveGroup,
+    removeGroupMember,
+    requestToJoinGroup,
+    handleJoinRequest,
+    getGroupRequests,
+    deleteGroup,
+    updateGroupDetails,
+    sendMessage,
+    sendServiceMessage,
+    getServiceMessages,
+    getUserBookings,
+    getServiceById,
+    cancelBooking,
+    getUserBookingForService,
+    getServiceBookings,
+    approveBooking,
+    bookService,
+    getUserSessions,
+    getCoachSessions,
+    getUserEnrollments,
+    enrollInSession,
+    cancelEnrollment,
+    updateSession,
+    updateEnrollmentStatus,
+    likePost,
+    unlikePost,
+    addComment,
+    deleteComment,
+    updateComment,
+    approveEventRequest,
+    rejectEventRequest
   };
 
   return (
