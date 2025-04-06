@@ -44,8 +44,9 @@ const Register = () => {
     
     try {
       await register(email, password, name, role);
-      toast.success('Registration successful!');
-      navigate('/');
+      toast.success('Registration successful! Please complete your profile.');
+      // Redirect to profile page instead of home page
+      navigate('/profile');
     } catch (error: any) {
       console.error('Registration error:', error);
       toast.error(error.message || 'Registration failed');
