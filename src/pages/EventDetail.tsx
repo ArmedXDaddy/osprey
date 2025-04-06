@@ -82,12 +82,15 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
+      // Navigate before deleting to prevent white page
+      navigate('/events');
+      
+      // Then delete the event
       await deleteEvent(event.id, 'cancelled');
       toast({
         title: "Event cancelled",
         description: "The event has been cancelled and removed from the list."
       });
-      navigate('/events');
     } catch (error: any) {
       toast({
         title: "Error",
@@ -101,12 +104,15 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
+      // Navigate before deleting to prevent white page
+      navigate('/events');
+      
+      // Then mark the event as done
       await deleteEvent(event.id, 'completed');
       toast({
         title: "Event completed",
         description: "The event has been marked as completed and archived."
       });
-      navigate('/events');
     } catch (error: any) {
       toast({
         title: "Error",
