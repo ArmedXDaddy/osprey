@@ -20,7 +20,8 @@ import {
   DollarSign,
   GraduationCap,
   Building,
-  Package2
+  Package2,
+  LayoutDashboard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -137,9 +138,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   <div className="mt-4 mb-2 px-3">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Dashboard</h3>
                   </div>
-                  <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Manage Jobs" />
-                  <NavigationLink to="/company/products" icon={<Package2 size={18} />} label="Manage Products" />
-                  <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Manage Workshops" />
+                  <NavigationLink 
+                    to="/company/dashboard" 
+                    icon={<LayoutDashboard size={18} />} 
+                    label="Company Dashboard" 
+                  />
                 </>
               )}
               
@@ -192,9 +195,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 <div className="mt-4 mb-2 px-3">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Dashboard</h3>
                 </div>
-                <NavigationLink to="/company/jobs" icon={<Briefcase size={18} />} label="Manage Jobs" />
-                <NavigationLink to="/company/products" icon={<Package2 size={18} />} label="Manage Products" />
-                <NavigationLink to="/company/workshops" icon={<GraduationCap size={18} />} label="Manage Workshops" />
+                <NavigationLink 
+                  to="/company/dashboard" 
+                  icon={<LayoutDashboard size={18} />} 
+                  label="Company Dashboard" 
+                />
               </>
             )}
             

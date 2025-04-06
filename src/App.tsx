@@ -39,6 +39,7 @@ import Workshops from "./pages/company/Workshops";
 import CreateProduct from "./pages/company/CreateProduct";
 import CreateWorkshop from "./pages/company/CreateWorkshop";
 import CompanyProfile from "./components/company/CompanyProfile";
+import CompanyDashboard from "./pages/company/Dashboard";
 
 // New Job, Product, Workshop Detail Pages
 import JobPostingDetail from "./pages/company/JobPostingDetail";
@@ -79,25 +80,29 @@ const App = () => (
                 <Route path="/auth/login" element={<Login />} />
                 <Route path="/auth/register" element={<Register />} />
                 
-                {/* Company Routes - both for companies to create and for all users to view */}
+                {/* Jobs Routes */}
                 <Route path="/jobs" element={<JobPostings />} />
                 <Route path="/jobs/:id" element={<JobPostingDetail />} />
+                
+                {/* Products Routes */}
+                <Route path="/products" element={<Products />} />
+                <Route path="/products/:id" element={<ProductDetail />} />
+                
+                {/* Workshops Routes */}
+                <Route path="/workshops" element={<Workshops />} />
+                <Route path="/workshops/:id" element={<WorkshopDetail />} />
+                
+                {/* Company Routes - redirected through the dashboard */}
+                <Route path="/company/dashboard" element={<CompanyDashboard />} />
                 <Route path="/company/jobs" element={<JobPostings />} />
                 <Route path="/company/jobs/create" element={<CreateJobPosting />} />
                 <Route path="/company/jobs/:id" element={<JobPostingDetail />} />
-                
-                <Route path="/products" element={<Products />} />
-                <Route path="/products/:id" element={<ProductDetail />} />
                 <Route path="/company/products" element={<Products />} />
                 <Route path="/company/products/create" element={<CreateProduct />} />
                 <Route path="/company/products/:id" element={<ProductDetail />} />
-                
-                <Route path="/workshops" element={<Workshops />} />
-                <Route path="/workshops/:id" element={<WorkshopDetail />} />
                 <Route path="/company/workshops" element={<Workshops />} />
                 <Route path="/company/workshops/create" element={<CreateWorkshop />} />
                 <Route path="/company/workshops/:id" element={<WorkshopDetail />} />
-                
                 <Route path="/company/profile" element={<Profile />} />
                 <Route path="/company/profile/:id" element={<Profile />} />
                 
