@@ -316,12 +316,16 @@ export type Database = {
           created_at: string
           demo_url: string | null
           description: string
+          features: string[] | null
           id: string
           image: string | null
+          long_description: string | null
           price: string
+          pricing_tiers: Json | null
           release_date: string
           tags: string[] | null
           title: string
+          use_cases: string[] | null
           website_url: string | null
         }
         Insert: {
@@ -332,12 +336,16 @@ export type Database = {
           created_at?: string
           demo_url?: string | null
           description: string
+          features?: string[] | null
           id?: string
           image?: string | null
+          long_description?: string | null
           price: string
+          pricing_tiers?: Json | null
           release_date: string
           tags?: string[] | null
           title: string
+          use_cases?: string[] | null
           website_url?: string | null
         }
         Update: {
@@ -348,12 +356,16 @@ export type Database = {
           created_at?: string
           demo_url?: string | null
           description?: string
+          features?: string[] | null
           id?: string
           image?: string | null
+          long_description?: string | null
           price?: string
+          pricing_tiers?: Json | null
           release_date?: string
           tags?: string[] | null
           title?: string
+          use_cases?: string[] | null
           website_url?: string | null
         }
         Relationships: []
@@ -615,13 +627,21 @@ export type Database = {
           date: string
           description: string
           duration: string
+          end_time: string | null
           id: string
           image: string | null
+          includes: string[] | null
+          instructors: Json | null
           is_online: boolean
           location: string | null
+          long_description: string | null
           meeting_url: string | null
+          prerequisites: string[] | null
           price: number
+          start_time: string | null
+          tags: string[] | null
           title: string
+          topics: string[] | null
         }
         Insert: {
           capacity?: number | null
@@ -633,13 +653,21 @@ export type Database = {
           date: string
           description: string
           duration: string
+          end_time?: string | null
           id?: string
           image?: string | null
+          includes?: string[] | null
+          instructors?: Json | null
           is_online?: boolean
           location?: string | null
+          long_description?: string | null
           meeting_url?: string | null
+          prerequisites?: string[] | null
           price?: number
+          start_time?: string | null
+          tags?: string[] | null
           title: string
+          topics?: string[] | null
         }
         Update: {
           capacity?: number | null
@@ -651,13 +679,21 @@ export type Database = {
           date?: string
           description?: string
           duration?: string
+          end_time?: string | null
           id?: string
           image?: string | null
+          includes?: string[] | null
+          instructors?: Json | null
           is_online?: boolean
           location?: string | null
+          long_description?: string | null
           meeting_url?: string | null
+          prerequisites?: string[] | null
           price?: number
+          start_time?: string | null
+          tags?: string[] | null
           title?: string
+          topics?: string[] | null
         }
         Relationships: []
       }

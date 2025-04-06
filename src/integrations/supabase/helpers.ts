@@ -504,7 +504,7 @@ export const fetchProducts = async (): Promise<Product[]> => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.description, // Use description since long_description doesn't exist in DB
+      longDescription: item.long_description || item.description,
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
@@ -516,9 +516,9 @@ export const fetchProducts = async (): Promise<Product[]> => {
       demoUrl: item.demo_url,
       releaseDate: new Date(item.release_date),
       createdAt: new Date(item.created_at),
-      features: [], // Default to empty array as this doesn't exist in DB
-      useCases: [], // Default to empty array as this doesn't exist in DB
-      pricingTiers: [] // Default to empty array as this doesn't exist in DB
+      features: item.features || [],
+      useCases: item.use_cases || [],
+      pricingTiers: item.pricing_tiers || []
     }));
     
     return mappedProducts as Product[];
@@ -546,14 +546,14 @@ export const fetchWorkshops = async (): Promise<Workshop[]> => {
       id: item.id,
       title: item.title,
       description: item.description,
-      longDescription: item.description, // Use description since long_description doesn't exist in DB
+      longDescription: item.long_description || item.description,
       companyId: item.company_id,
       companyName: item.company_name,
       companyLogo: item.company_logo,
       price: item.price,
       date: new Date(item.date),
-      startTime: "", // Empty string since start_time doesn't exist in DB
-      endTime: "", // Empty string since end_time doesn't exist in DB
+      startTime: item.start_time || "",
+      endTime: item.end_time || "",
       duration: item.duration,
       capacity: item.capacity,
       location: item.location,
@@ -562,11 +562,11 @@ export const fetchWorkshops = async (): Promise<Workshop[]> => {
       category: item.category,
       image: item.image,
       createdAt: new Date(item.created_at),
-      topics: [], // Default to empty array as this doesn't exist in DB
-      prerequisites: [], // Default to empty array as this doesn't exist in DB
-      includes: [], // Default to empty array as this doesn't exist in DB
-      tags: [], // Default to empty array as this doesn't exist in DB
-      instructors: [] // Default to empty array as this doesn't exist in DB
+      topics: item.topics || [],
+      prerequisites: item.prerequisites || [],
+      includes: item.includes || [],
+      tags: item.tags || [],
+      instructors: item.instructors || []
     }));
     
     return mappedWorkshops as Workshop[];
