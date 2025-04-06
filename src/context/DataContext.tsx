@@ -228,6 +228,26 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         setMessages(generateMockMessages());
         setJoinRequests(generateMockJoinRequests());
         setSponsorships(generateMockSponsorships());
+        
+        // Load user-created sponsorships from localStorage
+        try {
+          const storedSponsorships = localStorage.getItem('user_sponsorships');
+          if (storedSponsorships) {
+            const parsedSponsorships = JSON.parse(storedSponsorships);
+            // Convert string dates back to Date objects
+            const userSponsorships = parsedSponsorships.map((sponsorship: any) => ({
+              ...sponsorship,
+              createdAt: new Date(sponsorship.createdAt),
+              deadline: sponsorship.deadline ? new Date(sponsorship.deadline) : undefined
+            }));
+            
+            // Combine with initial mock data
+            setSponsorships(prev => [...prev, ...userSponsorships]);
+          }
+        } catch (err) {
+          console.error("Error loading user sponsorships from localStorage:", err);
+        }
+        
         setLoading(false);
       } catch (err: any) {
         setError(err);
@@ -1278,9 +1298,17 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setSponsorships(prev => {
       const updated = [...prev, newSponsorship];
       
-      // Store in localStorage
+      // Store only user-created sponsorships (not mock data) in localStorage
       try {
-        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+        // Get existing user sponsorships
+        const storedSponsorships = localStorage.getItem('user_sponsorships');
+        const existingSponsorships = storedSponsorships ? JSON.parse(storedSponsorships) : [];
+        
+        // Add the new sponsorship
+        const updatedUserSponsorships = [...existingSponsorships, newSponsorship];
+        
+        // Save back to localStorage
+        localStorage.setItem('user_sponsorships', JSON.stringify(updatedUserSponsorships));
       } catch (error) {
         console.error('Error storing sponsorships in localStorage:', error);
       }
@@ -1295,13 +1323,26 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     console.log(`Updating sponsorship with id: ${id}`, updatedData);
     
     setSponsorships(prev => {
-      const updated = prev.map(s => (s.id === id ? { ...s, ...updatedData } : s));
+      const updated = prev.map(s => {
+        if (s.id === id) {
+          const updatedSponsorship = { ...s, ...updatedData };
+          return updatedSponsorship;
+        }
+        return s;
+      });
       
-      // Store in localStorage
+      // Update in localStorage (only user-created sponsorships)
       try {
-        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+        const storedSponsorships = localStorage.getItem('user_sponsorships');
+        if (storedSponsorships) {
+          const existingSponsorships = JSON.parse(storedSponsorships);
+          const updatedUserSponsorships = existingSponsorships.map((s: any) => 
+            s.id === id ? { ...s, ...updatedData } : s
+          );
+          localStorage.setItem('user_sponsorships', JSON.stringify(updatedUserSponsorships));
+        }
       } catch (error) {
-        console.error('Error storing sponsorships in localStorage:', error);
+        console.error('Error updating sponsorships in localStorage:', error);
       }
       
       return updated;
@@ -1316,11 +1357,16 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     setSponsorships(prev => {
       const updated = prev.filter(s => s.id !== id);
       
-      // Store in localStorage
+      // Update in localStorage (only user-created sponsorships)
       try {
-        localStorage.setItem('mock_sponsorships', JSON.stringify(updated));
+        const storedSponsorships = localStorage.getItem('user_sponsorships');
+        if (storedSponsorships) {
+          const existingSponsorships = JSON.parse(storedSponsorships);
+          const updatedUserSponsorships = existingSponsorships.filter((s: any) => s.id !== id);
+          localStorage.setItem('user_sponsorships', JSON.stringify(updatedUserSponsorships));
+        }
       } catch (error) {
-        console.error('Error storing sponsorships in localStorage:', error);
+        console.error('Error deleting sponsorship from localStorage:', error);
       }
       
       return updated;
