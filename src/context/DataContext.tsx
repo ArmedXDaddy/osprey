@@ -25,6 +25,7 @@ interface DataContextType {
   sessions: Session[];
   sessionEnrollments: SessionEnrollment[];
   messages: Message[];
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   joinRequests: JoinRequest[];
   loading: boolean;
   error: Error | null;
@@ -495,8 +496,147 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     if (!currentUser) throw new Error('You must be logged in to update enrollment status');
   };
   
+  const joinGroup = async (groupId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to join a group');
+    
+    try {
+      // First, check if the user is already a member of the group
+      const { data: groupMemberData, error: memberCheckError } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('user_id', currentUser.id);
+        
+      if (memberCheckError) throw memberCheckError;
+      
+      // If user is already a member, don't do anything
+      if (groupMemberData && groupMemberData.length > 0) {
+        toast({
+          title: "Already a member",
+          description: "You are already a member of this group"
+        });
+        return;
+      }
+      
+      // Add user to group_members table
+      const { error: joinError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupId,
+          user_id: currentUser.id
+        });
+        
+      if (joinError) throw joinError;
+      
+      // Update group member count
+      const { error: updateError } = await supabase
+        .from('groups')
+        .update({ members: supabase.rpc('increment', { row_id: groupId, table: 'groups', column: 'members' }) })
+        .eq('id', groupId);
+        
+      if (updateError) throw updateError;
+      
+      // Update local state
+      setGroups(prevGroups => 
+        prevGroups.map(group => 
+          group.id === groupId 
+            ? { 
+                ...group, 
+                members: group.members + 1,
+                memberIds: group.memberIds ? [...group.memberIds, currentUser.id] : [currentUser.id]
+              } 
+            : group
+        )
+      );
+      
+      toast({
+        title: "Group joined",
+        description: "You have successfully joined the group"
+      });
+    } catch (error: any) {
+      console.error("Error joining group:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join group",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+  
+  const leaveGroup = async (groupId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const requestToJoinGroup = async (groupId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const approveGroupRequest = async (requestId: string, groupId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const rejectGroupRequest = async (requestId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
+    return [];
+  };
+  
+  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a message');
+    
+    try {
+      const newMessage = {
+        group_id: messageData.groupId,
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content: messageData.content
+      };
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .insert(newMessage)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      console.log("Message sent successfully:", data);
+      
+      // The real-time subscription will handle adding this to the UI,
+      // but we'll also add it to the local state for immediate feedback
+      const transformedMessage: Message = {
+        id: data.id,
+        content: data.content,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role,
+        userProfileImage: data.user_profile_image,
+        createdAt: new Date(data.created_at),
+        groupId: data.group_id
+      };
+      
+      setMessages(prev => [...prev, transformedMessage]);
+    } catch (error: any) {
+      console.error("Error sending message:", error);
+      throw error;
+    }
   };
   
   const getServiceById = async (serviceId: string): Promise<Service | null> => {
@@ -743,514 +883,4 @@ export const DataProvider: React.FC<DataProviderProps> = ({ children }) => {
     try {
       console.log("Fetching messages for service:", serviceId);
       
-      const { data, error } = await supabase.rpc('get_service_chat_messages', {
-        p_service_id: serviceId
-      });
-      
-      if (error) {
-        console.error("Error fetching service messages:", error);
-        throw error;
-      }
-      
-      console.log("Retrieved messages:", data);
-      
-      if (!data) return [];
-      
-      return data.map((msg: any) => ({
-        id: msg.id,
-        content: msg.content,
-        userId: msg.user_id,
-        userName: msg.user_name,
-        userProfileImage: msg.user_profile_image,
-        userRole: msg.user_role,
-        createdAt: new Date(msg.created_at),
-        serviceId: msg.service_id
-      }));
-    } catch (err: any) {
-      console.error("Error in getServiceMessages:", err);
-      return [];
-    }
-  };
-  
-  const fetchUserServices = async (userId: string): Promise<Service[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('coach_id', userId);
-      
-      if (error) throw error;
-      if (!data) return [];
-      
-      return data.map((item) => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        providerId: item.coach_id,
-        providerName: item.coach_name,
-        price: item.price,
-        duration: item.duration,
-        available: item.is_active,
-        createdAt: new Date(item.created_at),
-        isOnline: item.is_online,
-        location: item.location,
-        capacity: item.capacity,
-        serviceType: item.service_type as ServiceType,
-        coverImage: item.cover_image,
-        meetingUrl: item.meeting_url
-      })) as Service[];
-    } catch (err) {
-      console.error("Error fetching user services:", err);
-      return [];
-    }
-  };
-
-  const createPost = async (content: string, imageFile: File | null = null): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to create a post');
-    
-    try {
-      let imageUrl = null;
-      
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile, 'posts');
-      }
-      
-      const { error } = await supabase.from('posts').insert({
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        user_role: currentUser.role,
-        user_profile_image: currentUser.profileImage,
-        content,
-        image: imageUrl,
-        likes_count: 0,
-        comments_count: 0
-      });
-        
-      if (error) throw error;
-      
-      console.log("Post created successfully");
-    } catch (err: any) {
-      console.error("Error creating post:", err);
-      toast({
-        title: "Error",
-        description: err.message || "Failed to create post",
-        variant: "destructive"
-      });
-      throw err;
-    }
-  };
-  
-  const likePost = async (postId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to like a post');
-    
-    try {
-      const { error } = await supabase.from('post_likes').insert({
-        post_id: postId,
-        user_id: currentUser.id
-      });
-        
-      if (error) {
-        if (error.code === '23505') {
-          console.log('User already liked this post');
-          return;
-        }
-        throw error;
-      }
-      
-      const { error: functionError } = await supabase.rpc('increment_post_likes', { post_id: postId });
-      
-      if (functionError) {
-        console.error("Error incrementing post likes:", functionError);
-      }
-    } catch (err: any) {
-      console.error("Error liking post:", err);
-      throw err;
-    }
-  };
-  
-  const unlikePost = async (postId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to unlike a post');
-    
-    try {
-      const { error } = await supabase.from('post_likes')
-        .delete()
-        .eq('post_id', postId)
-        .eq('user_id', currentUser.id);
-        
-      if (error) throw error;
-      
-      const { error: functionError } = await supabase.rpc('decrement_post_likes', { post_id: postId });
-      
-      if (functionError) {
-        console.error("Error decrementing post likes:", functionError);
-      }
-    } catch (err: any) {
-      console.error("Error unliking post:", err);
-      throw err;
-    }
-  };
-  
-  const addComment = async (postId: string, content: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to comment on a post');
-    
-    try {
-      const { error } = await supabase.from('comments').insert({
-        post_id: postId,
-        user_id: currentUser.id,
-        user_name: currentUser.name,
-        user_role: currentUser.role,
-        user_profile_image: currentUser.profileImage,
-        content
-      });
-        
-      if (error) throw error;
-      
-      const { error: functionError } = await supabase.rpc('increment_post_comments', { post_id: postId });
-      
-      if (functionError) {
-        console.error("Error incrementing post comments:", functionError);
-      }
-    } catch (err: any) {
-      console.error("Error adding comment:", err);
-      throw err;
-    }
-  };
-  
-  const createEvent = async (eventData: any): Promise<Event> => {
-    if (!currentUser) throw new Error('You must be logged in to create an event');
-    
-    try {
-      const newEventData = {
-        title: eventData.title,
-        description: eventData.description,
-        creator_id: currentUser.id,
-        creator_name: currentUser.name,
-        creator_role: currentUser.role as string,
-        location: eventData.location,
-        date: eventData.date,
-        image: eventData.image || null,
-        privacy: eventData.privacy,
-        price: eventData.privacy === 'paid' ? eventData.price : null,
-        attendees: [currentUser.id],
-        pending_requests: 0
-      };
-      
-      const { data, error } = await supabase.rpc('create_event', newEventData);
-      
-      if (error) throw error;
-      
-      const eventFromDb = typeof data === 'string' ? JSON.parse(data) : data;
-      
-      const newEvent: Event = {
-        id: eventFromDb.id,
-        title: eventFromDb.title,
-        description: eventFromDb.description,
-        creatorId: eventFromDb.creator_id,
-        creatorName: eventFromDb.creator_name,
-        creatorRole: eventFromDb.creator_role as UserRole,
-        location: eventFromDb.location,
-        date: new Date(eventFromDb.date),
-        image: eventFromDb.image,
-        attendees: eventFromDb.attendees || [currentUser.id],
-        privacy: eventFromDb.privacy as EventPrivacy,
-        price: eventFromDb.price,
-        pendingRequests: eventFromDb.pending_requests || 0,
-        createdAt: new Date(eventFromDb.created_at || new Date())
-      };
-      
-      setEvents(prev => [newEvent, ...prev]);
-      
-      toast({
-        title: "Event created",
-        description: "Your event has been created successfully",
-      });
-      
-      return newEvent;
-    } catch (error: any) {
-      console.error("Error creating event:", error);
-      toast({
-        title: "Creation failed",
-        description: error.message || "There was a problem creating your event",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-  
-  const joinEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const leaveEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const requestToJoinEvent = async (eventId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const rejectEventRequest = async (requestId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    return [];
-  };
-  
-  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    
-    try {
-      const newGroupData = {
-        name: groupData.name,
-        description: groupData.description,
-        creator_id: currentUser.id,
-        creator_name: currentUser.name,
-        creator_role: currentUser.role as string,
-        image: groupData.image || null,
-        privacy: groupData.privacy as GroupPrivacy,
-        price: groupData.privacy === 'paid' ? groupData.price : null,
-        members: 1,
-        member_limit: groupData.memberLimit || 100,
-        rules: groupData.rules || [],
-        pending_requests: 0
-      };
-      
-      const { data, error } = await supabase
-        .from('groups')
-        .insert(newGroupData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      const newGroup: Group = {
-        id: data.id,
-        name: data.name,
-        description: data.description,
-        creatorId: data.creator_id,
-        creatorName: data.creator_name,
-        creatorRole: data.creator_role as UserRole,
-        members: data.members,
-        memberIds: [currentUser.id],
-        image: data.image,
-        privacy: data.privacy as GroupPrivacy,
-        price: data.price,
-        createdAt: new Date(data.created_at),
-        pendingRequests: data.pending_requests || 0,
-        rules: data.rules || [],
-        memberLimit: data.member_limit
-      };
-      
-      setGroups(prev => [newGroup, ...prev]);
-      
-      toast({
-        title: "Group created",
-        description: "Your group has been created successfully",
-      });
-      
-      return newGroup;
-    } catch (error: any) {
-      console.error("Error creating group:", error);
-      toast({
-        title: "Creation failed",
-        description: error.message || "There was a problem creating your group",
-        variant: "destructive",
-      });
-      throw error;
-    }
-  };
-  
-  const joinGroup = async (groupId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const leaveGroup = async (groupId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const requestToJoinGroup = async (groupId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const approveGroupRequest = async (requestId: string, groupId: string, userId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const rejectGroupRequest = async (requestId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
-    return [];
-  };
-  
-  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
-    throw new Error('Not implemented');
-  };
-  
-  const updateCommentImpl = async (commentId: string, content: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to update a comment');
-    
-    try {
-      await updateComment(commentId, content);
-      
-      setPostComments(prev => {
-        const updatedComments = { ...prev };
-        
-        for (const postId in updatedComments) {
-          const commentIndex = updatedComments[postId].findIndex(c => c.id === commentId);
-          if (commentIndex !== -1) {
-            updatedComments[postId] = [
-              ...updatedComments[postId].slice(0, commentIndex),
-              { ...updatedComments[postId][commentIndex], content },
-              ...updatedComments[postId].slice(commentIndex + 1)
-            ];
-            break;
-          }
-        }
-        
-        return updatedComments;
-      });
-    } catch (err: any) {
-      console.error("Error updating comment:", err);
-      toast({
-        title: "Error",
-        description: err.message || "Failed to update comment",
-        variant: "destructive"
-      });
-      throw err;
-    }
-  };
-  
-  const deleteCommentImpl = async (commentId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to delete a comment');
-    
-    try {
-      await deleteComment(commentId);
-      
-      setPostComments(prev => {
-        const updatedComments = { ...prev };
-        let postId: string | null = null;
-        
-        for (const pid in updatedComments) {
-          const commentIndex = updatedComments[pid].findIndex(c => c.id === commentId);
-          if (commentIndex !== -1) {
-            updatedComments[pid] = [
-              ...updatedComments[pid].slice(0, commentIndex),
-              ...updatedComments[pid].slice(commentIndex + 1)
-            ];
-            postId = pid;
-            break;
-          }
-        }
-        
-        if (postId) {
-          setPosts(prevPosts => 
-            prevPosts.map(post => 
-              post.id === postId 
-                ? { ...post, comments: Math.max(0, post.comments - 1) } 
-                : post
-            )
-          );
-        }
-        
-        return updatedComments;
-      });
-    } catch (err: any) {
-      console.error("Error deleting comment:", err);
-      toast({
-        title: "Error",
-        description: err.message || "Failed to delete comment",
-        variant: "destructive"
-      });
-      throw err;
-    }
-  };
-  
-  const contextValue: DataContextType = {
-    posts,
-    events,
-    groups,
-    services,
-    sessions,
-    sessionEnrollments,
-    messages,
-    joinRequests,
-    loading,
-    error,
-    postComments,
-    createPost,
-    likePost,
-    unlikePost,
-    addComment,
-    updateComment: updateCommentImpl,
-    deleteComment: deleteCommentImpl,
-    createEvent,
-    joinEvent,
-    leaveEvent,
-    requestToJoinEvent,
-    approveEventRequest,
-    rejectEventRequest,
-    getEventRequests,
-    handleEventJoinRequest,
-    createGroup,
-    joinGroup,
-    leaveGroup,
-    requestToJoinGroup,
-    approveGroupRequest,
-    rejectGroupRequest,
-    getGroupRequests,
-    handleJoinRequest,
-    removeGroupMember,
-    updateGroupDetails,
-    createSession,
-    enrollInSession,
-    cancelEnrollment,
-    approveEnrollment,
-    rejectEnrollment,
-    getUserSessions,
-    getCoachSessions,
-    getUserEnrollments,
-    updateSession,
-    updateEnrollmentStatus,
-    sendMessage,
-    getServiceById,
-    bookService,
-    cancelBooking: cancelBookingImpl,
-    getUserBookings: getUserBookingsImpl,
-    getServiceBookings: getServiceBookingsImpl,
-    createService,
-    updateService,
-    deleteService,
-    approveBooking: approveBookingImpl,
-    sendServiceMessage,
-    getServiceMessages,
-    getUserBookingForService: getUserBookingForServiceImpl,
-    fetchUserServices
-  };
-  
-  return (
-    <DataContext.Provider value={contextValue}>
-      {children}
-    </DataContext.Provider>
-  );
-};
-
-export default DataContext;
+      const { data, error } = await supabase.rpc('get_service_chat_messages',
