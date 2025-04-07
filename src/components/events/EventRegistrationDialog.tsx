@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,6 @@ import {
 import { EventRegistration } from '@/types';
 import EventRegistrationForm from './EventRegistrationForm';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
 interface EventRegistrationDialogProps {
@@ -73,38 +72,17 @@ const EventRegistrationDialog = ({
       
       setIsProcessing(true);
       
-      // First check localStorage for existing registration
+      // Check localStorage for existing registration
       const existingRegistrationsString = localStorage.getItem('event_registrations');
       const existingRegistrations = existingRegistrationsString 
         ? JSON.parse(existingRegistrationsString) 
         : [];
       
-      const existingLocalRegistration = existingRegistrations.find(
+      const existingRegistration = existingRegistrations.find(
         (reg: any) => reg.event_id === eventId && reg.user_id === currentUser.id
       );
       
-      if (existingLocalRegistration) {
-        toast({
-          title: "Already registered",
-          description: "You have already registered for this event",
-          variant: "default"
-        });
-        onClose();
-        return;
-      }
-      
-      // If not in localStorage, also check the database
-      const { data: existingRegistration } = await supabase
-        .from('event_attendee_details')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-        
       if (existingRegistration) {
-        // If found in database but not in localStorage, add to localStorage
-        saveRegistrationToLocalStorage(existingRegistration);
-        
         toast({
           title: "Already registered",
           description: "You have already registered for this event",
@@ -131,17 +109,7 @@ const EventRegistrationDialog = ({
         registered_at: new Date().toISOString()
       };
       
-      // Store registration details in the database
-      const { error } = await supabase
-        .from('event_attendee_details')
-        .insert(registrationData);
-        
-      if (error) {
-        console.error("Registration database error:", error);
-        throw new Error(error.message || "Error storing registration details");
-      }
-      
-      // Save to localStorage
+      // Save to localStorage only
       saveRegistrationToLocalStorage(registrationData);
       
       await onSubmit(data);
