@@ -24,10 +24,13 @@ import {
 } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { EventRegistration } from '@/types';
+import { DollarSign } from 'lucide-react';
 
 interface EventRegistrationFormProps {
   onSubmit: (data: EventRegistration) => Promise<void>;
   isProcessing: boolean;
+  isPaidEvent?: boolean;
+  price?: number;
 }
 
 const formSchema = z.object({
@@ -42,7 +45,12 @@ const formSchema = z.object({
   additionalInfo: z.string().optional(),
 });
 
-const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationFormProps) => {
+const EventRegistrationForm = ({ 
+  onSubmit, 
+  isProcessing, 
+  isPaidEvent = false,
+  price = 0 
+}: EventRegistrationFormProps) => {
   const { currentUser } = useAuth();
   
   const form = useForm<z.infer<typeof formSchema>>({
@@ -76,6 +84,7 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
       additionalInfo: values.additionalInfo,
       registeredAt: new Date(),
       profileImage: currentUser.profileImage,
+      paymentStatus: isPaidEvent ? 'pending' : 'not_required',
     };
     
     await onSubmit(registrationData);
@@ -84,6 +93,18 @@ const EventRegistrationForm = ({ onSubmit, isProcessing }: EventRegistrationForm
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        {isPaidEvent && (
+          <div className="bg-muted p-4 rounded-lg flex items-center mb-4">
+            <DollarSign className="h-5 w-5 text-primary mr-2" />
+            <div>
+              <p className="font-medium">This is a paid event</p>
+              <p className="text-sm text-muted-foreground">
+                You will be asked to complete payment of ${price} after registration
+              </p>
+            </div>
+          </div>
+        )}
+        
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             control={form.control}

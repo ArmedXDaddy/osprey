@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -138,6 +139,19 @@ const EventDetail = () => {
   
   const isCreator = currentUser && event.creatorId === currentUser.id;
   
+  const openRegistrationModal = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to attend events.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setShowRegistration(true);
+  };
+  
   const handleAttendEvent = async () => {
     if (!currentUser) {
       toast({
@@ -170,7 +184,11 @@ const EventDetail = () => {
         });
       }
     } else {
-      setShowRegistration(true);
+      if (event.privacy === 'paid' && event.price) {
+        openRegistrationModal();
+      } else {
+        openRegistrationModal();
+      }
     }
   };
   
@@ -229,7 +247,9 @@ const EventDetail = () => {
       
       toast({
         title: "Registration successful!",
-        description: "You're now registered for this event."
+        description: event.privacy === 'paid' && event.price 
+          ? "Registration completed. Please proceed with payment." 
+          : "You're now registered for this event."
       });
     } catch (error: any) {
       toast({
@@ -505,6 +525,8 @@ const EventDetail = () => {
         eventTitle={event.title}
         eventId={event.id}
         onSubmit={handleRegister}
+        isPaidEvent={event.privacy === 'paid'}
+        price={event.price}
       />
     </div>
   );

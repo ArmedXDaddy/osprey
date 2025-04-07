@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { useData } from '@/context/DataContext';
 import { useToast } from '@/hooks/use-toast';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
 import { DollarSign, Users, Ticket } from 'lucide-react';
@@ -59,44 +60,29 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
     if (isAttending) {
       // If already attending, handle leaving
       onJoin();
-    } else if (isPaidEvent) {
-      // For paid events, show payment modal
-      setShowPaymentModal(true);
     } else {
-      // For free events, join directly
-      joinEvent();
-    }
-  };
-  
-  const joinEvent = async () => {
-    try {
-      await onJoin();
-      // Generate verification code after successful join
-      const code = generateVerificationCode();
-      setVerificationCode(code);
-      setShowVerificationCode(true);
-    } catch (error) {
-      console.error("Error joining event:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to join the event. Please try again."
-      });
+      try {
+        await onJoin();
+        
+        if (isPaidEvent) {
+          // For paid events, show payment modal
+          setShowPaymentModal(true);
+        }
+      } catch (error) {
+        console.error("Error joining event:", error);
+      }
     }
   };
   
   const handlePaymentSuccess = async () => {
     try {
       setIsProcessing(true);
-      // After successful payment, update payment status in the database
+      
+      // Update payment status in database
       if (currentUser) {
-        // Using the database column name (snake_case)
-        // We need to use snake_case as the actual database column name is snake_case
         const { error } = await supabase
           .from('event_attendee_details')
-          .update({
-            payment_status: 'paid'
-          })
+          .update({ payment_status: 'paid' })
           .eq('event_id', event.id)
           .eq('user_id', currentUser.id);
           
@@ -105,9 +91,6 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         }
       }
       
-      // Join the event
-      await onJoin();
-      
       // Generate verification code
       const code = generateVerificationCode();
       setVerificationCode(code);
@@ -115,12 +98,17 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       // Close payment modal and show verification code
       setShowPaymentModal(false);
       setShowVerificationCode(true);
+      
+      toast({
+        title: "Payment successful!",
+        description: "Your registration has been confirmed.",
+      });
     } catch (error) {
-      console.error("Error joining event after payment:", error);
+      console.error("Error processing payment:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to register for the event. Please try again."
+        description: "Failed to process payment. Please try again."
       });
     } finally {
       setIsProcessing(false);

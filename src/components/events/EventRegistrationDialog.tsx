@@ -38,15 +38,7 @@ const EventRegistrationDialog = ({
     try {
       setIsProcessing(true);
       
-      // Add payment status based on event type
-      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid' as 'paid' | 'unpaid' | 'refunded';
-      const registrationData = {
-        ...data,
-        paymentStatus
-      };
-      
       // Store registration details in the database
-      // Note we use snake_case for database column names
       const { error } = await supabase
         .from('event_attendee_details')
         .insert({
@@ -62,14 +54,14 @@ const EventRegistrationDialog = ({
           twitter: data.twitter,
           additional_info: data.additionalInfo,
           profile_image: data.profileImage,
-          payment_status: paymentStatus // Use snake_case for database column
+          payment_status: isPaidEvent ? 'pending' : 'not_required'
         });
         
       if (error) {
         throw error;
       }
       
-      await onSubmit(registrationData);
+      await onSubmit(data);
       onClose();
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -89,20 +81,18 @@ const EventRegistrationDialog = ({
         <DialogHeader>
           <DialogTitle className="text-xl md:text-2xl">Register for {eventTitle}</DialogTitle>
           <DialogDescription>
-            {isPaidEvent ? (
-              <>
-                Please fill out the form below to complete your registration. 
-                <span className="font-semibold"> A payment of ${price} will be required after registration.</span>
-              </>
-            ) : (
-              "Please fill out the form below to complete your registration."
-            )}
+            {isPaidEvent 
+              ? `Please fill out the form below to complete your registration. Payment of $${price} will be required after registration.`
+              : 'Please fill out the form below to complete your registration.'
+            }
           </DialogDescription>
         </DialogHeader>
         
         <EventRegistrationForm 
           onSubmit={handleSubmit}
           isProcessing={isProcessing}
+          isPaidEvent={isPaidEvent}
+          price={price}
         />
       </DialogContent>
     </Dialog>
