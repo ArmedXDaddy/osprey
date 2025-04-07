@@ -195,7 +195,37 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setGroups(generateMockGroups());
         }
         
-        setEvents(generateMockEvents());
+        // Load events from the database instead of using mock data
+        const { data: eventsData, error: eventsError } = await supabase
+          .from('events')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (eventsError) {
+          console.error("Error fetching events:", eventsError);
+          setEvents(generateMockEvents());
+        } else if (eventsData && eventsData.length > 0) {
+          const transformedEvents: Event[] = eventsData.map((event: any) => ({
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            location: event.location,
+            date: new Date(event.date),
+            image: event.image,
+            privacy: event.privacy,
+            price: event.price,
+            attendees: event.attendees || [],
+            createdAt: new Date(event.created_at),
+            creatorId: event.creator_id,
+            creatorName: event.creator_name,
+            creatorRole: event.creator_role
+          }));
+          
+          setEvents(transformedEvents);
+        } else {
+          setEvents(generateMockEvents());
+        }
+        
         setSessions(generateMockSessions());
         setSessionEnrollments(generateMockSessionEnrollments());
         setMessages(generateMockMessages());
@@ -768,22 +798,45 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const eventPrivacy = eventData.privacy as EventPrivacy;
       
+      // Create the event in Supabase
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          title: eventData.title,
+          description: eventData.description,
+          location: eventData.location,
+          date: eventData.date,
+          image: eventData.image || null,
+          privacy: eventPrivacy,
+          price: eventData.price || null,
+          attendees: [currentUser.id],
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          creator_role: currentUser.role
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Transform the returned data to match our Event type
       const newEvent: Event = {
-        id: Date.now().toString(),
-        title: eventData.title,
-        description: eventData.description,
-        location: eventData.location,
-        date: eventData.date,
-        image: eventData.image || null,
-        privacy: eventPrivacy,
-        price: eventData.price || null,
-        attendees: [currentUser.id],
-        createdAt: new Date(),
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        creatorRole: currentUser.role
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        location: data.location,
+        date: new Date(data.date),
+        image: data.image,
+        privacy: data.privacy as EventPrivacy,
+        price: data.price,
+        attendees: data.attendees || [currentUser.id],
+        createdAt: new Date(data.created_at),
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role
       };
       
+      // Update the local state
       setEvents(prev => [newEvent, ...prev]);
       
       toast({
@@ -818,12 +871,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       // Update attendees list
       const updatedAttendees = eventToUpdate.attendees ? [...eventToUpdate.attendees, currentUser.id] : [currentUser.id];
       
+      // Update the event in Supabase
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees: updatedAttendees })
+        .eq('id', eventId);
+        
+      if (error) throw error;
+      
       // Update the events state
       setEvents(prev => prev.map(e => 
         e.id === eventId 
           ? { ...e, attendees: updatedAttendees } 
           : e
       ));
+      
+      // Post announcement about joining event
+      try {
+        await postAnnouncement(eventId, `${currentUser.name} has joined the event!`);
+      } catch (announcementError) {
+        console.error("Error posting join announcement:", announcementError);
+      }
       
     } catch (error: any) {
       console.error("Error joining event:", error);
@@ -843,12 +911,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         ? eventToUpdate.attendees.filter(id => id !== currentUser.id)
         : [];
       
+      // Update the event in Supabase
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees: updatedAttendees })
+        .eq('id', eventId);
+        
+      if (error) throw error;
+      
       // Update the events state
       setEvents(prev => prev.map(e => 
         e.id === eventId 
           ? { ...e, attendees: updatedAttendees } 
           : e
       ));
+      
+      // Post announcement about leaving event
+      try {
+        await postAnnouncement(eventId, `${currentUser.name} has left the event.`);
+      } catch (announcementError) {
+        console.error("Error posting leave announcement:", announcementError);
+      }
       
     } catch (error: any) {
       console.error("Error leaving event:", error);
@@ -868,19 +951,40 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Only the event creator can delete this event');
       }
       
+      // Delete from Supabase
+      if (reason === 'completed') {
+        // Mark as completed instead of deleting
+        const { error } = await supabase
+          .from('events')
+          .update({ is_completed: true })
+          .eq('id', eventId);
+          
+        if (error) throw error;
+        
+        // Add to completed events
+        setCompletedEvents(prev => [...prev, eventToDelete]);
+      } else {
+        // Delete the event
+        const { error } = await supabase
+          .from('events')
+          .delete()
+          .eq('id', eventId);
+          
+        if (error) throw error;
+      }
+      
       // Remove the event from the state
       setEvents(prev => prev.filter(e => e.id !== eventId));
       
-      // If the event was marked as completed, add it to completedEvents
-      if (reason === 'completed') {
-        const eventToComplete = events.find(e => e.id === eventId);
-        if (eventToComplete) {
-          setCompletedEvents(prev => [...prev, eventToComplete]);
+      // Post announcement about event cancellation if cancelled
+      if (reason === 'cancelled') {
+        try {
+          await postAnnouncement(eventId, `This event has been cancelled by the organizer.`);
+        } catch (announcementError) {
+          console.error("Error posting cancellation announcement:", announcementError);
         }
       }
       
-      // Here you would typically also delete from the database
-      // For now we just log the reason
       console.log(`Event ${eventId} has been ${reason} by creator ${currentUser.id}`);
       
     } catch (error: any) {
@@ -908,6 +1012,91 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
     throw new Error('Not implemented');
   };
+  
+  const createGroup = async (groupData: any): Promise<Group> => {
+    throw new Error('Not implemented');
+  };
+  
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    try {
+      // Find the event to ensure it exists
+      const event = events.find(e => e.id === eventId);
+      if (!event) throw new Error('Event not found');
+      
+      // Create the announcement in Supabase
+      const { data, error } = await supabase
+        .from('event_announcements')
+        .insert({
+          event_id: eventId,
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          content
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Transform the returned data to match our Announcement type
+      const newAnnouncement: Announcement = {
+        id: data.id,
+        eventId: data.event_id,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        content: data.content,
+        createdAt: new Date(data.created_at)
+      };
+      
+      // Add to announcements state
+      setAnnouncements(prev => [newAnnouncement, ...prev]);
+      
+      toast({
+        title: "Announcement posted",
+        description: "Your announcement has been shared with all participants"
+      });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({
+        title: "Error posting announcement",
+        description: error.message || "Failed to post announcement",
+        variant: "destructive"
+      });
+      throw error;
+    }
+  };
+  
+  // Load announcements on component mount
+  React.useEffect(() => {
+    const fetchAnnouncements = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('event_announcements')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        
+        if (data) {
+          const transformedAnnouncements: Announcement[] = data.map((announcement: any) => ({
+            id: announcement.id,
+            eventId: announcement.event_id,
+            creatorId: announcement.creator_id,
+            creatorName: announcement.creator_name,
+            content: announcement.content,
+            createdAt: new Date(announcement.created_at)
+          }));
+          
+          setAnnouncements(transformedAnnouncements);
+        }
+      } catch (error) {
+        console.error("Error fetching announcements:", error);
+      }
+    };
+    
+    fetchAnnouncements();
+  }, []);
   
   const createService = async (serviceData: any): Promise<Service> => {
     if (!currentUser) throw new Error('You must be logged in to create a service');
@@ -1102,50 +1291,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error("Error fetching user services:", error);
       return [];
-    }
-  };
-  
-  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to post an announcement');
-    
-    try {
-      // Find the event to ensure it exists
-      const event = events.find(e => e.id === eventId);
-      if (!event) throw new Error('Event not found');
-      
-      // Ensure user is the creator of the event
-      if (event.creatorId !== currentUser.id) {
-        throw new Error('Only the event creator can post announcements');
-      }
-      
-      // Create the announcement
-      const newAnnouncement: Announcement = {
-        id: Date.now().toString(),
-        eventId,
-        creatorId: currentUser.id,
-        creatorName: currentUser.name,
-        content,
-        createdAt: new Date()
-      };
-      
-      // Add to announcements state
-      setAnnouncements(prev => [newAnnouncement, ...prev]);
-      
-      // In a real app, you would save this to the database
-      console.log('Posted announcement:', newAnnouncement);
-      
-      toast({
-        title: "Announcement posted",
-        description: "Your announcement has been shared with all participants"
-      });
-    } catch (error: any) {
-      console.error("Error posting announcement:", error);
-      toast({
-        title: "Error posting announcement",
-        description: error.message || "Failed to post announcement",
-        variant: "destructive"
-      });
-      throw error;
     }
   };
   
