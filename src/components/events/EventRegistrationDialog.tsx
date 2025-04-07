@@ -38,7 +38,7 @@ const EventRegistrationDialog = ({
     try {
       setIsProcessing(true);
       
-      // First, try to retrieve the attendee record if it exists
+      // First, try to retrieve the attendee record if it exists using a single non-cached query
       const { data: existingReg, error: regError } = await supabase
         .from('event_attendee_details')
         .select('id, payment_status')
@@ -96,10 +96,10 @@ const EventRegistrationDialog = ({
         name: data.name
       });
       
-      // Insert new registration with upsert: false to avoid duplicate key conflicts
-      const { error: insertError } = await supabase
+      // Use transaction or prepared statements to avoid race conditions
+      const { data: insertedReg, error: insertError } = await supabase
         .from('event_attendee_details')
-        .insert({
+        .upsert({
           event_id: eventId,
           user_id: data.userId,
           name: data.name,
@@ -113,7 +113,9 @@ const EventRegistrationDialog = ({
           additional_info: data.additionalInfo,
           profile_image: data.profileImage,
           payment_status: paymentStatus
-        });
+        }, { onConflict: 'event_id,user_id', ignoreDuplicates: false })
+        .select('id')
+        .single();
         
       if (insertError) {
         console.error("Database insertion error:", insertError);
@@ -121,9 +123,9 @@ const EventRegistrationDialog = ({
         // If it's a duplicate key error, it means another registration happened concurrently
         if (insertError.code === '23505') {
           toast({
-            title: "Registration conflicts",
-            description: "Another registration attempt was made. Please try again.",
-            variant: "destructive"
+            title: "Registration conflict",
+            description: "Your registration is being processed. Please wait a moment and try again if needed.",
+            variant: "default"
           });
           onClose();
           return;
@@ -132,7 +134,15 @@ const EventRegistrationDialog = ({
         throw new Error("Registration failed. Please try again.");
       }
       
+      // Successfully registered
       await onSubmit(registrationData);
+      
+      toast({
+        title: "Registration successful",
+        description: isPaidEvent ? "Please proceed with payment." : "You are now registered for this event.",
+        variant: "success"
+      });
+      
       onClose();
     } catch (error: any) {
       console.error("Registration error:", error);

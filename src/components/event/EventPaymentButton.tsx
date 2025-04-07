@@ -87,8 +87,11 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         }
       } catch (error) {
         console.error("Error checking registration:", error);
-        // Show payment modal as fallback
-        setShowPaymentModal(true);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Could not check registration status. Please try again."
+        });
       }
     } else {
       // For free events, join directly
@@ -151,6 +154,18 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
           // Registration doesn't exist yet, so proceed with join
           console.log("No registration found, proceeding with join");
           await onJoin();
+          
+          // Update the payment status after joining
+          const { error } = await supabase
+            .from('event_attendee_details')
+            .update({ payment_status: 'paid' })
+            .eq('event_id', event.id)
+            .eq('user_id', currentUser.id);
+            
+          if (error) {
+            console.error("Error updating payment status after join:", error);
+            // Continue anyway since the user has paid
+          }
         }
       }
       
@@ -172,7 +187,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to register for the event. Please try again."
+        description: "Failed to complete registration after payment. Please contact support."
       });
     } finally {
       setIsProcessing(false);
