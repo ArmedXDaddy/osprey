@@ -8,11 +8,11 @@ import { useToast } from '@/components/ui/use-toast';
 import { Image, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
+import { toast } from 'sonner';
 
 const CreatePost: React.FC = () => {
   const { currentUser } = useAuth();
   const { createPost } = useData();
-  const { toast } = useToast();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -26,10 +26,9 @@ const CreatePost: React.FC = () => {
     if (!file) return;
     
     if (file.size > 5 * 1024 * 1024) { // 5MB limit
-      toast({
-        title: "Image too large",
+      toast("Image too large", {
         description: "Please select an image under 5MB",
-        variant: "destructive"
+        duration: 3000,
       });
       return;
     }
@@ -48,10 +47,9 @@ const CreatePost: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!content.trim() && !selectedImage) {
-      toast({
-        title: "Empty post",
+      toast("Empty post", {
         description: "Please add some text or an image to your post",
-        variant: "destructive"
+        duration: 3000,
       });
       return;
     }
@@ -65,16 +63,15 @@ const CreatePost: React.FC = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      toast({
-        title: "Post created",
-        description: "Your post has been published successfully"
+      toast("Post created", {
+        description: "Your post has been published successfully",
+        duration: 3000,
       });
     } catch (error) {
       console.error('Error creating post:', error);
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to create post. Please try again.",
-        variant: "destructive"
+        duration: 3000,
       });
     } finally {
       setIsSubmitting(false);
