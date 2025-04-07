@@ -1290,7 +1290,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  const updateComment = async (commentId: string, content: string): Promise<void> => {
+  const updateCommentImpl = async (commentId: string, content: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to update a comment');
     
     try {
@@ -1316,7 +1316,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-  const deleteComment = async (commentId: string): Promise<void> => {
+  const deleteCommentImpl = async (commentId: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to delete a comment');
     
     try {
@@ -1372,6 +1372,31 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Placeholder functions for unimplemented methods
+  const createService = (serviceData: any): Promise<Service> => {
+    return Promise.reject('Not implemented');
+  };
+
+  const updateService = (serviceId: string, updates: any): Promise<void> => {
+    return Promise.reject('Not implemented');
+  };
+
+  const deleteService = (serviceId: string): Promise<void> => {
+    return Promise.reject('Not implemented');
+  };
+
+  const sendServiceMessage = (messageData: {serviceId: string; content: string}): Promise<void> => {
+    return Promise.reject('Not implemented');
+  };
+
+  const getServiceMessages = (serviceId: string): Promise<Message[]> => {
+    return Promise.resolve([]);
+  };
+
+  const fetchUserServices = (userId: string): Promise<Service[]> => {
+    return Promise.resolve([]);
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1393,8 +1418,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       likePost,
       unlikePost,
       addComment,
-      updateComment,
-      deleteComment,
+      updateComment: updateCommentImpl,
+      deleteComment: deleteCommentImpl,
       createEvent,
       joinEvent,
       leaveEvent,
@@ -1444,3 +1469,5 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     </DataContext.Provider>
   );
 };
+
+export default DataProvider;
