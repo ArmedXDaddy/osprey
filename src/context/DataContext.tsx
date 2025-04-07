@@ -1109,7 +1109,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         userId: request.user_id,
         userName: request.user_name,
         userProfileImage: request.user_profile_image,
-        status: request.status,
+        status: request.status as "pending" | "approved" | "rejected",
         createdAt: new Date(request.created_at)
       }));
     } catch (error: any) {
@@ -1158,7 +1158,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         creatorId: currentUser.id,
         creatorName: currentUser.name,
         creatorRole: currentUser.role,
-        members: [currentUser.id],
+        members: 1,
         memberIds: [currentUser.id],
         image: groupData.image,
         privacy: groupData.privacy,
@@ -1437,28 +1437,27 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Placeholder functions for unimplemented methods
-  const createService = (serviceData: any): Promise<Service> => {
-    return Promise.reject('Not implemented');
+  const createService = async (serviceData: any): Promise<Service> => {
+    throw new Error('Not implemented');
   };
 
-  const updateService = (serviceId: string, updates: any): Promise<void> => {
-    return Promise.reject('Not implemented');
+  const updateService = async (serviceId: string, updates: any): Promise<void> => {
+    throw new Error('Not implemented');
   };
 
-  const deleteService = (serviceId: string): Promise<void> => {
-    return Promise.reject('Not implemented');
+  const deleteService = async (serviceId: string): Promise<void> => {
+    throw new Error('Not implemented');
   };
 
-  const sendServiceMessage = (messageData: {serviceId: string; content: string}): Promise<void> => {
-    return Promise.reject('Not implemented');
+  const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
+    throw new Error('Not implemented');
   };
 
-  const getServiceMessages = (serviceId: string): Promise<Message[]> => {
+  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
     return Promise.resolve([]);
   };
 
-  const fetchUserServices = (userId: string): Promise<Service[]> => {
+  const fetchUserServices = async (userId: string): Promise<Service[]> => {
     return Promise.resolve([]);
   };
 
