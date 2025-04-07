@@ -57,8 +57,8 @@ const EventRegistrationDialog = ({
       }
       
       // Add payment status based on event type
-      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid';
-      const registrationData = {
+      const paymentStatus = isPaidEvent ? 'unpaid' as const : 'not_required' as const;
+      const registrationData: EventRegistration = {
         ...data,
         paymentStatus
       };
