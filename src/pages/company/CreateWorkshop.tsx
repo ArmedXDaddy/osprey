@@ -44,7 +44,7 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
-const CreateWorkshop = () => {
+export const CreateWorkshop = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
