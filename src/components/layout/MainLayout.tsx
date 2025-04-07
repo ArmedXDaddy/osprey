@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { NavLink } from 'react-router-dom';
 import { 
   Home, 
@@ -31,11 +30,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { toast } from '@/components/ui/use-toast';
 import { useTheme } from '@/pages/Settings';
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-}
-
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+const MainLayout: React.FC = () => {
   const { currentUser, isLoading, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -72,10 +67,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  if (location.pathname.startsWith('/auth')) {
-    return <>{children}</>;
-  }
-
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -93,7 +84,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const NavigationLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
     <NavLink 
       to={to} 
-      onClick={() => isMobile && setMobileMenuOpen(false)}
       className={({ isActive }) => 
         `flex items-center gap-2 py-2 px-3 rounded-md transition-colors ${
           isActive ? 'bg-primary/10 text-primary' : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
@@ -134,7 +124,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           
           <div className="flex-1 overflow-auto p-4">
             <nav className="space-y-1">
-              <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+              <NavigationLink to="/home" icon={<Home size={18} />} label="Home" />
               <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
               <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
               <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
@@ -190,7 +180,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <h1 className="text-xl font-semibold mb-8 gradient-text">Osprey</h1>
           
           <nav className="space-y-1 flex-1">
-            <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+            <NavigationLink to="/home" icon={<Home size={18} />} label="Home" />
             <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
             <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
             <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
@@ -266,7 +256,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         
         <main className="flex-1">
           <div className="max-w-5xl mx-auto py-4 px-3 sm:px-4 md:py-5">
-            {children}
+            <Outlet />
           </div>
         </main>
       </div>
@@ -300,7 +290,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               
               <div className="flex-1 overflow-auto p-4">
                 <nav className="space-y-1">
-                  <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+                  <NavigationLink to="/home" icon={<Home size={18} />} label="Home" />
                   <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
                   <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
                   <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />

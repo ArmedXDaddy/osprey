@@ -18,7 +18,7 @@ const Login = () => {
   // Redirect if user is already logged in
   useEffect(() => {
     if (currentUser) {
-      navigate('/');
+      navigate('/home');
     }
   }, [currentUser, navigate]);
 
@@ -36,7 +36,7 @@ const Login = () => {
       const result = await login(email, password);
       if (result) {
         toast.success('Login successful!');
-        navigate('/');
+        navigate('/home');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -51,7 +51,7 @@ const Login = () => {
           const retryResult = await login(email, password);
           if (retryResult) {
             toast.success('Login successful!');
-            navigate('/');
+            navigate('/home');
           } else {
             toast.error('Login failed. Please check your credentials.');
           }
@@ -68,17 +68,19 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8 dark:bg-gray-900">
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold gradient-text">Osprey</h1>
-          <p className="mt-2 text-gray-600">
-            The ultimate platform for women's fitness & collaboration
-          </p>
+          <Link to="/" className="inline-block">
+            <h1 className="text-4xl font-bold gradient-text">Osprey</h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              The ultimate platform for women's fitness & collaboration
+            </p>
+          </Link>
         </div>
 
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h2 className="text-2xl font-bold text-center mb-6">Login</h2>
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md">
+          <h2 className="text-2xl font-bold text-center mb-6 dark:text-white">Login</h2>
           
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -113,10 +115,18 @@ const Login = () => {
           </form>
           
           <div className="mt-6">
-            <p className="text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
               Don't have an account?{' '}
               <Link to="/auth/register" className="text-primary hover:underline">
                 Register
+              </Link>
+            </p>
+          </div>
+          
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400">
+              <Link to="/" className="text-primary hover:underline">
+                Back to home page
               </Link>
             </p>
           </div>

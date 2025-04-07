@@ -3,13 +3,14 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { DataProvider } from "@/context/DataContext";
 import MainLayout from "@/components/layout/MainLayout";
 import { ThemeProvider } from "@/pages/Settings";
 
 // Pages
+import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
 import Events from "./pages/Events";
@@ -65,9 +66,11 @@ const App = () => (
             <Toaster />
             <Sonner />
             <BrowserRouter>
-              <MainLayout>
-                <Routes>
-                  <Route path="/" element={<Index />} />
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                
+                <Route element={<MainLayout />}>
+                  <Route path="/home" element={<Index />} />
                   <Route path="/explore" element={<Explore />} />
                   <Route path="/networking" element={<Networking />} />
                   <Route path="/events" element={<Events />} />
@@ -87,8 +90,6 @@ const App = () => (
                   <Route path="/profile" element={<Profile />} />
                   <Route path="/profile/:id" element={<Profile />} />
                   <Route path="/settings" element={<Settings />} />
-                  <Route path="/auth/login" element={<Login />} />
-                  <Route path="/auth/register" element={<Register />} />
                   
                   {/* Jobs Routes */}
                   <Route path="/jobs" element={<JobPostings />} />
@@ -121,10 +122,12 @@ const App = () => (
                   <Route path="/company/workshops/:id" element={<WorkshopDetail />} />
                   <Route path="/company/profile" element={<Profile />} />
                   <Route path="/company/profile/:id" element={<Profile />} />
-                  
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </MainLayout>
+                </Route>
+                
+                <Route path="/auth/login" element={<Login />} />
+                <Route path="/auth/register" element={<Register />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
             </BrowserRouter>
           </DataProvider>
         </ThemeProvider>
