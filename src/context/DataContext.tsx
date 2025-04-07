@@ -9,7 +9,8 @@ import {
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
-  uploadImage, updateComment, deleteComment 
+  uploadImage, updateComment as updateCommentHelper, 
+  deleteComment as deleteCommentHelper 
 } from '@/integrations/supabase/helpers';
 import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
@@ -1293,6 +1294,240 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const createPost = async (content: string, imageFile?: File | null): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to create a post');
+    
+    try {
+      setLoading(true);
+      
+      // Upload image if provided
+      let imageUrl = null;
+      if (imageFile) {
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(`${Date.now()}-${imageFile.name}`, imageFile);
+          
+        if (uploadError) throw uploadError;
+        
+        if (uploadData) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('posts')
+            .getPublicUrl(uploadData.path);
+            
+          imageUrl = publicUrl;
+        }
+      }
+      
+      // Insert post into database
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          content,
+          image: imageUrl,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage,
+          likes_count: 0,
+          comments_count: 0
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Transform to Post type and add to state
+      const newPost: Post = {
+        id: data.id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role as UserRole,
+        userProfileImage: data.user_profile_image,
+        content: data.content,
+        image: data.image,
+        likes: data.likes_count || 0,
+        comments: data.comments_count || 0,
+        userLikes: [],
+        createdAt: new Date(data.created_at)
+      };
+      
+      setPosts(prev => [newPost, ...prev]);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Error creating post:', err);
+      setError(err);
+      setLoading(false);
+      throw err;
+    }
+  };
+  
+  const likePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to like a post');
+    
+    try {
+      // Insert into post_likes table
+      const { error } = await supabase
+        .from('post_likes')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id
+        });
+        
+      if (error) throw error;
+      
+      // No need to update local state as the real-time subscription will handle it
+    } catch (err: any) {
+      console.error('Error liking post:', err);
+      throw err;
+    }
+  };
+  
+  const unlikePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to unlike a post');
+    
+    try {
+      // Delete from post_likes table
+      const { error } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+        
+      if (error) throw error;
+      
+      // No need to update local state as the real-time subscription will handle it
+    } catch (err: any) {
+      console.error('Error unliking post:', err);
+      throw err;
+    }
+  };
+  
+  const addComment = async (postId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to add a comment');
+    
+    try {
+      // Insert into comments table
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          content,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      // Transform to Comment type
+      const newComment: Comment = {
+        id: data.id,
+        postId: data.post_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role as UserRole,
+        userProfileImage: data.user_profile_image,
+        content: data.content,
+        createdAt: new Date(data.created_at)
+      };
+      
+      // Update posts state to increment comment count
+      setPosts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, comments: post.comments + 1 } 
+            : post
+        )
+      );
+      
+      // Update postComments state
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        if (!updatedComments[postId]) {
+          updatedComments[postId] = [];
+        }
+        updatedComments[postId] = [newComment, ...updatedComments[postId]];
+        return updatedComments;
+      });
+    } catch (err: any) {
+      console.error('Error adding comment:', err);
+      throw err;
+    }
+  };
+  
+  const updateComment = async (commentId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a comment');
+    
+    try {
+      await updateCommentHelper(commentId, content);
+      
+      // Update local state
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        
+        // Find which post contains this comment
+        for (const postId in updatedComments) {
+          updatedComments[postId] = updatedComments[postId].map(comment => 
+            comment.id === commentId 
+              ? { ...comment, content } 
+              : comment
+          );
+        }
+        
+        return updatedComments;
+      });
+    } catch (err: any) {
+      console.error('Error updating comment:', err);
+      throw err;
+    }
+  };
+  
+  const deleteComment = async (commentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a comment');
+    
+    try {
+      // Get comment details to find its post
+      const { data: commentData, error: commentError } = await supabase
+        .from('comments')
+        .select('post_id')
+        .eq('id', commentId)
+        .single();
+        
+      if (commentError) throw commentError;
+      
+      // Delete the comment
+      await deleteCommentHelper(commentId);
+      
+      const postId = commentData.post_id;
+      
+      // Update posts state to decrement comment count
+      setPosts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, comments: Math.max(0, post.comments - 1) } 
+            : post
+        )
+      );
+      
+      // Update postComments state
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        if (updatedComments[postId]) {
+          updatedComments[postId] = updatedComments[postId].filter(
+            comment => comment.id !== commentId
+          );
+        }
+        return updatedComments;
+      });
+    } catch (err: any) {
+      console.error('Error deleting comment:', err);
+      throw err;
+    }
+  };
+  
   return (
     <DataContext.Provider value={{
       posts,
@@ -1310,21 +1545,21 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       completedEvents,
       announcements,
       postAnnouncement,
-      createPost: async () => { throw new Error('Not implemented'); },
-      likePost: async () => { throw new Error('Not implemented'); },
-      unlikePost: async () => { throw new Error('Not implemented'); },
-      addComment: async () => { throw new Error('Not implemented'); },
-      updateComment: async () => { throw new Error('Not implemented'); },
-      deleteComment: async () => { throw new Error('Not implemented'); },
+      createPost,
+      likePost,
+      unlikePost,
+      addComment,
+      updateComment,
+      deleteComment,
       createEvent,
       joinEvent,
       leaveEvent,
       deleteEvent,
-      requestToJoinEvent: async () => { throw new Error('Not implemented'); },
-      approveEventRequest: async () => { throw new Error('Not implemented'); },
-      rejectEventRequest: async () => { throw new Error('Not implemented'); },
-      getEventRequests: async () => { return []; },
-      handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
+      requestToJoinEvent,
+      approveEventRequest,
+      rejectEventRequest,
+      getEventRequests,
+      handleEventJoinRequest,
       createGroup,
       joinGroup,
       leaveGroup,
