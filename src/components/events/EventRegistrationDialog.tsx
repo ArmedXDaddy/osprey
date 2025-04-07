@@ -39,7 +39,7 @@ const EventRegistrationDialog = ({
       setIsProcessing(true);
       
       // Add payment status based on event type
-      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid';
+      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid' as 'paid' | 'unpaid' | 'refunded';
       const registrationData = {
         ...data,
         paymentStatus

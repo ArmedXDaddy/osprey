@@ -32,6 +32,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   onJoin 
 }) => {
   const { currentUser } = useAuth();
+  const { toast } = useToast();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showVerificationCode, setShowVerificationCode] = useState(false);
