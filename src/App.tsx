@@ -47,6 +47,13 @@ import JobPostingDetail from "./pages/company/JobPostingDetail";
 import ProductDetail from "./pages/company/ProductDetail";
 import WorkshopDetail from "./pages/company/WorkshopDetail";
 
+// Sponsorships Pages
+import Sponsorships from "./pages/sponsorships/Sponsorships";
+import SponsorshipDetail from "./pages/sponsorships/SponsorshipDetail";
+import CreateSponsorship from "./pages/sponsorships/CreateSponsorship";
+import SponsorshipApplications from "./pages/sponsorships/SponsorshipApplications";
+import MyApplications from "./pages/sponsorships/MyApplications";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -94,6 +101,13 @@ const App = () => (
                   {/* Workshops Routes */}
                   <Route path="/workshops" element={<Workshops />} />
                   <Route path="/workshops/:id" element={<WorkshopDetail />} />
+                  
+                  {/* Sponsorships Routes */}
+                  <Route path="/sponsorships" element={<Sponsorships />} />
+                  <Route path="/sponsorships/create" element={<CreateSponsorship />} />
+                  <Route path="/sponsorships/:id" element={<SponsorshipDetail />} />
+                  <Route path="/sponsorships/:id/applications" element={<SponsorshipApplications />} />
+                  <Route path="/sponsorships/my-applications" element={<MyApplications />} />
                   
                   {/* Company Routes - redirected through individual management pages */}
                   <Route path="/company/jobs" element={<JobPostings />} />
