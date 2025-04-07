@@ -100,6 +100,7 @@ interface DataContextType {
   ) => Promise<SponsorshipApplication | null>;
   fetchUserSponsorshipApplications: () => Promise<void>;
   fetchSponsorshipApplications: (sponsorshipId: string) => Promise<SponsorshipApplication[]>;
+  fetchPosts: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -1374,6 +1375,58 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (postsError) {
+        console.error("Error fetching posts:", postsError);
+        return;
+      }
+      
+      if (postsData && postsData.length > 0) {
+        const transformedPosts: Post[] = postsData.map((post: any) => ({
+          id: post.id,
+          userId: post.user_id,
+          userName: post.user_name,
+          userRole: post.user_role,
+          userProfileImage: post.user_profile_image,
+          content: post.content,
+          image: post.image,
+          likes: post.likes_count || 0,
+          comments: post.comments_count || 0,
+          userLikes: [],
+          createdAt: new Date(post.created_at)
+        }));
+        
+        for (const post of transformedPosts) {
+          const { data: likesData, error: likesError } = await supabase
+            .from('post_likes')
+            .select('user_id')
+            .eq('post_id', post.id);
+            
+          if (!likesError && likesData) {
+            post.userLikes = likesData.map((like: any) => like.user_id);
+          }
+        }
+        
+        setPosts(transformedPosts);
+        
+        fetchCommentsForPosts(postsData.map((post: any) => post.id));
+      }
+      
+      setLoading(false);
+    } catch (err: any) {
+      console.error("Error in fetchPosts:", err);
+      setLoading(false);
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1447,6 +1500,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       applyToSponsorship,
       fetchUserSponsorshipApplications,
       fetchSponsorshipApplications,
+      fetchPosts,
     }}>
       {children}
     </DataContext.Provider>
