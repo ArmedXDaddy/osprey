@@ -1303,11 +1303,32 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       // Upload image if provided
       let imageUrl = null;
       if (imageFile) {
+        // Check if posts bucket exists, create it if not
+        const { data: bucketExists } = await supabase.storage
+          .getBucket('posts');
+          
+        if (!bucketExists) {
+          const { error: createBucketError } = await supabase.storage
+            .createBucket('posts', { public: true });
+            
+          if (createBucketError) {
+            console.error('Error creating bucket:', createBucketError);
+            throw new Error('Failed to create storage for images');
+          }
+        }
+        
+        // Upload the file
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('posts')
-          .upload(`${Date.now()}-${imageFile.name}`, imageFile);
+          .upload(fileName, imageFile);
           
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw uploadError;
+        }
         
         if (uploadData) {
           const { data: { publicUrl } } = supabase.storage
@@ -1334,7 +1355,10 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
         .select()
         .single();
         
-      if (error) throw error;
+      if (error) {
+        console.error('Post creation error:', error);
+        throw error;
+      }
       
       // Transform to Post type and add to state
       const newPost: Post = {

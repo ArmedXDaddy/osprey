@@ -1,3 +1,4 @@
+
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,11 +69,11 @@ const CreatePost: React.FC = () => {
         title: "Post created",
         description: "Your post has been published successfully"
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating post:', error);
       toast({
         title: "Error",
-        description: "Failed to create post. Please try again.",
+        description: error.message || "Failed to create post. Please try again.",
         variant: "destructive"
       });
     } finally {
