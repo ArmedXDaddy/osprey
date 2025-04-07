@@ -1,2 +1,2 @@
 
-export type GroupPrivacy = 'public' | 'private' | 'hidden';
+export type GroupPrivacy = 'public' | 'private' | 'hidden' | 'paid';

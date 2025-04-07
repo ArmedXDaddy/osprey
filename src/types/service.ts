@@ -1,7 +1,7 @@
 
-export type ServiceType = 'one-on-one' | 'group' | 'course' | 'consultation' | 'other';
+export type ServiceType = 'one_on_one' | 'group' | 'course' | 'consultation' | 'webinar' | 'other';
 
-export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled';
+export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'failed';
 
 export interface Workshop {
@@ -10,26 +10,35 @@ export interface Workshop {
   description: string;
   companyId: string;
   companyName: string;
+  companyLogo?: string;
   date: Date;
   location: string;
   capacity: number;
   price: number;
+  duration: string;
   isOnline: boolean;
   meetingUrl?: string;
   coverImage?: string;
-  registrations: number;
+  image?: string;
+  category?: string;
+  tags?: string[];
+  registrations?: number;
   createdAt: Date;
 }
 
 export interface Product {
   id: string;
-  name: string;
+  title: string;
+  name?: string;
   description: string;
-  price: number;
+  price: number | string;
   companyId: string;
   companyName: string;
+  companyLogo?: string;
   imageUrl?: string;
-  category: string;
+  image?: string;
+  category?: string;
+  tags?: string[];
   createdAt: Date;
 }
 

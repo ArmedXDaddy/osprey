@@ -10,6 +10,7 @@ export interface User {
   email: string;
   role: UserRole;
   profileImage?: string;
+  coverImage?: string;
   bio?: string;
   location?: string;
   interests?: string[];
@@ -114,6 +115,7 @@ export interface SessionEnrollment {
   sessionId: string;
   userId: string;
   userName: string;
+  userEmail?: string;
   userProfileImage?: string;
   status: string;
   paymentStatus: string;
@@ -136,6 +138,8 @@ export interface JoinRequest {
   id: string;
   entityId: string;
   entityType: 'group' | 'event';
+  eventId?: string;
+  groupId?: string;
   userId: string;
   userName: string;
   userProfileImage?: string;
@@ -160,6 +164,8 @@ export interface Booking {
   duration?: string;
   isOnline?: boolean;
   serviceType?: string;
+  preferredTime?: Date;
+  scheduledTime?: Date;
 }
 
 export interface Comment {

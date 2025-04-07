@@ -1,7 +1,8 @@
+
 import { UserRole } from './user';
-import { EventPrivacy } from './event';
+import { EventPrivacy, AttendeeDetail, EventRegistration } from './event';
 import { GroupPrivacy } from './group';
-import { ServiceType } from './service';
+import { ServiceType, BookingStatus, PaymentStatus, Workshop, Product, SessionStatus } from './service';
 import {
   User,
   Event,
@@ -14,7 +15,8 @@ import {
   JoinRequest,
   Booking,
   Comment,
-  Announcement
+  Announcement,
+  JobPosting
 } from './models';
 
 // Import and re-export from sponsorship.ts
@@ -25,6 +27,8 @@ export type {
   EventPrivacy,
   GroupPrivacy,
   ServiceType,
+  BookingStatus,
+  PaymentStatus,
   User,
   Event,
   Post,
@@ -38,5 +42,11 @@ export type {
   Comment,
   Announcement,
   Sponsorship,
-  SponsorshipApplication
+  SponsorshipApplication,
+  AttendeeDetail,
+  EventRegistration,
+  Workshop,
+  Product,
+  SessionStatus,
+  JobPosting
 };
