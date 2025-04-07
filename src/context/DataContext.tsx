@@ -999,10 +999,13 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     
     try {
       const { error: requestError } = await supabase
-        .from('event_requests')
+        .from('join_requests')
         .insert({
           event_id: eventId,
-          user_id: currentUser.id
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_profile_image: currentUser.profileImage,
+          status: 'pending'
         });
         
       if (requestError) throw requestError;
@@ -1027,11 +1030,27 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     
     try {
       const { error: updateError } = await supabase
-        .from('event_requests')
+        .from('join_requests')
         .update({ status: 'approved' })
         .eq('id', requestId);
         
       if (updateError) throw updateError;
+      
+      const eventToUpdate = events.find(e => e.id === eventId);
+      if (eventToUpdate) {
+        const attendees = eventToUpdate.attendees || [];
+        if (!attendees.includes(userId)) {
+          const { error: eventUpdateError } = await supabase
+            .from('events')
+            .update({ 
+              attendees: [...attendees, userId],
+              pending_requests: Math.max((eventToUpdate.pendingRequests || 0) - 1, 0)
+            })
+            .eq('id', eventId);
+            
+          if (eventUpdateError) throw eventUpdateError;
+        }
+      }
       
       toast({
         title: "Request approved",
@@ -1053,7 +1072,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     
     try {
       const { error: updateError } = await supabase
-        .from('event_requests')
+        .from('join_requests')
         .update({ status: 'rejected' })
         .eq('id', requestId);
         
@@ -1075,11 +1094,57 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    return [];
+    try {
+      const { data, error } = await supabase
+        .from('join_requests')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('status', 'pending');
+        
+      if (error) throw error;
+      
+      return (data || []).map(request => ({
+        id: request.id,
+        eventId: request.event_id,
+        userId: request.user_id,
+        userName: request.user_name,
+        userProfileImage: request.user_profile_image,
+        status: request.status,
+        createdAt: new Date(request.created_at)
+      }));
+    } catch (error: any) {
+      console.error("Error fetching event requests:", error);
+      return [];
+    }
   };
   
   const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    throw new Error('Not implemented');
+    try {
+      const { data, error } = await supabase
+        .from('join_requests')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', userId)
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        if (status === 'approved') {
+          await approveEventRequest(data.id, eventId, userId);
+        } else {
+          await rejectEventRequest(data.id);
+        }
+      }
+    } catch (error: any) {
+      console.error("Error handling event join request:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to handle join request",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to handle join request');
+    }
   };
   
   const createGroup = async (groupData: any): Promise<Group> => {
