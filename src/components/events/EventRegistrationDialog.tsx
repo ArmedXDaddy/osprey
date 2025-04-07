@@ -11,6 +11,7 @@ import { EventRegistration } from '@/types';
 import EventRegistrationForm from './EventRegistrationForm';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
 
 interface EventRegistrationDialogProps {
   isOpen: boolean;
@@ -29,17 +30,45 @@ const EventRegistrationDialog = ({
 }: EventRegistrationDialogProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   
   const handleSubmit = async (data: EventRegistration) => {
     try {
+      if (!currentUser) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to register for this event",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       setIsProcessing(true);
+      
+      // Check if the user is already registered
+      const { data: existingRegistration } = await supabase
+        .from('event_attendee_details')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+        
+      if (existingRegistration) {
+        toast({
+          title: "Already registered",
+          description: "You have already registered for this event",
+          variant: "default"
+        });
+        onClose();
+        return;
+      }
       
       // Store registration details in the database
       const { error } = await supabase
         .from('event_attendee_details')
         .insert({
           event_id: eventId,
-          user_id: data.userId,
+          user_id: currentUser.id,
           name: data.name,
           email: data.email,
           age: data.age,
@@ -53,11 +82,17 @@ const EventRegistrationDialog = ({
         });
         
       if (error) {
-        throw error;
+        console.error("Registration database error:", error);
+        throw new Error(error.message || "Error storing registration details");
       }
       
       await onSubmit(data);
       onClose();
+      
+      toast({
+        title: "Registration successful",
+        description: "You have successfully registered for the event",
+      });
     } catch (error: any) {
       console.error("Registration error:", error);
       toast({
