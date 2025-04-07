@@ -1324,7 +1324,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     sponsorshipId: string, 
     applicationData: Partial<SponsorshipApplication>
   ): Promise<SponsorshipApplication | null> => {
-    if (!currentUser || !['user', 'influencer', 'coach'].includes(currentUser.role as string)) {
+    if (!currentUser || !(['user', 'influencer', 'coach'] as UserRole[]).includes(currentUser.role as UserRole)) {
       throw new Error('Only users, influencers, and coaches can apply for sponsorships');
     }
     
