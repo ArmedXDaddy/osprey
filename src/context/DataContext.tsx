@@ -655,44 +655,44 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
-const deleteGroup = async (groupId: string) => {
-  try {
-    // First, delete all messages associated with the group
-    const { error: messagesError } = await supabase
-      .from('messages')
-      .delete()
-      .eq('group_id', groupId);
+  const deleteGroup = async (groupId: string) => {
+    try {
+      // First, delete all messages associated with the group
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('group_id', groupId);
       
-    if (messagesError) {
-      console.error("Error deleting group messages:", messagesError);
-      throw messagesError;
+      if (messagesError) {
+        console.error("Error deleting group messages:", messagesError);
+        throw messagesError;
+      }
+      
+      // Then delete the group itself
+      const { error } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', groupId);
+      
+      if (error) throw error;
+      
+      // Update the local state
+      const updatedGroups = groups.filter(group => group.id !== groupId);
+      setGroups(updatedGroups);
+      
+      toast({
+        title: "Group deleted",
+        description: "The group has been successfully deleted.",
+      });
+    } catch (error) {
+      console.error("Error deleting group:", error);
+      toast({
+        title: "Error",
+        description: "There was an error deleting the group. Please try again.",
+        variant: "destructive",
+      });
     }
-    
-    // Then delete the group itself
-    const { error } = await supabase
-      .from('groups')
-      .delete()
-      .eq('id', groupId);
-    
-    if (error) throw error;
-    
-    // Update the local state
-    const updatedGroups = groups.filter(group => group.id !== groupId);
-    setGroups(updatedGroups);
-    
-    toast({
-      title: "Group deleted",
-      description: "The group has been successfully deleted.",
-    });
-  } catch (error) {
-    console.error("Error deleting group:", error);
-    toast({
-      title: "Error",
-      description: "There was an error deleting the group. Please try again.",
-      variant: "destructive",
-    });
-  }
-};
+  };
   
   const sendMessage = async (messageData: {groupId: string; content: string}): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to send a message');
@@ -899,3 +899,106 @@ const deleteGroup = async (groupId: string) => {
       
       // Check if user is already attending
       if (eventToUpdate.attendees && eventToUpdate.attendees.includes(currentUser.id)) {
+
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    try {
+      const newAnnouncement: Announcement = {
+        id: Date.now().toString(),
+        eventId,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        content,
+        createdAt: new Date()
+      };
+      
+      setAnnouncements(prev => [...prev, newAnnouncement]);
+      
+      toast({
+        title: "Announcement posted",
+        description: "Your announcement has been posted successfully"
+      });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({
+        variant: "destructive",
+        title: "Error posting announcement",
+        description: error.message || "Failed to post announcement"
+      });
+      throw error;
+    }
+  };
+
+  return (
+    <DataContext.Provider value={{
+      posts,
+      events,
+      groups,
+      services,
+      sessions,
+      sessionEnrollments,
+      messages,
+      setMessages,
+      joinRequests,
+      loading,
+      error,
+      postComments,
+      completedEvents,
+      announcements,
+      postAnnouncement,
+      createPost,
+      likePost,
+      unlikePost,
+      addComment,
+      updateComment,
+      deleteComment,
+      createEvent,
+      joinEvent,
+      leaveEvent,
+      deleteEvent,
+      requestToJoinEvent,
+      approveEventRequest,
+      rejectEventRequest,
+      getEventRequests,
+      handleEventJoinRequest,
+      createGroup,
+      joinGroup,
+      leaveGroup,
+      requestToJoinGroup,
+      approveGroupRequest,
+      rejectGroupRequest,
+      getGroupRequests,
+      handleJoinRequest,
+      removeGroupMember,
+      updateGroupDetails,
+      deleteGroup,
+      createSession,
+      enrollInSession,
+      cancelEnrollment,
+      approveEnrollment,
+      rejectEnrollment,
+      getUserSessions,
+      getCoachSessions,
+      getUserEnrollments,
+      updateSession,
+      updateEnrollmentStatus,
+      sendMessage,
+      getServiceById,
+      bookService,
+      cancelBooking: cancelBookingImpl,
+      getUserBookings: getUserBookingsImpl,
+      getServiceBookings: getServiceBookingsImpl,
+      createService,
+      updateService,
+      deleteService,
+      approveBooking: approveBookingImpl,
+      sendServiceMessage,
+      getServiceMessages,
+      getUserBookingForService: getUserBookingForServiceImpl,
+      fetchUserServices
+    }}>
+      {children}
+    </DataContext.Provider>
+  );
+};
