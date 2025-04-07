@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -46,9 +47,6 @@ import JobPostingDetail from "./pages/company/JobPostingDetail";
 import ProductDetail from "./pages/company/ProductDetail";
 import WorkshopDetail from "./pages/company/WorkshopDetail";
 
-// New Edit Group Page
-import EditGroup from "./pages/EditGroup";
-
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -70,8 +68,7 @@ const App = () => (
                   <Route path="/create-event" element={<CreateEvent />} />
                   <Route path="/groups" element={<Groups />} />
                   <Route path="/groups/:id" element={<GroupDetail />} />
-                  <Route path="/groups/create" element={<CreateGroup />} />
-                  <Route path="/groups/:id/edit" element={<EditGroup />} />
+                  <Route path="/create-group" element={<CreateGroup />} />
                   <Route path="/sessions" element={<Sessions />} />
                   <Route path="/sessions/:id" element={<SessionDetail />} />
                   <Route path="/sessions/create" element={<CreateSession />} />
@@ -85,7 +82,6 @@ const App = () => (
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/auth/login" element={<Login />} />
                   <Route path="/auth/register" element={<Register />} />
-                  <Route path="/create-group" element={<CreateGroup />} />
                   
                   {/* Jobs Routes */}
                   <Route path="/jobs" element={<JobPostings />} />

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
@@ -16,21 +16,14 @@ const Services = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [localServices, setLocalServices] = useState<Service[]>([]);
 
   const isCoach = currentUser?.role === 'coach';
-
-  useEffect(() => {
-    // Update localServices whenever the services from context change
-    setLocalServices(services);
-    console.log("Services updated:", services);
-  }, [services]);
 
   const handleCreateService = () => {
     navigate('/services/create');
   };
 
-  const filteredServices = localServices.filter(service => {
+  const filteredServices = services.filter(service => {
     const matchesSearch = service.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           service.description?.toLowerCase().includes(searchQuery.toLowerCase());
     

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -11,7 +12,11 @@ import { Calendar, Clock, MapPin, Users, Share2, ArrowLeft, Check, X } from 'luc
 import { toast } from '@/hooks/use-toast';
 import EventAnnouncements from '@/components/events/EventAnnouncements';
 import EventAttendees from '@/components/events/EventAttendees';
-import { AttendeeDetail } from '@/types';
+import EventPaymentButton from '@/components/event/EventPaymentButton';
+import EventRegistrationDialog from '@/components/events/EventRegistrationDialog';
+import EventAttendeesDetail from '@/components/events/EventAttendeesDetail';
+import { AttendeeDetail, EventRegistration } from '@/types';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,6 +25,8 @@ const EventDetail = () => {
   const navigate = useNavigate();
   const [isAttending, setIsAttending] = useState(false);
   const [attendeeDetails, setAttendeeDetails] = useState<AttendeeDetail[]>([]);
+  const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
+  const [showRegistration, setShowRegistration] = useState(false);
   
   const event = events.find(e => e.id === id);
   
@@ -41,17 +48,25 @@ const EventDetail = () => {
       const isUserAttending = event.attendees.includes(currentUser.id);
       setIsAttending(isUserAttending);
       
-      const mockFetchAttendeeDetails = () => {
-        return event.attendees.map((attendeeId, index) => ({
-          id: attendeeId,
-          name: attendeeId === currentUser.id ? currentUser.name : `Attendee ${index + 1}`,
-          profileImage: attendeeId === currentUser.id 
-            ? currentUser.profileImage 
-            : undefined
-        }));
-      };
+      // Use only real attendee data - no mock data
+      const realAttendeeDetails: AttendeeDetail[] = [];
+      const realRegistrations: EventRegistration[] = [];
       
-      setAttendeeDetails(mockFetchAttendeeDetails());
+      // If we have attendee details and registrations in the event, use those
+      if (event.attendeeDetails && event.attendeeDetails.length > 0) {
+        event.attendeeDetails.forEach(attendee => {
+          realAttendeeDetails.push(attendee);
+        });
+      }
+      
+      if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
+        event.attendeeRegistrations.forEach(registration => {
+          realRegistrations.push(registration);
+        });
+      }
+      
+      setAttendeeDetails(realAttendeeDetails);
+      setRegistrations(realRegistrations);
     }
   }, [currentUser, event]);
   
@@ -67,33 +82,89 @@ const EventDetail = () => {
       return;
     }
     
-    try {
-      if (isAttending) {
+    if (isAttending) {
+      try {
         await leaveEvent(event.id);
         setIsAttending(false);
         setAttendeeDetails(prevDetails => 
           prevDetails.filter(attendee => attendee.id !== currentUser.id)
         );
-      } else {
-        await joinEvent(event.id);
-        setIsAttending(true);
-        if (currentUser) {
-          setAttendeeDetails(prevDetails => [
-            ...prevDetails, 
-            {
-              id: currentUser.id,
-              name: currentUser.name,
-              profileImage: currentUser.profileImage
-            }
-          ]);
-        }
+        setRegistrations(prevRegs => 
+          prevRegs.filter(reg => reg.userId !== currentUser.id)
+        );
+        toast({
+          title: "You're no longer attending",
+          description: "You've been removed from the attendee list."
+        });
+      } catch (error: any) {
+        toast({
+          title: "Error",
+          description: error.message || "An error occurred",
+          variant: "destructive"
+        });
       }
+    } else {
+      setShowRegistration(true);
+    }
+  };
+  
+  const handleRegister = async (registrationData: EventRegistration) => {
+    try {
+      // In a real app, we would save the registration to the backend
+      // For now, we'll just update the local state
+      await joinEvent(event.id);
+      setIsAttending(true);
+      
+      if (currentUser) {
+        // Add user to attendee list with proper details
+        const newAttendeeDetail: AttendeeDetail = {
+          id: currentUser.id,
+          name: registrationData.name, // Use the name from the registration form
+          profileImage: currentUser.profileImage
+        };
+        
+        // Update attendee details
+        setAttendeeDetails(prevDetails => {
+          // Check if the user is already in the list
+          const existingIndex = prevDetails.findIndex(a => a.id === currentUser.id);
+          if (existingIndex >= 0) {
+            // Replace existing entry
+            const updatedDetails = [...prevDetails];
+            updatedDetails[existingIndex] = newAttendeeDetail;
+            return updatedDetails;
+          } else {
+            // Add new entry
+            return [...prevDetails, newAttendeeDetail];
+          }
+        });
+        
+        // Update registrations data
+        setRegistrations(prevRegs => {
+          // Check if the user already has a registration
+          const existingIndex = prevRegs.findIndex(r => r.userId === currentUser.id);
+          if (existingIndex >= 0) {
+            // Replace existing entry
+            const updatedRegs = [...prevRegs];
+            updatedRegs[existingIndex] = registrationData;
+            return updatedRegs;
+          } else {
+            // Add new entry
+            return [...prevRegs, registrationData];
+          }
+        });
+      }
+      
+      toast({
+        title: "Registration successful!",
+        description: "You're now registered for this event."
+      });
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "An error occurred",
+        title: "Registration failed",
+        description: error.message || "An error occurred during registration",
         variant: "destructive"
       });
+      throw error; // Re-throw to be caught by the form handler
     }
   };
   
@@ -101,10 +172,9 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
-      await deleteEvent(event.id, 'cancelled');
-      
       navigate('/events');
       
+      await deleteEvent(event.id, 'cancelled');
       toast({
         title: "Event cancelled",
         description: "The event has been cancelled and removed from the list."
@@ -122,10 +192,9 @@ const EventDetail = () => {
     if (!currentUser || !isCreator) return;
     
     try {
-      await deleteEvent(event.id, 'completed');
-      
       navigate('/events');
       
+      await deleteEvent(event.id, 'completed');
       toast({
         title: "Event completed",
         description: "The event has been marked as completed and archived."
@@ -147,7 +216,8 @@ const EventDetail = () => {
     });
   };
   
-  const attendeesCount = Array.isArray(event.attendees) ? event.attendees.length : 0;
+  // Use actual attendee count from the available data, not from event.attendees
+  const attendeesCount = attendeeDetails.length;
   
   return (
     <div className="space-y-6">
@@ -213,15 +283,41 @@ const EventDetail = () => {
           
           <Separator />
           
-          <div>
-            <h2 className="text-xl font-semibold mb-3">
-              Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
-            </h2>
-            <EventAttendees 
-              attendees={attendeeDetails} 
-              totalCount={attendeesCount} 
-            />
-          </div>
+          {isCreator ? (
+            <Tabs defaultValue="attendees">
+              <TabsList className="mb-4">
+                <TabsTrigger value="attendees">Attendees</TabsTrigger>
+                <TabsTrigger value="details">Registration Details</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="attendees">
+                <h2 className="text-xl font-semibold mb-3">
+                  Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
+                </h2>
+                <EventAttendees 
+                  attendees={attendeeDetails} 
+                  totalCount={attendeesCount} 
+                />
+              </TabsContent>
+              
+              <TabsContent value="details">
+                <EventAttendeesDetail 
+                  attendees={registrations}
+                  isCreator={isCreator}
+                />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <div>
+              <h2 className="text-xl font-semibold mb-3">
+                Attendees <span className="text-muted-foreground font-normal text-base">({attendeesCount})</span>
+              </h2>
+              <EventAttendees 
+                attendees={attendeeDetails} 
+                totalCount={attendeesCount} 
+              />
+            </div>
+          )}
         </div>
         
         <div className="space-y-6">
@@ -286,19 +382,29 @@ const EventDetail = () => {
                 </Button>
               </>
             ) : (
-              <Button 
-                onClick={handleAttendEvent}
-                className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
-              >
-                {isAttending ? (
-                  <>
-                    <Check className="mr-2 h-4 w-4" />
-                    Attending
-                  </>
+              <>
+                {event.privacy === 'paid' && event.price ? (
+                  <EventPaymentButton 
+                    event={event}
+                    isAttending={isAttending}
+                    onJoin={handleAttendEvent}
+                  />
                 ) : (
-                  "Attend Event"
+                  <Button 
+                    onClick={handleAttendEvent}
+                    className={isAttending ? "bg-green-600 hover:bg-green-700" : ""}
+                  >
+                    {isAttending ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        Attending
+                      </>
+                    ) : (
+                      "Register for Event"
+                    )}
+                  </Button>
                 )}
-              </Button>
+              </>
             )}
             
             <Button variant="outline" onClick={handleShareEvent}>
@@ -310,7 +416,7 @@ const EventDetail = () => {
       </div>
       
       {event && (
-        <div className="mt-8 max-w-4xl mx-auto">
+        <div className="mt-8">
           <EventAnnouncements
             announcements={announcements.filter(a => a.eventId === event.id)}
             eventId={event.id}
@@ -320,6 +426,13 @@ const EventDetail = () => {
           />
         </div>
       )}
+      
+      <EventRegistrationDialog
+        isOpen={showRegistration}
+        onClose={() => setShowRegistration(false)}
+        eventTitle={event.title}
+        onSubmit={handleRegister}
+      />
     </div>
   );
 };

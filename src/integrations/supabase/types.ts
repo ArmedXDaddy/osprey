@@ -50,41 +50,6 @@ export type Database = {
           },
         ]
       }
-      event_announcements: {
-        Row: {
-          content: string
-          created_at: string
-          creator_id: string
-          creator_name: string
-          event_id: string | null
-          id: string
-        }
-        Insert: {
-          content: string
-          created_at?: string
-          creator_id: string
-          creator_name: string
-          event_id?: string | null
-          id?: string
-        }
-        Update: {
-          content?: string
-          created_at?: string
-          creator_id?: string
-          creator_name?: string
-          event_id?: string | null
-          id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_announcements_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       events: {
         Row: {
           attendees: string[] | null
@@ -96,7 +61,6 @@ export type Database = {
           description: string
           id: string
           image: string | null
-          is_completed: boolean | null
           location: string
           pending_requests: number | null
           price: number | null
@@ -113,7 +77,6 @@ export type Database = {
           description: string
           id?: string
           image?: string | null
-          is_completed?: boolean | null
           location: string
           pending_requests?: number | null
           price?: number | null
@@ -130,7 +93,6 @@ export type Database = {
           description?: string
           id?: string
           image?: string | null
-          is_completed?: boolean | null
           location?: string
           pending_requests?: number | null
           price?: number | null
@@ -768,104 +730,6 @@ export type Database = {
           start_time?: string | null
           title?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      sponsorship_applications: {
-        Row: {
-          created_at: string
-          experience: string
-          id: string
-          motivation: string
-          social_links: Json | null
-          sponsorship_id: string
-          status: string
-          user_email: string
-          user_id: string
-          user_name: string
-          user_profile_image: string | null
-        }
-        Insert: {
-          created_at?: string
-          experience: string
-          id?: string
-          motivation: string
-          social_links?: Json | null
-          sponsorship_id: string
-          status?: string
-          user_email: string
-          user_id: string
-          user_name: string
-          user_profile_image?: string | null
-        }
-        Update: {
-          created_at?: string
-          experience?: string
-          id?: string
-          motivation?: string
-          social_links?: Json | null
-          sponsorship_id?: string
-          status?: string
-          user_email?: string
-          user_id?: string
-          user_name?: string
-          user_profile_image?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "sponsorship_applications_sponsorship_id_fkey"
-            columns: ["sponsorship_id"]
-            isOneToOne: false
-            referencedRelation: "sponsorships"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      sponsorships: {
-        Row: {
-          benefits: string[]
-          company_id: string
-          company_logo: string | null
-          company_name: string
-          compensation: string | null
-          created_at: string
-          deadline: string | null
-          description: string
-          id: string
-          requirements: string[]
-          status: string
-          tags: string[] | null
-          title: string
-        }
-        Insert: {
-          benefits: string[]
-          company_id: string
-          company_logo?: string | null
-          company_name: string
-          compensation?: string | null
-          created_at?: string
-          deadline?: string | null
-          description: string
-          id?: string
-          requirements: string[]
-          status: string
-          tags?: string[] | null
-          title: string
-        }
-        Update: {
-          benefits?: string[]
-          company_id?: string
-          company_logo?: string | null
-          company_name?: string
-          compensation?: string | null
-          created_at?: string
-          deadline?: string | null
-          description?: string
-          id?: string
-          requirements?: string[]
-          status?: string
-          tags?: string[] | null
-          title?: string
         }
         Relationships: []
       }

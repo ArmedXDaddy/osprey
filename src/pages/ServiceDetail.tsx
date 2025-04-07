@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -306,9 +305,9 @@ const ServiceDetail = () => {
         </div>
       </div>
 
-      {showPaymentModal && (
-        <PaymentModal
-          isOpen={true}  // Add this line to include the isOpen prop
+      {showPaymentModal && service && (
+        <PaymentModal 
+          isOpen={showPaymentModal}
           service={service}
           onClose={() => setShowPaymentModal(false)}
           onSuccess={handleBookingSuccess}

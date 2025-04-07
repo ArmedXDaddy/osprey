@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
@@ -53,7 +52,7 @@ const Events = () => {
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'popular':
-        return (Array.isArray(a.attendees) ? a.attendees.length : 0) - (Array.isArray(b.attendees) ? b.attendees.length : 0);
+        return (Array.isArray(b.attendees) ? b.attendees.length : 0) - (Array.isArray(a.attendees) ? a.attendees.length : 0);
       case 'alphabetical':
         return a.title.localeCompare(b.title);
       default:
@@ -66,7 +65,7 @@ const Events = () => {
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'popular':
-        return (Array.isArray(a.attendees) ? a.attendees.length : 0) - (Array.isArray(b.attendees) ? b.attendees.length : 0);
+        return (Array.isArray(b.attendees) ? b.attendees.length : 0) - (Array.isArray(a.attendees) ? a.attendees.length : 0);
       case 'alphabetical':
         return a.title.localeCompare(b.title);
       default:
@@ -80,7 +79,7 @@ const Events = () => {
 
   const pastEvents = sortedEvents.filter(event => new Date(event.date) < new Date());
 
-  const eventAnnouncements = currentUser && announcements ? announcements.filter(a => 
+  const eventAnnouncements = currentUser ? announcements.filter(a => 
     events.some(e => e.id === a.eventId && e.attendees && e.attendees.includes(currentUser.id))
   ) : [];
 
@@ -257,7 +256,6 @@ const Events = () => {
                         eventId={eventId}
                         isCreator={event.creatorId === currentUser.id}
                         onPostAnnouncement={postAnnouncement}
-                        hasJoined={event.attendees?.includes(currentUser.id)}
                       />
                     </div>
                   );

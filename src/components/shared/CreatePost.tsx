@@ -4,8 +4,8 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { Image, X, Loader2 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import { Image, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 
@@ -17,7 +17,6 @@ const CreatePost: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (!currentUser) return null;
@@ -58,34 +57,27 @@ const CreatePost: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    setIsUploading(!!selectedImage);
-    
     try {
-      // Send the post with image if selected
       await createPost(content, selectedImage);
-      
-      // Reset form
       setContent('');
       setSelectedImage(null);
       setImagePreview(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      
       toast({
         title: "Post created",
         description: "Your post has been published successfully"
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating post:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to create post. Please try again.",
+        description: "Failed to create post. Please try again.",
         variant: "destructive"
       });
     } finally {
       setIsSubmitting(false);
-      setIsUploading(false);
     }
   };
 
@@ -140,12 +132,7 @@ const CreatePost: React.FC = () => {
             ref={fileInputRef}
             onChange={handleImageSelect}
           />
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isSubmitting}
-          >
+          <Button variant="ghost" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Image className="h-5 w-5 mr-1" />
             <span>Add Image</span>
           </Button>
@@ -155,12 +142,7 @@ const CreatePost: React.FC = () => {
           onClick={handleSubmit} 
           disabled={isSubmitting || (!content.trim() && !selectedImage)}
         >
-          {isSubmitting ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              {isUploading ? 'Uploading...' : 'Posting...'}
-            </>
-          ) : 'Post'}
+          {isSubmitting ? 'Posting...' : 'Post'}
         </Button>
       </CardFooter>
     </Card>
