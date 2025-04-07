@@ -185,6 +185,8 @@ const CreateProduct = () => {
         pricing_tiers: formattedPricingTiers
       };
       
+      console.log('Submitting product data:', productData);
+      
       // Create product in database using our helper function
       const data = await createProduct(productData);
       
