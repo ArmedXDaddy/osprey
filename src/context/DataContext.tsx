@@ -1137,6 +1137,165 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
   
+  const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to post an announcement');
+    
+    try {
+      const newAnnouncement = {
+        event_id: eventId,
+        creator_id: currentUser.id,
+        creator_name: currentUser.name,
+        content: content
+      };
+      
+      const { data, error } = await supabase
+        .from('event_announcements')
+        .insert(newAnnouncement)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      console.log("Announcement posted successfully:", data);
+      
+      const transformedAnnouncement: Announcement = {
+        id: data.id,
+        eventId: data.event_id,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        content: data.content,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setAnnouncements(prev => [transformedAnnouncement, ...prev]);
+      
+      toast({
+        title: "Announcement posted",
+        description: "Your announcement has been shared with all participants"
+      });
+    } catch (error: any) {
+      console.error("Error posting announcement:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to post announcement",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to post announcement');
+    }
+  };
+  
+  const joinEvent = async (eventId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to join an event');
+    
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) throw new Error('Event not found');
+      
+      if (event.attendees.includes(currentUser.id)) {
+        toast({
+          title: "Already attending",
+          description: "You are already attending this event"
+        });
+        return;
+      }
+      
+      const updatedAttendees = [...event.attendees, currentUser.id];
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees: updatedAttendees })
+        .eq('id', eventId);
+        
+      if (error) throw error;
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId 
+            ? { ...e, attendees: updatedAttendees } 
+            : e
+        )
+      );
+      
+      try {
+        await postAnnouncement(
+          eventId, 
+          `${currentUser.name} has joined the event.`
+        );
+      } catch (announcementError) {
+        console.error("Failed to post join announcement:", announcementError);
+      }
+      
+      toast({
+        title: "Event joined",
+        description: "You are now attending this event"
+      });
+    } catch (error: any) {
+      console.error("Error joining event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join event",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to join event');
+    }
+  };
+  
+  const leaveEvent = async (eventId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to leave an event');
+    
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) throw new Error('Event not found');
+      
+      if (!event.attendees.includes(currentUser.id)) {
+        toast({
+          title: "Not attending",
+          description: "You are not attending this event"
+        });
+        return;
+      }
+      
+      const updatedAttendees = event.attendees.filter(id => id !== currentUser.id);
+      
+      const { error } = await supabase
+        .from('events')
+        .update({ attendees: updatedAttendees })
+        .eq('id', eventId);
+        
+      if (error) throw error;
+      
+      setEvents(prevEvents => 
+        prevEvents.map(e => 
+          e.id === eventId 
+            ? { ...e, attendees: updatedAttendees } 
+            : e
+        )
+      );
+      
+      try {
+        await postAnnouncement(
+          eventId, 
+          `${currentUser.name} has left the event.`
+        );
+      } catch (announcementError) {
+        console.error("Failed to post leave announcement:", announcementError);
+      }
+      
+      toast({
+        title: "Event left",
+        description: "You are no longer attending this event"
+      });
+    } catch (error: any) {
+      console.error("Error leaving event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave event",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to leave event');
+    }
+  };
+  
   return (
     <DataContext.Provider value={{
       posts,
@@ -1153,7 +1312,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       postComments,
       completedEvents,
       announcements,
-      postAnnouncement: async () => {},
+      postAnnouncement,
       createPost: async () => {},
       likePost: async () => {},
       unlikePost: async () => {},
@@ -1161,8 +1320,8 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       updateComment: async () => {},
       deleteComment: async () => {},
       createEvent: async () => ({ }) as Event,
-      joinEvent: async () => {},
-      leaveEvent: async () => {},
+      joinEvent,
+      leaveEvent,
       deleteEvent: async () => {},
       requestToJoinEvent: async () => {},
       approveEventRequest: async () => {},

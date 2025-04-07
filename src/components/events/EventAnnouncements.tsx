@@ -40,10 +40,6 @@ const EventAnnouncements = ({
       await onPostAnnouncement(eventId, announcementContent);
       setAnnouncementContent('');
       setIsCreating(false);
-      toast({
-        title: "Announcement posted",
-        description: "Your announcement has been shared with all participants"
-      });
     } catch (error) {
       toast({
         title: "Failed to post announcement",
@@ -130,7 +126,7 @@ const EventAnnouncements = ({
       )}
 
       <div className="space-y-3">
-        {announcements && announcements.map((announcement) => (
+        {announcements && announcements.length > 0 && announcements.map((announcement) => (
           <div 
             key={announcement.id} 
             className="border rounded-md p-4 bg-background"

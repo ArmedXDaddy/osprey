@@ -74,10 +74,6 @@ const EventDetail = () => {
         setAttendeeDetails(prevDetails => 
           prevDetails.filter(attendee => attendee.id !== currentUser.id)
         );
-        toast({
-          title: "You're no longer attending",
-          description: "You've been removed from the attendee list."
-        });
       } else {
         await joinEvent(event.id);
         setIsAttending(true);
@@ -91,10 +87,6 @@ const EventDetail = () => {
             }
           ]);
         }
-        toast({
-          title: "You're attending this event!",
-          description: "You've been added to the attendee list."
-        });
       }
     } catch (error: any) {
       toast({
@@ -318,7 +310,7 @@ const EventDetail = () => {
       </div>
       
       {event && (
-        <div className="mt-8">
+        <div className="mt-8 max-w-4xl mx-auto">
           <EventAnnouncements
             announcements={announcements.filter(a => a.eventId === event.id)}
             eventId={event.id}
