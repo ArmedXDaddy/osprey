@@ -1809,8 +1809,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
         toast({
           title: "Post created",
-          description: "Your post has been published successfully",
-          duration: 3000,
+          description: "Your post has been published successfully"
         });
       }
     } catch (error: any) {
@@ -1818,7 +1817,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       toast({
         title: "Error",
         description: error.message || "Failed to create post. Please try again.",
-        duration: 3000,
+        variant: "destructive"
       });
       throw error;
     }
