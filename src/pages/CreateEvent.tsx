@@ -131,7 +131,7 @@ const CreateEvent = () => {
         date: formData.date,
         privacy: formData.privacy as EventPrivacy,
         price: formData.price,
-        image: formData.image,
+        image: formData.image, // This will be either a URL string or a File object
       };
       
       // Pass the data to createEvent
@@ -140,7 +140,7 @@ const CreateEvent = () => {
       // Redirect to the event detail page
       toast({
         title: "Event created successfully!",
-        description: "Your event has been created.",
+        description: "Your event has been created and saved to the database.",
       });
       
       navigate(`/events/${newEvent.id}`);
