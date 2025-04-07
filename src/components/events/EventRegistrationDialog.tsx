@@ -38,21 +38,20 @@ const EventRegistrationDialog = ({
     try {
       setIsProcessing(true);
       
-      // Check if user is already registered for this event
-      const { data: existingRegistration, error: checkError } = await supabase
+      // Check if user is already registered for this event - improved query
+      const { data: existingRegistrations, error: checkError } = await supabase
         .from('event_attendee_details')
         .select('id')
         .eq('event_id', eventId)
-        .eq('user_id', data.userId)
-        .single();
+        .eq('user_id', data.userId);
         
-      if (checkError && checkError.code !== 'PGRST116') {
-        // If there's an error other than "no rows returned", throw it
+      if (checkError) {
+        // If there's an error querying, throw it
         console.error("Error checking registration:", checkError);
         throw new Error("Failed to check registration status. Please try again.");
       }
         
-      if (existingRegistration) {
+      if (existingRegistrations && existingRegistrations.length > 0) {
         toast({
           title: "Already registered",
           description: "You are already registered for this event.",
@@ -68,6 +67,12 @@ const EventRegistrationDialog = ({
         ...data,
         paymentStatus
       };
+      
+      console.log("About to insert registration:", {
+        event_id: eventId,
+        user_id: data.userId,
+        name: data.name
+      });
       
       // Store registration details in the database
       const { error } = await supabase
@@ -89,18 +94,19 @@ const EventRegistrationDialog = ({
         });
         
       if (error) {
+        console.error("Database insertion error:", error);
+        
         // Handle duplicate registration error specifically
         if (error.code === '23505') {
           toast({
-            title: "Already registered",
-            description: "You are already registered for this event.",
+            title: "Registration error",
+            description: "There was an issue with your registration. Please try again later.",
             variant: "destructive"
           });
           onClose();
           return;
         }
         
-        console.error("Database insertion error:", error);
         throw new Error("Registration failed. Please try again.");
       }
       

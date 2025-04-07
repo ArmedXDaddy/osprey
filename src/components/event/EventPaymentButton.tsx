@@ -88,17 +88,37 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   const handlePaymentSuccess = async () => {
     try {
       setIsProcessing(true);
+      
       // After successful payment, update payment status in the database
       if (currentUser) {
-        const { error } = await supabase
+        // Check if the user is registered first
+        const { data: existingRegistration, error: checkError } = await supabase
           .from('event_attendee_details')
-          .update({ payment_status: 'paid' })
+          .select('*')
           .eq('event_id', event.id)
-          .eq('user_id', currentUser.id);
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
           
-        if (error) {
-          console.error("Error updating payment status:", error);
-          throw error;
+        if (checkError) {
+          console.error("Error checking registration:", checkError);
+          throw new Error("Could not verify registration status.");
+        }
+        
+        if (existingRegistration) {
+          // Update existing registration
+          const { error } = await supabase
+            .from('event_attendee_details')
+            .update({ payment_status: 'paid' })
+            .eq('event_id', event.id)
+            .eq('user_id', currentUser.id);
+            
+          if (error) {
+            console.error("Error updating payment status:", error);
+            throw error;
+          }
+        } else {
+          // Registration doesn't exist yet, so proceed with join
+          console.log("No registration found, proceeding with join");
         }
       }
       
