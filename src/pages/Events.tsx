@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Events = () => {
-  const { events, completedEvents = [], loading, announcements = [], postAnnouncement } = useData();
+  const { events, completedEvents = [], loading, announcements = [] } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
@@ -52,7 +52,7 @@ const Events = () => {
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'popular':
-        return (Array.isArray(b.attendees) ? b.attendees.length : 0) - (Array.isArray(a.attendees) ? a.attendees.length : 0);
+        return (Array.isArray(a.attendees) ? a.attendees.length : 0) - (Array.isArray(b.attendees) ? b.attendees.length : 0);
       case 'alphabetical':
         return a.title.localeCompare(b.title);
       default:
@@ -65,7 +65,7 @@ const Events = () => {
       case 'newest':
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       case 'popular':
-        return (Array.isArray(b.attendees) ? b.attendees.length : 0) - (Array.isArray(a.attendees) ? a.attendees.length : 0);
+        return (Array.isArray(a.attendees) ? a.attendees.length : 0) - (Array.isArray(b.attendees) ? b.attendees.length : 0);
       case 'alphabetical':
         return a.title.localeCompare(b.title);
       default:
@@ -79,7 +79,7 @@ const Events = () => {
 
   const pastEvents = sortedEvents.filter(event => new Date(event.date) < new Date());
 
-  const eventAnnouncements = currentUser ? announcements.filter(a => 
+  const eventAnnouncements = currentUser && announcements ? announcements.filter(a => 
     events.some(e => e.id === a.eventId && e.attendees && e.attendees.includes(currentUser.id))
   ) : [];
 

@@ -305,9 +305,9 @@ const ServiceDetail = () => {
         </div>
       </div>
 
-      {showPaymentModal && service && (
-        <PaymentModal 
-          isOpen={showPaymentModal}
+      {showPaymentModal && (
+        <PaymentModal
+          open={showPaymentModal}
           service={service}
           onClose={() => setShowPaymentModal(false)}
           onSuccess={handleBookingSuccess}
