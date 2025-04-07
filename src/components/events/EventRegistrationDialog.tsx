@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +32,34 @@ const EventRegistrationDialog = ({
   const { toast } = useToast();
   const { currentUser } = useAuth();
   
+  // Helper function to save registration to localStorage
+  const saveRegistrationToLocalStorage = (registration: any) => {
+    try {
+      // Get existing registrations or initialize empty array
+      const existingRegistrationsString = localStorage.getItem('event_registrations');
+      const existingRegistrations = existingRegistrationsString 
+        ? JSON.parse(existingRegistrationsString) 
+        : [];
+      
+      // Check if this event registration already exists
+      const existingIndex = existingRegistrations.findIndex(
+        (reg: any) => reg.event_id === registration.event_id && reg.user_id === registration.user_id
+      );
+      
+      // Update or add registration
+      if (existingIndex >= 0) {
+        existingRegistrations[existingIndex] = registration;
+      } else {
+        existingRegistrations.push(registration);
+      }
+      
+      // Save back to localStorage
+      localStorage.setItem('event_registrations', JSON.stringify(existingRegistrations));
+    } catch (error) {
+      console.error("Error saving registration to localStorage:", error);
+    }
+  };
+  
   const handleSubmit = async (data: EventRegistration) => {
     try {
       if (!currentUser) {
@@ -45,15 +73,17 @@ const EventRegistrationDialog = ({
       
       setIsProcessing(true);
       
-      // Check if the user is already registered
-      const { data: existingRegistration } = await supabase
-        .from('event_attendee_details')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-        
-      if (existingRegistration) {
+      // First check localStorage for existing registration
+      const existingRegistrationsString = localStorage.getItem('event_registrations');
+      const existingRegistrations = existingRegistrationsString 
+        ? JSON.parse(existingRegistrationsString) 
+        : [];
+      
+      const existingLocalRegistration = existingRegistrations.find(
+        (reg: any) => reg.event_id === eventId && reg.user_id === currentUser.id
+      );
+      
+      if (existingLocalRegistration) {
         toast({
           title: "Already registered",
           description: "You have already registered for this event",
@@ -63,28 +93,56 @@ const EventRegistrationDialog = ({
         return;
       }
       
+      // If not in localStorage, also check the database
+      const { data: existingRegistration } = await supabase
+        .from('event_attendee_details')
+        .select('*')
+        .eq('event_id', eventId)
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
+        
+      if (existingRegistration) {
+        // If found in database but not in localStorage, add to localStorage
+        saveRegistrationToLocalStorage(existingRegistration);
+        
+        toast({
+          title: "Already registered",
+          description: "You have already registered for this event",
+          variant: "default"
+        });
+        onClose();
+        return;
+      }
+      
+      // Prepare registration data
+      const registrationData = {
+        event_id: eventId,
+        user_id: currentUser.id,
+        name: data.name,
+        email: data.email,
+        age: data.age,
+        gender: data.gender,
+        phone: data.phone,
+        emergency_contact: data.emergencyContact,
+        instagram: data.instagram,
+        twitter: data.twitter,
+        additional_info: data.additionalInfo,
+        profile_image: data.profileImage,
+        registered_at: new Date().toISOString()
+      };
+      
       // Store registration details in the database
       const { error } = await supabase
         .from('event_attendee_details')
-        .insert({
-          event_id: eventId,
-          user_id: currentUser.id,
-          name: data.name,
-          email: data.email,
-          age: data.age,
-          gender: data.gender,
-          phone: data.phone,
-          emergency_contact: data.emergencyContact,
-          instagram: data.instagram,
-          twitter: data.twitter,
-          additional_info: data.additionalInfo,
-          profile_image: data.profileImage
-        });
+        .insert(registrationData);
         
       if (error) {
         console.error("Registration database error:", error);
         throw new Error(error.message || "Error storing registration details");
       }
+      
+      // Save to localStorage
+      saveRegistrationToLocalStorage(registrationData);
       
       await onSubmit(data);
       onClose();
