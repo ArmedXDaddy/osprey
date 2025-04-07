@@ -1,4 +1,5 @@
 
+
 export type EventPrivacy = 'public' | 'private' | 'invite-only' | 'paid';
 
 export interface AttendeeDetail {
@@ -30,3 +31,4 @@ export interface EventRegistration {
   registeredAt?: Date;
   profileImage?: string;
 }
+
