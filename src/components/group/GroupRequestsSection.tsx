@@ -44,14 +44,14 @@ const GroupRequestsSection: React.FC<GroupRequestsSectionProps> = ({ groupId }) 
     );
   }
 
-  const handleApprove = async (requestId: string) => {
-    await handleJoinRequest(requestId, 'approved');
+  const handleApprove = async (requestId: string, userId: string) => {
+    await handleJoinRequest(groupId, userId, 'approved');
     // Update the local requests list
     setRequests(prev => prev.filter(req => req.id !== requestId));
   };
   
-  const handleReject = async (requestId: string) => {
-    await handleJoinRequest(requestId, 'rejected');
+  const handleReject = async (requestId: string, userId: string) => {
+    await handleJoinRequest(groupId, userId, 'rejected');
     // Update the local requests list
     setRequests(prev => prev.filter(req => req.id !== requestId));
   };
@@ -79,7 +79,7 @@ const GroupRequestsSection: React.FC<GroupRequestsSectionProps> = ({ groupId }) 
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => handleReject(request.id)}
+              onClick={() => handleReject(request.id, request.userId)}
             >
               <X className="h-4 w-4 mr-1" />
               Reject
@@ -87,7 +87,7 @@ const GroupRequestsSection: React.FC<GroupRequestsSectionProps> = ({ groupId }) 
             
             <Button 
               size="sm"
-              onClick={() => handleApprove(request.id)}
+              onClick={() => handleApprove(request.id, request.userId)}
             >
               <Check className="h-4 w-4 mr-1" />
               Approve

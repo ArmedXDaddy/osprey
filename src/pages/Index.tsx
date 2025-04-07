@@ -26,6 +26,7 @@ const HomePage = () => {
     );
   }
 
+  // Role-based welcome message and stats
   const getRoleBasedIntro = () => {
     switch (currentUser.role) {
       case 'user':
@@ -92,6 +93,7 @@ const HomePage = () => {
 
   const roleIntro = getRoleBasedIntro();
   
+  // Role-specific colors
   const getRoleColor = (role: UserRole) => {
     switch (role) {
       case 'influencer': return 'from-red-500 to-orange-400';
@@ -104,6 +106,7 @@ const HomePage = () => {
 
   return (
     <div className="space-y-8">
+      {/* Welcome Header */}
       <div className={`bg-gradient-to-r ${getRoleColor(currentUser.role)} rounded-lg p-6 text-white`}>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -127,7 +130,9 @@ const HomePage = () => {
         </div>
       </div>
       
+      {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Feed */}
         <div className="lg:col-span-2">
           <Tabs defaultValue="for-you" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -136,6 +141,7 @@ const HomePage = () => {
             </TabsList>
             
             <TabsContent value="for-you" className="space-y-4 mt-4">
+              {/* Create Post Component */}
               <CreatePost />
               
               {loading ? (
@@ -156,11 +162,13 @@ const HomePage = () => {
                   </Card>
                 ))
               ) : (
-                <div className="space-y-4">
-                  {posts.map(post => (
-                    <PostCard key={post.id} post={post} />
-                  ))}
-                </div>
+                posts.map(post => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    comments={postComments[post.id] || []}
+                  />
+                ))
               )}
             </TabsContent>
             
@@ -177,7 +185,9 @@ const HomePage = () => {
           </Tabs>
         </div>
         
+        {/* Right Column - Events, Groups, Services */}
         <div className="space-y-6">
+          {/* Upcoming Events */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -206,6 +216,7 @@ const HomePage = () => {
             </CardContent>
           </Card>
           
+          {/* Popular Groups */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -234,6 +245,7 @@ const HomePage = () => {
             </CardContent>
           </Card>
           
+          {/* Coach Services - Only show for non-coaches */}
           {currentUser.role !== 'coach' && (
             <Card>
               <CardHeader className="pb-2">

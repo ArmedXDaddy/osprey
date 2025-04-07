@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -35,8 +36,7 @@ const SessionDetail = () => {
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
   const [userEnrollment, setUserEnrollment] = useState<SessionEnrollment | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
+  
   useEffect(() => {
     if (id && sessions.length > 0) {
       const foundSession = sessions.find(s => s.id === id);
@@ -57,43 +57,22 @@ const SessionDetail = () => {
     }
   }, [session, currentUser, sessionEnrollments]);
   
-  const loadEnrollmentStatus = () => {
-    if (session && currentUser && sessionEnrollments.length > 0) {
-      const enrollment = sessionEnrollments.find(e => 
-        e.sessionId === session.id && e.userId === currentUser.id
-      );
-      if (enrollment) {
-        setUserEnrollment(enrollment);
-      }
-    }
-  };
-  
   const handleEnroll = async () => {
+    if (!session) return;
+    
     try {
       if (!currentUser) {
-        toast({ 
-          title: "Login required", 
-          description: "Please sign in to enroll in this session."
+        toast({
+          title: "Authentication required",
+          description: "Please log in to enroll in this session",
+          variant: "destructive"
         });
         return;
       }
       
-      setIsLoading(true);
       await enrollInSession(session.id);
-      toast({ 
-        title: "Enrollment submitted", 
-        description: `You've successfully enrolled in ${session.title}`
-      });
-      loadEnrollmentStatus();
     } catch (error) {
-      console.error("Error enrolling:", error);
-      toast({ 
-        title: "Enrollment failed", 
-        description: "There was an error processing your enrollment. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('Error enrolling in session:', error);
     }
   };
   

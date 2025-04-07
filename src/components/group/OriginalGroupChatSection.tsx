@@ -39,8 +39,8 @@ const OriginalGroupChatSection: React.FC<OriginalGroupChatSectionProps> = ({ gro
     try {
       setIsSubmitting(true);
       await sendMessage({
-        content: newMessage,
-        groupId: groupId
+        groupId: groupId,
+        content: newMessage
       });
       setNewMessage('');
     } catch (error) {

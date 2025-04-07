@@ -19,7 +19,6 @@ const Events = () => {
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
-  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   if (loading) {
     return (

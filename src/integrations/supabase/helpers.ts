@@ -1,3 +1,4 @@
+
 import { supabase, runQuery } from './client';
 import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
@@ -574,81 +575,5 @@ export const fetchWorkshops = async (): Promise<Workshop[]> => {
   } catch (error) {
     console.error('Error fetching workshops:', error);
     return [];
-  }
-};
-
-/**
- * Upload event image to storage
- * @param file File to upload
- * @returns URL of the uploaded image
- */
-export const uploadEventImage = async (file: File): Promise<string> => {
-  try {
-    const fileExt = file.name.split('.').pop();
-    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    
-    const { data, error } = await supabase.storage
-      .from('event_images')
-      .upload(uniqueFileName, file);
-      
-    if (error) {
-      console.error('Error uploading event image:', error);
-      throw new Error(`Failed to upload image: ${error.message}`);
-    }
-    
-    const { data: { publicUrl } } = supabase.storage
-      .from('event_images')
-      .getPublicUrl(uniqueFileName);
-      
-    return publicUrl;
-  } catch (error: any) {
-    console.error('Error in uploadEventImage:', error);
-    throw new Error('Failed to upload event image');
-  }
-};
-
-/**
- * Create a new event in the database
- * @param eventData Event data to create
- * @returns Created event data with ID
- */
-export const createEventInDb = async (eventData: any): Promise<any> => {
-  try {
-    console.log('Creating event with data:', eventData);
-    
-    // Get the current user
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData?.user) {
-      throw new Error('User not authenticated');
-    }
-
-    // Use the create_event database function
-    const { data, error } = await supabase.rpc(
-      'create_event',
-      {
-        title: eventData.title,
-        description: eventData.description,
-        creator_id: userData.user.id,
-        creator_name: eventData.creatorName,
-        creator_role: eventData.creatorRole || 'user',
-        location: eventData.location,
-        date: eventData.date.toISOString(),
-        image: eventData.image,
-        privacy: eventData.privacy,
-        price: eventData.price || 0,
-        attendees: [userData.user.id], // Creator is automatically an attendee
-        pending_requests: 0
-      }
-    );
-    
-    if (error) {
-      console.error('Error creating event:', error);
-      throw new Error(error.message || 'Failed to create event');
-    }
-    
-    return data;
-  } catch (error: any) {
-    console.error('Error in createEventInDb:', error);
-    throw new Error(error.message || 'Failed to create event');
   }
 };
