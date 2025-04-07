@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
 import { useToast } from '@/hooks/use-toast';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
 import { DollarSign, Users, Ticket } from 'lucide-react';

@@ -96,6 +96,7 @@ export type Database = {
           id: string
           instagram: string | null
           name: string
+          payment_status: string | null
           phone: string | null
           profile_image: string | null
           registered_at: string | null
@@ -112,6 +113,7 @@ export type Database = {
           id?: string
           instagram?: string | null
           name: string
+          payment_status?: string | null
           phone?: string | null
           profile_image?: string | null
           registered_at?: string | null
@@ -128,6 +130,7 @@ export type Database = {
           id?: string
           instagram?: string | null
           name?: string
+          payment_status?: string | null
           phone?: string | null
           profile_image?: string | null
           registered_at?: string | null
