@@ -195,7 +195,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           setGroups(generateMockGroups());
         }
         
-        // Load events from the database instead of using mock data
         const { data: eventsData, error: eventsError } = await supabase
           .from('events')
           .select('*')
@@ -212,7 +211,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
             location: event.location,
             date: new Date(event.date),
             image: event.image,
-            privacy: event.privacy,
+            privacy: event.privacy as EventPrivacy,
             price: event.price,
             attendees: event.attendees || [],
             createdAt: new Date(event.created_at),
@@ -798,7 +797,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       const eventPrivacy = eventData.privacy as EventPrivacy;
       
-      // Create the event in Supabase
       const { data, error } = await supabase
         .from('events')
         .insert({
@@ -819,7 +817,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       
       if (error) throw error;
       
-      // Transform the returned data to match our Event type
       const newEvent: Event = {
         id: data.id,
         title: data.title,
@@ -836,7 +833,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         creatorRole: data.creator_role
       };
       
-      // Update the local state
       setEvents(prev => [newEvent, ...prev]);
       
       toast({
@@ -863,15 +859,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const eventToUpdate = events.find(e => e.id === eventId);
       if (!eventToUpdate) throw new Error('Event not found');
       
-      // Check if user is already attending
       if (eventToUpdate.attendees && eventToUpdate.attendees.includes(currentUser.id)) {
-        return; // User is already attending
+        return;
       }
       
-      // Update attendees list
       const updatedAttendees = eventToUpdate.attendees ? [...eventToUpdate.attendees, currentUser.id] : [currentUser.id];
       
-      // Update the event in Supabase
       const { error } = await supabase
         .from('events')
         .update({ attendees: updatedAttendees })
@@ -879,19 +872,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
       if (error) throw error;
       
-      // Update the events state
       setEvents(prev => prev.map(e => 
         e.id === eventId 
           ? { ...e, attendees: updatedAttendees } 
           : e
       ));
       
-      // Post announcement about joining event
-      try {
-        await postAnnouncement(eventId, `${currentUser.name} has joined the event!`);
-      } catch (announcementError) {
-        console.error("Error posting join announcement:", announcementError);
-      }
+      await postAnnouncement(eventId, `${currentUser.name} has joined the event!`);
       
     } catch (error: any) {
       console.error("Error joining event:", error);
@@ -906,12 +893,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const eventToUpdate = events.find(e => e.id === eventId);
       if (!eventToUpdate) throw new Error('Event not found');
       
-      // Remove user from attendees list
       const updatedAttendees = eventToUpdate.attendees 
         ? eventToUpdate.attendees.filter(id => id !== currentUser.id)
         : [];
       
-      // Update the event in Supabase
       const { error } = await supabase
         .from('events')
         .update({ attendees: updatedAttendees })
@@ -919,19 +904,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
       if (error) throw error;
       
-      // Update the events state
       setEvents(prev => prev.map(e => 
         e.id === eventId 
           ? { ...e, attendees: updatedAttendees } 
           : e
       ));
       
-      // Post announcement about leaving event
-      try {
-        await postAnnouncement(eventId, `${currentUser.name} has left the event.`);
-      } catch (announcementError) {
-        console.error("Error posting leave announcement:", announcementError);
-      }
+      const { error: deleteError } = await supabase
+        .from('event_attendee_details')
+        .delete()
+        .eq('event_id', eventId)
+        .eq('user_id', currentUser.id);
+        
+      if (deleteError) console.error("Error removing registration details:", deleteError);
+      
+      await postAnnouncement(eventId, `${currentUser.name} has left the event.`);
       
     } catch (error: any) {
       console.error("Error leaving event:", error);
@@ -946,14 +933,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const eventToDelete = events.find(e => e.id === eventId);
       if (!eventToDelete) throw new Error('Event not found');
       
-      // Verify the user is the creator of the event
       if (eventToDelete.creatorId !== currentUser.id) {
         throw new Error('Only the event creator can delete this event');
       }
       
-      // Delete from Supabase
       if (reason === 'completed') {
-        // Mark as completed instead of deleting
         const { error } = await supabase
           .from('events')
           .update({ is_completed: true })
@@ -961,10 +945,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           
         if (error) throw error;
         
-        // Add to completed events
         setCompletedEvents(prev => [...prev, eventToDelete]);
       } else {
-        // Delete the event
         const { error } = await supabase
           .from('events')
           .delete()
@@ -973,10 +955,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (error) throw error;
       }
       
-      // Remove the event from the state
       setEvents(prev => prev.filter(e => e.id !== eventId));
       
-      // Post announcement about event cancellation if cancelled
       if (reason === 'cancelled') {
         try {
           await postAnnouncement(eventId, `This event has been cancelled by the organizer.`);
@@ -1021,11 +1001,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) throw new Error('You must be logged in to post an announcement');
     
     try {
-      // Find the event to ensure it exists
-      const event = events.find(e => e.id === eventId);
-      if (!event) throw new Error('Event not found');
-      
-      // Create the announcement in Supabase
       const { data, error } = await supabase
         .from('event_announcements')
         .insert({
@@ -1039,7 +1014,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         
       if (error) throw error;
       
-      // Transform the returned data to match our Announcement type
       const newAnnouncement: Announcement = {
         id: data.id,
         eventId: data.event_id,
@@ -1049,7 +1023,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(data.created_at)
       };
       
-      // Add to announcements state
       setAnnouncements(prev => [newAnnouncement, ...prev]);
       
       toast({
@@ -1067,34 +1040,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
-  // Load announcements on component mount
-  React.useEffect(() => {
-    const fetchAnnouncements = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('event_announcements')
-          .select('*')
-          .order('created_at', { ascending: false });
-          
-        if (error) throw error;
+  const fetchAnnouncements = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('event_announcements')
+        .select('*')
+        .order('created_at', { ascending: false });
         
-        if (data) {
-          const transformedAnnouncements: Announcement[] = data.map((announcement: any) => ({
-            id: announcement.id,
-            eventId: announcement.event_id,
-            creatorId: announcement.creator_id,
-            creatorName: announcement.creator_name,
-            content: announcement.content,
-            createdAt: new Date(announcement.created_at)
-          }));
-          
-          setAnnouncements(transformedAnnouncements);
-        }
-      } catch (error) {
-        console.error("Error fetching announcements:", error);
+      if (error) throw error;
+      
+      if (data) {
+        const transformedAnnouncements: Announcement[] = data.map((announcement: any) => ({
+          id: announcement.id,
+          eventId: announcement.event_id,
+          creatorId: announcement.creator_id,
+          creatorName: announcement.creator_name,
+          content: announcement.content,
+          createdAt: new Date(announcement.created_at)
+        }));
+        
+        setAnnouncements(transformedAnnouncements);
       }
-    };
-    
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+    }
+  };
+  
+  React.useEffect(() => {
     fetchAnnouncements();
   }, []);
   

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -17,6 +16,7 @@ import EventRegistrationDialog from '@/components/events/EventRegistrationDialog
 import EventAttendeesDetail from '@/components/events/EventAttendeesDetail';
 import { AttendeeDetail, EventRegistration } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { supabase } from '@/integrations/supabase/client';
 
 const EventDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,6 +27,7 @@ const EventDetail = () => {
   const [attendeeDetails, setAttendeeDetails] = useState<AttendeeDetail[]>([]);
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
   const [showRegistration, setShowRegistration] = useState(false);
+  const [eventAnnouncements, setEventAnnouncements] = useState(announcements.filter(a => a.eventId === id));
   
   const event = events.find(e => e.id === id);
   
@@ -44,29 +45,94 @@ const EventDetail = () => {
   }
   
   useEffect(() => {
-    if (currentUser && event.attendees) {
-      const isUserAttending = event.attendees.includes(currentUser.id);
+    if (event) {
+      const fetchEventAnnouncements = async () => {
+        const { data, error } = await supabase
+          .from('event_announcements')
+          .select('*')
+          .eq('event_id', event.id)
+          .order('created_at', { ascending: false });
+          
+        if (!error && data) {
+          const formattedAnnouncements = data.map(item => ({
+            id: item.id,
+            eventId: item.event_id,
+            creatorId: item.creator_id,
+            creatorName: item.creator_name,
+            content: item.content,
+            createdAt: new Date(item.created_at)
+          }));
+          setEventAnnouncements(formattedAnnouncements);
+        }
+      };
+      
+      fetchEventAnnouncements();
+    }
+  }, [event?.id]);
+  
+  useEffect(() => {
+    if (currentUser && event) {
+      const isUserAttending = event.attendees && event.attendees.includes(currentUser.id);
       setIsAttending(isUserAttending);
       
-      // Use only real attendee data - no mock data
-      const realAttendeeDetails: AttendeeDetail[] = [];
-      const realRegistrations: EventRegistration[] = [];
+      const fetchAttendeeDetails = async () => {
+        try {
+          const attendeeIds = event.attendees || [];
+          
+          if (attendeeIds.length === 0) {
+            setAttendeeDetails([]);
+            setRegistrations([]);
+            return;
+          }
+          
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, name, profile_image')
+            .in('id', attendeeIds);
+            
+          if (profilesError) throw profilesError;
+          
+          if (profilesData) {
+            const details: AttendeeDetail[] = profilesData.map(profile => ({
+              id: profile.id,
+              name: profile.name,
+              profileImage: profile.profile_image
+            }));
+            
+            setAttendeeDetails(details);
+          }
+          
+          const { data: registrationsData, error: registrationsError } = await supabase
+            .from('event_attendee_details')
+            .select('*')
+            .eq('event_id', event.id);
+            
+          if (registrationsError) throw registrationsError;
+          
+          if (registrationsData) {
+            const regDetails: EventRegistration[] = registrationsData.map(reg => ({
+              userId: reg.user_id,
+              name: reg.name,
+              email: reg.email,
+              age: reg.age || undefined,
+              gender: reg.gender || undefined,
+              phone: reg.phone || undefined,
+              emergencyContact: reg.emergency_contact || undefined,
+              instagram: reg.instagram || undefined,
+              twitter: reg.twitter || undefined,
+              additionalInfo: reg.additional_info || undefined,
+              registeredAt: new Date(reg.registered_at),
+              profileImage: reg.profile_image
+            }));
+            
+            setRegistrations(regDetails);
+          }
+        } catch (error) {
+          console.error("Error fetching attendee details:", error);
+        }
+      };
       
-      // If we have attendee details and registrations in the event, use those
-      if (event.attendeeDetails && event.attendeeDetails.length > 0) {
-        event.attendeeDetails.forEach(attendee => {
-          realAttendeeDetails.push(attendee);
-        });
-      }
-      
-      if (event.attendeeRegistrations && event.attendeeRegistrations.length > 0) {
-        event.attendeeRegistrations.forEach(registration => {
-          realRegistrations.push(registration);
-        });
-      }
-      
-      setAttendeeDetails(realAttendeeDetails);
-      setRegistrations(realRegistrations);
+      fetchAttendeeDetails();
     }
   }, [currentUser, event]);
   
@@ -110,48 +176,55 @@ const EventDetail = () => {
   
   const handleRegister = async (registrationData: EventRegistration) => {
     try {
-      // In a real app, we would save the registration to the backend
-      // For now, we'll just update the local state
       await joinEvent(event.id);
       setIsAttending(true);
       
       if (currentUser) {
-        // Add user to attendee list with proper details
         const newAttendeeDetail: AttendeeDetail = {
           id: currentUser.id,
-          name: registrationData.name, // Use the name from the registration form
+          name: registrationData.name,
           profileImage: currentUser.profileImage
         };
         
-        // Update attendee details
         setAttendeeDetails(prevDetails => {
-          // Check if the user is already in the list
           const existingIndex = prevDetails.findIndex(a => a.id === currentUser.id);
           if (existingIndex >= 0) {
-            // Replace existing entry
             const updatedDetails = [...prevDetails];
             updatedDetails[existingIndex] = newAttendeeDetail;
             return updatedDetails;
           } else {
-            // Add new entry
             return [...prevDetails, newAttendeeDetail];
           }
         });
         
-        // Update registrations data
         setRegistrations(prevRegs => {
-          // Check if the user already has a registration
           const existingIndex = prevRegs.findIndex(r => r.userId === currentUser.id);
           if (existingIndex >= 0) {
-            // Replace existing entry
             const updatedRegs = [...prevRegs];
             updatedRegs[existingIndex] = registrationData;
             return updatedRegs;
           } else {
-            // Add new entry
             return [...prevRegs, registrationData];
           }
         });
+      }
+      
+      const { data } = await supabase
+        .from('event_announcements')
+        .select('*')
+        .eq('event_id', event.id)
+        .order('created_at', { ascending: false });
+        
+      if (data) {
+        const formattedAnnouncements = data.map(item => ({
+          id: item.id,
+          eventId: item.event_id,
+          creatorId: item.creator_id,
+          creatorName: item.creator_name,
+          content: item.content,
+          createdAt: new Date(item.created_at)
+        }));
+        setEventAnnouncements(formattedAnnouncements);
       }
       
       toast({
@@ -164,7 +237,7 @@ const EventDetail = () => {
         description: error.message || "An error occurred during registration",
         variant: "destructive"
       });
-      throw error; // Re-throw to be caught by the form handler
+      throw error;
     }
   };
   
@@ -216,7 +289,6 @@ const EventDetail = () => {
     });
   };
   
-  // Use actual attendee count from the available data, not from event.attendees
   const attendeesCount = attendeeDetails.length;
   
   return (
@@ -418,7 +490,7 @@ const EventDetail = () => {
       {event && (
         <div className="mt-8">
           <EventAnnouncements
-            announcements={announcements.filter(a => a.eventId === event.id)}
+            announcements={eventAnnouncements}
             eventId={event.id}
             isCreator={currentUser?.id === event.creatorId}
             onPostAnnouncement={postAnnouncement}
@@ -431,6 +503,7 @@ const EventDetail = () => {
         isOpen={showRegistration}
         onClose={() => setShowRegistration(false)}
         eventTitle={event.title}
+        eventId={event.id}
         onSubmit={handleRegister}
       />
     </div>
