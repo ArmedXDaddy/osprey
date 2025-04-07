@@ -7,9 +7,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { EventRegistration } from '@/types';
-import EventRegistrationForm from './EventRegistrationForm';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EventRegistrationDialogProps {
@@ -33,28 +34,44 @@ const EventRegistrationDialog = ({
 }: EventRegistrationDialogProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   
-  const handleSubmit = async (data: EventRegistration) => {
+  const handleProceedToPayment = async () => {
+    if (!currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to join this event.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       setIsProcessing(true);
+      
+      // Create minimal registration data
+      const registrationData: EventRegistration = {
+        userId: currentUser.id,
+        name: currentUser.name || 'Anonymous',
+        email: currentUser.email || '',
+        registeredAt: new Date(),
+        profileImage: currentUser.profileImage,
+        paymentStatus: isPaidEvent ? 'unpaid' as const : 'not_required' as const
+      };
       
       // Check if already registered
       const { data: existingReg } = await supabase
         .from('event_attendee_details')
         .select('id, payment_status')
         .eq('event_id', eventId)
-        .eq('user_id', data.userId)
+        .eq('user_id', currentUser.id)
         .maybeSingle();
         
-      // If already registered, handle according to payment status
+      // If already registered
       if (existingReg) {
+        // For paid events with unpaid status, proceed to payment
         if (isPaidEvent && existingReg.payment_status === 'unpaid') {
-          // Execute onSubmit to proceed with payment flow
-          await onSubmit({
-            ...data,
-            paymentStatus: 'unpaid'
-          });
-          
+          await onSubmit(registrationData);
           onClose();
           return;
         } else {
@@ -68,30 +85,16 @@ const EventRegistrationDialog = ({
         }
       }
       
-      // Add payment status based on event type
-      const paymentStatus = isPaidEvent ? 'unpaid' as const : 'not_required' as const;
-      const registrationData: EventRegistration = {
-        ...data,
-        paymentStatus
-      };
-      
-      // Insert the registration
+      // Register the user with minimal details
       const { error: insertError } = await supabase
         .from('event_attendee_details')
         .insert({
           event_id: eventId,
-          user_id: data.userId,
-          name: data.name,
-          email: data.email,
-          age: data.age,
-          gender: data.gender,
-          phone: data.phone,
-          emergency_contact: data.emergencyContact,
-          instagram: data.instagram,
-          twitter: data.twitter,
-          additional_info: data.additionalInfo,
-          profile_image: data.profileImage,
-          payment_status: paymentStatus,
+          user_id: currentUser.id,
+          name: currentUser.name || 'Anonymous',
+          email: currentUser.email || '',
+          profile_image: currentUser.profileImage,
+          payment_status: registrationData.paymentStatus,
           registered_at: new Date().toISOString()
         });
         
@@ -99,12 +102,12 @@ const EventRegistrationDialog = ({
         throw new Error("Registration failed");
       }
       
-      // Successfully registered
+      // Proceed to payment or complete registration
       await onSubmit(registrationData);
       
       toast({
         title: "Registration successful",
-        description: isPaidEvent ? "Please proceed with payment." : "You are now registered for this event.",
+        description: isPaidEvent ? "Proceeding to payment." : "You are now registered for this event.",
         variant: "success"
       });
       
@@ -113,7 +116,7 @@ const EventRegistrationDialog = ({
       console.error("Registration error:", error);
       toast({
         title: "Registration failed",
-        description: "Please try again",
+        description: "Please try again later",
         variant: "destructive"
       });
     } finally {
@@ -123,25 +126,31 @@ const EventRegistrationDialog = ({
   
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-3xl">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl md:text-2xl">Register for {eventTitle}</DialogTitle>
           <DialogDescription>
             {isPaidEvent ? (
               <>
-                Please fill out the form below to complete your registration. 
-                <span className="font-semibold"> A payment of ${price} will be required after registration.</span>
+                Click the button below to register and proceed to payment.
+                <span className="font-semibold"> A payment of ${price} will be required.</span>
               </>
             ) : (
-              "Please fill out the form below to complete your registration."
+              "Click the button below to register for this event."
             )}
           </DialogDescription>
         </DialogHeader>
         
-        <EventRegistrationForm 
-          onSubmit={handleSubmit}
-          isProcessing={isProcessing}
-        />
+        <div className="flex justify-center my-6">
+          <Button 
+            onClick={handleProceedToPayment} 
+            disabled={isProcessing}
+            className="w-full"
+            size="lg"
+          >
+            {isProcessing ? "Processing..." : (isPaidEvent ? `Proceed to Payment ($${price})` : "Register Now")}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

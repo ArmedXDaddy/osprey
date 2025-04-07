@@ -5,7 +5,7 @@ import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
-import { DollarSign, Users, Ticket } from 'lucide-react';
+import { DollarSign, Ticket } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -58,32 +58,9 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
     if (isAttending) {
       // If already attending, handle leaving
       onJoin();
-    } else if (isPaidEvent) {
-      // For paid events, just show payment modal
-      setShowPaymentModal(true);
     } else {
-      // For free events, join directly
-      joinEvent();
-    }
-  };
-  
-  const joinEvent = async () => {
-    try {
-      await onJoin();
-      
-      // For free events, generate verification code after successful join
-      if (!isPaidEvent) {
-        const code = generateVerificationCode();
-        setVerificationCode(code);
-        setShowVerificationCode(true);
-      }
-    } catch (error) {
-      console.error("Error joining event:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to join the event."
-      });
+      // Show payment modal directly
+      setShowPaymentModal(true);
     }
   };
   
@@ -91,11 +68,11 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
     try {
       setIsProcessing(true);
       
-      // After successful payment, update payment status in the database
-      if (currentUser) {
-        await onJoin();
-        
-        // Update the payment status
+      // Join event and update database
+      await onJoin();
+      
+      // Update payment status if it's a paid event
+      if (isPaidEvent && currentUser) {
         const { error } = await supabase
           .from('event_attendee_details')
           .update({ payment_status: 'paid' })
@@ -149,7 +126,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
             isPaidEvent ? (
               <>
                 <DollarSign className="h-4 w-4 mr-2" />
-                Register (${event.price})
+                Book Now (${event.price})
               </>
             ) : "Join Event"
           )
