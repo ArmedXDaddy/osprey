@@ -869,3 +869,343 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const getServiceById = async (serviceId: string): Promise<Service | null> => {
+    try {
+      console.log("Fetching service with ID:", serviceId);
+      
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('id', serviceId)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching service:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        console.log("No service found with ID:", serviceId);
+        return null;
+      }
+      
+      const service: Service = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url
+      };
+      
+      console.log("Service data retrieved:", service);
+      return service;
+    } catch (error) {
+      console.error("Error in getServiceById:", error);
+      throw error;
+    }
+  };
+  
+  const bookService = async (serviceId: string, paymentStatus: string = 'paid'): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to book a service');
+    
+    try {
+      await createServiceBooking(serviceId, currentUser.id, null, paymentStatus);
+      
+      toast({
+        title: "Booking successful",
+        description: "You have successfully booked this service."
+      });
+    } catch (error: any) {
+      console.error("Error booking service:", error);
+      toast({
+        variant: "destructive",
+        title: "Booking failed",
+        description: error.message || "There was an error booking this service."
+      });
+      throw error;
+    }
+  };
+  
+  const getUserBookingForService = async (serviceId: string, userId: string): Promise<Booking | null> => {
+    try {
+      return await getUserBookingForService(serviceId, userId);
+    } catch (error) {
+      console.error("Error getting user booking for service:", error);
+      throw error;
+    }
+  };
+  
+  const createService = async (serviceData: any): Promise<Service> => {
+    if (!currentUser) throw new Error('You must be logged in to create a service');
+    
+    try {
+      const newServiceData = {
+        title: serviceData.title,
+        description: serviceData.description,
+        coach_id: currentUser.id,
+        coach_name: currentUser.name,
+        price: serviceData.price || 0,
+        duration: serviceData.duration,
+        is_active: serviceData.available !== undefined ? serviceData.available : true,
+        is_online: serviceData.isOnline || false,
+        location: serviceData.location,
+        capacity: serviceData.capacity,
+        service_type: serviceData.serviceType,
+        cover_image: serviceData.coverImage,
+        meeting_url: serviceData.meetingUrl
+      };
+      
+      const { data, error } = await supabase
+        .from('services')
+        .insert(newServiceData)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newService: Service = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
+        price: data.price,
+        duration: data.duration,
+        available: data.is_active,
+        createdAt: new Date(data.created_at),
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url
+      };
+      
+      setServices(prev => [newService, ...prev]);
+      return newService;
+    } catch (error) {
+      console.error("Error creating service:", error);
+      throw error;
+    }
+  };
+  
+  const updateService = async (serviceId: string, updates: any): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a service');
+    
+    try {
+      const updatedData = {
+        title: updates.title,
+        description: updates.description,
+        price: updates.price,
+        duration: updates.duration,
+        is_active: updates.available,
+        is_online: updates.isOnline,
+        location: updates.location,
+        capacity: updates.capacity,
+        service_type: updates.serviceType,
+        cover_image: updates.coverImage,
+        meeting_url: updates.meetingUrl
+      };
+      
+      const { error } = await supabase
+        .from('services')
+        .update(updatedData)
+        .eq('id', serviceId)
+        .eq('coach_id', currentUser.id);
+        
+      if (error) throw error;
+      
+      setServices(prev => prev.map(service => 
+        service.id === serviceId 
+          ? { ...service, ...updates } 
+          : service
+      ));
+    } catch (error) {
+      console.error("Error updating service:", error);
+      throw error;
+    }
+  };
+  
+  const deleteService = async (serviceId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a service');
+    
+    try {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', serviceId)
+        .eq('coach_id', currentUser.id);
+        
+      if (error) throw error;
+      
+      setServices(prev => prev.filter(service => service.id !== serviceId));
+    } catch (error) {
+      console.error("Error deleting service:", error);
+      throw error;
+    }
+  };
+  
+  const approveBooking = async (bookingId: string): Promise<void> => {
+    try {
+      await approveBooking(bookingId);
+    } catch (error) {
+      console.error("Error approving booking:", error);
+      throw error;
+    }
+  };
+  
+  const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to send a message');
+    
+    try {
+      const { error } = await supabase.rpc('send_service_chat_message', {
+        p_service_id: messageData.serviceId,
+        p_user_id: currentUser.id,
+        p_content: messageData.content
+      });
+      
+      if (error) throw error;
+    } catch (error) {
+      console.error("Error sending service message:", error);
+      throw error;
+    }
+  };
+  
+  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
+    try {
+      const { data, error } = await supabase.rpc('get_service_chat_messages', {
+        p_service_id: serviceId
+      });
+      
+      if (error) throw error;
+      
+      return data.map((message: any) => ({
+        id: message.id,
+        content: message.content,
+        userId: message.user_id,
+        userName: message.user_name,
+        userProfileImage: message.user_profile_image,
+        createdAt: new Date(message.created_at),
+        serviceId: message.service_id,
+        userRole: 'user' as UserRole
+      }));
+    } catch (error) {
+      console.error("Error getting service messages:", error);
+      throw error;
+    }
+  };
+  
+  const fetchUserServices = async (userId: string): Promise<Service[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('coach_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      return data.map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        providerId: item.coach_id,
+        providerName: item.coach_name,
+        price: item.price,
+        duration: item.duration,
+        available: item.is_active,
+        createdAt: new Date(item.created_at),
+        isOnline: item.is_online,
+        location: item.location,
+        capacity: item.capacity,
+        serviceType: item.service_type as ServiceType,
+        coverImage: item.cover_image,
+        meetingUrl: item.meeting_url
+      }));
+    } catch (error) {
+      console.error("Error fetching user services:", error);
+      throw error;
+    }
+  };
+  
+  return (
+    <DataContext.Provider value={{
+      posts,
+      events,
+      groups,
+      services,
+      sessions,
+      sessionEnrollments,
+      messages,
+      setMessages,
+      joinRequests,
+      loading,
+      error,
+      postComments,
+      completedEvents,
+      announcements,
+      postAnnouncement: async () => {},
+      createPost: async () => {},
+      likePost: async () => {},
+      unlikePost: async () => {},
+      addComment: async () => {},
+      updateComment: async () => {},
+      deleteComment: async () => {},
+      createEvent: async () => ({ }) as Event,
+      joinEvent: async () => {},
+      leaveEvent: async () => {},
+      deleteEvent: async () => {},
+      requestToJoinEvent: async () => {},
+      approveEventRequest: async () => {},
+      rejectEventRequest: async () => {},
+      getEventRequests: async () => [],
+      handleEventJoinRequest: async () => {},
+      createGroup: async () => ({ }) as Group,
+      joinGroup,
+      leaveGroup,
+      requestToJoinGroup,
+      approveGroupRequest,
+      rejectGroupRequest,
+      getGroupRequests,
+      handleJoinRequest,
+      removeGroupMember,
+      updateGroupDetails,
+      deleteGroup: async () => {},
+      createSession,
+      enrollInSession,
+      cancelEnrollment,
+      approveEnrollment,
+      rejectEnrollment,
+      getUserSessions,
+      getCoachSessions,
+      getUserEnrollments,
+      updateSession,
+      updateEnrollmentStatus,
+      sendMessage,
+      getServiceById,
+      bookService,
+      cancelBooking,
+      getUserBookings,
+      getServiceBookings,
+      createService,
+      updateService,
+      deleteService,
+      approveBooking,
+      sendServiceMessage,
+      getServiceMessages,
+      getUserBookingForService,
+      fetchUserServices
+    }}>
+      {children}
+    </DataContext.Provider>
+  );
+};
