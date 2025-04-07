@@ -3,9 +3,10 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useData } from '@/context/DataContext';
+import { toast } from '@/hooks/use-toast';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
-import { DollarSign, Ticket } from 'lucide-react';
+import { DollarSign, Users, Ticket } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,6 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from '@/components/ui/input-otp';
-import { supabase } from '@/integrations/supabase/client';
 
 interface EventPaymentButtonProps {
   event: Event;
@@ -32,7 +32,6 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   onJoin 
 }) => {
   const { currentUser } = useAuth();
-  const { toast } = useToast();
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showVerificationCode, setShowVerificationCode] = useState(false);
@@ -42,7 +41,8 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
 
   // Function to generate a random 6-digit verification code
   const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    return code;
   };
 
   const handleJoinClick = async () => {
@@ -58,31 +58,37 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
     if (isAttending) {
       // If already attending, handle leaving
       onJoin();
-    } else {
-      // Show payment modal directly
+    } else if (isPaidEvent) {
+      // For paid events, show payment modal
       setShowPaymentModal(true);
+    } else {
+      // For free events, join directly
+      joinEvent();
+    }
+  };
+  
+  const joinEvent = async () => {
+    try {
+      await onJoin();
+      // Generate verification code after successful join
+      const code = generateVerificationCode();
+      setVerificationCode(code);
+      setShowVerificationCode(true);
+    } catch (error) {
+      console.error("Error joining event:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to join the event. Please try again."
+      });
     }
   };
   
   const handlePaymentSuccess = async () => {
     try {
       setIsProcessing(true);
-      
-      // Join event and update database
+      // After successful payment, join the event
       await onJoin();
-      
-      // Update payment status if it's a paid event
-      if (isPaidEvent && currentUser) {
-        const { error } = await supabase
-          .from('event_attendee_details')
-          .update({ payment_status: 'paid' })
-          .eq('event_id', event.id)
-          .eq('user_id', currentUser.id);
-          
-        if (error) {
-          console.error("Error updating payment status:", error);
-        }
-      }
       
       // Generate verification code
       const code = generateVerificationCode();
@@ -91,18 +97,12 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       // Close payment modal and show verification code
       setShowPaymentModal(false);
       setShowVerificationCode(true);
-      
-      toast({
-        title: "Payment successful!",
-        description: "Your event registration is now complete.",
-        variant: "success"
-      });
     } catch (error) {
-      console.error("Error completing payment process:", error);
+      console.error("Error joining event after payment:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to complete registration."
+        description: "Failed to register for the event. Please try again."
       });
     } finally {
       setIsProcessing(false);
@@ -126,7 +126,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
             isPaidEvent ? (
               <>
                 <DollarSign className="h-4 w-4 mr-2" />
-                Book Now (${event.price})
+                Register (${event.price})
               </>
             ) : "Join Event"
           )

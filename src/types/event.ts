@@ -25,7 +25,7 @@ export interface EventRegistration {
   twitter?: string;
   additionalInfo?: string;
   status?: 'registered' | 'waitlisted' | 'cancelled';
-  paymentStatus?: 'paid' | 'unpaid' | 'refunded' | 'not_required';
+  paymentStatus?: 'paid' | 'unpaid' | 'refunded';
   notes?: string;
   registeredAt?: Date;
   profileImage?: string;
