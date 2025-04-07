@@ -5,8 +5,7 @@ import {
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
   Booking, ServiceType, Comment, GroupPrivacy, Announcement,
-  Sponsorship,
-  SponsorshipApplication
+  Sponsorship, SponsorshipApplication
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
@@ -1321,11 +1320,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const applyToSponsorship = (
+  const applyToSponsorship = async (
     sponsorshipId: string, 
     applicationData: Partial<SponsorshipApplication>
   ): Promise<SponsorshipApplication | null> => {
-    if (!currentUser || ['user', 'influencer', 'coach'].includes(currentUser.role) === false) {
+    if (!currentUser || !['user', 'influencer', 'coach'].includes(currentUser.role as string)) {
       throw new Error('Only users, influencers, and coaches can apply for sponsorships');
     }
     
