@@ -5,7 +5,6 @@ import { NavLink } from 'react-router-dom';
 import { 
   Home, 
   Search, 
-  Calendar, 
   Users, 
   Bell, 
   PlusCircle, 
@@ -46,7 +45,6 @@ const MainLayout: React.FC = () => {
   }, [currentUser, isLoading, location.pathname, navigate]);
 
   React.useEffect(() => {
-    // Apply dark theme class to body when component mounts or theme changes
     if (isDarkTheme) {
       document.documentElement.classList.add('dark');
     } else {
@@ -127,7 +125,6 @@ const MainLayout: React.FC = () => {
               <NavigationLink to="/home" icon={<Home size={18} />} label="Home" />
               <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
               <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
-              <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
               <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
               <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
               <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
@@ -183,7 +180,6 @@ const MainLayout: React.FC = () => {
             <NavigationLink to="/home" icon={<Home size={18} />} label="Home" />
             <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
             <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
-            <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
             <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
             <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
             <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
@@ -293,7 +289,6 @@ const MainLayout: React.FC = () => {
                   <NavigationLink to="/home" icon={<Home size={18} />} label="Home" />
                   <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
                   <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
-                  <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
                   <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
                   <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
                   <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
