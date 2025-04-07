@@ -90,6 +90,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       setIsProcessing(true);
       // After successful payment, update payment status in the database
       if (currentUser) {
+        // Note: We use the database column name (snake_case) in the update operation
         const { error } = await supabase
           .from('event_attendee_details')
           .update({ payment_status: 'paid' })
