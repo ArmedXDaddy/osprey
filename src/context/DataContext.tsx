@@ -621,7 +621,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         description: error.message || "Failed to join group",
         variant: "destructive"
       });
-      throw error;
+      throw new Error(error.message || 'Failed to join group');
     }
   };
   
@@ -1015,7 +1015,63 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   };
   
   const createGroup = async (groupData: any): Promise<Group> => {
-    throw new Error('Not implemented');
+    if (!currentUser) throw new Error('You must be logged in to create a group');
+    
+    try {
+      const { data, error } = await supabase
+        .from('groups')
+        .insert({
+          name: groupData.name,
+          description: groupData.description,
+          creator_id: currentUser.id,
+          creator_name: currentUser.name,
+          creator_role: currentUser.role,
+          privacy: groupData.privacy,
+          price: groupData.privacy === 'paid' ? groupData.price : null,
+          image: groupData.image || null,
+          members: 1,
+          rules: groupData.rules || [],
+          member_limit: groupData.memberLimit || 100
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      const newGroup: Group = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        creatorId: data.creator_id,
+        creatorName: data.creator_name,
+        creatorRole: data.creator_role as UserRole,
+        members: data.members,
+        memberIds: [currentUser.id],
+        image: data.image,
+        privacy: data.privacy as GroupPrivacy,
+        price: data.price,
+        createdAt: new Date(data.created_at),
+        rules: data.rules,
+        memberLimit: data.member_limit
+      };
+      
+      setGroups(prev => [newGroup, ...prev]);
+      
+      toast({
+        title: "Group created",
+        description: "Your group has been created successfully"
+      });
+      
+      return newGroup;
+    } catch (error: any) {
+      console.error("Error creating group:", error);
+      toast({
+        variant: "destructive",
+        title: "Error creating group",
+        description: error.message || "Failed to create group"
+      });
+      throw error;
+    }
   };
   
   const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
@@ -1459,7 +1515,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       rejectEventRequest: async () => { throw new Error('Not implemented'); },
       getEventRequests: async () => { return []; },
       handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
-      createGroup: async () => { throw new Error('Not implemented'); },
+      createGroup,
       joinGroup,
       leaveGroup,
       requestToJoinGroup,
