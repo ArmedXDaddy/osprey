@@ -4,13 +4,22 @@ import { useAuth } from './AuthContext';
 import { 
   Event, UserRole, EventPrivacy, Post, Group, Service, 
   Session, SessionEnrollment, Message, JoinRequest, 
-  Booking, ServiceType, Comment, GroupPrivacy, Announcement
+  Booking, ServiceType, Comment, GroupPrivacy, Announcement,
+  Sponsorship,
+  SponsorshipApplication
 } from '@/types';
 import { 
   createServiceBooking, getUserBookings, getServiceBookings, 
   getUserBookingForService, cancelBooking, approveBooking, 
   uploadImage, updateComment, deleteComment 
 } from '@/integrations/supabase/helpers';
+import { 
+  fetchSponsorships, 
+  createSponsorship, 
+  applyForSponsorship,
+  getSponsorshipApplications,
+  getUserSponsorshipApplications
+} from '@/integrations/supabase/sponsorshipHelpers';
 import { generateMockServices, generateMockPosts, generateMockEvents, 
   generateMockGroups, generateMockSessions, generateMockSessionEnrollments, 
   generateMockMessages, generateMockJoinRequests 
@@ -82,6 +91,16 @@ interface DataContextType {
   getServiceMessages: (serviceId: string) => Promise<Message[]>;
   getUserBookingForService: (serviceId: string, userId: string) => Promise<Booking | null>;
   fetchUserServices: (userId: string) => Promise<Service[]>;
+  sponsorships: Sponsorship[];
+  userSponsorshipApplications: SponsorshipApplication[];
+  fetchAllSponsorships: () => Promise<void>;
+  createNewSponsorship: (sponsorshipData: Partial<Sponsorship>) => Promise<Sponsorship | null>;
+  applyToSponsorship: (
+    sponsorshipId: string, 
+    applicationData: Partial<SponsorshipApplication>
+  ) => Promise<SponsorshipApplication | null>;
+  fetchUserSponsorshipApplications: () => Promise<void>;
+  fetchSponsorshipApplications: (sponsorshipId: string) => Promise<SponsorshipApplication[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -113,10 +132,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [postComments, setPostComments] = useState<Record<string, Comment[]>>({});
   const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  
+  const [sponsorships, setSponsorships] = useState<Sponsorship[]>([]);
+  const [userSponsorshipApplications, setUserSponsorshipApplications] = useState<SponsorshipApplication[]>([]);
+
   const { toast } = useToast();
   const { currentUser } = useAuth();
-  
+
   React.useEffect(() => {
     const loadMockData = async () => {
       try {
@@ -1266,6 +1287,94 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
   
+  const fetchAllSponsorships = async () => {
+    try {
+      const sponsorshipsData = await fetchSponsorships();
+      setSponsorships(sponsorshipsData);
+    } catch (error) {
+      console.error("Error fetching sponsorships:", error);
+    }
+  };
+
+  const createNewSponsorship = async (sponsorshipData: Partial<Sponsorship>): Promise<Sponsorship | null> => {
+    if (!currentUser || currentUser.role !== 'company') {
+      throw new Error('Only companies can create sponsorships');
+    }
+    
+    try {
+      const newSponsorship = await createSponsorship({
+        ...sponsorshipData,
+        companyId: currentUser.id,
+        companyName: currentUser.name,
+        companyLogo: currentUser.profileImage,
+        status: 'active'
+      });
+      
+      if (newSponsorship) {
+        setSponsorships(prev => [newSponsorship, ...prev]);
+        return newSponsorship;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error creating sponsorship:", error);
+      throw error;
+    }
+  };
+
+  const applyToSponsorship = (
+    sponsorshipId: string, 
+    applicationData: Partial<SponsorshipApplication>
+  ): Promise<SponsorshipApplication | null> => {
+    if (!currentUser || ['user', 'influencer', 'coach'].includes(currentUser.role) === false) {
+      throw new Error('Only users, influencers, and coaches can apply for sponsorships');
+    }
+    
+    try {
+      const application = await applyForSponsorship(sponsorshipId, {
+        ...applicationData,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        userProfileImage: currentUser.profileImage
+      });
+      
+      if (application) {
+        setUserSponsorshipApplications(prev => [application, ...prev]);
+        return application;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error applying to sponsorship:", error);
+      throw error;
+    }
+  };
+
+  const fetchUserSponsorshipApplications = async () => {
+    if (!currentUser) {
+      throw new Error('User must be logged in');
+    }
+    
+    try {
+      const applications = await getUserSponsorshipApplications(currentUser.id);
+      setUserSponsorshipApplications(applications);
+    } catch (error) {
+      console.error("Error fetching user sponsorship applications:", error);
+    }
+  };
+
+  const fetchSponsorshipApplications = async (sponsorshipId: string) => {
+    if (!currentUser || currentUser.role !== 'company') {
+      throw new Error('Only companies can view sponsorship applications');
+    }
+    
+    try {
+      return await getSponsorshipApplications(sponsorshipId);
+    } catch (error) {
+      console.error("Error fetching sponsorship applications:", error);
+      return [];
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1331,7 +1440,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       sendServiceMessage,
       getServiceMessages,
       getUserBookingForService: getUserBookingForServiceImpl,
-      fetchUserServices
+      fetchUserServices,
+      sponsorships,
+      userSponsorshipApplications,
+      fetchAllSponsorships,
+      createNewSponsorship,
+      applyToSponsorship,
+      fetchUserSponsorshipApplications,
+      fetchSponsorshipApplications,
     }}>
       {children}
     </DataContext.Provider>
