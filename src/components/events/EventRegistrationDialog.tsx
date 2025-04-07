@@ -46,6 +46,12 @@ const EventRegistrationDialog = ({
         .eq('user_id', data.userId)
         .single();
         
+      if (checkError && checkError.code !== 'PGRST116') {
+        // If there's an error other than "no rows returned", throw it
+        console.error("Error checking registration:", checkError);
+        throw new Error("Failed to check registration status. Please try again.");
+      }
+        
       if (existingRegistration) {
         toast({
           title: "Already registered",
@@ -83,6 +89,17 @@ const EventRegistrationDialog = ({
         });
         
       if (error) {
+        // Handle duplicate registration error specifically
+        if (error.code === '23505') {
+          toast({
+            title: "Already registered",
+            description: "You are already registered for this event.",
+            variant: "destructive"
+          });
+          onClose();
+          return;
+        }
+        
         console.error("Database insertion error:", error);
         throw new Error("Registration failed. Please try again.");
       }
