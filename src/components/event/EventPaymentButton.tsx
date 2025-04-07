@@ -59,40 +59,8 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       // If already attending, handle leaving
       onJoin();
     } else if (isPaidEvent) {
-      // For paid events, check if user has already registered but not paid
-      try {
-        const { data: existingReg, error: regError } = await supabase
-          .from('event_attendee_details')
-          .select('id, payment_status')
-          .eq('event_id', event.id)
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
-          
-        if (regError) {
-          console.error("Error checking registration:", regError);
-          throw new Error("Could not verify registration status");
-        }
-        
-        if (existingReg && existingReg.payment_status === 'unpaid') {
-          // Already registered, just show payment modal
-          setShowPaymentModal(true);
-        } else if (existingReg && existingReg.payment_status === 'paid') {
-          // Already paid, just show verification code
-          const code = generateVerificationCode();
-          setVerificationCode(code);
-          setShowVerificationCode(true);
-        } else {
-          // Not registered yet, trigger registration flow
-          joinEvent();
-        }
-      } catch (error) {
-        console.error("Error checking registration:", error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not check registration status. Please try again."
-        });
-      }
+      // For paid events, just show payment modal
+      setShowPaymentModal(true);
     } else {
       // For free events, join directly
       joinEvent();
@@ -114,7 +82,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to join the event. Please try again."
+        description: "Failed to join the event."
       });
     }
   };
@@ -125,47 +93,17 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       
       // After successful payment, update payment status in the database
       if (currentUser) {
-        // Check if the user is registered first
-        const { data: existingRegistration, error: checkError } = await supabase
-          .from('event_attendee_details')
-          .select('*')
-          .eq('event_id', event.id)
-          .eq('user_id', currentUser.id)
-          .maybeSingle();
-          
-        if (checkError) {
-          console.error("Error checking registration:", checkError);
-          throw new Error("Could not verify registration status.");
-        }
+        await onJoin();
         
-        if (existingRegistration) {
-          // Update existing registration
-          const { error } = await supabase
-            .from('event_attendee_details')
-            .update({ payment_status: 'paid' })
-            .eq('event_id', event.id)
-            .eq('user_id', currentUser.id);
-            
-          if (error) {
-            console.error("Error updating payment status:", error);
-            throw error;
-          }
-        } else {
-          // Registration doesn't exist yet, so proceed with join
-          console.log("No registration found, proceeding with join");
-          await onJoin();
+        // Update the payment status
+        const { error } = await supabase
+          .from('event_attendee_details')
+          .update({ payment_status: 'paid' })
+          .eq('event_id', event.id)
+          .eq('user_id', currentUser.id);
           
-          // Update the payment status after joining
-          const { error } = await supabase
-            .from('event_attendee_details')
-            .update({ payment_status: 'paid' })
-            .eq('event_id', event.id)
-            .eq('user_id', currentUser.id);
-            
-          if (error) {
-            console.error("Error updating payment status after join:", error);
-            // Continue anyway since the user has paid
-          }
+        if (error) {
+          console.error("Error updating payment status:", error);
         }
       }
       
@@ -183,11 +121,11 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         variant: "success"
       });
     } catch (error) {
-      console.error("Error joining event after payment:", error);
+      console.error("Error completing payment process:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to complete registration after payment. Please contact support."
+        description: "Failed to complete registration."
       });
     } finally {
       setIsProcessing(false);
