@@ -51,7 +51,7 @@ const formSchema = z.object({
   duration: z.string().min(1, {
     message: "Duration is required.",
   }),
-  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course'], {
+  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course', 'consultation'], {
     required_error: "Please select a service type.",
   }),
   isOnline: z.boolean().default(false),

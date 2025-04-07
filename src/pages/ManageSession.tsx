@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
@@ -99,7 +98,7 @@ const ManageSession = () => {
     if (!selectedEnrollment || !actionType) return;
     
     try {
-      const newStatus: SessionStatus = actionType === 'approve' ? 'approved' : 'rejected';
+      const newStatus = actionType === 'approve' ? 'approved' : 'rejected';
       await updateEnrollmentStatus(selectedEnrollment.id, newStatus);
       
       // Update local state to reflect changes

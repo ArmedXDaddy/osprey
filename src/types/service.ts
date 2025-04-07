@@ -4,6 +4,8 @@ export type ServiceType = 'one_on_one' | 'group' | 'course' | 'consultation' | '
 export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'failed';
 
+export type SessionStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled' | 'approved' | 'rejected' | 'pending';
+
 export interface Workshop {
   id: string;
   title: string;
@@ -41,5 +43,3 @@ export interface Product {
   tags?: string[];
   createdAt: Date;
 }
-
-export type SessionStatus = 'upcoming' | 'ongoing' | 'completed' | 'cancelled';

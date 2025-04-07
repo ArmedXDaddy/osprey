@@ -1,4 +1,3 @@
-
 import { supabase, runQuery } from './client';
 import { Booking, BookingStatus, PaymentStatus, Product, Workshop } from '@/types';
 
@@ -273,7 +272,6 @@ export const getUserBookings = async (userId: string): Promise<Booking[]> => {
       notes: item.notes || undefined,
       preferredTime: undefined, // This field is not currently in our database
       scheduledTime: undefined,
-      isPaid: item.payment_status === 'paid',
       createdAt: new Date(item.created_at),
       serviceName: item.service_title || '',
       providerName: item.coach_name || '',

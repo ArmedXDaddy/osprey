@@ -27,7 +27,7 @@ const formSchema = z.object({
     message: "Duration must be specified."
   }),
   capacity: z.number().optional(),
-  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course'] as const),
+  serviceType: z.enum(['one_on_one', 'group', 'webinar', 'course', 'consultation'] as const),
   isOnline: z.boolean(),
   location: z.string().optional(),
   meetingUrl: z.string().optional(),

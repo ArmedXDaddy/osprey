@@ -1,4 +1,3 @@
-
 import { UserRole } from './user';
 import { EventPrivacy, AttendeeDetail, EventRegistration } from './event';
 import { GroupPrivacy } from './group';
@@ -166,6 +165,7 @@ export interface Booking {
   serviceType?: string;
   preferredTime?: Date;
   scheduledTime?: Date;
+  isPaid?: boolean;
 }
 
 export interface Comment {
