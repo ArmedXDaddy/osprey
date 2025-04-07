@@ -1494,6 +1494,336 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const likePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to like a post');
+    
+    try {
+      const { data: existingLike, error: checkError } = await supabase
+        .from('post_likes')
+        .select('*')
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id)
+        .single();
+        
+      if (checkError && checkError.code !== 'PGRST116') {
+        throw checkError;
+      }
+      
+      if (existingLike) return;
+      
+      const { error } = await supabase
+        .from('post_likes')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id
+        });
+        
+      if (error) throw error;
+      
+      const { error: incrementError } = await supabase.rpc('increment_post_likes', {
+        post_id: postId
+      });
+      
+      if (incrementError) throw incrementError;
+      
+      setPosts(prev => 
+        prev.map(post => {
+          if (post.id === postId) {
+            const userLikes = post.userLikes || [];
+            return {
+              ...post,
+              likes: post.likes + 1,
+              userLikes: [...userLikes, currentUser.id]
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error: any) {
+      console.error("Error liking post:", error);
+      throw new Error(error.message || 'Failed to like post');
+    }
+  };
+  
+  const unlikePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to unlike a post');
+    
+    try {
+      const { error } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+        
+      if (error) throw error;
+      
+      const { error: decrementError } = await supabase.rpc('decrement_post_likes', {
+        post_id: postId
+      });
+      
+      if (decrementError) throw decrementError;
+      
+      setPosts(prev => 
+        prev.map(post => {
+          if (post.id === postId) {
+            const userLikes = post.userLikes || [];
+            return {
+              ...post,
+              likes: Math.max(0, post.likes - 1),
+              userLikes: userLikes.filter(id => id !== currentUser.id)
+            };
+          }
+          return post;
+        })
+      );
+    } catch (error: any) {
+      console.error("Error unliking post:", error);
+      throw new Error(error.message || 'Failed to unlike post');
+    }
+  };
+  
+  const addComment = async (postId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to add a comment');
+    if (!content.trim()) throw new Error('Comment cannot be empty');
+    
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage,
+          content: content
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const { error: incrementError } = await supabase.rpc('increment_post_comments', {
+        post_id: postId
+      });
+      
+      if (incrementError) throw incrementError;
+      
+      const newComment: Comment = {
+        id: data.id,
+        postId: data.post_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role,
+        userProfileImage: data.user_profile_image,
+        content: data.content,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        if (!updatedComments[postId]) {
+          updatedComments[postId] = [];
+        }
+        updatedComments[postId] = [newComment, ...updatedComments[postId]];
+        return updatedComments;
+      });
+      
+      setPosts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, comments: post.comments + 1 } 
+            : post
+        )
+      );
+    } catch (error: any) {
+      console.error("Error adding comment:", error);
+      throw new Error(error.message || 'Failed to add comment');
+    }
+  };
+  
+  const updateCommentImpl = async (commentId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a comment');
+    if (!content.trim()) throw new Error('Comment cannot be empty');
+    
+    try {
+      const { data: commentData, error: fetchError } = await supabase
+        .from('comments')
+        .select('user_id, post_id')
+        .eq('id', commentId)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      if (commentData.user_id !== currentUser.id) {
+        throw new Error('You can only edit your own comments');
+      }
+      
+      const { data, error } = await supabase
+        .from('comments')
+        .update({ content, updated_at: new Date().toISOString() })
+        .eq('id', commentId)
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        const postId = commentData.post_id;
+        
+        if (updatedComments[postId]) {
+          updatedComments[postId] = updatedComments[postId].map(comment => 
+            comment.id === commentId 
+              ? { ...comment, content } 
+              : comment
+          );
+        }
+        
+        return updatedComments;
+      });
+    } catch (error: any) {
+      console.error("Error updating comment:", error);
+      throw new Error(error.message || 'Failed to update comment');
+    }
+  };
+  
+  const deleteCommentImpl = async (commentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a comment');
+    
+    try {
+      const { data: commentData, error: fetchError } = await supabase
+        .from('comments')
+        .select('user_id, post_id')
+        .eq('id', commentId)
+        .single();
+        
+      if (fetchError) throw fetchError;
+      
+      if (commentData.user_id !== currentUser.id) {
+        throw new Error('You can only delete your own comments');
+      }
+      
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+        
+      if (error) throw error;
+      
+      const { error: decrementError } = await supabase.rpc('decrement_post_comments', {
+        post_id: commentData.post_id
+      });
+      
+      if (decrementError) throw decrementError;
+      
+      const postId = commentData.post_id;
+      
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        
+        if (updatedComments[postId]) {
+          updatedComments[postId] = updatedComments[postId].filter(
+            comment => comment.id !== commentId
+          );
+        }
+        
+        return updatedComments;
+      });
+      
+      setPosts(prev => 
+        prev.map(post => 
+          post.id === postId 
+            ? { ...post, comments: Math.max(0, post.comments - 1) } 
+            : post
+        )
+      );
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      throw new Error(error.message || 'Failed to delete comment');
+    }
+  };
+
+  const createPost = async (content: string, imageFile?: File | null): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to create a post');
+    if (!content.trim() && !imageFile) throw new Error('Post must have content or an image');
+    
+    try {
+      const postData: any = {
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content: content,
+        image: null,
+        likes_count: 0,
+        comments_count: 0
+      };
+      
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `posts/${fileName}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('covers')
+          .upload(filePath, imageFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          throw new Error('Error uploading image');
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('covers')
+          .getPublicUrl(filePath);
+        
+        postData.image = publicUrl;
+      }
+      
+      const { data, error } = await supabase
+        .from('posts')
+        .insert(postData)
+        .select();
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        const newPost: Post = {
+          id: data[0].id,
+          userId: data[0].user_id,
+          userName: data[0].user_name,
+          userRole: data[0].user_role,
+          userProfileImage: data[0].user_profile_image,
+          content: data[0].content,
+          image: data[0].image,
+          likes: data[0].likes_count || 0,
+          comments: data[0].comments_count || 0,
+          userLikes: [],
+          createdAt: new Date(data[0].created_at)
+        };
+        
+        setPosts(prev => [newPost, ...prev]);
+        
+        toast({
+          title: "Post created",
+          description: "Your post has been published successfully",
+          duration: 3000,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error creating post:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create post. Please try again.",
+        duration: 3000,
+      });
+      throw error;
+    }
+  };
+
   return (
     <DataContext.Provider value={{
       posts,
@@ -1511,21 +1841,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       completedEvents,
       announcements,
       postAnnouncement,
-      createPost: async () => { throw new Error('Not implemented'); },
-      likePost: async () => { throw new Error('Not implemented'); },
-      unlikePost: async () => { throw new Error('Not implemented'); },
-      addComment: async () => { throw new Error('Not implemented'); },
-      updateComment: async () => { throw new Error('Not implemented'); },
-      deleteComment: async () => { throw new Error('Not implemented'); },
+      createPost,
+      likePost,
+      unlikePost,
+      addComment,
+      updateComment: updateCommentImpl,
+      deleteComment: deleteCommentImpl,
       createEvent,
       joinEvent,
       leaveEvent,
       deleteEvent,
-      requestToJoinEvent: async () => { throw new Error('Not implemented'); },
-      approveEventRequest: async () => { throw new Error('Not implemented'); },
-      rejectEventRequest: async () => { throw new Error('Not implemented'); },
-      getEventRequests: async () => { return []; },
-      handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
+      requestToJoinEvent,
+      approveEventRequest,
+      rejectEventRequest,
+      getEventRequests,
+      handleEventJoinRequest,
       createGroup,
       joinGroup,
       leaveGroup,
