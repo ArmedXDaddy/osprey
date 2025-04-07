@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { Event, Post, Comment, Message, JoinRequest, Booking, User } from '@/types';
+import { Event, Post, Comment, Message, JoinRequest, Booking } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { 
   uploadImage, 
@@ -19,8 +19,8 @@ interface DataContextType {
   setPosts: React.Dispatch<React.SetStateAction<Post[]>>;
   createPost: (content: string, image: File | null) => Promise<void>;
   createEvent: (eventData: any) => Promise<any>;
-  fetchUserProfile: (userId: string) => Promise<User | null>;
-  updateUserProfile: (userId: string, updates: Partial<User>) => Promise<void>;
+  fetchUserProfile: (userId: string) => Promise<any | null>;
+  updateUserProfile: (userId: string, updates: Partial<any>) => Promise<void>;
   addComment: (postId: string, content: string) => Promise<Comment>;
   updateComment: (commentId: string, content: string) => Promise<void>;
   deleteComment: (commentId: string) => Promise<void>;
@@ -35,7 +35,7 @@ interface DataContextType {
   // Add the missing properties from the errors
   joinEvent: (eventId: string) => Promise<void>;
   leaveEvent: (eventId: string) => Promise<void>;
-  deleteEvent: (eventId: string, status: string) => Promise<void>;
+  deleteEvent: (eventId: string) => Promise<void>;
   
   // Group related properties
   groups: any[];
@@ -51,7 +51,7 @@ interface DataContextType {
   // Message related properties
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
-  sendMessage: (groupId: string, content: string) => Promise<void>;
+  sendMessage: (params: { groupId: string, content: string }) => Promise<void>;
   
   // Service related properties
   services: any[];
@@ -147,7 +147,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (postsError) {
           console.error("Error fetching posts:", postsError);
         } else if (postsData) {
-          setPosts(postsData);
+          // Transform posts data to match the Post interface
+          const formattedPosts = postsData.map(post => ({
+            ...post,
+            id: post.id,
+            userId: post.user_id,
+            userName: post.user_name,
+            userRole: post.user_role,
+            userProfileImage: post.user_profile_image,
+            content: post.content,
+            imageUrl: post.image, // Map image to imageUrl
+            likes: post.likes || [],
+            commentsCount: post.comments_count || 0,
+            createdAt: new Date(post.created_at)
+          }));
+          setPosts(formattedPosts);
         }
 
         // Fetch announcements from Supabase
@@ -178,7 +192,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loadInitialData();
   }, []);
 
-  const fetchUserProfile = async (userId: string): Promise<User | null> => {
+  const fetchUserProfile = async (userId: string): Promise<any | null> => {
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -191,14 +205,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return null;
       }
 
-      return data as User;
+      return data;
     } catch (error) {
       console.error("Error fetching profile:", error);
       return null;
     }
   };
 
-  const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<void> => {
+  const updateUserProfile = async (userId: string, updates: Partial<any>): Promise<void> => {
     try {
       const { error } = await supabase
         .from('profiles')
@@ -241,7 +255,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .from('posts')
         .insert({
           content,
-          image_url: imageUrl,
+          image: imageUrl, // Use image field in the database
           user_id: currentUser.id,
           user_name: userProfile?.name,
           user_role: userProfile?.role || 'user',
@@ -259,7 +273,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const newPost: Post = {
         id: Math.random().toString(), // Temporary ID, will be replaced on refresh
         content,
-        imageUrl,
+        imageUrl, // Use imageUrl in the frontend
         userId: currentUser.id,
         userName: userProfile?.name,
         userRole: userProfile?.role || 'user',
@@ -356,9 +370,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(error.message || 'Failed to create comment');
       }
       
-      // Increment post comments count using direct SQL query to work around TypeScript issues
-      const client = supabase as any;
-      const { error: rpcError } = await client.rpc('increment_post_comments', { post_id: postId });
+      // Increment post comments count using RPC function
+      const { error: rpcError } = await supabase
+        .rpc('increment_post_comments', { post_id: postId });
       
       if (rpcError) {
         console.error('Error incrementing post comments count:', rpcError);
@@ -417,9 +431,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
       
       if (comment?.post_id) {
-        // Decrement post comments count using direct SQL query to work around TypeScript issues
-        const client = supabase as any;
-        const { error: rpcError } = await client.rpc('decrement_post_comments', { post_id: comment.post_id });
+        // Decrement post comments count using RPC function
+        const { error: rpcError } = await supabase
+          .rpc('decrement_post_comments', { post_id: comment.post_id });
         
         if (rpcError) {
           console.error('Error decrementing post comments count:', rpcError);
@@ -459,7 +473,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase
         .from('posts')
-        .update({ likes: supabase.raw(`array_append(likes, '${userId}')`) })
+        .update({ likes: supabase.rpc('array_append', { arr: 'likes', item: userId }) })
         .eq('id', postId);
 
       if (error) {
@@ -482,7 +496,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase
         .from('posts')
-        .update({ likes: supabase.raw(`array_remove(likes, '${userId}')`) })
+        .update({ likes: supabase.rpc('array_remove', { arr: 'likes', item: userId }) })
         .eq('id', postId);
 
       if (error) {
@@ -491,9 +505,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       setPosts(prevPosts =>
-        prevPosts.map(post =>
-          post.id === postId ? { ...post, likes: (post.likes || []).filter(id => id !== userId) } : post
-        )
+        prevPosts.map(post => {
+          if (post.id === postId && Array.isArray(post.likes)) {
+            return { 
+              ...post, 
+              likes: post.likes.filter(id => id !== userId) 
+            };
+          }
+          return post;
+        })
       );
     } catch (error: any) {
       console.error('Error unliking post:', error);
@@ -560,8 +580,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("Leave event function called with ID:", eventId);
   };
 
-  const deleteEvent = async (eventId: string, status: string): Promise<void> => {
-    console.log("Delete event function called with ID:", eventId, "Status:", status);
+  const deleteEvent = async (eventId: string): Promise<void> => {
+    console.log("Delete event function called with ID:", eventId);
   };
 
   // Group related functions
@@ -600,8 +620,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Message related functions
-  const sendMessage = async (groupId: string, content: string): Promise<void> => {
-    console.log("Send message function called with group ID:", groupId, "and content:", content);
+  const sendMessage = async (params: { groupId: string, content: string }): Promise<void> => {
+    console.log("Send message function called with params:", params);
   };
 
   // Service related functions

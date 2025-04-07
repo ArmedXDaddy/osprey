@@ -32,7 +32,7 @@ const SessionCard: React.FC<SessionCardProps> = ({ session, isEnrolled = false, 
         return;
       }
       
-      await enrollInSession(session.id);
+      await enrollInSession(session.id, {});
     } catch (error) {
       console.error('Error enrolling in session:', error);
     }

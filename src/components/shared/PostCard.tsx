@@ -27,7 +27,7 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [newComment, setNewComment] = useState('');
   const [showComments, setShowComments] = useState(false);
   
-  const isLiked = post.likes?.includes(currentUser?.id || '');
+  const isLiked = post.likes && Array.isArray(post.likes) && currentUser ? post.likes.includes(currentUser.id) : false;
   
   const handleLikeToggle = async () => {
     if (!currentUser) return;
