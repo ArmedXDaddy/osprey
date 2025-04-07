@@ -1,6 +1,5 @@
 
 export type EventPrivacy = 'public' | 'private' | 'invite-only' | 'paid';
-export type PaymentStatus = 'pending' | 'paid' | 'unpaid' | 'refunded' | 'not_required';
 
 export interface AttendeeDetail {
   id: string;
@@ -26,7 +25,7 @@ export interface EventRegistration {
   twitter?: string;
   additionalInfo?: string;
   status?: 'registered' | 'waitlisted' | 'cancelled';
-  paymentStatus?: PaymentStatus;
+  paymentStatus?: 'paid' | 'unpaid' | 'refunded';
   notes?: string;
   registeredAt?: Date;
   profileImage?: string;
