@@ -20,7 +20,8 @@ import {
   DollarSign,
   GraduationCap,
   Building,
-  Package2
+  Package2,
+  Award
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
@@ -87,6 +88,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }
 
   const isCompany = currentUser?.role === 'company';
+  const canAccessSponsorships = ['company', 'influencer', 'coach'].includes(currentUser?.role || '');
 
   const NavigationLink = ({ to, icon, label }: { to: string; icon: React.ReactNode; label: string }) => (
     <NavLink 
@@ -197,6 +199,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
             <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
             <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+            {canAccessSponsorships && (
+              <NavigationLink to="/sponsorships" icon={<Award size={18} />} label="Sponsorships" />
+            )}
             
             <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
             <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
@@ -266,7 +271,86 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </main>
       </div>
       
-      {isMobile && <MobileMenu />}
+      {isMobile && (
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+          <SheetContent side="left" className="w-[75%] sm:w-[350px] p-0 dark:bg-gray-900 dark:text-white">
+            <div className="flex flex-col h-full">
+              <div className="p-4 border-b dark:border-gray-800">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold gradient-text">Osprey</h2>
+                  <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
+                    <X size={18} />
+                  </Button>
+                </div>
+                
+                {currentUser && (
+                  <div className="flex items-center gap-3 py-2">
+                    <img 
+                      src={currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`} 
+                      alt={currentUser.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="font-medium text-sm">{currentUser.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">{currentUser.role}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex-1 overflow-auto p-4">
+                <nav className="space-y-1">
+                  <NavigationLink to="/" icon={<Home size={18} />} label="Home" />
+                  <NavigationLink to="/explore" icon={<Search size={18} />} label="Explore" />
+                  <NavigationLink to="/networking" icon={<NetworkIcon size={18} />} label="Networking" />
+                  <NavigationLink to="/events" icon={<Calendar size={18} />} label="Events" />
+                  <NavigationLink to="/groups" icon={<Users size={18} />} label="Groups" />
+                  <NavigationLink to="/services" icon={<DollarSign size={18} />} label="Services" />
+                  <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+                  <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+                  <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+                  {canAccessSponsorships && (
+                    <NavigationLink to="/sponsorships" icon={<Award size={18} />} label="Sponsorships" />
+                  )}
+                  
+                  {isCompany && (
+                    <>
+                      <div className="mt-4 mb-2 px-3">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase">Company Management</h3>
+                      </div>
+                      <NavigationLink to="/jobs" icon={<Briefcase size={18} />} label="Jobs" />
+                      <NavigationLink to="/products" icon={<Package2 size={18} />} label="Products" />
+                      <NavigationLink to="/workshops" icon={<GraduationCap size={18} />} label="Workshops" />
+                    </>
+                  )}
+                  
+                  <NavigationLink to="/profile" icon={<User size={18} />} label="Profile" />
+                  <NavigationLink to="/settings" icon={<Settings size={18} />} label="Settings" />
+                  {currentUser?.role === 'admin' && (
+                    <NavigationLink to="/admin" icon={<Settings size={18} />} label="Admin" />
+                  )}
+                </nav>
+                
+                <div className="mt-6">
+                  <RoleBasedActionButton />
+                </div>
+              </div>
+              
+              <div className="p-4 border-t dark:border-gray-800">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800" 
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                >
+                  <LogOut size={16} />
+                  <span>{isLoggingOut ? 'Signing out...' : 'Logout'}</span>
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
       
       <div className="md:hidden fixed bottom-5 right-5 rounded-full shadow-lg z-10">
         <Button variant="default" size="icon" className="h-12 w-12 rounded-full bg-primary shadow-md">
