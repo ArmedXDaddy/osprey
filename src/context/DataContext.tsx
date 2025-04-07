@@ -1018,6 +1018,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) throw new Error('You must be logged in to create a group');
     
     try {
+      console.log("Creating group with data:", groupData);
+      
+      const memberLimit = parseInt(groupData.memberLimit) || 100;
+      
       const { data, error } = await supabase
         .from('groups')
         .insert({
@@ -1031,12 +1035,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           image: groupData.image || null,
           members: 1,
           rules: groupData.rules || [],
-          member_limit: groupData.memberLimit || 100
+          member_limit: memberLimit
         })
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error creating group:", error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error("Failed to create group: No data returned");
+      }
       
       const newGroup: Group = {
         id: data.id,
