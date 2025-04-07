@@ -46,6 +46,7 @@ const EventRegistrationDialog = ({
       };
       
       // Store registration details in the database
+      // Note we use snake_case for database column names
       const { error } = await supabase
         .from('event_attendee_details')
         .insert({
@@ -61,7 +62,7 @@ const EventRegistrationDialog = ({
           twitter: data.twitter,
           additional_info: data.additionalInfo,
           profile_image: data.profileImage,
-          payment_status: paymentStatus // Add payment status to DB record
+          payment_status: paymentStatus // Use snake_case for database column
         });
         
       if (error) {
