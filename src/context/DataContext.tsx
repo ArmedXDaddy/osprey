@@ -1065,7 +1065,7 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       };
       
       // Update the services state
-      setServices(prevServices => [newService, ...prevServices]);
+      setServices(prev => [newService, ...prev]);
       
       return newService;
     } catch (err: any) {
@@ -1303,39 +1303,30 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       // Upload image if provided
       let imageUrl = null;
       if (imageFile) {
-        // Check if posts bucket exists, create it if not
-        const { data: bucketExists } = await supabase.storage
-          .getBucket('posts');
+        try {
+          // Upload the file to the posts bucket
+          const fileExt = imageFile.name.split('.').pop();
+          const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
           
-        if (!bucketExists) {
-          const { error: createBucketError } = await supabase.storage
-            .createBucket('posts', { public: true });
-            
-          if (createBucketError) {
-            console.error('Error creating bucket:', createBucketError);
-            throw new Error('Failed to create storage for images');
-          }
-        }
-        
-        // Upload the file
-        const fileExt = imageFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('posts')
-          .upload(fileName, imageFile);
-          
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw uploadError;
-        }
-        
-        if (uploadData) {
-          const { data: { publicUrl } } = supabase.storage
+          const { data: uploadData, error: uploadError } = await supabase.storage
             .from('posts')
-            .getPublicUrl(uploadData.path);
+            .upload(uniqueFileName, imageFile);
             
-          imageUrl = publicUrl;
+          if (uploadError) {
+            console.error('Upload error:', uploadError);
+            throw new Error(`Failed to upload image: ${uploadError.message}`);
+          }
+          
+          if (uploadData) {
+            const { data: { publicUrl } } = supabase.storage
+              .from('posts')
+              .getPublicUrl(uploadData.path);
+              
+            imageUrl = publicUrl;
+          }
+        } catch (err) {
+          console.error('Error uploading image:', err);
+          throw new Error('Failed to upload image. Please try again.');
         }
       }
       

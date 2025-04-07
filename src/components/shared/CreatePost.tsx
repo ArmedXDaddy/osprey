@@ -58,16 +58,20 @@ const CreatePost: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    setIsUploading(true);
+    setIsUploading(!!selectedImage);
     
     try {
+      // Send the post with image if selected
       await createPost(content, selectedImage);
+      
+      // Reset form
       setContent('');
       setSelectedImage(null);
       setImagePreview(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      
       toast({
         title: "Post created",
         description: "Your post has been published successfully"
