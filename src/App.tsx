@@ -13,9 +13,6 @@ import { ThemeProvider } from "@/pages/Settings";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
-import Events from "./pages/Events";
-import EventDetail from "./pages/EventDetail";
-import CreateEvent from "./pages/CreateEvent";
 import Groups from "./pages/Groups";
 import GroupDetail from "./pages/GroupDetail";
 import CreateGroup from "./pages/CreateGroup";
@@ -73,9 +70,6 @@ const App = () => (
                   <Route path="/home" element={<Index />} />
                   <Route path="/explore" element={<Explore />} />
                   <Route path="/networking" element={<Networking />} />
-                  <Route path="/events" element={<Events />} />
-                  <Route path="/events/:id" element={<EventDetail />} />
-                  <Route path="/create-event" element={<CreateEvent />} />
                   <Route path="/groups" element={<Groups />} />
                   <Route path="/groups/:id" element={<GroupDetail />} />
                   <Route path="/create-group" element={<CreateGroup />} />
