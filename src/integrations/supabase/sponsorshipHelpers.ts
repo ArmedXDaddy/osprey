@@ -41,6 +41,9 @@ export const fetchSponsorships = async (): Promise<Sponsorship[]> => {
  */
 export const createSponsorship = async (sponsorshipData: Partial<Sponsorship>): Promise<Sponsorship | null> => {
   try {
+    // Convert Date objects to ISO strings for Supabase
+    const formattedDeadline = sponsorshipData.deadline ? sponsorshipData.deadline.toISOString() : null;
+    
     const { data, error } = await supabase
       .from('sponsorships')
       .insert({
@@ -52,7 +55,7 @@ export const createSponsorship = async (sponsorshipData: Partial<Sponsorship>): 
         requirements: sponsorshipData.requirements,
         benefits: sponsorshipData.benefits,
         compensation: sponsorshipData.compensation,
-        deadline: sponsorshipData.deadline,
+        deadline: formattedDeadline,
         tags: sponsorshipData.tags,
         status: sponsorshipData.status || 'active'
       })
@@ -134,7 +137,7 @@ export const applyForSponsorship = async (
         user_profile_image: applicationData.userProfileImage,
         experience: applicationData.experience,
         motivation: applicationData.motivation,
-        social_links: applicationData.socialLinks,
+        social_links: applicationData.socialLinks || {},
         status: 'pending'
       })
       .select()
@@ -151,7 +154,7 @@ export const applyForSponsorship = async (
       userProfileImage: data.user_profile_image,
       experience: data.experience,
       motivation: data.motivation,
-      socialLinks: data.social_links,
+      socialLinks: data.social_links ? data.social_links as SponsorshipApplication['socialLinks'] : undefined,
       status: data.status as SponsorshipApplication['status'],
       createdAt: new Date(data.created_at)
     };
@@ -183,7 +186,7 @@ export const getSponsorshipApplications = async (sponsorshipId: string): Promise
       userProfileImage: item.user_profile_image,
       experience: item.experience,
       motivation: item.motivation,
-      socialLinks: item.social_links,
+      socialLinks: item.social_links ? item.social_links as SponsorshipApplication['socialLinks'] : undefined,
       status: item.status as SponsorshipApplication['status'],
       createdAt: new Date(item.created_at)
     }));
@@ -215,7 +218,7 @@ export const getUserSponsorshipApplications = async (userId: string): Promise<Sp
       userProfileImage: item.user_profile_image,
       experience: item.experience,
       motivation: item.motivation,
-      socialLinks: item.social_links,
+      socialLinks: item.social_links ? item.social_links as SponsorshipApplication['socialLinks'] : undefined,
       status: item.status as SponsorshipApplication['status'],
       createdAt: new Date(item.created_at)
     }));
