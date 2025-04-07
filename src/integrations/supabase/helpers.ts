@@ -44,61 +44,40 @@ export const uploadImage = async (file: File, path: string): Promise<string> => 
  */
 export const createProduct = async (productData: any): Promise<Product> => {
   try {
-    console.log('Creating product with data:', productData);
-    // Use direct Supabase query instead of runQuery
-    const { data, error } = await supabase
-      .from('products')
-      .insert({
-        title: productData.title,
-        description: productData.description,
-        company_id: productData.company_id,
-        company_name: productData.company_name,
-        company_logo: productData.company_logo,
-        price: productData.price,
-        category: productData.category,
-        tags: productData.tags,
-        image: productData.image,
-        website_url: productData.website_url,
-        demo_url: productData.demo_url,
-        release_date: productData.release_date,
-        long_description: productData.long_description || null,
-        features: productData.features || null,
-        use_cases: productData.use_cases || null,
-        pricing_tiers: productData.pricing_tiers ? JSON.stringify(productData.pricing_tiers) : null
-      })
-      .select()
-      .single();
+    // Use the runQuery helper to work around TypeScript limitations
+    const { data, error } = await runQuery(`
+      INSERT INTO products (
+        title, description, company_id, company_name, company_logo, 
+        price, category, tags, image, website_url, demo_url, release_date,
+        long_description, features, use_cases, pricing_tiers
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+      ) RETURNING *
+    `, [
+      productData.title,
+      productData.description,
+      productData.company_id,
+      productData.company_name,
+      productData.company_logo,
+      productData.price,
+      productData.category,
+      productData.tags,
+      productData.image,
+      productData.website_url,
+      productData.demo_url,
+      productData.release_date,
+      productData.long_description || null,
+      productData.features || null,
+      productData.use_cases || null,
+      productData.pricing_tiers ? JSON.stringify(productData.pricing_tiers) : null
+    ]);
       
     if (error) {
       console.error('Error creating product:', error);
       throw new Error(error.message || 'Failed to create product');
     }
     
-    // Convert from database format to Product type
-    const product: Product = {
-      id: data.id,
-      title: data.title,
-      description: data.description,
-      longDescription: data.long_description || data.description,
-      companyId: data.company_id,
-      companyName: data.company_name,
-      companyLogo: data.company_logo,
-      price: data.price,
-      category: data.category,
-      tags: data.tags || [],
-      image: data.image,
-      websiteUrl: data.website_url || '',
-      demoUrl: data.demo_url || '',
-      releaseDate: new Date(data.release_date),
-      createdAt: new Date(data.created_at),
-      features: data.features || [],
-      useCases: data.use_cases || [],
-      pricingTiers: typeof data.pricing_tiers === 'string' 
-        ? JSON.parse(data.pricing_tiers) 
-        : (data.pricing_tiers as any[] || [])
-    };
-    
-    return product;
+    return data[0] as unknown as Product;
   } catch (error: any) {
     console.error('Error in createProduct:', error);
     throw new Error(error.message || 'Failed to create product');
