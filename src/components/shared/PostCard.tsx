@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Post } from '@/types';
+import { Post, Comment } from '@/types';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,10 @@ import {
 
 interface PostCardProps {
   post: Post;
+  comments?: Comment[];
 }
 
-const PostCard: React.FC<PostCardProps> = ({ post }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, comments = [] }) => {
   const { currentUser } = useAuth();
   const { likePost, unlikePost } = useData();
   const [isLiked, setIsLiked] = useState<boolean>(
@@ -132,8 +133,24 @@ const PostCard: React.FC<PostCardProps> = ({ post }) => {
       
       {showComments && (
         <div className="px-4 py-3 border-t">
-          {/* Comment display and input component would go here */}
-          <p className="text-gray-500 text-sm text-center">Comments feature coming soon</p>
+          {comments && comments.length > 0 ? (
+            <div className="space-y-3">
+              {comments.map(comment => (
+                <div key={comment.id} className="flex items-start gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={comment.userProfileImage} />
+                    <AvatarFallback>{comment.userName.charAt(0).toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="bg-muted p-2 rounded-md text-sm flex-1">
+                    <div className="font-medium">{comment.userName}</div>
+                    <div>{comment.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm text-center">No comments yet</p>
+          )}
         </div>
       )}
     </Card>

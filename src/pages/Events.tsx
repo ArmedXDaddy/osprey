@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useData } from '@/context/DataContext';
 import EventCard from '@/components/shared/EventCard';
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const Events = () => {
-  const { events, completedEvents = [], loading, announcements = [] } = useData();
+  const { events, completedEvents = [], loading, announcements = [], postAnnouncement } = useData();
   const { currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'popular' | 'alphabetical'>('newest');
@@ -256,6 +257,7 @@ const Events = () => {
                         eventId={eventId}
                         isCreator={event.creatorId === currentUser.id}
                         onPostAnnouncement={postAnnouncement}
+                        hasJoined={event.attendees?.includes(currentUser.id)}
                       />
                     </div>
                   );
