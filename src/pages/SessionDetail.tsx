@@ -34,7 +34,7 @@ const SessionDetail = () => {
   } = useData();
   const { toast } = useToast();
   const [session, setSession] = useState<Session | null>(null);
-  const [userEnrollment, setUserEnrollment] = useState<SessionEnrollment | null>(null>();
+  const [userEnrollment, setUserEnrollment] = useState<SessionEnrollment | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -57,6 +57,17 @@ const SessionDetail = () => {
     }
   }, [session, currentUser, sessionEnrollments]);
   
+  const loadEnrollmentStatus = () => {
+    if (session && currentUser && sessionEnrollments.length > 0) {
+      const enrollment = sessionEnrollments.find(e => 
+        e.sessionId === session.id && e.userId === currentUser.id
+      );
+      if (enrollment) {
+        setUserEnrollment(enrollment);
+      }
+    }
+  };
+  
   const handleEnroll = async () => {
     try {
       if (!currentUser) {
@@ -68,7 +79,7 @@ const SessionDetail = () => {
       }
       
       setIsLoading(true);
-      await enrollInSession(session.id, {});
+      await enrollInSession(session.id);
       toast({ 
         title: "Enrollment submitted", 
         description: `You've successfully enrolled in ${session.title}`
