@@ -18,6 +18,8 @@ interface EventRegistrationDialogProps {
   eventTitle: string;
   eventId: string;
   onSubmit: (data: EventRegistration) => Promise<void>;
+  isPaidEvent?: boolean;
+  price?: number;
 }
 
 const EventRegistrationDialog = ({ 
@@ -25,7 +27,9 @@ const EventRegistrationDialog = ({
   onClose, 
   eventTitle,
   eventId,
-  onSubmit 
+  onSubmit,
+  isPaidEvent = false,
+  price = 0
 }: EventRegistrationDialogProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -33,6 +37,13 @@ const EventRegistrationDialog = ({
   const handleSubmit = async (data: EventRegistration) => {
     try {
       setIsProcessing(true);
+      
+      // Add payment status based on event type
+      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid';
+      const registrationData = {
+        ...data,
+        paymentStatus
+      };
       
       // Store registration details in the database
       const { error } = await supabase
@@ -49,14 +60,15 @@ const EventRegistrationDialog = ({
           instagram: data.instagram,
           twitter: data.twitter,
           additional_info: data.additionalInfo,
-          profile_image: data.profileImage
+          profile_image: data.profileImage,
+          payment_status: paymentStatus // Add payment status to DB record
         });
         
       if (error) {
         throw error;
       }
       
-      await onSubmit(data);
+      await onSubmit(registrationData);
       onClose();
     } catch (error: any) {
       console.error("Registration error:", error);
@@ -76,7 +88,14 @@ const EventRegistrationDialog = ({
         <DialogHeader>
           <DialogTitle className="text-xl md:text-2xl">Register for {eventTitle}</DialogTitle>
           <DialogDescription>
-            Please fill out the form below to complete your registration.
+            {isPaidEvent ? (
+              <>
+                Please fill out the form below to complete your registration. 
+                <span className="font-semibold"> A payment of ${price} will be required after registration.</span>
+              </>
+            ) : (
+              "Please fill out the form below to complete your registration."
+            )}
           </DialogDescription>
         </DialogHeader>
         

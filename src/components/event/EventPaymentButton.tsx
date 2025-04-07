@@ -3,8 +3,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Event } from '@/types';
 import { useAuth } from '@/context/AuthContext';
-import { useData } from '@/context/DataContext';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import MockPaymentModal from '@/components/payment/MockPaymentModal';
 import { DollarSign, Users, Ticket } from 'lucide-react';
 import {
@@ -19,6 +18,7 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from '@/components/ui/input-otp';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventPaymentButtonProps {
   event: Event;
@@ -87,7 +87,20 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   const handlePaymentSuccess = async () => {
     try {
       setIsProcessing(true);
-      // After successful payment, join the event
+      // After successful payment, update payment status in the database
+      if (currentUser) {
+        const { error } = await supabase
+          .from('event_attendee_details')
+          .update({ payment_status: 'paid' })
+          .eq('event_id', event.id)
+          .eq('user_id', currentUser.id);
+          
+        if (error) {
+          throw error;
+        }
+      }
+      
+      // Join the event
       await onJoin();
       
       // Generate verification code
