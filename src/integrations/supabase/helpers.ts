@@ -75,6 +75,13 @@ export const createProduct = async (productData: any): Promise<Product> => {
       throw new Error(error.message || 'Failed to create product');
     }
     
+    // Parse the pricing_tiers data with proper typing
+    const pricingTiers = data.pricing_tiers 
+      ? (typeof data.pricing_tiers === 'string' 
+          ? JSON.parse(data.pricing_tiers) 
+          : data.pricing_tiers) as { name: string; price: string; features: string[] }[]
+      : [];
+    
     return {
       id: data.id,
       title: data.title,
@@ -93,7 +100,7 @@ export const createProduct = async (productData: any): Promise<Product> => {
       createdAt: new Date(data.created_at),
       features: data.features || [],
       useCases: data.use_cases || [],
-      pricingTiers: data.pricing_tiers || []
+      pricingTiers: pricingTiers
     };
   } catch (error: any) {
     console.error('Error in createProduct:', error);
