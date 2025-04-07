@@ -1,8 +1,8 @@
+
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import PostCard from '@/components/shared/PostCard';
-import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
 import CreatePost from '@/components/shared/CreatePost';
@@ -12,11 +12,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Link } from 'react-router-dom';
 import RoleBasedActionButton from '@/components/shared/RoleBasedActionButton';
 import { UserRole } from '@/types';
-import { Calendar, Users, DollarSign, Award, Star, TrendingUp } from 'lucide-react';
+import { Users, DollarSign, Award, Star, TrendingUp } from 'lucide-react';
 
 const HomePage = () => {
   const { currentUser } = useAuth();
-  const { posts, events, groups, services, loading, postComments } = useData();
+  const { posts, groups, services, loading, postComments } = useData();
   
   if (!currentUser) {
     return (
@@ -32,9 +32,8 @@ const HomePage = () => {
       case 'user':
         return {
           title: 'Welcome back!',
-          subtitle: 'Discover events, groups, and inspiring content',
+          subtitle: 'Discover groups and inspiring content',
           stats: [
-            { icon: <Calendar className="h-5 w-5 text-primary" />, label: 'Events', value: events.length },
             { icon: <Users className="h-5 w-5 text-primary" />, label: 'Groups', value: groups.length },
           ]
         };
@@ -45,7 +44,6 @@ const HomePage = () => {
           subtitle: 'Engage with your audience and grow your community',
           stats: [
             { icon: <Users className="h-5 w-5 text-red-500" />, label: 'Followers', value: currentUser.followers || 0 },
-            { icon: <Calendar className="h-5 w-5 text-red-500" />, label: 'Events', value: events.filter(e => e.creatorId === currentUser.id).length },
             { icon: <Star className="h-5 w-5 text-red-500" />, label: 'Engagement', value: '24%' },
           ]
         };
@@ -57,7 +55,6 @@ const HomePage = () => {
           stats: [
             { icon: <DollarSign className="h-5 w-5 text-teal-500" />, label: 'Services', value: services.filter(s => s.providerId === currentUser.id).length },
             { icon: <Users className="h-5 w-5 text-teal-500" />, label: 'Clients', value: Math.floor(Math.random() * 20) },
-            { icon: <Calendar className="h-5 w-5 text-teal-500" />, label: 'Events', value: events.filter(e => e.creatorId === currentUser.id).length },
           ]
         };
       
@@ -67,7 +64,6 @@ const HomePage = () => {
           subtitle: 'Manage your brand presence and partnerships',
           stats: [
             { icon: <TrendingUp className="h-5 w-5 text-blue-500" />, label: 'Reach', value: `${(currentUser.followers || 0) * 23}` },
-            { icon: <Calendar className="h-5 w-5 text-blue-500" />, label: 'Events', value: events.filter(e => e.creatorId === currentUser.id).length },
             { icon: <Award className="h-5 w-5 text-blue-500" />, label: 'Partnerships', value: Math.floor(Math.random() * 10) },
           ]
         };
@@ -185,37 +181,8 @@ const HomePage = () => {
           </Tabs>
         </div>
         
-        {/* Right Column - Events, Groups, Services */}
+        {/* Right Column - Groups, Services */}
         <div className="space-y-6">
-          {/* Upcoming Events */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-primary" />
-                Upcoming Events
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-32 w-full" />
-                  <Skeleton className="h-32 w-full" />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {events.slice(0, 2).map(event => (
-                    <Link key={event.id} to={`/events/${event.id}`}>
-                      <EventCard event={event} compact />
-                    </Link>
-                  ))}
-                  <Link to="/events" className="text-primary hover:underline text-sm block text-center mt-2">
-                    View all events
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
           {/* Popular Groups */}
           <Card>
             <CardHeader className="pb-2">

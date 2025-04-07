@@ -22,7 +22,6 @@ import {
   UserPlus
 } from 'lucide-react';
 import PostCard from '@/components/shared/PostCard';
-import EventCard from '@/components/shared/EventCard';
 import GroupCard from '@/components/shared/GroupCard';
 import ServiceCard from '@/components/shared/ServiceCard';
 import { 
@@ -50,7 +49,7 @@ import { useFollowers } from '@/hooks/useFollowers';
 const Profile = () => {
   const { id } = useParams();
   const { currentUser, updateProfile } = useAuth();
-  const { posts, events, groups, services, loading } = useData();
+  const { posts, groups, services, loading } = useData();
   const { toast } = useToast();
   const [profileUser, setProfileUser] = useState<User | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
@@ -96,7 +95,7 @@ const Profile = () => {
     isOwnProfile ? currentUser?.id : id,
     currentUser?.id
   );
-  
+
   useEffect(() => {
     if (currentUser && isOwnProfile) {
       setProfileForm({
@@ -493,30 +492,10 @@ const Profile = () => {
 
   const userPosts = userToShow ? posts.filter(post => post.userId === userToShow.id) : [];
   
-  const userEvents = userToShow ? events.filter(event => 
-    event.creatorId === userToShow.id || event.attendees.includes(userToShow.id)
-  ) : [];
-  
-  const userCreatedEvents = userToShow ? events.filter(event => 
-    event.creatorId === userToShow.id
-  ) : [];
-  
-  const joinedEvents = userToShow ? events.filter(event => 
-    event.creatorId !== userToShow.id && event.attendees.includes(userToShow.id)
-  ) : [];
-
   const userGroups = userToShow ? groups.filter(group => 
     group.creatorId === userToShow.id || (group.memberIds && group.memberIds.includes(userToShow.id))
   ) : [];
   
-  const userCreatedGroups = userToShow ? groups.filter(group => 
-    group.creatorId === userToShow.id
-  ) : [];
-  
-  const joinedGroups = userToShow ? groups.filter(group => 
-    group.creatorId !== userToShow.id && group.memberIds && group.memberIds.includes(userToShow.id)
-  ) : [];
-
   const userServices = userToShow && userToShow.role === 'coach' ? 
     services.filter(service => service.providerId === userToShow.id) : [];
 
@@ -926,9 +905,8 @@ const Profile = () => {
       </Dialog>
       
       <Tabs defaultValue="posts" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="groups">Groups</TabsTrigger>
           {userToShow?.role === 'coach' && (
             <TabsTrigger value="services">Services</TabsTrigger>
@@ -948,24 +926,6 @@ const Profile = () => {
             <div className="text-center py-12">
               <p className="text-gray-500 mb-4">
                 {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} created any posts yet.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="events" className="mt-6">
-          {loading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : userEvents.length > 0 ? (
-            <div className="space-y-4">
-              {userEvents.map(event => (
-                <EventCard key={event.id} event={event} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-gray-500 mb-4">
-                {isOwnProfile ? "You haven't" : `${userToShow?.name} hasn't`} participated in any events yet.
               </p>
             </div>
           )}
