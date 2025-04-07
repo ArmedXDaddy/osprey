@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
@@ -138,7 +139,7 @@ const EventDetail = () => {
   
   const isCreator = currentUser && event.creatorId === currentUser.id;
   
-  const showRegistration = async () => {
+  const openRegistrationModal = async () => {
     if (!currentUser) {
       toast({
         title: "Authentication required",
@@ -184,9 +185,9 @@ const EventDetail = () => {
       }
     } else {
       if (event.privacy === 'paid' && event.price) {
-        showRegistration();
+        openRegistrationModal();
       } else {
-        showRegistration();
+        openRegistrationModal();
       }
     }
   };
