@@ -38,15 +38,32 @@ const EventRegistrationDialog = ({
     try {
       setIsProcessing(true);
       
+      // Check if user is already registered for this event
+      const { data: existingRegistration, error: checkError } = await supabase
+        .from('event_attendee_details')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('user_id', data.userId)
+        .single();
+        
+      if (existingRegistration) {
+        toast({
+          title: "Already registered",
+          description: "You are already registered for this event.",
+          variant: "destructive"
+        });
+        onClose();
+        return;
+      }
+      
       // Add payment status based on event type
-      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid' as 'paid' | 'unpaid' | 'refunded';
+      const paymentStatus = isPaidEvent ? 'unpaid' : 'paid';
       const registrationData = {
         ...data,
         paymentStatus
       };
       
       // Store registration details in the database
-      // Note we use snake_case for database column names
       const { error } = await supabase
         .from('event_attendee_details')
         .insert({
@@ -62,11 +79,12 @@ const EventRegistrationDialog = ({
           twitter: data.twitter,
           additional_info: data.additionalInfo,
           profile_image: data.profileImage,
-          payment_status: paymentStatus // Use snake_case for database column
+          payment_status: paymentStatus // Using snake_case for database column
         });
         
       if (error) {
-        throw error;
+        console.error("Database insertion error:", error);
+        throw new Error("Registration failed. Please try again.");
       }
       
       await onSubmit(registrationData);
