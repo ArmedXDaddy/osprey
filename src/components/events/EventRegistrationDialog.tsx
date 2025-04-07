@@ -38,27 +38,49 @@ const EventRegistrationDialog = ({
     try {
       setIsProcessing(true);
       
-      // Check if user is already registered for this event - improved query
-      const { data: existingRegistrations, error: checkError } = await supabase
+      // First, try to retrieve the attendee record if it exists
+      const { data: existingReg, error: regError } = await supabase
         .from('event_attendee_details')
-        .select('id')
+        .select('id, payment_status')
         .eq('event_id', eventId)
-        .eq('user_id', data.userId);
+        .eq('user_id', data.userId)
+        .maybeSingle();
         
-      if (checkError) {
-        // If there's an error querying, throw it
-        console.error("Error checking registration:", checkError);
+      if (regError) {
+        console.error("Error checking registration:", regError);
         throw new Error("Failed to check registration status. Please try again.");
       }
+      
+      // If already registered, handle according to payment status
+      if (existingReg) {
+        console.log("Found existing registration:", existingReg);
         
-      if (existingRegistrations && existingRegistrations.length > 0) {
-        toast({
-          title: "Already registered",
-          description: "You are already registered for this event.",
-          variant: "destructive"
-        });
-        onClose();
-        return;
+        // If it's a paid event and payment is still required, close the dialog and redirect to payment
+        if (isPaidEvent && existingReg.payment_status === 'unpaid') {
+          toast({
+            title: "Registration exists",
+            description: "You're already registered. Please complete the payment.",
+            variant: "default"
+          });
+          
+          // Execute onSubmit to proceed with the flow (like showing payment button)
+          await onSubmit({
+            ...data,
+            paymentStatus: 'unpaid'
+          });
+          
+          onClose();
+          return;
+        } else {
+          // Already fully registered
+          toast({
+            title: "Already registered",
+            description: "You are already registered for this event.",
+            variant: "default"
+          });
+          onClose();
+          return;
+        }
       }
       
       // Add payment status based on event type
@@ -74,8 +96,8 @@ const EventRegistrationDialog = ({
         name: data.name
       });
       
-      // Store registration details in the database
-      const { error } = await supabase
+      // Insert new registration with upsert: false to avoid duplicate key conflicts
+      const { error: insertError } = await supabase
         .from('event_attendee_details')
         .insert({
           event_id: eventId,
@@ -90,17 +112,17 @@ const EventRegistrationDialog = ({
           twitter: data.twitter,
           additional_info: data.additionalInfo,
           profile_image: data.profileImage,
-          payment_status: paymentStatus // Using snake_case for database column
+          payment_status: paymentStatus
         });
         
-      if (error) {
-        console.error("Database insertion error:", error);
+      if (insertError) {
+        console.error("Database insertion error:", insertError);
         
-        // Handle duplicate registration error specifically
-        if (error.code === '23505') {
+        // If it's a duplicate key error, it means another registration happened concurrently
+        if (insertError.code === '23505') {
           toast({
-            title: "Registration error",
-            description: "There was an issue with your registration. Please try again later.",
+            title: "Registration conflicts",
+            description: "Another registration attempt was made. Please try again.",
             variant: "destructive"
           });
           onClose();

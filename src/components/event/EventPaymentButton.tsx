@@ -42,8 +42,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
 
   // Function to generate a random 6-digit verification code
   const generateVerificationCode = () => {
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    return code;
+    return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
   const handleJoinClick = async () => {
@@ -60,8 +59,37 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       // If already attending, handle leaving
       onJoin();
     } else if (isPaidEvent) {
-      // For paid events, show payment modal
-      setShowPaymentModal(true);
+      // For paid events, check if user has already registered but not paid
+      try {
+        const { data: existingReg, error: regError } = await supabase
+          .from('event_attendee_details')
+          .select('id, payment_status')
+          .eq('event_id', event.id)
+          .eq('user_id', currentUser.id)
+          .maybeSingle();
+          
+        if (regError) {
+          console.error("Error checking registration:", regError);
+          throw new Error("Could not verify registration status");
+        }
+        
+        if (existingReg && existingReg.payment_status === 'unpaid') {
+          // Already registered, just show payment modal
+          setShowPaymentModal(true);
+        } else if (existingReg && existingReg.payment_status === 'paid') {
+          // Already paid, just show verification code
+          const code = generateVerificationCode();
+          setVerificationCode(code);
+          setShowVerificationCode(true);
+        } else {
+          // Not registered yet, trigger registration flow
+          joinEvent();
+        }
+      } catch (error) {
+        console.error("Error checking registration:", error);
+        // Show payment modal as fallback
+        setShowPaymentModal(true);
+      }
     } else {
       // For free events, join directly
       joinEvent();
@@ -71,10 +99,13 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   const joinEvent = async () => {
     try {
       await onJoin();
-      // Generate verification code after successful join
-      const code = generateVerificationCode();
-      setVerificationCode(code);
-      setShowVerificationCode(true);
+      
+      // For free events, generate verification code after successful join
+      if (!isPaidEvent) {
+        const code = generateVerificationCode();
+        setVerificationCode(code);
+        setShowVerificationCode(true);
+      }
     } catch (error) {
       console.error("Error joining event:", error);
       toast({
@@ -119,11 +150,9 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         } else {
           // Registration doesn't exist yet, so proceed with join
           console.log("No registration found, proceeding with join");
+          await onJoin();
         }
       }
-      
-      // Join the event
-      await onJoin();
       
       // Generate verification code
       const code = generateVerificationCode();
@@ -132,6 +161,12 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       // Close payment modal and show verification code
       setShowPaymentModal(false);
       setShowVerificationCode(true);
+      
+      toast({
+        title: "Payment successful!",
+        description: "Your event registration is now complete.",
+        variant: "success"
+      });
     } catch (error) {
       console.error("Error joining event after payment:", error);
       toast({
