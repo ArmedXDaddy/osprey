@@ -893,11 +893,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const eventToUpdate = events.find(e => e.id === eventId);
       if (!eventToUpdate) throw new Error('Event not found');
       
-      if (!eventToUpdate.attendees || !eventToUpdate.attendees.includes(currentUser.id)) {
-        return; // User is not attending this event
-      }
-      
-      const updatedAttendees = eventToUpdate.attendees.filter(id => id !== currentUser.id);
+      const updatedAttendees = eventToUpdate.attendees 
+        ? eventToUpdate.attendees.filter(id => id !== currentUser.id)
+        : [];
       
       const { error } = await supabase
         .from('events')
@@ -912,19 +910,91 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           : e
       ));
       
-      toast({
-        title: "Left event",
-        description: "You have successfully left the event"
-      });
+      const { error: deleteError } = await supabase
+        .from('event_attendee_details')
+        .delete()
+        .eq('event_id', eventId)
+        .eq('user_id', currentUser.id);
+        
+      if (deleteError) console.error("Error removing registration details:", deleteError);
+      
+      await postAnnouncement(eventId, `${currentUser.name} has left the event.`);
+      
     } catch (error: any) {
       console.error("Error leaving event:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to leave event"
-      });
       throw new Error(error.message || 'Failed to leave event');
     }
+  };
+  
+  const deleteEvent = async (eventId: string, reason: 'cancelled' | 'completed' = 'cancelled') => {
+    if (!currentUser) throw new Error('You must be logged in to delete an event');
+    
+    try {
+      const eventToDelete = events.find(e => e.id === eventId);
+      if (!eventToDelete) throw new Error('Event not found');
+      
+      if (eventToDelete.creatorId !== currentUser.id) {
+        throw new Error('Only the event creator can delete this event');
+      }
+      
+      if (reason === 'completed') {
+        const { error } = await supabase
+          .from('events')
+          .update({ is_completed: true })
+          .eq('id', eventId);
+          
+        if (error) throw error;
+        
+        setCompletedEvents(prev => [...prev, eventToDelete]);
+      } else {
+        const { error } = await supabase
+          .from('events')
+          .delete()
+          .eq('id', eventId);
+          
+        if (error) throw error;
+      }
+      
+      setEvents(prev => prev.filter(e => e.id !== eventId));
+      
+      if (reason === 'cancelled') {
+        try {
+          await postAnnouncement(eventId, `This event has been cancelled by the organizer.`);
+        } catch (announcementError) {
+          console.error("Error posting cancellation announcement:", announcementError);
+        }
+      }
+      
+      console.log(`Event ${eventId} has been ${reason} by creator ${currentUser.id}`);
+      
+    } catch (error: any) {
+      console.error(`Error ${reason} event:`, error);
+      throw new Error(error.message || `Failed to ${reason} event`);
+    }
+  };
+  
+  const requestToJoinEvent = async (eventId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const rejectEventRequest = async (requestId: string): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
+    return [];
+  };
+  
+  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const createGroup = async (groupData: any): Promise<Group> => {
+    throw new Error('Not implemented');
   };
   
   const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
@@ -937,14 +1007,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           event_id: eventId,
           creator_id: currentUser.id,
           creator_name: currentUser.name,
-          content: content
+          content
         })
         .select()
         .single();
         
       if (error) throw error;
       
-      const announcement: Announcement = {
+      const newAnnouncement: Announcement = {
         id: data.id,
         eventId: data.event_id,
         creatorId: data.creator_id,
@@ -953,849 +1023,316 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date(data.created_at)
       };
       
-      setAnnouncements(prev => [announcement, ...prev]);
+      setAnnouncements(prev => [newAnnouncement, ...prev]);
+      
+      toast({
+        title: "Announcement posted",
+        description: "Your announcement has been shared with all participants"
+      });
     } catch (error: any) {
       console.error("Error posting announcement:", error);
-      throw new Error(error.message || 'Failed to post announcement');
+      toast({
+        title: "Error posting announcement",
+        description: error.message || "Failed to post announcement",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
   
-  const deleteEvent = async (eventId: string, reason?: 'cancelled' | 'completed'): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to delete an event');
-    
+  const fetchAnnouncements = async () => {
     try {
-      const eventToDelete = events.find(e => e.id === eventId);
-      if (!eventToDelete) throw new Error('Event not found');
-      
-      if (eventToDelete.creatorId !== currentUser.id) {
-        throw new Error('Only the event creator can delete this event');
-      }
-      
-      if (reason === 'completed') {
-        // Mark as completed instead of deleting
-        const { error } = await supabase
-          .from('events')
-          .update({ is_completed: true })
-          .eq('id', eventId);
-          
-        if (error) throw error;
-        
-        // Move to completed events
-        setCompletedEvents(prev => [...prev, eventToDelete]);
-        setEvents(prev => prev.filter(e => e.id !== eventId));
-      } else {
-        // Actually delete the event
-        const { error } = await supabase
-          .from('events')
-          .delete()
-          .eq('id', eventId);
-          
-        if (error) throw error;
-        
-        setEvents(prev => prev.filter(e => e.id !== eventId));
-      }
-    } catch (error: any) {
-      console.error("Error deleting event:", error);
-      throw new Error(error.message || 'Failed to delete event');
-    }
-  };
-  
-  const requestToJoinEvent = async (eventId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to request to join an event');
-    
-    try {
-      // Check if user already requested to join
-      const { data: existingRequests, error: checkError } = await supabase
-        .from('join_requests')
+      const { data, error } = await supabase
+        .from('event_announcements')
         .select('*')
-        .eq('event_id', eventId)
-        .eq('user_id', currentUser.id);
+        .order('created_at', { ascending: false });
         
-      if (checkError) throw checkError;
+      if (error) throw error;
       
-      if (existingRequests && existingRequests.length > 0) {
-        toast({
-          title: "Request already sent",
-          description: "You have already requested to join this event"
-        });
-        return;
+      if (data) {
+        const transformedAnnouncements: Announcement[] = data.map((announcement: any) => ({
+          id: announcement.id,
+          eventId: announcement.event_id,
+          creatorId: announcement.creator_id,
+          creatorName: announcement.creator_name,
+          content: announcement.content,
+          createdAt: new Date(announcement.created_at)
+        }));
+        
+        setAnnouncements(transformedAnnouncements);
       }
-      
-      // Create new request
-      const { error } = await supabase
-        .from('join_requests')
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+    }
+  };
+  
+  React.useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+  
+  const createService = async (serviceData: any): Promise<Service> => {
+    if (!currentUser) throw new Error('You must be logged in to create a service');
+    try {
+      const { data, error } = await supabase
+        .from('services')
         .insert({
-          event_id: eventId,
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          user_profile_image: currentUser.profileImage,
-          status: 'pending'
-        });
-        
-      if (error) throw error;
-      
-      // Increment pending_requests count
-      const { error: updateError } = await supabase
-        .from('events')
-        .update({ 
-          pending_requests: supabase.rpc('increment', { row_id: eventId, table_name: 'events', column_name: 'pending_requests' }) 
-        })
-        .eq('id', eventId);
-        
-      if (updateError) throw updateError;
-      
-      toast({
-        title: "Request sent",
-        description: "Your request to join the event has been sent"
-      });
-      
-    } catch (error: any) {
-      console.error("Error requesting to join event:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to send join request"
-      });
-      throw new Error(error.message || 'Failed to request to join event');
-    }
-  };
-  
-  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('join_requests')
-        .select('*')
-        .eq('event_id', eventId)
-        .eq('status', 'pending');
-        
-      if (error) throw error;
-      
-      return (data || []).map(request => ({
-        id: request.id,
-        userId: request.user_id,
-        userName: request.user_name,
-        userProfileImage: request.user_profile_image,
-        status: request.status,
-        createdAt: new Date(request.created_at),
-        eventId: request.event_id,
-        groupId: request.group_id
-      }));
-    } catch (error: any) {
-      console.error("Error fetching event requests:", error);
-      return [];
-    }
-  };
-  
-  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to approve a request');
-    
-    try {
-      // Update the request status
-      const { error: updateError } = await supabase
-        .from('join_requests')
-        .update({ status: 'approved' })
-        .eq('id', requestId);
-        
-      if (updateError) throw updateError;
-      
-      // Get the event and update attendees
-      const { data: eventData, error: getEventError } = await supabase
-        .from('events')
-        .select('attendees')
-        .eq('id', eventId)
-        .single();
-        
-      if (getEventError) throw getEventError;
-      
-      const currentAttendees = eventData.attendees || [];
-      const updatedAttendees = [...currentAttendees, userId];
-      
-      // Update the event with the new attendee
-      const { error: eventUpdateError } = await supabase
-        .from('events')
-        .update({ 
-          attendees: updatedAttendees,
-          pending_requests: supabase.rpc('decrement', { row_id: eventId, table_name: 'events', column_name: 'pending_requests' }) 
-        })
-        .eq('id', eventId);
-        
-      if (eventUpdateError) throw eventUpdateError;
-      
-      // Update local state
-      setEvents(prev => prev.map(event => 
-        event.id === eventId 
-          ? { ...event, attendees: updatedAttendees } 
-          : event
-      ));
-      
-      toast({
-        title: "Request approved",
-        description: "The user has been added to the event"
-      });
-    } catch (error: any) {
-      console.error("Error approving event request:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to approve request"
-      });
-      throw new Error(error.message || 'Failed to approve event request');
-    }
-  };
-  
-  const rejectEventRequest = async (requestId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to reject a request');
-    
-    try {
-      const { data, error } = await supabase
-        .from('join_requests')
-        .update({ status: 'rejected' })
-        .eq('id', requestId)
-        .select('event_id')
-        .single();
-        
-      if (error) throw error;
-      
-      // Decrement pending_requests count
-      if (data?.event_id) {
-        const { error: updateError } = await supabase
-          .from('events')
-          .update({ 
-            pending_requests: supabase.rpc('decrement', { row_id: data.event_id, table_name: 'events', column_name: 'pending_requests' }) 
-          })
-          .eq('id', data.event_id);
-          
-        if (updateError) console.error("Error updating pending requests count:", updateError);
-      }
-      
-      toast({
-        title: "Request rejected",
-        description: "The join request has been rejected"
-      });
-    } catch (error: any) {
-      console.error("Error rejecting event request:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to reject request"
-      });
-      throw new Error(error.message || 'Failed to reject event request');
-    }
-  };
-  
-  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to handle join requests');
-    
-    try {
-      const { data, error } = await supabase
-        .from('join_requests')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('user_id', userId)
-        .single();
-        
-      if (error) throw error;
-      
-      if (status === 'approved') {
-        await approveEventRequest(data.id, eventId, userId);
-      } else {
-        await rejectEventRequest(data.id);
-      }
-    } catch (error: any) {
-      console.error("Error handling event join request:", error);
-      throw new Error(error.message || 'Failed to handle join request');
-    }
-  };
-  
-  const createGroup = async (groupData: any): Promise<Group> => {
-    if (!currentUser) throw new Error('You must be logged in to create a group');
-    
-    try {
-      const { data, error } = await supabase
-        .from('groups')
-        .insert({
-          name: groupData.name,
-          description: groupData.description,
-          creator_id: currentUser.id,
-          creator_name: currentUser.name,
-          creator_role: currentUser.role,
-          members: [currentUser.id],
-          image: groupData.image,
-          privacy: groupData.privacy,
-          price: groupData.price,
-          member_limit: groupData.member_limit
+          title: serviceData.title,
+          description: serviceData.description,
+          coach_id: currentUser.id,
+          coach_name: currentUser.name,
+          price: serviceData.price || 0,
+          duration: serviceData.duration,
+          is_active: serviceData.available !== undefined ? serviceData.available : true,
+          is_online: serviceData.isOnline || false,
+          location: serviceData.location,
+          capacity: serviceData.capacity,
+          service_type: serviceData.serviceType,
+          cover_image: serviceData.coverImage,
+          meeting_url: serviceData.meetingUrl
         })
         .select()
         .single();
-        
+      
       if (error) throw error;
       
-      const newGroup: Group = {
+      return {
         id: data.id,
-        name: data.name,
+        title: data.title,
         description: data.description,
-        creatorId: data.creator_id,
-        creatorName: data.creator_name,
-        creatorRole: data.creator_role as UserRole,
-        members: data.members,
-        memberIds: [currentUser.id],
-        image: data.image,
-        privacy: data.privacy as GroupPrivacy,
+        providerId: data.coach_id,
+        providerName: data.coach_name,
         price: data.price,
+        duration: data.duration,
+        available: data.is_active,
         createdAt: new Date(data.created_at),
-        pendingRequests: 0,
-        rules: [],
-        memberLimit: data.member_limit
+        isOnline: data.is_online,
+        location: data.location,
+        capacity: data.capacity,
+        serviceType: data.service_type as ServiceType,
+        coverImage: data.cover_image,
+        meetingUrl: data.meeting_url
       };
-      
-      setGroups(prev => [...prev, newGroup]);
-      
-      toast({
-        title: "Group created",
-        description: "Your group has been created successfully",
-      });
-      
-      return newGroup;
-    } catch (error: any) {
-      console.error("Error creating group:", error);
-      toast({
-        variant: "destructive",
-        title: "Error creating group",
-        description: error.message || "Failed to create group"
-      });
-      throw error;
+    } catch (err: any) {
+      console.error("Error creating service:", err);
+      setError(err);
+      throw err;
     }
   };
   
-  const joinGroup = async (groupId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to join a group');
+  const updateService = async (serviceId: string, updates: any): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a service');
     
     try {
-      const { data: groupMemberData, error: memberCheckError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id);
-        
-      if (memberCheckError) throw memberCheckError;
-      
-      if (groupMemberData && groupMemberData.length > 0) {
-        toast({
-          title: "Already a member",
-          description: "You are already a member of this group"
-        });
-        return;
-      }
-      
-      const { error: joinError } = await supabase
-        .from('group_members')
-        .insert({
-          group_id: groupId,
-          user_id: currentUser.id
-        });
-        
-      if (joinError) throw joinError;
-      
-      const { data: groupData, error: getGroupError } = await supabase
-        .from('groups')
-        .select('members')
-        .eq('id', groupId)
-        .single();
-        
-      if (getGroupError) throw getGroupError;
-      
-      const newMemberCount = (groupData?.members || 1) + 1;
-      
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ members: newMemberCount })
-        .eq('id', groupId);
-        
-      if (updateError) throw updateError;
-      
-      setGroups(prevGroups => 
-        prevGroups.map(group => 
-          group.id === groupId 
-            ? { 
-                ...group, 
-                members: newMemberCount,
-                memberIds: group.memberIds ? [...group.memberIds, currentUser.id] : [currentUser.id]
-              } 
-            : group
-        )
-      );
-      
-      toast({
-        title: "Group joined",
-        description: "You have successfully joined the group"
-      });
-    } catch (error: any) {
-      console.error("Error joining group:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to join group",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  };
-  
-  const leaveGroup = async (groupId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to leave a group');
-    
-    try {
-      const { data: groupMemberData, error: memberCheckError } = await supabase
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id);
-        
-      if (memberCheckError) throw memberCheckError;
-      
-      if (!groupMemberData || groupMemberData.length === 0) {
-        toast({
-          title: "Not a member",
-          description: "You are not a member of this group"
-        });
-        return;
-      }
-      
-      const { error: deleteError } = await supabase
-        .from('group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id);
-        
-      if (deleteError) throw deleteError;
-      
-      const { data: groupData, error: getGroupError } = await supabase
-        .from('groups')
-        .select('members')
-        .eq('id', groupId)
-        .single();
-        
-      if (getGroupError) throw getGroupError;
-      
-      const newMemberCount = (groupData?.members || 1) - 1;
-      
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ members: newMemberCount })
-        .eq('id', groupId);
-        
-      if (updateError) throw updateError;
-      
-      setGroups(prevGroups => 
-        prevGroups.map(group => 
-          group.id === groupId 
-            ? { 
-                ...group, 
-                members: newMemberCount,
-                memberIds: group.memberIds ? group.memberIds.filter(id => id !== currentUser.id) : []
-              } 
-            : group
-        )
-      );
-      
-      toast({
-        title: "Group left",
-        description: "You have successfully left the group"
-      });
-    } catch (error: any) {
-      console.error("Error leaving group:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to leave group",
-        variant: "destructive"
-      });
-      throw error;
-    }
-  };
-  
-  const requestToJoinGroup = async (groupId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to request to join a group');
-    
-    try {
-      // Check if user already requested to join
-      const { data: existingRequests, error: checkError } = await supabase
-        .from('join_requests')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', currentUser.id);
-        
-      if (checkError) throw checkError;
-      
-      if (existingRequests && existingRequests.length > 0) {
-        toast({
-          title: "Request already sent",
-          description: "You have already requested to join this group"
-        });
-        return;
-      }
-      
-      // Create new request
       const { error } = await supabase
-        .from('join_requests')
-        .insert({
-          group_id: groupId,
-          user_id: currentUser.id,
-          user_name: currentUser.name,
-          user_profile_image: currentUser.profileImage,
-          status: 'pending'
-        });
-        
-      if (error) throw error;
-      
-      // Increment pending_requests count
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ 
-          pending_requests: supabase.rpc('increment', { row_id: groupId, table_name: 'groups', column_name: 'pending_requests' }) 
+        .from('services')
+        .update({
+          title: updates.title,
+          description: updates.description,
+          price: updates.price,
+          duration: updates.duration,
+          is_active: updates.available,
+          is_online: updates.isOnline,
+          location: updates.location,
+          capacity: updates.capacity,
+          service_type: updates.serviceType,
+          cover_image: updates.coverImage,
+          meeting_url: updates.meetingUrl,
+          updated_at: new Date().toISOString()
         })
-        .eq('id', groupId);
-        
-      if (updateError) throw updateError;
+        .eq('id', serviceId)
+        .eq('coach_id', currentUser.id);
       
-      toast({
-        title: "Request sent",
-        description: "Your request to join the group has been sent"
-      });
+      if (error) throw error;
       
-    } catch (error: any) {
-      console.error("Error requesting to join group:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to send join request"
-      });
-      throw new Error(error.message || 'Failed to request to join group');
-    }
-  };
-  
-  const approveGroupRequest = async (requestId: string, groupId: string, userId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to approve a request');
-    
-    try {
-      // Update the request status
-      const { error: updateError } = await supabase
-        .from('join_requests')
-        .update({ status: 'approved' })
-        .eq('id', requestId);
-        
-      if (updateError) throw updateError;
-      
-      // Get the group and update members
-      const { data: groupData, error: getGroupError } = await supabase
-        .from('groups')
-        .select('members')
-        .eq('id', groupId)
-        .single();
-        
-      if (getGroupError) throw getGroupError;
-      
-      const currentMembers = groupData.members || [];
-      const updatedMembers = [...currentMembers, userId];
-      
-      // Update the group with the new member
-      const { error: groupUpdateError } = await supabase
-        .from('groups')
-        .update({ members: updatedMembers })
-        .eq('id', groupId);
-        
-      if (groupUpdateError) throw groupUpdateError;
-      
-      // Update local state
-      setGroups(prevGroups => 
-        prevGroups.map(group => 
-          group.id === groupId 
+      setServices(prev => 
+        prev.map(service => 
+          service.id === serviceId 
             ? { 
-                ...group, 
-                members: updatedMembers
+                ...service, 
+                title: updates.title,
+                description: updates.description,
+                price: updates.price,
+                duration: updates.duration,
+                available: updates.available,
+                isOnline: updates.isOnline,
+                location: updates.location,
+                capacity: updates.capacity,
+                serviceType: updates.serviceType,
+                coverImage: updates.coverImage,
+                meetingUrl: updates.meetingUrl
               } 
-            : group
+            : service
         )
       );
       
-      toast({
-        title: "Request approved",
-        description: "The user has been added to the group"
-      });
-    } catch (error: any) {
-      console.error("Error approving group request:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to approve request"
-      });
-      throw new Error(error.message || 'Failed to approve group request');
+    } catch (err: any) {
+      console.error("Error updating service:", err);
+      throw new Error(err.message || 'Failed to update service');
     }
   };
   
-  const rejectGroupRequest = async (requestId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to reject a request');
+  const deleteService = async (serviceId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a service');
+  };
+  
+  const sendServiceMessage = async (messageData: {serviceId: string; content: string}): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to send a service message');
     
     try {
-      const { data, error } = await supabase
-        .from('join_requests')
-        .update({ status: 'rejected' })
-        .eq('id', requestId)
-        .select('group_id')
-        .single();
-        
+      console.log("Sending service message:", messageData);
+      
+      const { data, error } = await supabase.rpc('send_service_chat_message', {
+        p_service_id: messageData.serviceId,
+        p_user_id: currentUser.id,
+        p_content: messageData.content
+      });
+      
       if (error) throw error;
       
-      // Decrement pending_requests count
-      if (data?.group_id) {
-        const { error: updateError } = await supabase
-          .from('groups')
-          .update({ 
-            pending_requests: supabase.rpc('decrement', { row_id: data.group_id, table_name: 'groups', column_name: 'pending_requests' }) 
-          })
-          .eq('id', data.group_id);
-          
-        if (updateError) console.error("Error updating pending requests count:", updateError);
-      }
-      
-      toast({
-        title: "Request rejected",
-        description: "The join request has been rejected"
-      });
-    } catch (error: any) {
-      console.error("Error rejecting group request:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to reject request"
-      });
-      throw new Error(error.message || 'Failed to reject group request');
+      console.log("Message sent successfully:", data);
+    } catch (err: any) {
+      console.error("Error sending service message:", err);
+      throw new Error(err.message || 'Failed to send message');
     }
   };
   
-  const getGroupRequests = async (groupId: string): Promise<JoinRequest[]> => {
+  const getServiceMessages = async (serviceId: string): Promise<Message[]> => {
     try {
-      const { data, error } = await supabase
-        .from('join_requests')
-        .select('*')
-        .eq('group_id', groupId)
-        .eq('status', 'pending');
-        
+      console.log("Fetching messages for service:", serviceId);
+      
+      const { data, error } = await supabase.rpc('get_service_chat_messages', {
+        p_service_id: serviceId
+      });
+      
       if (error) throw error;
       
-      return (data || []).map(request => ({
-        id: request.id,
-        userId: request.user_id,
-        userName: request.user_name,
-        userProfileImage: request.user_profile_image,
-        status: request.status,
-        createdAt: new Date(request.created_at),
-        eventId: request.event_id,
-        groupId: request.group_id
-      }));
-    } catch (error: any) {
-      console.error("Error fetching group requests:", error);
+      if (data) {
+        const transformedMessages: Message[] = data.map((msg: any) => ({
+          id: msg.id,
+          content: msg.content,
+          userId: msg.user_id,
+          userName: msg.user_name,
+          userRole: msg.user_role as UserRole,
+          userProfileImage: msg.user_profile_image,
+          createdAt: new Date(msg.created_at),
+          groupId: null,
+          serviceId: msg.service_id
+        }));
+        
+        return transformedMessages;
+      }
+      
       return [];
+    } catch (error: any) {
+      console.error("Error fetching service messages:", error);
+      throw new Error(error.message || 'Failed to fetch service messages');
     }
   };
   
-  const handleJoinRequest = async (groupId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to handle join requests');
-    
+  const fetchUserServices = async (userId: string): Promise<Service[]> => {
     try {
       const { data, error } = await supabase
-        .from('join_requests')
-        .select('id')
-        .eq('group_id', groupId)
-        .eq('user_id', userId)
-        .single();
-        
-      if (error) throw error;
-      
-      if (status === 'approved') {
-        await approveGroupRequest(data.id, groupId, userId);
-      } else {
-        await rejectGroupRequest(data.id);
-      }
-    } catch (error: any) {
-      console.error("Error handling group join request:", error);
-      throw new Error(error.message || 'Failed to handle join request');
-    }
-  };
-  
-  const removeGroupMember = async (groupId: string, userId: string): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to remove a group member');
-    
-    try {
-      const { data: groupMemberData, error: memberCheckError } = await supabase
-        .from('group_members')
+        .from('services')
         .select('*')
-        .eq('group_id', groupId)
-        .eq('user_id', userId);
-        
-      if (memberCheckError) throw memberCheckError;
-      
-      if (!groupMemberData || groupMemberData.length === 0) {
-        toast({
-          title: "Not a member",
-          description: "You are not a member of this group"
-        });
-        return;
-      }
-      
-      const { error: deleteError } = await supabase
-        .from('group_members')
-        .delete()
-        .eq('group_id', groupId)
-        .eq('user_id', userId);
-        
-      if (deleteError) throw deleteError;
-      
-      const { data: groupData, error: getGroupError } = await supabase
-        .from('groups')
-        .select('members')
-        .eq('id', groupId)
-        .single();
-        
-      if (getGroupError) throw getGroupError;
-      
-      const newMemberCount = (groupData?.members || 1) - 1;
-      
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ members: newMemberCount })
-        .eq('id', groupId);
-        
-      if (updateError) throw updateError;
-      
-      setGroups(prevGroups => 
-        prevGroups.map(group => 
-          group.id === groupId 
-            ? { 
-                ...group, 
-                members: newMemberCount,
-                memberIds: group.memberIds ? group.memberIds.filter(id => id !== userId) : []
-              } 
-            : group
-        )
-      );
-      
-      toast({
-        title: "Member removed",
-        description: "The user has been removed from the group"
-      });
-    } catch (error: any) {
-      console.error("Error removing group member:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to remove group member",
-        variant: "destructive"
-      });
-      throw new Error(error.message || 'Failed to remove group member');
-    }
-  };
-  
-  const updateGroupDetails = async (groupId: string, updates: any): Promise<void> => {
-    if (!currentUser) throw new Error('You must be logged in to update group details');
-    
-    try {
-      const { error } = await supabase
-        .from('groups')
-        .update(updates)
-        .eq('id', groupId);
+        .eq('coach_id', userId)
+        .order('created_at', { ascending: false });
         
       if (error) throw error;
       
-      setGroups(prevGroups => 
-        prevGroups.map(group => 
-          group.id === groupId 
-            ? { ...group, ...updates } 
-            : group
-        )
-      );
+      if (data) {
+        return data.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          providerId: item.coach_id,
+          providerName: item.coach_name,
+          price: item.price,
+          duration: item.duration,
+          available: item.is_active,
+          createdAt: new Date(item.created_at),
+          isOnline: item.is_online,
+          location: item.location,
+          capacity: item.capacity,
+          serviceType: item.service_type as ServiceType,
+          coverImage: item.cover_image,
+          meetingUrl: item.meeting_url
+        }));
+      }
       
-      toast({
-        title: "Group updated",
-        description: "Your group details have been updated successfully"
-      });
+      return [];
     } catch (error: any) {
-      console.error("Error updating group details:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update group details"
-      });
-      throw new Error(error.message || 'Failed to update group details');
+      console.error("Error fetching user services:", error);
+      return [];
     }
   };
   
   return (
-    <DataContext.Provider
-      value={{
-        posts,
-        events,
-        groups,
-        services,
-        sessions,
-        sessionEnrollments,
-        messages,
-        setMessages,
-        joinRequests,
-        loading,
-        error,
-        postComments,
-        completedEvents,
-        announcements,
-        postAnnouncement,
-        createPost: async () => { throw new Error('Not implemented'); },
-        likePost: async () => { throw new Error('Not implemented'); },
-        unlikePost: async () => { throw new Error('Not implemented'); },
-        addComment: async () => { throw new Error('Not implemented'); },
-        updateComment: async (commentId: string, content: string) => updateComment(commentId, content),
-        deleteComment: async (commentId: string) => deleteComment(commentId),
-        createEvent,
-        joinEvent,
-        leaveEvent,
-        deleteEvent,
-        requestToJoinEvent,
-        approveEventRequest,
-        rejectEventRequest,
-        getEventRequests,
-        handleEventJoinRequest,
-        createGroup,
-        joinGroup,
-        leaveGroup,
-        requestToJoinGroup,
-        approveGroupRequest,
-        rejectGroupRequest,
-        getGroupRequests,
-        handleJoinRequest,
-        removeGroupMember,
-        updateGroupDetails,
-        createSession,
-        enrollInSession,
-        cancelEnrollment,
-        approveEnrollment,
-        rejectEnrollment,
-        getUserSessions,
-        getCoachSessions,
-        getUserEnrollments,
-        updateSession,
-        updateEnrollmentStatus,
-        sendMessage,
-        getServiceById,
-        bookService,
-        cancelBooking: cancelBookingImpl,
-        getUserBookings: getUserBookingsImpl,
-        getServiceBookings: getServiceBookingsImpl,
-        createService: async () => { throw new Error('Not implemented'); },
-        updateService: async () => { throw new Error('Not implemented'); },
-        deleteService: async () => { throw new Error('Not implemented'); },
-        approveBooking: approveBookingImpl,
-        sendServiceMessage: async () => { throw new Error('Not implemented'); },
-        getServiceMessages: async () => { return []; },
-        getUserBookingForService: getUserBookingForServiceImpl,
-        fetchUserServices: async () => { return []; }
-      }}
-    >
+    <DataContext.Provider value={{
+      posts,
+      events,
+      groups,
+      services,
+      sessions,
+      sessionEnrollments,
+      messages,
+      setMessages,
+      joinRequests,
+      loading,
+      error,
+      postComments,
+      completedEvents,
+      announcements,
+      postAnnouncement,
+      createPost: async () => { throw new Error('Not implemented'); },
+      likePost: async () => { throw new Error('Not implemented'); },
+      unlikePost: async () => { throw new Error('Not implemented'); },
+      addComment: async () => { throw new Error('Not implemented'); },
+      updateComment: async () => { throw new Error('Not implemented'); },
+      deleteComment: async () => { throw new Error('Not implemented'); },
+      createEvent,
+      joinEvent,
+      leaveEvent,
+      deleteEvent,
+      requestToJoinEvent: async () => { throw new Error('Not implemented'); },
+      approveEventRequest: async () => { throw new Error('Not implemented'); },
+      rejectEventRequest: async () => { throw new Error('Not implemented'); },
+      getEventRequests: async () => { return []; },
+      handleEventJoinRequest: async () => { throw new Error('Not implemented'); },
+      createGroup: async () => { throw new Error('Not implemented'); },
+      joinGroup,
+      leaveGroup,
+      requestToJoinGroup,
+      approveGroupRequest,
+      rejectGroupRequest,
+      getGroupRequests,
+      handleJoinRequest,
+      removeGroupMember,
+      updateGroupDetails,
+      createSession,
+      enrollInSession,
+      cancelEnrollment,
+      approveEnrollment,
+      rejectEnrollment,
+      getUserSessions,
+      getCoachSessions,
+      getUserEnrollments,
+      updateSession,
+      updateEnrollmentStatus,
+      sendMessage,
+      getServiceById,
+      bookService,
+      cancelBooking: cancelBookingImpl,
+      getUserBookings: getUserBookingsImpl,
+      getServiceBookings: getServiceBookingsImpl,
+      createService,
+      updateService,
+      deleteService,
+      approveBooking: approveBookingImpl,
+      sendServiceMessage,
+      getServiceMessages,
+      getUserBookingForService: getUserBookingForServiceImpl,
+      fetchUserServices
+    }}>
       {children}
     </DataContext.Provider>
   );
