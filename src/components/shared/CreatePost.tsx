@@ -4,15 +4,15 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/components/ui/use-toast';
 import { Image, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const CreatePost: React.FC = () => {
   const { currentUser } = useAuth();
-  const { createPost } = useData();
+  const { fetchPosts } = useData();
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
@@ -45,6 +45,60 @@ const CreatePost: React.FC = () => {
     }
   };
 
+  const createPost = async (content: string, image: File | null) => {
+    try {
+      // Create post data
+      const postData = {
+        user_id: currentUser.id,
+        user_name: currentUser.name,
+        user_role: currentUser.role,
+        user_profile_image: currentUser.profileImage,
+        content: content,
+        image: null,
+        likes_count: 0,
+        comments_count: 0
+      };
+      
+      // Upload image if provided
+      if (image) {
+        const fileExt = image.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `posts/${fileName}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('covers')
+          .upload(filePath, image, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          throw new Error('Error uploading image');
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('covers')
+          .getPublicUrl(filePath);
+        
+        postData.image = publicUrl;
+      }
+      
+      // Insert post into database
+      const { data, error } = await supabase
+        .from('posts')
+        .insert(postData)
+        .select();
+      
+      if (error) throw error;
+      
+      return data[0];
+    } catch (error) {
+      console.error('Error in createPost:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!content.trim() && !selectedImage) {
       toast("Empty post", {
@@ -63,6 +117,9 @@ const CreatePost: React.FC = () => {
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      // Refresh posts
+      fetchPosts();
+      
       toast("Post created", {
         description: "Your post has been published successfully",
         duration: 3000,
