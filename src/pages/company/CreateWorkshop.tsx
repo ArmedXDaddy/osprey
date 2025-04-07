@@ -1,344 +1,699 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { useAuth } from '@/context/AuthContext';
-import { ArrowLeft } from 'lucide-react';
-import { createWorkshop } from '@/integrations/supabase/helpers';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { uploadImage, createWorkshop } from '@/integrations/supabase/helpers';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import WorkshopImageSelector from '@/components/workshop/WorkshopImageSelector';
+import ImageGallery from '@/components/profile/ImageGallery';
+import { DialogContent, Dialog, DialogTitle } from '@/components/ui/dialog';
+import { Calendar as CalendarIcon, Clock, Users, MapPin, Video, Image as ImageIcon, Tag, DollarSign, Book, CheckCircle } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { TimePicker } from '@/components/ui/time-picker';
 
-const formSchema = z.object({
-  title: z.string().min(2, {
-    message: "Title must be at least 2 characters."
-  }),
-  description: z.string().min(10, {
-    message: "Description must be at least 10 characters."
-  }),
-  date: z.string({
-    required_error: "Date is required",
-  }),
-  duration: z.string().min(1, {
-    message: "Duration is required",
-  }),
-  price: z.number().min(0, {
-    message: "Price must be a positive number",
-  }),
-  capacity: z.number().positive({
-    message: "Capacity must be a positive number",
-  }).optional(),
-  isOnline: z.boolean().default(false),
-  location: z.string().optional(),
-  meetingUrl: z.string().optional(),
-  category: z.string().optional(),
-  image: z.string().optional(),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
-export const CreateWorkshop = () => {
-  const { currentUser } = useAuth();
+const CreateWorkshop = () => {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [longDescription, setLongDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [price, setPrice] = useState('');
+  const [capacity, setCapacity] = useState('');
+  const [date, setDate] = useState<Date | undefined>(undefined);
+  const [startTime, setStartTime] = useState('09:00');
+  const [endTime, setEndTime] = useState('17:00');
+  const [duration, setDuration] = useState('60');
+  const [location, setLocation] = useState('');
+  const [isOnline, setIsOnline] = useState(true);
+  const [meetingUrl, setMeetingUrl] = useState('');
+  const [topics, setTopics] = useState('');
+  const [prerequisites, setPrerequisites] = useState('');
+  const [includes, setIncludes] = useState('');
+  const [tags, setTags] = useState('');
+  const [instructors, setInstructors] = useState([
+    { name: '', role: '', bio: '' }
+  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [coverImage, setCoverImage] = useState('');
   
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      date: new Date().toISOString().split('T')[0],
-      duration: "60 minutes",
-      price: 0,
-      capacity: 20,
-      isOnline: false,
-      location: "",
-      meetingUrl: "",
-      category: "",
-      image: "",
-    },
-  });
-  
-  const watchIsOnline = form.watch("isOnline");
-  
-  const onSubmit = async (data: FormData) => {
-    if (!currentUser || currentUser.role !== 'company') {
-      toast({
-        title: "Permission denied",
-        description: "Only companies can create workshops",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsSubmitting(true);
+  // Image gallery state
+  const [openGallery, setOpenGallery] = useState(false);
+  const [images, setImages] = useState<{name: string; url: string}[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  // Load user's images when opening the gallery
+  const loadImages = async () => {
+    if (!currentUser) return;
     
     try {
-      const workshopData = {
-        title: data.title,
-        description: data.description,
-        company_id: currentUser.id,
-        company_name: currentUser.name,
-        company_logo: currentUser.profileImage,
-        price: data.price,
-        date: data.date,
-        duration: data.duration,
-        capacity: data.capacity,
-        location: !data.isOnline ? data.location : null,
-        is_online: data.isOnline,
-        meeting_url: data.isOnline ? data.meetingUrl : null,
-        category: data.category,
-        image: data.image,
-      };
+      const { data, error } = await supabase
+        .storage
+        .from('covers')
+        .list(`${currentUser.id}`, {
+          sortBy: { column: 'created_at', order: 'desc' },
+        });
+
+      if (error) {
+        console.error('Error loading images:', error);
+        return;
+      }
+
+      // Map file objects to image URLs
+      const imageUrls = data
+        .filter(file => file.name.match(/\.(jpeg|jpg|gif|png)$/i))
+        .map(file => {
+          const { data: { publicUrl } } = supabase
+            .storage
+            .from('covers')
+            .getPublicUrl(`${currentUser.id}/${file.name}`);
+          
+          return {
+            name: file.name,
+            url: publicUrl
+          };
+        });
+
+      setImages(imageUrls);
+    } catch (error) {
+      console.error('Error in loadImages:', error);
+    }
+  };
+
+  const handleUploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || !e.target.files[0] || !currentUser) return;
+    
+    const file = e.target.files[0];
+    setUploading(true);
+    
+    try {
+      // Upload the image to the user's folder in the covers bucket
+      const imagePath = `${currentUser.id}`;
+      const imageUrl = await uploadImage(file, imagePath);
       
-      const workshop = await createWorkshop(workshopData);
+      // Reload the images to show the newly uploaded one
+      await loadImages();
       
       toast({
-        title: "Workshop created",
-        description: "Your workshop has been created successfully",
+        title: "Image uploaded",
+        description: "Your image has been uploaded successfully.",
       });
-      
-      navigate(`/company/workshops/${workshop.id}`);
-    } catch (error: any) {
-      console.error("Error creating workshop:", error);
+    } catch (error) {
+      console.error('Error uploading image:', error);
       toast({
-        title: "Error creating workshop",
-        description: error.message || "An unexpected error occurred",
+        title: "Upload failed",
+        description: "There was an error uploading your image.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setUploading(false);
     }
   };
-  
-  const handleBack = () => {
-    navigate('/company/workshops');
+
+  const handleSelectImage = (url: string) => {
+    setCoverImage(url);
   };
-  
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={handleBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Workshops
+
+  const updateInstructor = (index: number, field: 'name' | 'role' | 'bio', value: string) => {
+    const newInstructors = [...instructors];
+    newInstructors[index] = { ...newInstructors[index], [field]: value };
+    setInstructors(newInstructors);
+  };
+
+  const addInstructor = () => {
+    setInstructors([...instructors, { name: '', role: '', bio: '' }]);
+  };
+
+  const removeInstructor = (index: number) => {
+    if (instructors.length > 1) {
+      setInstructors(instructors.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUser || !date) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Format the topics as an array
+      const topicsArray = topics.split('\n').map(topic => topic.trim()).filter(topic => topic);
+      
+      // Format the prerequisites as an array
+      const prerequisitesArray = prerequisites.split('\n').map(prereq => prereq.trim()).filter(prereq => prereq);
+      
+      // Format the includes as an array
+      const includesArray = includes.split('\n').map(item => item.trim()).filter(item => item);
+      
+      // Format the tags as an array
+      const tagsArray = tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      
+      // Format the instructors
+      const formattedInstructors = instructors.filter(i => i.name).map(instructor => ({
+        name: instructor.name,
+        role: instructor.role,
+        bio: instructor.bio,
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(instructor.name)}`
+      }));
+      
+      // Create a combined date and time
+      const workshopDate = new Date(date);
+      const [startHours, startMinutes] = startTime.split(':').map(Number);
+      workshopDate.setHours(startHours, startMinutes);
+      
+      // Create workshop data object
+      const workshopData = {
+        title,
+        description,
+        long_description: longDescription,
+        company_id: currentUser.id,
+        company_name: currentUser.name,
+        company_logo: currentUser.profileImage || `https://ui-avatars.com/api/?name=${encodeURIComponent(currentUser.name)}&background=random`,
+        price: price ? parseFloat(price) : 0,
+        date: workshopDate.toISOString(),
+        start_time: startTime,
+        end_time: endTime,
+        duration: `${duration} minutes`,
+        capacity: capacity ? parseInt(capacity) : null,
+        location: isOnline ? null : location,
+        is_online: isOnline,
+        meeting_url: isOnline ? meetingUrl : null,
+        category,
+        image: coverImage,
+        topics: topicsArray,
+        prerequisites: prerequisitesArray,
+        includes: includesArray,
+        tags: tagsArray,
+        instructors: formattedInstructors
+      };
+      
+      // Create workshop in database using our helper function
+      const data = await createWorkshop(workshopData);
+      
+      toast({
+        title: "Workshop created",
+        description: "Your workshop has been created successfully.",
+      });
+      
+      // Navigate to the workshop detail page
+      navigate(`/company/workshops/${data.id}`);
+    } catch (error: any) {
+      console.error('Error creating workshop:', error);
+      toast({
+        title: "Failed to create workshop",
+        description: error.message || "There was an error creating your workshop.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!currentUser || currentUser.role !== 'company') {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+        <p className="text-gray-600">Only company accounts can create workshops.</p>
+        <Button 
+          className="mt-4" 
+          variant="outline" 
+          onClick={() => navigate('/profile')}
+        >
+          Go to Profile
         </Button>
       </div>
-      
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Create New Workshop</h1>
-          <p className="text-muted-foreground">Fill in the details to create a new workshop or training session</p>
-        </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto mb-20">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Create a New Workshop</h1>
+        <p className="text-gray-500">Host a workshop to share knowledge and connect with the community</p>
       </div>
       
-      <Card>
-        <CardHeader>
-          <CardTitle>Workshop Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter workshop title" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Workshop Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Book className="mr-2 h-5 w-5" />
+              Basic Workshop Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="title">Workshop Title*</Label>
+                <Input
+                  id="title"
+                  placeholder="Enter workshop title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                />
+              </div>
               
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Describe your workshop" 
-                        className="min-h-[120px]" 
-                        {...field} 
+              <div className="space-y-2">
+                <Label htmlFor="description">Short Description*</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Write a concise description (1-2 sentences)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={2}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="longDescription">Detailed Description*</Label>
+                <Textarea
+                  id="longDescription"
+                  placeholder="Provide a comprehensive description of your workshop, what participants will learn, and who should attend"
+                  value={longDescription}
+                  onChange={(e) => setLongDescription(e.target.value)}
+                  rows={5}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="category">Category*</Label>
+                <Select 
+                  value={category} 
+                  onValueChange={setCategory}
+                  required
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="React">React</SelectItem>
+                    <SelectItem value="Technology">Technology</SelectItem>
+                    <SelectItem value="Business">Business</SelectItem>
+                    <SelectItem value="Marketing">Marketing</SelectItem>
+                    <SelectItem value="Design">Design</SelectItem>
+                    <SelectItem value="Education">Education</SelectItem>
+                    <SelectItem value="Healthcare">Healthcare</SelectItem>
+                    <SelectItem value="Personal Development">Personal Development</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="tags" className="flex items-center">
+                  <Tag className="h-4 w-4 mr-1" />
+                  Tags (comma separated)
+                </Label>
+                <Input
+                  id="tags"
+                  placeholder="e.g. React, Advanced, Enterprise, Patterns, Frontend"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Workshop Scheduling */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <CalendarIcon className="mr-2 h-5 w-5" />
+              Workshop Schedule
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">Date*</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal"
+                      id="date"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                      disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="duration">Duration (minutes)*</Label>
+                <Select 
+                  value={duration} 
+                  onValueChange={setDuration}
+                >
+                  <SelectTrigger id="duration">
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="60">60 minutes</SelectItem>
+                    <SelectItem value="90">90 minutes</SelectItem>
+                    <SelectItem value="120">2 hours</SelectItem>
+                    <SelectItem value="180">3 hours</SelectItem>
+                    <SelectItem value="240">4 hours</SelectItem>
+                    <SelectItem value="480">8 hours (Full day)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="startTime">Start Time*</Label>
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="endTime">End Time*</Label>
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price" className="flex items-center">
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Price ($)*
+                </Label>
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="0 for free"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  required
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="capacity" className="flex items-center">
+                  <Users className="h-4 w-4 mr-1" />
+                  Capacity
+                </Label>
+                <Input
+                  id="capacity"
+                  type="number"
+                  placeholder="Leave empty for unlimited"
+                  value={capacity}
+                  onChange={(e) => setCapacity(e.target.value)}
+                  min="1"
+                />
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="isOnline" 
+                checked={isOnline}
+                onCheckedChange={setIsOnline}
+              />
+              <Label htmlFor="isOnline">{isOnline ? 'Online Workshop' : 'In-Person Workshop'}</Label>
+            </div>
+            
+            {isOnline ? (
+              <div className="space-y-2">
+                <Label htmlFor="meetingUrl" className="flex items-center">
+                  <Video className="h-4 w-4 mr-1" />
+                  Meeting URL*
+                </Label>
+                <Input
+                  id="meetingUrl"
+                  type="url"
+                  placeholder="https://zoom.us/j/example"
+                  value={meetingUrl}
+                  onChange={(e) => setMeetingUrl(e.target.value)}
+                  required={isOnline}
+                />
+                <p className="text-xs text-gray-500">
+                  Provide a Zoom, Google Meet, or other video conferencing link
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="location" className="flex items-center">
+                  <MapPin className="h-4 w-4 mr-1" />
+                  Location*
+                </Label>
+                <Input
+                  id="location"
+                  placeholder="Enter physical address"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  required={!isOnline}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        {/* Workshop Content */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Workshop Content</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="topics">What You'll Learn (one per line)*</Label>
+              <Textarea
+                id="topics"
+                placeholder="Enter each topic on a new line
+e.g. Component composition strategies
+State management beyond Redux"
+                value={topics}
+                onChange={(e) => setTopics(e.target.value)}
+                rows={5}
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="prerequisites">Prerequisites (one per line)</Label>
+              <Textarea
+                id="prerequisites"
+                placeholder="Enter each prerequisite on a new line
+e.g. Solid understanding of React fundamentals
+Experience with hooks and functional components"
+                value={prerequisites}
+                onChange={(e) => setPrerequisites(e.target.value)}
+                rows={4}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="includes">What's Included (one per line)</Label>
+              <Textarea
+                id="includes"
+                placeholder="Enter each included item on a new line
+e.g. Full day of live instruction
+Workshop materials and slides"
+                value={includes}
+                onChange={(e) => setIncludes(e.target.value)}
+                rows={4}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Instructors */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Instructors</CardTitle>
+            <Button 
+              type="button" 
+              variant="outline" 
+              size="sm"
+              onClick={addInstructor}
+            >
+              Add Instructor
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {instructors.map((instructor, index) => (
+              <Card key={index} className="border">
+                <CardContent className="pt-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Instructor {index + 1}</h4>
+                    {instructors.length > 1 && (
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => removeInstructor(index)}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor={`instructor-${index}-name`}>Name*</Label>
+                      <Input
+                        id={`instructor-${index}-name`}
+                        value={instructor.name}
+                        onChange={(e) => updateInstructor(index, 'name', e.target.value)}
+                        placeholder="e.g. Sarah Johnson"
+                        required={index === 0}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="duration"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Duration</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. 60 minutes" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="0.00" 
-                          {...field}
-                          value={field.value}
-                          onChange={e => field.onChange(Number(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="capacity"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Capacity</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="Maximum participants" 
-                          {...field}
-                          value={field.value || ''}
-                          onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Category</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Fitness, Nutrition, etc." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="isOnline"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Online Workshop</FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        This workshop will be held online
-                      </p>
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
+                    <div className="space-y-2">
+                      <Label htmlFor={`instructor-${index}-role`}>Role/Title</Label>
+                      <Input
+                        id={`instructor-${index}-role`}
+                        value={instructor.role}
+                        onChange={(e) => updateInstructor(index, 'role', e.target.value)}
+                        placeholder="e.g. Senior React Engineer"
                       />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              
-              {watchIsOnline ? (
-                <FormField
-                  control={form.control}
-                  name="meetingUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Meeting URL</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. Zoom link" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor={`instructor-${index}-bio`}>Bio</Label>
+                    <Textarea
+                      id={`instructor-${index}-bio`}
+                      value={instructor.bio}
+                      onChange={(e) => updateInstructor(index, 'bio', e.target.value)}
+                      placeholder="Brief bio of the instructor"
+                      rows={3}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </CardContent>
+        </Card>
+        
+        {/* Workshop Image */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Workshop Image</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="coverImage" className="block mb-2">Cover Image</Label>
+              {coverImage ? (
+                <div className="relative aspect-video rounded-md overflow-hidden bg-gray-100 mb-2">
+                  <img 
+                    src={coverImage} 
+                    alt="Cover" 
+                    className="w-full h-full object-cover"
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="absolute bottom-2 right-2"
+                    onClick={() => setOpenGallery(true)}
+                  >
+                    Change Image
+                  </Button>
+                </div>
               ) : (
-                <FormField
-                  control={form.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Physical location" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div 
+                  className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center cursor-pointer hover:bg-gray-50 transition-colors"
+                  onClick={() => setOpenGallery(true)}
+                >
+                  <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
+                  <div className="mt-2">
+                    <Button type="button" variant="secondary">
+                      Select Cover Image
+                    </Button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Choose an image from your gallery
+                  </p>
+                </div>
               )}
-              
-              <FormField
-                control={form.control}
-                name="image"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cover Image</FormLabel>
-                    <FormControl>
-                      <WorkshopImageSelector 
-                        value={field.value || ''}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Creating..." : "Create Workshop"}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <div className="flex justify-end gap-2">
+          <Button 
+            type="button" 
+            variant="outline"
+            onClick={() => navigate('/company/workshops')}
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="submit"
+            disabled={isLoading || !date}
+          >
+            {isLoading ? 'Creating...' : 'Create Workshop'}
+          </Button>
+        </div>
+      </form>
+      
+      <Dialog open={openGallery} onOpenChange={(open) => {
+        setOpenGallery(open);
+        if (open) loadImages();
+      }}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogTitle>Your Image Gallery</DialogTitle>
+          <ImageGallery
+            images={images}
+            onSelectImage={handleSelectImage}
+            onUploadImage={handleUploadImage}
+            uploading={uploading}
+            emptyMessage="Upload images to use as cover images for your workshops."
+            aspectRatio="landscape"
+            selectedImage={coverImage}
+            onClose={() => setOpenGallery(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
