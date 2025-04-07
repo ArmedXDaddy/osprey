@@ -26,7 +26,7 @@ const EventDetail = () => {
   const [isAttending, setIsAttending] = useState(false);
   const [attendeeDetails, setAttendeeDetails] = useState<AttendeeDetail[]>([]);
   const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
-  const [showRegistration, setShowRegistration] = useState(false);
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(false);
   const [eventAnnouncements, setEventAnnouncements] = useState(announcements.filter(a => a.eventId === id));
   
   const event = events.find(e => e.id === id);
@@ -138,7 +138,7 @@ const EventDetail = () => {
   
   const isCreator = currentUser && event.creatorId === currentUser.id;
   
-  const showRegistration = async () => {
+  const openRegistrationDialog = () => {
     if (!currentUser) {
       toast({
         title: "Authentication required",
@@ -148,7 +148,7 @@ const EventDetail = () => {
       return;
     }
     
-    setShowRegistration(true);
+    setIsRegistrationOpen(true);
   };
   
   const handleAttendEvent = async () => {
@@ -184,9 +184,9 @@ const EventDetail = () => {
       }
     } else {
       if (event.privacy === 'paid' && event.price) {
-        showRegistration();
+        openRegistrationDialog();
       } else {
-        showRegistration();
+        openRegistrationDialog();
       }
     }
   };
@@ -519,8 +519,8 @@ const EventDetail = () => {
       )}
       
       <EventRegistrationDialog
-        isOpen={showRegistration}
-        onClose={() => setShowRegistration(false)}
+        isOpen={isRegistrationOpen}
+        onClose={() => setIsRegistrationOpen(false)}
         eventTitle={event.title}
         eventId={event.id}
         onSubmit={handleRegister}
