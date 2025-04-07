@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Event } from '@/types';
@@ -40,6 +41,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
   
   const isPaidEvent = event.privacy === 'paid' && event.price && event.price > 0;
 
+  // Function to generate a random 6-digit verification code
   const generateVerificationCode = () => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     return code;
@@ -56,12 +58,14 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
     }
     
     if (isAttending) {
+      // If already attending, handle leaving
       onJoin();
     } else {
       try {
         await onJoin();
         
         if (isPaidEvent) {
+          // For paid events, show payment modal
           setShowPaymentModal(true);
         }
       } catch (error) {
@@ -74,6 +78,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
     try {
       setIsProcessing(true);
       
+      // Update payment status in database
       if (currentUser) {
         const { error } = await supabase
           .from('event_attendee_details')
@@ -86,9 +91,11 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         }
       }
       
+      // Generate verification code
       const code = generateVerificationCode();
       setVerificationCode(code);
       
+      // Close payment modal and show verification code
       setShowPaymentModal(false);
       setShowVerificationCode(true);
       
@@ -132,6 +139,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         )}
       </Button>
       
+      {/* Payment Modal */}
       {showPaymentModal && (
         <MockPaymentModal
           isOpen={showPaymentModal}
@@ -146,6 +154,7 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
         />
       )}
       
+      {/* Verification Code Dialog */}
       <Dialog open={showVerificationCode} onOpenChange={handleCloseVerificationDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

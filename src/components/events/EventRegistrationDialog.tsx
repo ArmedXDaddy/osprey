@@ -38,7 +38,7 @@ const EventRegistrationDialog = ({
     try {
       setIsProcessing(true);
       
-      // Store registration details in the database - use snake_case for column names
+      // Store registration details in the database
       const { error } = await supabase
         .from('event_attendee_details')
         .insert({
