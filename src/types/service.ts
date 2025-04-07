@@ -1,5 +1,4 @@
-
-export type ServiceType = 'one_on_one' | 'group' | 'course' | 'consultation' | 'webinar' | 'other';
+export type ServiceType = 'one_on_one' | 'group' | 'course' | 'consultation' | 'webinar';
 
 export type BookingStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'completed';
 export type PaymentStatus = 'unpaid' | 'paid' | 'refunded' | 'failed';
