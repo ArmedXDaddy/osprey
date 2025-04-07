@@ -899,7 +899,449 @@ export const DataProvider = ({ children }: { children: React.ReactNode }) => {
       
       // Check if user is already attending
       if (eventToUpdate.attendees && eventToUpdate.attendees.includes(currentUser.id)) {
-
+        toast({
+          title: "Already attending",
+          description: "You are already attending this event"
+        });
+        return;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ attendees: [...eventToUpdate.attendees, currentUser.id] })
+        .eq('id', eventId);
+        
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Event joined",
+        description: "You have successfully joined the event"
+      });
+    } catch (error: any) {
+      console.error("Error joining event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to join event",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to join event');
+    }
+  };
+  
+  const leaveEvent = async (eventId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to leave an event');
+    
+    try {
+      const eventToUpdate = events.find(e => e.id === eventId);
+      if (!eventToUpdate) throw new Error('Event not found');
+      
+      if (!eventToUpdate.attendees || !eventToUpdate.attendees.includes(currentUser.id)) {
+        toast({
+          title: "Not attending",
+          description: "You are not attending this event"
+        });
+        return;
+      }
+      
+      const { error: updateError } = await supabase
+        .from('events')
+        .update({ attendees: eventToUpdate.attendees.filter(id => id !== currentUser.id) })
+        .eq('id', eventId);
+        
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Event left",
+        description: "You have successfully left the event"
+      });
+    } catch (error: any) {
+      console.error("Error leaving event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to leave event",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to leave event');
+    }
+  };
+  
+  const deleteEvent = async (eventId: string, reason?: 'cancelled' | 'completed'): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete an event');
+    
+    try {
+      const { error: deleteError } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+        
+      if (deleteError) throw deleteError;
+      
+      const updatedEvents = events.filter(event => event.id !== eventId);
+      setEvents(updatedEvents);
+      
+      toast({
+        title: "Event deleted",
+        description: "The event has been successfully deleted."
+      });
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete event",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to delete event');
+    }
+  };
+  
+  const requestToJoinEvent = async (eventId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to request to join an event');
+    
+    try {
+      const { error: requestError } = await supabase
+        .from('event_requests')
+        .insert({
+          event_id: eventId,
+          user_id: currentUser.id
+        });
+        
+      if (requestError) throw requestError;
+      
+      toast({
+        title: "Request sent",
+        description: "Your request to join the event has been sent"
+      });
+    } catch (error: any) {
+      console.error("Error requesting to join event:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to request to join event",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to request to join event');
+    }
+  };
+  
+  const approveEventRequest = async (requestId: string, eventId: string, userId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to approve an event request');
+    
+    try {
+      const { error: updateError } = await supabase
+        .from('event_requests')
+        .update({ status: 'approved' })
+        .eq('id', requestId);
+        
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Request approved",
+        description: "The event request has been approved"
+      });
+    } catch (error: any) {
+      console.error("Error approving event request:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to approve event request",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to approve event request');
+    }
+  };
+  
+  const rejectEventRequest = async (requestId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to reject an event request');
+    
+    try {
+      const { error: updateError } = await supabase
+        .from('event_requests')
+        .update({ status: 'rejected' })
+        .eq('id', requestId);
+        
+      if (updateError) throw updateError;
+      
+      toast({
+        title: "Request rejected",
+        description: "The event request has been rejected"
+      });
+    } catch (error: any) {
+      console.error("Error rejecting event request:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reject event request",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to reject event request');
+    }
+  };
+  
+  const getEventRequests = async (eventId: string): Promise<JoinRequest[]> => {
+    return [];
+  };
+  
+  const handleEventJoinRequest = async (eventId: string, userId: string, status: 'approved' | 'rejected'): Promise<void> => {
+    throw new Error('Not implemented');
+  };
+  
+  const createGroup = async (groupData: any): Promise<Group> => {
+    if (!currentUser) throw new Error('You must be logged in to create a group');
+    
+    try {
+      const newGroup: Group = {
+        id: Date.now().toString(),
+        name: groupData.name,
+        description: groupData.description,
+        creatorId: currentUser.id,
+        creatorName: currentUser.name,
+        creatorRole: currentUser.role,
+        members: [currentUser.id],
+        memberIds: [currentUser.id],
+        image: groupData.image,
+        privacy: groupData.privacy,
+        price: groupData.price,
+        createdAt: new Date(),
+        pendingRequests: 0,
+        rules: groupData.rules,
+        memberLimit: groupData.memberLimit
+      };
+      
+      setGroups(prev => [newGroup, ...prev]);
+      
+      toast({
+        title: "Group created",
+        description: "Your group has been created successfully",
+      });
+      
+      return newGroup;
+    } catch (error: any) {
+      console.error("Error creating group:", error);
+      toast({
+        variant: "destructive",
+        title: "Error creating group",
+        description: error.message || "Failed to create group"
+      });
+      throw error;
+    }
+  };
+  
+  const createPost = async (content: string, imageFile?: File | null): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to create a post');
+    
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage,
+          content,
+          image: imageFile ? await uploadImage(imageFile) : null
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newPost: Post = {
+        id: data.id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role as UserRole,
+        userProfileImage: data.user_profile_image,
+        content: data.content,
+        image: data.image,
+        likes: 0,
+        comments: 0,
+        userLikes: [],
+        createdAt: new Date(data.created_at)
+      };
+      
+      setPosts(prev => [newPost, ...prev]);
+      
+      toast({
+        title: "Post created",
+        description: "Your post has been created successfully",
+      });
+    } catch (error: any) {
+      console.error("Error creating post:", error);
+      toast({
+        variant: "destructive",
+        title: "Error creating post",
+        description: error.message || "Failed to create post"
+      });
+      throw error;
+    }
+  };
+  
+  const likePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to like a post');
+    
+    try {
+      const { error } = await supabase
+        .from('post_likes')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id
+        });
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Post liked",
+        description: "Your like has been added to the post"
+      });
+    } catch (error: any) {
+      console.error("Error liking post:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to like post",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to like post');
+    }
+  };
+  
+  const unlikePost = async (postId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to unlike a post');
+    
+    try {
+      const { error } = await supabase
+        .from('post_likes')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Post unliked",
+        description: "Your like has been removed from the post"
+      });
+    } catch (error: any) {
+      console.error("Error unliking post:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unlike post",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to unlike post');
+    }
+  };
+  
+  const addComment = async (postId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to add a comment');
+    
+    try {
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: postId,
+          user_id: currentUser.id,
+          user_name: currentUser.name,
+          user_role: currentUser.role,
+          user_profile_image: currentUser.profileImage,
+          content
+        })
+        .select()
+        .single();
+        
+      if (error) throw error;
+      
+      const newComment: Comment = {
+        id: data.id,
+        postId: data.post_id,
+        userId: data.user_id,
+        userName: data.user_name,
+        userRole: data.user_role as UserRole,
+        userProfileImage: data.user_profile_image,
+        content: data.content,
+        createdAt: new Date(data.created_at)
+      };
+      
+      setPostComments(prev => {
+        const updatedComments = { ...prev };
+        if (!updatedComments[newComment.postId]) {
+          updatedComments[newComment.postId] = [];
+        }
+        updatedComments[newComment.postId].push(newComment);
+        return updatedComments;
+      });
+      
+      setPosts(prevPosts => 
+        prevPosts.map(post => 
+          post.id === newComment.postId 
+            ? { ...post, comments: post.comments + 1 } 
+            : post
+        )
+      );
+      
+      toast({
+        title: "Comment added",
+        description: "Your comment has been added successfully",
+      });
+    } catch (error: any) {
+      console.error("Error adding comment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add comment",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to add comment');
+    }
+  };
+  
+  const updateComment = async (commentId: string, content: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to update a comment');
+    
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .update({ content })
+        .eq('id', commentId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Comment updated",
+        description: "Your comment has been updated successfully",
+      });
+    } catch (error: any) {
+      console.error("Error updating comment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update comment",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to update comment');
+    }
+  };
+  
+  const deleteComment = async (commentId: string): Promise<void> => {
+    if (!currentUser) throw new Error('You must be logged in to delete a comment');
+    
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Comment deleted",
+        description: "Your comment has been deleted successfully",
+      });
+    } catch (error: any) {
+      console.error("Error deleting comment:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete comment",
+        variant: "destructive"
+      });
+      throw new Error(error.message || 'Failed to delete comment');
+    }
+  };
+  
   const postAnnouncement = async (eventId: string, content: string): Promise<void> => {
     if (!currentUser) throw new Error('You must be logged in to post an announcement');
     
