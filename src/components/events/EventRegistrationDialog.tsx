@@ -61,6 +61,9 @@ const EventRegistrationDialog = ({
         throw error;
       }
       
+      // For the interface, set the appropriate payment status
+      data.paymentStatus = isPaidEvent ? 'pending' : 'not_required';
+      
       await onSubmit(data);
       onClose();
     } catch (error: any) {
