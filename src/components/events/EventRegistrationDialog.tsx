@@ -18,8 +18,6 @@ interface EventRegistrationDialogProps {
   eventTitle: string;
   eventId: string;
   onSubmit: (data: EventRegistration) => Promise<void>;
-  isPaidEvent?: boolean;
-  price?: number;
 }
 
 const EventRegistrationDialog = ({ 
@@ -27,9 +25,7 @@ const EventRegistrationDialog = ({
   onClose, 
   eventTitle,
   eventId,
-  onSubmit,
-  isPaidEvent = false,
-  price = 0
+  onSubmit 
 }: EventRegistrationDialogProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
@@ -53,16 +49,12 @@ const EventRegistrationDialog = ({
           instagram: data.instagram,
           twitter: data.twitter,
           additional_info: data.additionalInfo,
-          profile_image: data.profileImage,
-          payment_status: isPaidEvent ? 'pending' : 'not_required'
+          profile_image: data.profileImage
         });
         
       if (error) {
         throw error;
       }
-      
-      // For the interface, set the appropriate payment status
-      data.paymentStatus = isPaidEvent ? 'pending' : 'not_required';
       
       await onSubmit(data);
       onClose();
@@ -84,18 +76,13 @@ const EventRegistrationDialog = ({
         <DialogHeader>
           <DialogTitle className="text-xl md:text-2xl">Register for {eventTitle}</DialogTitle>
           <DialogDescription>
-            {isPaidEvent 
-              ? `Please fill out the form below to complete your registration. Payment of $${price} will be required after registration.`
-              : 'Please fill out the form below to complete your registration.'
-            }
+            Please fill out the form below to complete your registration.
           </DialogDescription>
         </DialogHeader>
         
         <EventRegistrationForm 
           onSubmit={handleSubmit}
           isProcessing={isProcessing}
-          isPaidEvent={isPaidEvent}
-          price={price}
         />
       </DialogContent>
     </Dialog>
