@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Event } from '@/types';
@@ -76,10 +75,9 @@ const EventPaymentButton: React.FC<EventPaymentButtonProps> = ({
       setIsProcessing(true);
       
       if (currentUser) {
-        // We need to use snake_case for the database column names
         const { error } = await supabase
           .from('event_attendee_details')
-          .update({ payment_status: 'paid' }) // Use snake_case for database
+          .update({ payment_status: 'paid' })
           .eq('event_id', event.id)
           .eq('user_id', currentUser.id);
           
